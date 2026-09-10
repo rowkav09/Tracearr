@@ -1,310 +1,35 @@
-> **Athenaeum fork:** optional host Tailscale geolocation, Navidrome support, and Plexamp listening statistics. See the [deployment status, limitations, rollback and update workflow](docs/athenaeum.md). The `main` branch tracks upstream; custom changes live on `athenaeum`.
+# Music statistics, Navidrome and Tailscale client locations
 
-<p align="center">
-  <img src="apps/web/public/images/og_image.png" alt="Tracearr" width="600" />
-</p>
+This fork addresses three problems in a media-server setup using Plexamp, Jellyfin over Tailscale, and Navidrome.
 
-<p align="center">
-  <strong>Real-time monitoring for Plex, Jellyfin, and Emby. One dashboard for all your servers.</strong>
-</p>
+## The problems
 
-<p align="center">
-  <a href="https://github.com/connorgallopo/Tracearr/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/connorgallopo/Tracearr/ci.yml?branch=main&style=flat-square&label=CI" alt="CI Status" /></a>
-  <a href="https://github.com/connorgallopo/Tracearr/actions/workflows/nightly.yml"><img src="https://img.shields.io/github/actions/workflow/status/connorgallopo/Tracearr/nightly.yml?style=flat-square&label=Nightly" alt="Nightly Build" /></a>
-  <a href="https://snyk.io/test/github/connorgallopo/Tracearr"><img src="https://snyk.io/test/github/connorgallopo/Tracearr/badge.svg" alt="Snyk Security" /></a>
-  <a href="https://github.com/connorgallopo/Tracearr/releases"><img src="https://img.shields.io/github/v/release/connorgallopo/Tracearr?style=flat-square&color=18D1E7" alt="Latest Release" /></a>
-  <a href="https://ghcr.io/connorgallopo/tracearr"><img src="https://img.shields.io/badge/ghcr.io-tracearr-blue?style=flat-square&logo=docker&logoColor=white" alt="Docker" /></a>
-  <a href="https://github.com/connorgallopo/Tracearr/blob/main/LICENSE"><img src="https://img.shields.io/github/license/connorgallopo/Tracearr?style=flat-square" alt="License" /></a>
-  <a title="Crowdin" target="_blank" href="https://crowdin.com/project/tracearr"><img src="https://badges.crowdin.net/tracearr/localized.svg"></a>
-  <a href="https://docs.tracearr.com"><img src="https://img.shields.io/badge/docs-tracearr.com-18D1E7?style=flat-square" alt="Documentation" /></a>
-  <a href="https://discord.gg/a7n3sFd2Yw"><img src="https://img.shields.io/discord/1444393247978946684?style=flat-square&logo=discord&logoColor=white&label=Discord&color=5865F2" alt="Discord" /></a>
-  <a href="https://ko-fi.com/E1E21QRI1L"><img src="https://img.shields.io/badge/Ko--fi-Support-FF5E5B?style=flat-square&logo=kofi&logoColor=white" alt="Ko-Fi" /></a>
-</p>
+- **Plexamp shows an active stream, but listening does not appear in the main statistics.** Track sessions and durations are saved, while the primary dashboard and statistics filters exclude music.
+- **Jellyfin reports a Tailscale client address instead of a usable location.** An address in `100.64.0.0/10` identifies a tailnet peer, not its public geographic location. A relay server's location is not the listener's location.
+- **Navidrome has no native server adapter here.** Its users, current playback and music metadata need to enter the normal session-tracking pipeline.
 
----
+## What this fork changes
 
-Tracearr is a monitoring platform for **Plex**, **Jellyfin**, and **Emby**. Track streams in real-time, dig into playback analytics, and spot account sharing before it gets out of hand.
+| Area | Difference |
+| --- | --- |
+| Music statistics | Includes recorded tracks in dashboard totals, play charts and user statistics, including existing Plexamp history. |
+| Tailscale locations | Reads the host's current peer state and uses a public `CurAddr` only for an active, online, directly connected peer. |
+| Relay and missing data | Leaves locations unknown when data is stale, ambiguous, relayed or unavailable. |
+| Navidrome | Adds an optional OpenSubsonic adapter for users, libraries and current playback, with artist, album, track, duration, position, source bitrate/codec and client metadata. |
+| Data preservation | Uses the normal tracking lifecycle; no direct history rewrites. Keeps a separately tagged official image and data backups for rollback. |
 
-## What It Does
+Music play counts retain the existing two-minute minimum. Video-specific rankings and engagement reports keep their existing scope. Navidrome historical backfill is not implemented, and simultaneous sessions with the same user/client identity cannot be reliably distinguished.
 
-**Multi-Server Dashboard** — Connect Plex, Jellyfin, and Emby to a single interface. No more switching between apps.
+Both integrations are separately configurable. The Tailscale reader does not change routes, spoof headers or disconnect clients. Location accuracy still depends on GeoIP and a real direct endpoint.
 
-**Session Tracking** — Complete session history: who watched what, when, where, and on what device. Every stream includes geolocation data.
+## Branches and updates
 
-**Stream Analytics** — See what's transcoding vs direct playing, track bandwidth usage, and see what people actually watch. Codec breakdowns, resolution stats, device compatibility scores. Enhanced IP geolocation includes ASN data, continent, and postal codes.
+- `main` contains this fork's changes.
+- `music-stats-navidrome-tailscale` is the descriptive feature branch.
+- `upstream-main` is an unchanged mirror of the original project's main branch.
 
-**Library Analytics** — Four dedicated pages to understand your media collection:
+Daily maintenance merges upstream changes into a separate candidate, checks builds and tests, and advances the custom branches only after validation. It does not automatically deploy or restart the server.
 
-- **Overview** — Item counts, storage usage, growth charts over time.
-- **Quality** — Resolution and codec distribution. Track how your 4K vs 1080p ratio changes.
-- **Storage** — Usage predictions, duplicate detection across servers, stale content identification, and ROI analysis (watch hours per GB).
-- **Watch** — Engagement metrics, completion rates, viewing patterns by hour and month, binge detection.
+See [configuration, validation status and rollback](docs/music-and-client-locations.md) for implementation details. General Tracearr documentation, screenshots and installation instructions remain in [the original project](https://github.com/connorgallopo/Tracearr).
 
-**Live TV & Music** — Not just movies and shows. Track live TV sessions and music playback across all your servers.
-
-**Stream Map** — Visualize where your streams originate on a world map. Filter by user, server, or time period.
-
-**Sharing Detection** — Six rule types flag suspicious activity:
-
-- **Impossible Travel** — NYC then London 30 minutes later? That's not one person.
-- **Simultaneous Locations** — Same account streaming from two cities at once.
-- **Device Velocity** — Too many unique IPs in a short window signals shared credentials.
-- **Concurrent Streams** — Set limits per user.
-- **Geo Restrictions** — Block streaming from specific countries.
-- **Account Inactivity** — Get notified when accounts go dormant for a configurable period.
-
-**Trust Scores** — Users earn (or lose) trust based on behavior. Violations drop scores automatically.
-
-**Real-Time Alerts** — Discord webhooks and custom notifications fire instantly when rules trigger.
-
-**Public API** — Read-only REST API for third-party integrations. Generate an API key in Settings, then browse the [API reference](https://docs.tracearr.com/api) or the interactive docs built into your instance.
-
-**Bulk Actions** — Multi-select operations across tables. Acknowledge or dismiss violations in bulk, reset trust scores, enable/disable rules, delete session history.
-
-**Data Import** — Already using Tautulli or Jellystat? Import your watch history so you don't start from scratch.
-
-## Why Tracearr?
-
-Tautulli only works with Plex. Jellystat only works with Jellyfin and Emby. If you run multiple servers, you're stuck with multiple dashboards.
-
-Tracearr handles all three. One install, one interface.
-
-|                           | Tautulli | Jellystat | Tracearr |
-| ------------------------- | -------- | --------- | -------- |
-| Watch history             | ✅       | ✅        | ✅       |
-| Statistics & graphs       | ✅       | ✅        | ✅       |
-| Session monitoring        | ✅       | ✅        | ✅       |
-| Transcode analytics       | ✅       | ✅        | ✅       |
-| Live TV & Music           | ✅       | ✅        | ✅       |
-| Account sharing detection | ❌       | ❌        | ✅       |
-| Impossible travel alerts  | ❌       | ❌        | ✅       |
-| Trust scoring             | ❌       | ❌        | ✅       |
-| Plex support              | ✅       | ❌        | ✅       |
-| Jellyfin support          | ❌       | ✅        | ✅       |
-| Emby support              | ❌       | ✅        | ✅       |
-| Multi-server dashboard    | ❌       | ❌        | ✅       |
-| IP geolocation            | ✅       | ✅        | ✅       |
-| Library analytics         | ✅       | ✅        | ✅       |
-| Public API                | ✅       | ✅        | ✅       |
-| Import from Tautulli      | —        | ❌        | ✅       |
-| Import from Jellystat     | ❌       | —         | ✅       |
-
-## Quick Start
-
-```bash
-# Download compose file
-curl -O https://raw.githubusercontent.com/connorgallopo/Tracearr/main/docker/examples/docker-compose.pg18.yml
-
-# Generate secrets
-echo "JWT_SECRET=$(openssl rand -hex 32)" > .env
-echo "COOKIE_SECRET=$(openssl rand -hex 32)" >> .env
-
-# Deploy
-docker compose -f docker-compose.pg18.yml up -d
-```
-
-Open `http://localhost:3000` and connect your Plex, Jellyfin, or Emby server.
-
-**Unraid users:** The supervised image bundles everything in one container with zero configuration. See [docker/examples](docker/examples/README.md) for details.
-
-For Portainer deployment, alternative configurations, or detailed requirements, see the [Docker deployment guide](docker/examples/README.md). For full documentation, visit [docs.tracearr.com](https://docs.tracearr.com).
-
-### Docker Tags
-
-| Tag                  | Description                                        |
-| -------------------- | -------------------------------------------------- |
-| `latest`             | Stable release (requires external DB/Redis)        |
-| `supervised`         | All-in-one stable release                          |
-| `next`               | Latest prerelease (requires external DB/Redis)     |
-| `supervised-next`    | All-in-one prerelease                              |
-| `nightly`            | Bleeding edge nightly (requires external DB/Redis) |
-| `supervised-nightly` | All-in-one nightly build                           |
-
-```bash
-# All-in-one (easiest)
-docker pull ghcr.io/connorgallopo/tracearr:supervised
-
-# Stable (requires external services)
-docker pull ghcr.io/connorgallopo/tracearr:latest
-
-# Living on the edge
-docker pull ghcr.io/connorgallopo/tracearr:nightly
-```
-
-### Viewing Logs
-
-**Standard Docker** — Each service runs in its own container:
-
-```bash
-docker logs tracearr          # Application logs
-docker logs tracearr-postgres # Database logs
-docker logs tracearr-redis    # Cache logs
-```
-
-**Supervised Docker** — All services run in one container. View logs in the web UI at `/debug` (Log Explorer section), or via CLI:
-
-```bash
-docker exec tracearr cat /var/log/supervisor/tracearr-error.log
-```
-
-Available log files: `tracearr.log`, `tracearr-error.log`, `postgres.log`, `postgres-error.log`, `redis.log`, `redis-error.log`, `supervisord.log`
-
-Set `LOG_LEVEL=debug` for verbose output.
-
-**Proxmox VE LXC** - Each service runs as a systemd unit:
-
-```bash
-journalctl -u tracearr   # Application logs
-journalctl -u postgresql # Database logs
-journalctl -u redis      # Cache logs
-```
-
-### Development Setup
-
-```bash
-# Install dependencies (requires pnpm 12+, Node.js 22.22.2+)
-pnpm install
-
-# Start database services
-docker compose -f docker/docker-compose.dev.yml up -d
-
-# Copy and configure environment
-cp .env.example .env
-
-# Run migrations
-pnpm --filter @tracearr/server db:migrate
-
-# Start dev servers
-pnpm dev
-```
-
-Frontend runs at `localhost:5173`, API at `localhost:3000`.
-
-## Stack
-
-| Layer     | Tech                                      |
-| --------- | ----------------------------------------- |
-| Frontend  | React 19, TypeScript, Tailwind, shadcn/ui |
-| Charts    | Highcharts                                |
-| Maps      | Leaflet                                   |
-| Backend   | Node.js, Fastify                          |
-| Database  | TimescaleDB (PostgreSQL extension)        |
-| Cache     | Redis                                     |
-| Real-time | Socket.io                                 |
-| Monorepo  | pnpm + Turborepo                          |
-
-**TimescaleDB** handles session history. Regular Postgres works for a few months, but long query histories kill performance. TimescaleDB is built for time-series data—dashboard stats stay fast because they're pre-computed, not recalculated every page load.
-
-**Fastify** over Express because it's measurably faster and schema validation catches bad requests before they hit handlers.
-
-**SSE for instant sessions** — Plex streams session updates in real-time via Server-Sent Events, so streams appear the moment they start. Jellyfin and Emby get the same through the [Tracearr SSE plugin](https://github.com/Tracearr/Media-Server-SSE); without it they fall back to polling.
-
-## Project Structure
-
-```
-tracearr/
-├── apps/
-│   ├── web/          # React frontend
-│   ├── server/       # Fastify backend
-│   └── mobile/       # React Native app (iOS & Android)
-├── packages/
-│   ├── shared/       # Types, schemas, constants
-│   └── translations/ # i18n support
-├── docker/           # Compose files
-└── docs/             # Documentation
-```
-
-## Community
-
-Got questions? Found a bug? Want to contribute?
-
-[![Discord](https://img.shields.io/badge/Discord-Join%20the%20server-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/a7n3sFd2Yw)
-
-Or [open an issue](https://github.com/connorgallopo/Tracearr/issues) on GitHub.
-
-## Contributing
-
-Contributions welcome. Please:
-
-1. Fork the repo
-2. Create a feature branch (`git checkout -b feature/thing`)
-3. Make your changes
-4. Run tests and linting (`pnpm test && pnpm lint`)
-5. Open a PR
-
-Check the [issues](https://github.com/connorgallopo/Tracearr/issues) for things to work on.
-
-### Development with VS Code
-
-Use the included `.vscode/launch.json` to debug both server and web apps directly from VS Code.
-
-Run `pnpm dev` in a terminal to start both apps, then use the "Debug All" configuration to attach the debugger.
-
-## Roadmap
-
-**Shipped**
-
-- [x] Multi-server Plex, Jellyfin, and Emby support
-- [x] Session tracking with full history
-- [x] Sharing detection rules
-- [x] Real-time WebSocket updates
-- [x] SSE for instant session detection (Plex built-in, Jellyfin/Emby via plugin)
-- [x] Discord + webhook notifications
-- [x] Interactive stream map
-- [x] Trust scores
-- [x] Tautulli & Jellystat history import
-- [x] Transcode analytics & device compatibility
-- [x] Live TV & music tracking
-- [x] Stream quality metrics (codec, resolution, bitrate)
-- [x] Stream termination
-- [x] Library analytics (storage, quality, duplicates, engagement)
-- [x] Public REST API with Swagger UI
-- [x] Account inactivity detection
-- [x] Bulk actions for violations, users, rules, sessions
-- [x] Enhanced IP geolocation (ASN, continent, postal code)
-- [x] Rule based automated stream termination
-- [x] Mobile app — [iOS](https://apps.apple.com/us/app/tracearr/id6755941553) and [Android](https://play.google.com/store/apps/details?id=com.tracearr.mobile)
-
-**v1.5** (next)
-
-- [ ] Tiered access controls
-- [ ] Multi-admin support
-- [ ] Account suspension automation
-
-**v1.6**
-
-- [ ] Email notifications
-- [ ] Telegram notifier
-
-## Project Statistics
-
-<p align="center">
-  <img
-    src="https://repobeats.axiom.co/api/embed/4632d7f3bb419e78c5525af0905a488d9f72a753.svg"
-    alt="Repobeats analytics"
-  />
-</p>
-
-## Star History
-
-<a href="https://www.star-history.com/?repos=connorgallopo%2FTracearr&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=connorgallopo/Tracearr&type=date&theme=dark&legend=top-left&sealed_token=gqNERdnUn6ObeSY81Y6zP40vLBLudEzd1HRVmVfMCjaDrF-MPIll0_KXFkm0b36agZvr6RxkGRX_2xeM81kTqylKJN4i8IpTj9RIq9oLT7AxiBYGK0Zrr2IZR0sQpGHAvmnQP0KtQaN03rFdvuUf6ce-MVOZ7XQ7tpf3UGbabcegW5GUP97_aQso0cq3" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=connorgallopo/Tracearr&type=date&legend=top-left&sealed_token=gqNERdnUn6ObeSY81Y6zP40vLBLudEzd1HRVmVfMCjaDrF-MPIll0_KXFkm0b36agZvr6RxkGRX_2xeM81kTqylKJN4i8IpTj9RIq9oLT7AxiBYGK0Zrr2IZR0sQpGHAvmnQP0KtQaN03rFdvuUf6ce-MVOZ7XQ7tpf3UGbabcegW5GUP97_aQso0cq3" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=connorgallopo/Tracearr&type=date&legend=top-left&sealed_token=gqNERdnUn6ObeSY81Y6zP40vLBLudEzd1HRVmVfMCjaDrF-MPIll0_KXFkm0b36agZvr6RxkGRX_2xeM81kTqylKJN4i8IpTj9RIq9oLT7AxiBYGK0Zrr2IZR0sQpGHAvmnQP0KtQaN03rFdvuUf6ce-MVOZ7XQ7tpf3UGbabcegW5GUP97_aQso0cq3" />
- </picture>
-</a>
-
-## License
-
-[AGPL-3.0](LICENSE) — Open source with copyleft protection. If you modify Tracearr and offer it as a service, you share your changes.
-
-This product includes GeoLite2 data created by MaxMind, available from https://www.maxmind.com.
-
----
-
-<p align="center">
-  <sub>For Plex, Jellyfin, and Emby admins who want to see what's actually happening.</sub>
-</p>
-
-This project is tested with BrowserStack.
+This is a fork of Tracearr and retains its [AGPL-3.0 license](LICENSE).
