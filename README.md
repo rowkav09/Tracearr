@@ -1,3 +1,5 @@
+> **Athenaeum fork:** optional host Tailscale geolocation, Navidrome support, and Plexamp listening statistics. See the [deployment status, limitations, rollback and update workflow](docs/athenaeum.md). The `main` branch tracks upstream; custom changes live on `athenaeum`.
+
 <p align="center">
   <img src="apps/web/public/images/og_image.png" alt="Tracearr" width="600" />
 </p>
