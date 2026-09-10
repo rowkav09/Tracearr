@@ -210,7 +210,7 @@
       "quietest": "",
       "bingeHighlights": "Bingeハイライト",
       "bingeHighlightsDesc": "最も集中的な表示パターンで表示",
-      "bingeSessions": "bingeセッション",
+      "bingeSessions": "",
       "noData": "ウォッチデータがまだありません",
       "noDataDesc": "コンテンツが再生されると、ウォッチ解析がここに表示されます。いくつかの閲覧後に再度ご確認ください。",
       "failedToLoad": "ウォッチ解析の読み込みに失敗しました",
@@ -464,7 +464,7 @@
       "destinationsLabel": "",
       "required": "",
       "needs": {
-        "title": "What it needs from you"
+        "title": ""
       },
       "helper": {
         "killMessage": "",
@@ -703,6 +703,7 @@
       },
       "triggers": {
         "sessionStarted": "",
+        "sessionFirstSeen": "",
         "sessionStopped": "",
         "sessionTranscodeChanged": "",
         "sessionPaused": "",
@@ -1400,6 +1401,10 @@
           "description": "",
           "synonyms": ""
         },
+        "sessionFirstSeen": {
+          "description": "",
+          "synonyms": ""
+        },
         "sessionStopped": {
           "description": "",
           "synonyms": ""
@@ -1550,7 +1555,7 @@
       "reauthorizeAccount": "",
       "deleteServersFirst": "このアカウントの連携を解除するには、最初に接続されているサーバーを削除してください",
       "linkedAccounts": "リンクされたプレックスアカウント",
-      "linkedAccountsDesc": "サーバーを追加できるプレックスアカウントを管理します。",
+      "linkedAccountsDesc": "",
       "noAccountsYet": "プレックスアカウントはまだリンクされていません。",
       "unlinkPlexAccount": "プレックスアカウントのリンクを解除",
       "unlinkConfirm": "このプレックスアカウントのリンクを解除してもよろしいですか？再度リンクするまで、このアカウントからサーバーを追加することはできません。"
@@ -1648,7 +1653,11 @@
     "streams": "ストリーム",
     "locations": "場所",
     "allActivity": "すべてのアクティビティ",
-    "basemapMissing": "Basemap not installed"
+    "basemapMissing": "",
+    "webglUnavailable": "",
+    "webglHint": "",
+    "basemapShadowed": "",
+    "badMounts": ""
   },
   "devices": {
     "title": "デバイスの互換性",
@@ -1695,7 +1704,7 @@
   },
   "statsUsers": {
     "noActivity": "アクティビティはまだありません",
-    "noActivityDesc": "あなたのトップユーザーをここで見るためにストリーミングを開始します",
+    "noActivityDesc": "",
     "top3": "トップ 3",
     "runnersUp": "Runner Up"
   },

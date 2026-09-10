@@ -210,7 +210,7 @@
       "quietest": "Тест:",
       "bingeHighlights": "Відмітини на бінге",
       "bingeHighlightsDesc": "Показує за допомогою найбільш інтенсивних шаблонів перегляду",
-      "bingeSessions": "сесій бінге",
+      "bingeSessions": "",
       "noData": "Ще немає даних для перегляду",
       "noDataDesc": "Дивитись аналітики з'являтимуться тут після відтворення вмісту. Перевірте знову після якогось перегляду діяльності.",
       "failedToLoad": "Не вдалося завантажити перегляд аналітики",
@@ -464,7 +464,7 @@
       "destinationsLabel": "",
       "required": "",
       "needs": {
-        "title": "What it needs from you"
+        "title": ""
       },
       "helper": {
         "killMessage": "",
@@ -703,6 +703,7 @@
       },
       "triggers": {
         "sessionStarted": "",
+        "sessionFirstSeen": "",
         "sessionStopped": "",
         "sessionTranscodeChanged": "",
         "sessionPaused": "",
@@ -1400,6 +1401,10 @@
           "description": "",
           "synonyms": ""
         },
+        "sessionFirstSeen": {
+          "description": "",
+          "synonyms": ""
+        },
         "sessionStopped": {
           "description": "",
           "synonyms": ""
@@ -1550,7 +1555,7 @@
       "reauthorizeAccount": "",
       "deleteServersFirst": "Спочатку видаліть підключені сервери, щоб від'єднати цей обліковий запис",
       "linkedAccounts": "Пов'язані облікові записи Plex",
-      "linkedAccountsDesc": "Керуйте обліковими записами Plex, з якого ви можете додавати сервери.",
+      "linkedAccountsDesc": "",
       "noAccountsYet": "Немає жодного профілю Plex ще пов'язано.",
       "unlinkPlexAccount": "Від'єднати акаунт Plex",
       "unlinkConfirm": "Ви впевнені, що хочете від'єднати цей обліковий запис Plex? Ви не зможете додавати сервери з цього акаунту, доки не прив'яжете його знову."
@@ -1648,7 +1653,11 @@
     "streams": "трансляції",
     "locations": "місцезнаходження",
     "allActivity": "Уся діяльність",
-    "basemapMissing": "Basemap not installed"
+    "basemapMissing": "",
+    "webglUnavailable": "",
+    "webglHint": "",
+    "basemapShadowed": "",
+    "badMounts": ""
   },
   "devices": {
     "title": "Сумісність пристроїв",
@@ -1695,7 +1704,7 @@
   },
   "statsUsers": {
     "noActivity": "Поки що ніякої активності",
-    "noActivityDesc": "Почніть трансляцію, щоб побачити ваших топ користувачів тут",
+    "noActivityDesc": "",
     "top3": "Найпопулярніші 3",
     "runnersUp": "Верх Runner'ів"
   },

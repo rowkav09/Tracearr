@@ -210,7 +210,7 @@
       "quietest": "Тихий тест:",
       "bingeHighlights": "Отметины на Бинге",
       "bingeHighlightsDesc": "Показывает с самыми интенсивными шаблонами просмотра",
-      "bingeSessions": "стыковочные сессии",
+      "bingeSessions": "",
       "noData": "Нет данных для просмотра",
       "noDataDesc": "Статистика наблюдения будет отображаться здесь после воспроизведения содержимого. Возвращайтесь после некоторых действий просмотра.",
       "failedToLoad": "Не удалось загрузить аналитику",
@@ -464,7 +464,7 @@
       "destinationsLabel": "",
       "required": "",
       "needs": {
-        "title": "What it needs from you"
+        "title": ""
       },
       "helper": {
         "killMessage": "",
@@ -703,6 +703,7 @@
       },
       "triggers": {
         "sessionStarted": "",
+        "sessionFirstSeen": "",
         "sessionStopped": "",
         "sessionTranscodeChanged": "",
         "sessionPaused": "",
@@ -1400,6 +1401,10 @@
           "description": "",
           "synonyms": ""
         },
+        "sessionFirstSeen": {
+          "description": "",
+          "synonyms": ""
+        },
         "sessionStopped": {
           "description": "",
           "synonyms": ""
@@ -1550,7 +1555,7 @@
       "reauthorizeAccount": "",
       "deleteServersFirst": "Сначала удалите подключенные сервера, чтобы отвязать этот аккаунт",
       "linkedAccounts": "Связанные Plex аккаунты",
-      "linkedAccountsDesc": "Управление аккаунтами Plex, с которых можно добавлять сервера.",
+      "linkedAccountsDesc": "",
       "noAccountsYet": "Нет привязанных аккаунтов Plex.",
       "unlinkPlexAccount": "Отвязать аккаунт Plex",
       "unlinkConfirm": "Вы уверены, что хотите отвязать этот Plex аккаунт? Вы не сможете добавить серверы из этого аккаунта, пока не привяжите его снова."
@@ -1648,7 +1653,11 @@
     "streams": "потоки",
     "locations": "места",
     "allActivity": "Все действия",
-    "basemapMissing": "Basemap not installed"
+    "basemapMissing": "",
+    "webglUnavailable": "",
+    "webglHint": "",
+    "basemapShadowed": "",
+    "badMounts": ""
   },
   "devices": {
     "title": "Совместимость устройства",
@@ -1695,7 +1704,7 @@
   },
   "statsUsers": {
     "noActivity": "Нет активности",
-    "noActivityDesc": "Начните поток, чтобы увидеть ваших топ пользователей здесь",
+    "noActivityDesc": "",
     "top3": "Топ 3",
     "runnersUp": "Бегуны вверх"
   },

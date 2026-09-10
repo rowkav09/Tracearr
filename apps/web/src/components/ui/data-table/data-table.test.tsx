@@ -72,6 +72,7 @@ interface HarnessProps extends Omit<UseDataTableOptions<Person>, 'columns' | 'ge
   isLoading?: boolean;
   density?: DataTableDensity;
   headerVariant?: DataTableHeaderVariant;
+  flush?: boolean;
   /** Swaps in the column holding a button, the shape an interactive cell takes. */
   withAction?: boolean;
 }
@@ -81,6 +82,7 @@ function Harness({
   isLoading,
   density,
   headerVariant,
+  flush,
   withAction,
   ...options
 }: HarnessProps) {
@@ -92,7 +94,7 @@ function Harness({
 
   return (
     <DataTableRoot density={density} headerVariant={headerVariant}>
-      <DataTableViewport>
+      <DataTableViewport flush={flush}>
         <DataTableHeader table={table} />
         <DataTableBody
           table={table}
@@ -237,14 +239,14 @@ describe('data-table column meta', () => {
     render(<Harness data={people} />);
 
     const [nameHeader, ageHeader] = screen.getAllByRole('columnheader');
-    expect(nameHeader).toHaveStyle({ width: '12rem' });
+    expect(nameHeader?.style.width).toBe('12rem');
     expect(nameHeader).toHaveClass('test-head');
     expect(ageHeader?.className).toContain('text-right');
     expect(ageHeader?.className).toContain('tabular-nums');
 
     const body = screen.getAllByRole('rowgroup')[1]!;
     const [nameCell, ageCell] = within(within(body).getAllByRole('row')[0]!).getAllByRole('cell');
-    expect(nameCell).toHaveStyle({ width: '12rem' });
+    expect(nameCell?.style.width).toBe('12rem');
     expect(nameCell?.className).toContain('hidden');
     expect(ageCell?.className).toContain('tabular-nums');
   });
@@ -483,5 +485,23 @@ describe('data-table chrome', () => {
   it('leaves the header scale alone by default', () => {
     render(<Harness data={people} />);
     expect(screen.getAllByRole('columnheader')[0]!.className).not.toContain('text-[10.5px]');
+  });
+
+  it.each([
+    ['comfortable' as const, '-mx-4 -mb-4'],
+    ['default' as const, '-mx-4 -mb-3'],
+    ['compact' as const, '-mx-3 -mb-1.5'],
+  ])('cancels %s cell padding when the viewport is flush', (density, expected) => {
+    const { container } = render(<Harness data={people} density={density} flush />);
+    const viewport = container.querySelector('[data-slot="data-table-viewport"]')!;
+    for (const offset of expected.split(' ')) {
+      expect(viewport.className).toContain(offset);
+    }
+  });
+
+  it('leaves the viewport unshifted by default', () => {
+    const { container } = render(<Harness data={people} density="compact" />);
+    const viewport = container.querySelector('[data-slot="data-table-viewport"]')!;
+    expect(viewport.className).not.toContain('-mx-3');
   });
 });
