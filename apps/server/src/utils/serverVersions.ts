@@ -11,13 +11,15 @@ import { compareVersions, maxVersion } from './pluginVersion.js';
 const logger = createLogger('server-versions');
 
 const PLEX_DOWNLOADS_URL = 'https://plex.tv/api/downloads/5.json';
-const GITHUB_LATEST: Record<'jellyfin' | 'emby', string> = {
+const GITHUB_LATEST: Record<'jellyfin' | 'emby' | 'navidrome', string> = {
+  navidrome: 'https://api.github.com/repos/navidrome/navidrome/releases/latest',
   jellyfin: 'https://api.github.com/repos/jellyfin/jellyfin/releases/latest',
   emby: 'https://api.github.com/repos/MediaBrowser/Emby.Releases/releases/latest',
 };
 
 /** Where a nudge sends the reader; the feeds carry per-release links, these outlive them. */
 export const SERVER_RELEASE_PAGES: Record<ServerType, string> = {
+  navidrome: 'https://github.com/navidrome/navidrome/releases/latest',
   plex: 'https://plex.tv/media-server-downloads',
   jellyfin: 'https://github.com/jellyfin/jellyfin/releases/latest',
   emby: 'https://github.com/MediaBrowser/Emby.Releases/releases/latest',
@@ -67,7 +69,7 @@ async function latestPlexVersion(): Promise<string | null> {
   return maxVersion(versions);
 }
 
-async function latestGithubVersion(type: 'jellyfin' | 'emby'): Promise<string | null> {
+async function latestGithubVersion(type: 'jellyfin' | 'emby' | 'navidrome'): Promise<string | null> {
   const release = await fetchJson<{ tag_name?: unknown }>(GITHUB_LATEST[type], {
     timeout: FEED_TIMEOUT_MS,
     service: 'github',

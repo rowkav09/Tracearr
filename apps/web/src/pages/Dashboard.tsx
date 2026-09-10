@@ -81,7 +81,12 @@ export function Dashboard() {
   const showBandwidthChart =
     singleIsPlex || (isMultiServer && selectedServers.some((s) => s.type === 'plex'));
   const singleProcessLabel = singleServer
-    ? { plex: 'Plex Media Server', jellyfin: 'Jellyfin', emby: 'Emby' }[singleServer.type]
+    ? {
+        plex: 'Plex Media Server',
+        jellyfin: 'Jellyfin',
+        emby: 'Emby',
+        navidrome: 'Navidrome',
+      }[singleServer.type]
     : undefined;
 
   const {

@@ -11,7 +11,7 @@ import { listDateBoundSchema, listSortSchema } from './listQuery.js';
 // ============================================================================
 
 /** Server types supported by Tracearr */
-const SERVER_TYPES = ['plex', 'jellyfin', 'emby'] as const;
+const SERVER_TYPES = ['plex', 'jellyfin', 'emby', 'navidrome'] as const;
 export const serverTypeSchema = z.enum(SERVER_TYPES);
 export type ServerType = z.infer<typeof serverTypeSchema>;
 

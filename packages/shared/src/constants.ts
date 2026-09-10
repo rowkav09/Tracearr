@@ -794,6 +794,7 @@ export const SERVER_TYPE_BRAND_COLORS: Record<string, string> = {
   plex: '#F4A825',
   jellyfin: '#895FDD',
   emby: '#39C668',
+  navidrome: '#0088CC',
 };
 
 /** Pick best color for a server given its type and colors already used by other servers */

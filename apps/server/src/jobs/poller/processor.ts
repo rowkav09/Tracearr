@@ -31,7 +31,7 @@ import { isLeader } from '../../services/leaderLease.js';
 import type { CacheService, PubSubService } from '../../services/cache.js';
 import { type GeoLocation } from '../../services/geoip.js';
 import { createMediaServerClient } from '../../services/mediaServer/index.js';
-import { lookupGeoIP } from '../../services/plexGeoip.js';
+import { lookupSessionGeoIP, isTailscaleIP } from '../../services/tailscaleLocation.js';
 import {
   fetchRecentSessionsForIdentity,
   setContextAssemblyDeps,
@@ -233,7 +233,7 @@ async function handleFirstMisses(
     if (missedPollTracking.has(cachedKey)) continue; // Already in grace period
 
     const cachedActiveSession = activeSessions.find((s) => {
-      const sType = (serverTypeMap.get(s.serverId) ?? 'plex') as 'plex' | 'jellyfin' | 'emby';
+      const sType = (serverTypeMap.get(s.serverId) ?? 'plex') as 'plex' | 'jellyfin' | 'emby' | 'navidrome';
       return (
         buildCompositeKey({
           serverType: sType,
@@ -583,7 +583,7 @@ async function resolvePendingSession(
     return { status: 'still-pending', updatedSession: buildPendingActiveSession(updatedData) };
   }
 
-  const geo: GeoLocation = await lookupGeoIP(processed.ipAddress, usePlexGeoip);
+  const geo: GeoLocation = await lookupSessionGeoIP(processed.ipAddress, usePlexGeoip, server.type);
   const createResult = await cacheService.withSessionCreateLock(
     server.id,
     processed.sessionKey,
@@ -1086,7 +1086,7 @@ async function processServerSessions(
           }
 
           // Get GeoIP location (uses Plex API if enabled, falls back to MaxMind)
-          const geo: GeoLocation = await lookupGeoIP(processed.ipAddress, usePlexGeoip);
+          const geo: GeoLocation = await lookupSessionGeoIP(processed.ipAddress, usePlexGeoip, server.type);
 
           const createResult = await cacheService.withSessionCreateLock<
             | { rediscovered: typeof sessions.$inferSelect }
@@ -1317,7 +1317,7 @@ async function processServerSessions(
 
           // Skip the GeoIP lookup when the IP matches the existing row - reuse its geo data.
           const geo: GeoLocation =
-            existingSession?.ipAddress === processed.ipAddress
+            existingSession?.ipAddress === processed.ipAddress && !isTailscaleIP(processed.ipAddress)
               ? {
                   city: existingSession.geoCity,
                   region: existingSession.geoRegion,
@@ -1330,7 +1330,7 @@ async function processServerSessions(
                   asnNumber: existingSession.geoAsnNumber,
                   asnOrganization: existingSession.geoAsnOrganization,
                 }
-              : await lookupGeoIP(processed.ipAddress, usePlexGeoip);
+              : await lookupSessionGeoIP(processed.ipAddress, usePlexGeoip, server.type);
 
           if (!existingSession) {
             // Issue #120: Stale cache entry - session key is in Redis but no active session exists in DB

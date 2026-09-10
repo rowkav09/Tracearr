@@ -140,11 +140,12 @@ describe('supportsWatchHistory', () => {
 // ============================================================================
 
 describe('IMediaServerClient Interface Compliance', () => {
-  const createTestClient = (type: 'plex' | 'jellyfin' | 'emby'): IMediaServerClient => {
+  const createTestClient = (type: 'plex' | 'jellyfin' | 'emby' | 'navidrome'): IMediaServerClient => {
     const urls = {
       plex: 'http://plex.local:32400',
       jellyfin: 'http://jellyfin.local:8096',
       emby: 'http://emby.local:8096',
+      navidrome: 'http://navidrome.local:4533',
     };
     return createMediaServerClient({
       type,

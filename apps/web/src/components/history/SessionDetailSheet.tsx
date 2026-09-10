@@ -66,6 +66,7 @@ interface Props {
 
 // Server type configuration
 const SERVER_CONFIG: Record<ServerType, { label: string; color: string }> = {
+  navidrome: { label: 'Navidrome', color: 'text-sky-500' },
   plex: { label: 'Plex', color: 'text-amber-500' },
   jellyfin: { label: 'Jellyfin', color: 'text-purple-500' },
   emby: { label: 'Emby', color: 'text-green-500' },

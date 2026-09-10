@@ -1,3 +1,5 @@
+import { NavidromeClient } from './navidrome/client.js';
+export { NavidromeClient } from './navidrome/client.js';
 /**
  * Media Server Client Module
  *
@@ -57,6 +59,8 @@ export function createMediaServerClient(options: CreateClientOptions): IMediaSer
   };
 
   switch (options.type) {
+    case 'navidrome':
+      return new NavidromeClient(config);
     case 'plex':
       return new PlexClient(config);
     case 'jellyfin':

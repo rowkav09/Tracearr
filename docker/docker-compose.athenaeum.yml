@@ -1,0 +1,10 @@
+# Optional overlay for the Athenaeum branch.
+# Apply it alongside the existing companion compose file; it does not redefine
+# the database, Redis, networks, or volumes.
+services:
+  tracearr:
+    image: tracearr-athenaeum:local
+    environment:
+      ATHENAEUM_NAVIDROME_ENABLED: ${ATHENAEUM_NAVIDROME_ENABLED:-false}
+      ATHENAEUM_TAILSCALE_ENABLED: ${ATHENAEUM_TAILSCALE_ENABLED:-false}
+      ATHENAEUM_TAILSCALE_STATUS_FILE: ${ATHENAEUM_TAILSCALE_STATUS_FILE:-}

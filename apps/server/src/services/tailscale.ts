@@ -103,6 +103,48 @@ class TailscaleService {
     return this.getInfo();
   }
 
+  /**
+   * Return the current peer table for integrations that need to correlate a
+   * Tailscale address reported by another service. This is deliberately
+   * available only while Tracearr's own daemon is connected; callers receive
+   * no credentials, DNS settings, or state-file contents.
+   */
+  async getPeerSnapshot(): Promise<{
+    BackendState: string;
+    Peer: Record<string, {
+      TailscaleIPs?: string[];
+      CurAddr?: string;
+      Relay?: string;
+      PeerRelay?: string;
+      Online?: boolean;
+      Active?: boolean;
+    }>;
+  } | null> {
+    if (this.status !== 'connected') return null;
+    try {
+      const { stdout } = await execFileAsync(
+        TAILSCALE_BIN,
+        [`--socket=${SOCKET_FILE}`, 'status', '--json'],
+        { env: TAILSCALE_ENV, maxBuffer: 4 * 1024 * 1024 }
+      );
+      const parsed = JSON.parse(stdout) as {
+        BackendState?: string;
+        Peer?: Record<string, {
+          TailscaleIPs?: string[];
+          CurAddr?: string;
+          Relay?: string;
+          PeerRelay?: string;
+          Online?: boolean;
+          Active?: boolean;
+        }>;
+      };
+      if (parsed.BackendState !== 'Running' || !parsed.Peer) return null;
+      return { BackendState: parsed.BackendState, Peer: parsed.Peer };
+    } catch {
+      return null;
+    }
+  }
+
   // Exit node disabled — this will come back when we implement SOCKS proxy support
   //
   // async setExitNode(id: string | null): Promise<TailscaleInfo> {

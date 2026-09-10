@@ -96,7 +96,7 @@ export function ServerSettings() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editServer, setEditServer] = useState<Server | null>(null);
-  const [serverType, setServerType] = useState<'plex' | 'jellyfin' | 'emby'>('plex');
+  const [serverType, setServerType] = useState<'plex' | 'jellyfin' | 'emby' | 'navidrome'>('plex');
   const [serverUrl, setServerUrl] = useState('');
   const [serverName, setServerName] = useState('');
   const [apiKey, setApiKey] = useState('');
@@ -304,6 +304,10 @@ export function ServerSettings() {
     setConnectError(null);
 
     try {
+      if (serverType === 'navidrome') {
+        await api.servers.create({ name: serverName, type: 'navidrome', url: serverUrl, token: apiKey });
+        await refetch(); setShowAddDialog(false); resetAddForm(); return;
+      }
       const connectFn =
         serverType === 'jellyfin'
           ? api.auth.connectJellyfinWithApiKey
@@ -468,7 +472,7 @@ export function ServerSettings() {
               <Select
                 value={serverType}
                 onValueChange={(v) => {
-                  const newType = v as 'plex' | 'jellyfin' | 'emby';
+                  const newType = v as 'plex' | 'jellyfin' | 'emby' | 'navidrome';
                   setServerType(newType);
                   setConnectError(null);
                   // Fetch Plex accounts when switching to Plex type
@@ -484,6 +488,7 @@ export function ServerSettings() {
                   {user?.role === 'owner' && <SelectItem value="plex">Plex</SelectItem>}
                   <SelectItem value="jellyfin">Jellyfin</SelectItem>
                   <SelectItem value="emby">Emby</SelectItem>
+                  {user?.role === 'owner' && <SelectItem value="navidrome">Navidrome</SelectItem>}
                 </SelectContent>
               </Select>
             </div>
@@ -642,7 +647,7 @@ export function ServerSettings() {
                 )}
               </>
             ) : (
-              /* Jellyfin/Emby Form */
+              /* Jellyfin/Emby/Navidrome form */
               <>
                 <div className="space-y-2">
                   <Label htmlFor="serverUrl">{t('servers.serverUrl')}</Label>
@@ -655,9 +660,11 @@ export function ServerSettings() {
                     }}
                   />
                   <p className="text-muted-foreground text-xs">
-                    {serverType === 'jellyfin'
-                      ? t('servers.serverUrlHelpJellyfin')
-                      : t('servers.serverUrlHelpEmby')}
+                    {serverType === 'navidrome'
+                      ? 'Navidrome URL reachable from Tracearr.'
+                      : serverType === 'jellyfin'
+                        ? t('servers.serverUrlHelpJellyfin')
+                        : t('servers.serverUrlHelpEmby')}
                   </p>
                 </div>
                 <div className="space-y-2">
@@ -672,20 +679,26 @@ export function ServerSettings() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="apiKey">{t('common:labels.apiKey')}</Label>
+                  <Label htmlFor="apiKey">{serverType === 'navidrome' ? 'Credentials (JSON)' : t('common:labels.apiKey')}</Label>
                   <Input
                     id="apiKey"
                     type="password"
-                    placeholder={t('servers.apiKeyPlaceholder')}
+                    placeholder={
+                      serverType === 'navidrome'
+                        ? '{"username":"admin","password":"..."}'
+                        : t('servers.apiKeyPlaceholder')
+                    }
                     value={apiKey}
                     onChange={(e) => {
                       setApiKey(e.target.value);
                     }}
                   />
                   <p className="text-muted-foreground text-xs">
-                    {serverType === 'jellyfin'
-                      ? t('servers.apiKeyHelpJellyfin')
-                      : t('servers.apiKeyHelpEmby')}
+                    {serverType === 'navidrome'
+                      ? 'JSON containing a Navidrome administrator username and password.'
+                      : serverType === 'jellyfin'
+                        ? t('servers.apiKeyHelpJellyfin')
+                        : t('servers.apiKeyHelpEmby')}
                   </p>
                 </div>
                 {connectError && (

@@ -70,7 +70,7 @@ function makeMockRedis(): Redis {
 function setupDbSelectMocks(mockServer: {
   id: string;
   name: string;
-  type: 'plex' | 'jellyfin' | 'emby';
+  type: 'plex' | 'jellyfin' | 'emby' | 'navidrome';
   url: string;
   token: string;
 }) {

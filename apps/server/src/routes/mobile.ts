@@ -637,7 +637,7 @@ export const mobileRoutes: FastifyPluginAsync = async (app) => {
       owner: { id: string; username: string };
       serverName: string;
       serverId: string;
-      serverType: 'plex' | 'jellyfin' | 'emby';
+      serverType: 'plex' | 'jellyfin' | 'emby' | 'navidrome';
       serverIds: string[];
       oldRefreshTokenHash?: string; // Track old hash for cleanup outside transaction
       oldBetterAuthSessionId?: string | null; // Previous BA session to revoke on re-pair

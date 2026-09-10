@@ -56,7 +56,7 @@ function fakeActiveSession(overrides: {
   id: string;
   serverId: string;
   serverName: string;
-  serverType: 'plex' | 'jellyfin' | 'emby';
+  serverType: 'plex' | 'jellyfin' | 'emby' | 'navidrome';
   serverUserId: string;
   username: string;
   ratingKey?: string | null;

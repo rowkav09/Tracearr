@@ -42,7 +42,7 @@ async function serverRow(serverId: string): Promise<ServerLinkRow | null> {
   return row ?? null;
 }
 
-const SERVER_TYPES = new Set<string>(['plex', 'jellyfin', 'emby']);
+const SERVER_TYPES = new Set<string>(['plex', 'jellyfin', 'emby', 'navidrome']);
 
 /**
  * A season carries no IMDb or TMDB id of its own - only the show does - so a season links

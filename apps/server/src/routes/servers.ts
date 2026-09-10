@@ -1,3 +1,4 @@
+import { NavidromeClient } from '../services/mediaServer/navidrome/client.js';
 /**
  * Server management routes - CRUD for Plex/Jellyfin/Emby servers
  */
@@ -145,6 +146,8 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
           }
           return reply.forbidden(adminCheck.message);
         }
+      } else if (type === 'navidrome') {
+        await new NavidromeClient({ url, token }).testConnection();
       } else if (type === 'emby') {
         const isAdmin = await EmbyClient.verifyServerAdmin(token, url);
         if (!isAdmin) {
@@ -300,6 +303,8 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
               }
               return reply.forbidden(adminCheck.message);
             }
+          } else if (server.type === 'navidrome') {
+            await new NavidromeClient({ url: newUrl, token: server.token }).testConnection();
           } else if (server.type === 'emby') {
             const isAdmin = await EmbyClient.verifyServerAdmin(server.token, newUrl);
             if (!isAdmin) {

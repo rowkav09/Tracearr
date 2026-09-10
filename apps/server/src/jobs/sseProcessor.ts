@@ -20,7 +20,7 @@ import { getGeoIPSettings } from '../routes/settings.js';
 import type { CacheService, PubSubService } from '../services/cache.js';
 import { createMediaServerClient } from '../services/mediaServer/index.js';
 import { extractLiveUuid } from '../services/mediaServer/plex/plexUtils.js';
-import { lookupGeoIP } from '../services/plexGeoip.js';
+import { lookupSessionGeoIP } from '../services/tailscaleLocation.js';
 import {
   assembleEvaluationInputs,
   loadEvaluationContext,
@@ -1090,7 +1090,7 @@ async function createNewSession(
 
   // Get GeoIP location (uses Plex API if enabled, falls back to MaxMind)
   const { usePlexGeoip } = await getGeoIPSettings();
-  const geo = await lookupGeoIP(processed.ipAddress, usePlexGeoip);
+  const geo = await lookupSessionGeoIP(processed.ipAddress, usePlexGeoip, server.type);
 
   if (!cacheService) {
     console.warn('[SSEProcessor] Cache service not available, skipping session creation');
@@ -1205,7 +1205,7 @@ async function handleMediaChange(
   }
 
   const { usePlexGeoip } = await getGeoIPSettings();
-  const geo = await lookupGeoIP(processed.ipAddress, usePlexGeoip);
+  const geo = await lookupSessionGeoIP(processed.ipAddress, usePlexGeoip, server.type);
 
   if (!cacheService) {
     return;
