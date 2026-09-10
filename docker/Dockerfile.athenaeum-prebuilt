@@ -1,0 +1,9 @@
+# Build shared/server/translations/web on the host first. The staging context
+# must contain only their dist directories and build-info.json, no credentials.
+# Valid only while dependencies and migrations match the pinned v2.2.3 base.
+ARG BASE_IMAGE=tracearr-official-backup:20260910
+FROM ${BASE_IMAGE}
+COPY --chown=1001:1001 server/ /app/apps/server/dist/
+COPY --chown=1001:1001 web/ /app/apps/web/dist/
+COPY --chown=1001:1001 shared/ /app/packages/shared/dist/
+COPY --chown=1001:1001 build-info.json /app/.build-info.json

@@ -51,11 +51,13 @@ export async function readPeerSnapshot(): Promise<PeerSnapshot | null> {
       if ((await stat(path)).size <= 4 * 1024 * 1024) {
         return snapshotSchema.parse(JSON.parse(await readFile(path, 'utf8')));
       }
-    } catch { /* fall through to Tracearr's connected daemon */ }
+    } catch { /* A configured host snapshot must never fall back to another node. */ }
+    return null;
   }
   const live = await tailscaleService.getPeerSnapshot();
   if (!live) return null;
-  return snapshotSchema.parse({ capturedAt: Date.now(), status: live });
+  const parsed = snapshotSchema.safeParse({ capturedAt: Date.now(), status: live });
+  return parsed.success ? parsed.data : null;
 }
 const unknownLocation: GeoLocation = { city: null, region: null, country: null, countryCode: null,
   continent: null, postal: null, lat: null, lon: null, asnNumber: null, asnOrganization: null };
