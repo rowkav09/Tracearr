@@ -18,7 +18,9 @@ Existing installations retain these compatibility environment names:
 
 These identifiers remain for compatibility with deployed configurations; they are not the fork's name.
 
-Run `docker/export-tailscale-peers.ps1 -OutputDirectory <directory>` on the Windows host whose Tailscale connection receives Jellyfin traffic. It reads status every 15 seconds. Mount that directory read-only in Tracearr. Snapshots expire after 45 seconds, and an invalid configured host snapshot never falls back to another node. A hidden login task can keep the exporter running; if it stops, locations become unknown.
+Run `docker/export-tailscale-peers.ps1 -OutputDirectory <directory> -Once` on the Windows host whose Tailscale connection receives Jellyfin traffic, and mount that directory read-only in Tracearr. Snapshots expire after 45 seconds, and an invalid configured host snapshot never falls back to another node.
+
+For a background Windows task, use `docker/export-tailscale-peers-hidden.vbs` as the task action and pass the exporter script path and output directory as its two arguments. Schedule two one-minute triggers offset by 30 seconds. This keeps snapshots within the freshness window without a persistent PowerShell process or taskbar window. Configure the task to ignore overlapping instances and run each invocation for no longer than 25 seconds. If the task stops, locations safely become unknown.
 
 Add Navidrome using administrator credentials encoded as JSON in the server credential field: `{"username":"admin","password":"..."}`. Do not commit credentials, peer snapshots or private backups.
 
