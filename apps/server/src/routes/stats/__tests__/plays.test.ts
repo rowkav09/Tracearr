@@ -170,13 +170,24 @@ describe('Plays Routes', () => {
       expect(params).toContain('episode');
     });
 
+    it('accepts music tracks and includes them in primary statistics', async () => {
+      const ownerUser = createOwnerUser();
+      app = await buildTestApp(ownerUser);
+      vi.mocked(db.execute).mockResolvedValueOnce({ rows: [] } as never);
+      const response = await app.inject({ method: 'GET', url: '/stats/plays?mediaType=track' });
+      expect(response.statusCode).toBe(200);
+      const { sql: query, params } = renderSql(vi.mocked(db.execute).mock.calls[0]![0] as SQL);
+      expect(query).toContain("'track'");
+      expect(params).toContain('track');
+    });
+
     it('rejects a mediaType value outside the primary media types', async () => {
       const ownerUser = createOwnerUser();
       app = await buildTestApp(ownerUser);
 
       const response = await app.inject({
         method: 'GET',
-        url: '/stats/plays?mediaType=track',
+        url: '/stats/plays?mediaType=photo',
       });
 
       expect(response.statusCode).toBe(400);

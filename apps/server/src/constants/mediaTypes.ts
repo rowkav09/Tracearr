@@ -2,7 +2,7 @@
  * Media Type Constants
  *
  * Centralized definitions for media type filtering across the application.
- * Live TV and music tracks are excluded from primary statistics but tracked separately.
+ * Movies, episodes and music tracks contribute to primary statistics.
  *
  * IMPORTANT: All SQL fragments are dynamically derived from the TypeScript arrays.
  * Changing PRIMARY_MEDIA_TYPES will automatically update all SQL.
@@ -17,9 +17,9 @@ export type { MediaType };
 
 /**
  * Media types that count toward primary statistics (dashboard, plays, users, etc.)
- * Excludes live TV and music tracks - they have their own breakdowns.
+ * Excludes live TV, photos and unknown media. Music listening counts too.
  */
-export const PRIMARY_MEDIA_TYPES = ['movie', 'episode'] as const;
+export const PRIMARY_MEDIA_TYPES = ['movie', 'episode', 'track'] as const;
 export type PrimaryMediaType = (typeof PRIMARY_MEDIA_TYPES)[number];
 
 // Generate SQL IN clause from array - single source of truth
@@ -53,4 +53,7 @@ export const MEDIA_TYPE_SQL_FILTER_S = sql.raw(`AND s.media_type IN (${primaryTy
  * Raw SQL string for use in TimescaleDB continuous aggregate definitions.
  * Used directly in CREATE MATERIALIZED VIEW statements.
  */
-export const PRIMARY_MEDIA_TYPES_SQL_LITERAL = `media_type IN (${primaryTypesInClause})`;
+// Existing video engagement aggregates remain video-only. Changing their
+// definition requires an explicit aggregate migration; main listening totals
+// and play charts query sessions directly and include existing track history.
+export const PRIMARY_MEDIA_TYPES_SQL_LITERAL = "media_type IN ('movie', 'episode')";

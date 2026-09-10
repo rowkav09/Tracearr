@@ -7,6 +7,8 @@ The `athenaeum` branch adds two optional integrations to Tracearr v2.2.3:
 
 `ATHENAEUM_NAVIDROME_ENABLED=true` must be set before adding or polling a Navidrome server. Store its token as JSON containing only the Navidrome administrator credentials, for example `{"username":"admin","password":"..."}`. Do not put that value in this document, a public image, or a log.
 
+Music tracks (including existing Plexamp history) now contribute to the dashboard, play charts and user statistics through the primary media-type filters. No history rewrite or database migration is needed. The existing two-minute minimum for counted plays remains; listening-duration totals include recorded track duration. Video engagement aggregates and movie/show rankings keep their existing scope. Live verification changed today's Plex-only dashboard from zero to 9 qualifying plays, 26 sessions and 0.6 hours at deployment time.
+
 The branch layout is intentionally simple:
 
 ```text
