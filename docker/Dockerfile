@@ -104,7 +104,7 @@ RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 tracearr
 
 # Set ownership
-RUN chown -R tracearr:nodejs /app /data/backup
+RUN chown -R tracearr:nodejs /app/data /data/backup
 
 USER tracearr
 
