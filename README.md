@@ -10,13 +10,13 @@ This fork addresses three problems in a media-server setup using Plexamp, Jellyf
 
 ## What this fork changes
 
-| Area | Difference |
-| --- | --- |
-| Music statistics | Includes recorded tracks in dashboard totals, play charts and user statistics, including existing Plexamp history. |
-| Tailscale locations | Reads the host's current peer state and uses a public `CurAddr` only for an active, online, directly connected peer. |
-| Relay and missing data | Leaves locations unknown when data is stale, ambiguous, relayed or unavailable. |
-| Navidrome | Adds an optional OpenSubsonic adapter for users, libraries and current playback, with artist, album, track, duration, position, source bitrate/codec and client metadata. |
-| Data preservation | Uses the normal tracking lifecycle; no direct history rewrites. Keeps a separately tagged official image and data backups for rollback. |
+| Area                   | Difference                                                                                                                                                                |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Music statistics       | Includes recorded tracks in dashboard totals, play charts and user statistics, including existing Plexamp history.                                                        |
+| Tailscale locations    | Reads the host's current peer state and uses a public `CurAddr` only for an active, online, directly connected peer.                                                      |
+| Relay and missing data | Leaves locations unknown when data is stale, ambiguous, relayed or unavailable.                                                                                           |
+| Navidrome              | Adds an optional OpenSubsonic adapter for users, libraries and current playback, with artist, album, track, duration, position, source bitrate/codec and client metadata. |
+| Data preservation      | Uses the normal tracking lifecycle; no direct history rewrites. Keeps a separately tagged official image and data backups for rollback.                                   |
 
 Music play counts retain the existing two-minute minimum. Video-specific rankings and engagement reports keep their existing scope. Navidrome historical backfill is not implemented, and simultaneous sessions with the same user/client identity cannot be reliably distinguished.
 
