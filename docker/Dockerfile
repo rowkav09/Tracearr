@@ -97,7 +97,7 @@ RUN mkdir -p /app/data/image-cache /data/backup
 RUN pnpm install --prod --frozen-lockfile --ignore-scripts
 
 COPY docker/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 
 # Create non-root user
 RUN addgroup --system --gid 1001 nodejs && \
