@@ -555,7 +555,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add "$CHART"
-          git commit -m "sync helm chart to $VERSION"
+          git commit -m "sync helm chart to $VERSION" -m "Co-authored-by: rowkav0809 <rowkav0808@highgateschool.org.uk>"
           git pull --rebase origin main
           git push origin main
 
