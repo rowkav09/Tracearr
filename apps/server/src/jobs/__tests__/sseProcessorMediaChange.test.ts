@@ -88,6 +88,14 @@ vi.mock('../../services/plexGeoip.js', () => ({
   lookupGeoIP: mockLookupGeoIP,
 }));
 
+<<<<<<< HEAD
+vi.mock('../../services/serverLocations.js', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  resolveSessionGeo: vi.fn().mockResolvedValue({ city: null, country: null, isLocal: true }),
+}));
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 vi.mock('../../routes/settings.js', () => ({
   getGeoIPSettings: mockGetGeoIPSettings,
 }));

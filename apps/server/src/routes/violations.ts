@@ -33,6 +33,10 @@ import {
   resolveServerIds,
   buildMultiServerCondition,
 } from '../utils/serverFiltering.js';
+<<<<<<< HEAD
+import { isLocalSession } from '../utils/localSession.js';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { violationAliasConditions } from '../services/automations/aliasFilter.js';
 import { dispatchTrustMoves } from '../services/automations/events/producers.js';
 import {
@@ -74,7 +78,11 @@ function trustAdjustment(action: Action): number | null {
 }
 
 /**
+<<<<<<< HEAD
+ * Sort keys, every branch tiebroken on automationRuns.id by buildOrderBy. Without a
+=======
  * Sort keys, every branch tiebroken on violations.id by buildOrderBy. Without a
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
  * unique tiebreak, offset paging over rows sharing a created_at (a poller tick
  * writes several at once) both repeats and drops rows between pages.
  *
@@ -87,8 +95,13 @@ const VIOLATION_SORT_KEYS: Record<ViolationSortField, SortKey> = {
     key: sql`CASE ${automationRuns.severity} WHEN 'high' THEN 3 WHEN 'warning' THEN 2 WHEN 'low' THEN 1 END`,
     defaultDir: 'desc',
   },
+<<<<<<< HEAD
+  user: { key: sql`lower(coalesce(${users.name}, ${serverUsers.username}))`, defaultDir: 'desc' },
+  rule: { key: sql`lower(${automations.name})`, defaultDir: 'desc' },
+=======
   user: { key: sql`${serverUsers.username}`, defaultDir: 'desc' },
   rule: { key: sql`${automations.name}`, defaultDir: 'desc' },
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 };
 
 /** The run column is nullable; every row this route serves has one, and the wire shape requires it. */
@@ -250,6 +263,10 @@ interface ViolationRow {
   geoCity: string | null;
   geoRegion: string | null;
   geoCountry: string | null;
+<<<<<<< HEAD
+  isLocal: boolean | null;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   geoContinent: string | null;
   geoPostal: string | null;
   geoLat: number | null;
@@ -298,6 +315,10 @@ async function enrichViolations(violationData: ViolationRow[]) {
           geoCity: sessions.geoCity,
           geoRegion: sessions.geoRegion,
           geoCountry: sessions.geoCountry,
+<<<<<<< HEAD
+          isLocal: sessions.isLocal,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           geoContinent: sessions.geoContinent,
           geoPostal: sessions.geoPostal,
           geoLat: sessions.geoLat,
@@ -314,7 +335,11 @@ async function enrichViolations(violationData: ViolationRow[]) {
         .where(inArray(sessions.id, Array.from(allRelatedSessionIds)));
 
       for (const s of relatedSessionsResult) {
+<<<<<<< HEAD
+        sessionsById.set(s.id, { ...s, deviceId: s.deviceId ?? null, isLocal: isLocalSession(s) });
+=======
         sessionsById.set(s.id, { ...s, deviceId: s.deviceId ?? null });
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       }
     } catch (error) {
       console.error('[Violations] Failed to batch fetch related sessions by ID:', error);
@@ -414,6 +439,10 @@ async function enrichViolations(violationData: ViolationRow[]) {
         geoCity: v.geoCity,
         geoRegion: v.geoRegion,
         geoCountry: v.geoCountry,
+<<<<<<< HEAD
+        isLocal: isLocalSession(v),
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         geoContinent: v.geoContinent,
         geoPostal: v.geoPostal,
         geoLat: v.geoLat,
@@ -483,6 +512,10 @@ function buildViolationPageQuery(params: {
       geoCity: sessions.geoCity,
       geoRegion: sessions.geoRegion,
       geoCountry: sessions.geoCountry,
+<<<<<<< HEAD
+      isLocal: sessions.isLocal,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       geoContinent: sessions.geoContinent,
       geoPostal: sessions.geoPostal,
       geoLat: sessions.geoLat,
@@ -602,6 +635,10 @@ export const violationRoutes: FastifyPluginAsync = async (app) => {
         geoCity: sessions.geoCity,
         geoRegion: sessions.geoRegion,
         geoCountry: sessions.geoCountry,
+<<<<<<< HEAD
+        isLocal: sessions.isLocal,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         geoContinent: sessions.geoContinent,
         geoPostal: sessions.geoPostal,
         geoLat: sessions.geoLat,
@@ -869,8 +906,12 @@ export const violationRoutes: FastifyPluginAsync = async (app) => {
       return { success: true, acknowledged: 0 };
     }
 
+<<<<<<< HEAD
+    // Verify access to all violations
+=======
     // Verify access to all violations. Filtering dismissed rows here keeps
     // them out of accessibleIds so the acknowledged count stays honest.
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     const accessibleViolations = await db
       .select({
         id: automationRuns.id,
@@ -889,6 +930,23 @@ export const violationRoutes: FastifyPluginAsync = async (app) => {
       return { success: true, acknowledged: 0 };
     }
 
+<<<<<<< HEAD
+    // Rows already acknowledged keep their original acknowledgedAt, whichever
+    // way the ids were chosen, and the count is the rows this request stamped.
+    const stamped = await db
+      .update(automationRuns)
+      .set({ acknowledgedAt: new Date() })
+      .where(
+        and(
+          inArray(automationRuns.id, accessibleIds),
+          isNull(automationRuns.dismissedAt),
+          isNull(automationRuns.acknowledgedAt)
+        )
+      )
+      .returning({ id: automationRuns.id });
+
+    return { success: true, acknowledged: stamped.length };
+=======
     // Bulk update
     await db
       .update(automationRuns)
@@ -896,6 +954,7 @@ export const violationRoutes: FastifyPluginAsync = async (app) => {
       .where(and(inArray(automationRuns.id, accessibleIds), isNull(automationRuns.dismissedAt)));
 
     return { success: true, acknowledged: accessibleIds.length };
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   });
 
   /**

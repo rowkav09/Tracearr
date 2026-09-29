@@ -5,6 +5,12 @@ import { useNewsletterSave } from './useNewsletterSave';
 
 const create = vi.fn();
 const update = vi.fn();
+<<<<<<< HEAD
+vi.mock('@/hooks/queries', () => ({
+  useCreateNewsletter: () => ({ mutate: create, isPending: false }),
+  useUpdateNewsletter: () => ({ mutate: update, isPending: false }),
+}));
+=======
 const invalidate = vi.fn();
 vi.mock('@/hooks/queries', () => ({
   useCreateNewsletter: () => ({ mutate: create, isPending: false }),
@@ -16,6 +22,7 @@ vi.mock('@tanstack/react-query', async () => {
     await vi.importActual<typeof import('@tanstack/react-query')>('@tanstack/react-query');
   return { ...actual, useQueryClient: () => ({ invalidateQueries: invalidate }) };
 });
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 const seed: NewsletterFormState = { ...defaultFormState(), name: 'Weekly', timezone: 'UTC' };
 
@@ -49,7 +56,11 @@ describe('useNewsletterSave', () => {
     expect(onSaved).toHaveBeenCalledWith({ id: 'n-9' }, state);
   });
 
+<<<<<<< HEAD
+  it('patches only the keys that differ', () => {
+=======
   it('patches only the keys that differ and refreshes the recipients view', () => {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     const onSaved = vi.fn();
     const state = { ...seed, name: 'Renamed', links: { tracearr: true } };
     update.mockImplementation(
@@ -64,7 +75,10 @@ describe('useNewsletterSave', () => {
       { id: 'n-1', data: { name: 'Renamed', links: { tracearr: true } } },
       expect.anything()
     );
+<<<<<<< HEAD
+=======
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['newsletters', 'n-1', 'recipients'] });
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     expect(onSaved).toHaveBeenCalledWith({ id: 'n-1' }, state);
   });
 

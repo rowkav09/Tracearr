@@ -1,4 +1,423 @@
 {
+<<<<<<< HEAD
+  "login": {
+    "title": "",
+    "tagline": "Tracearr - ストリームのアクセス管理",
+    "createAccountHeading": "アカウントを作成して開始する",
+    "signInHeading": "アカウントにサインインする",
+    "createAccountDescription": "メディアサーバーを管理するためのアカウントを作成する",
+    "signInDescription": "ダッシュボードにアクセスするにはサインインしてください",
+    "selectPlexServer": "プレックスサーバーを選択",
+    "waitingForPlex": "プレックスの承認を待っています...",
+    "completeInPopup": "ポップアップウィンドウでサインインを完了する",
+    "reopenPlexLogin": "プレックスログインを再開する",
+    "continueWith": "",
+    "usernameOrEmail": "",
+    "identifierPlaceholder": "",
+    "username": "",
+    "usernamePlaceholder": "",
+    "emailPlaceholder": "",
+    "displayNamePlaceholder": "表示名を選択",
+    "passwordPlaceholder": "少なくとも8文字",
+    "yourPasswordPlaceholder": "パスワード",
+    "setupNote": "アカウントを作成したら、format@@0からプレックスまたはJellyfinサーバーを追加します。",
+    "localDisabledHint": "",
+    "oidcError": "",
+    "accountCreated": "アカウントが正常に作成されました！",
+    "connectedTo": "{{name}} に接続しました",
+    "plexAuthFailed": "プレックス認証に失敗しました",
+    "plexStartFailed": "プレックスのログインを開始できませんでした",
+    "serverConnectFailed": "サーバーへの接続に失敗しました",
+    "signupFailed": "サインアップに失敗しました",
+    "createAccountFailed": "アカウントの作成に失敗しました",
+    "loginFailed": "ログインに失敗しました",
+    "invalidCredentials": "メールアドレスまたはパスワードが正しくありません",
+    "claimCodeRequired": "初回セットアップには請求コードが必要です",
+    "enterClaimCode": "請求コードを入力",
+    "claimCodeDescription": "セットアップを続行するには、サーバーのログに要求コードがないか確認してください",
+    "claimCodeLabel": "請求コード",
+    "claimCodeHint": "コンテナ起動時に要求コードがサーバーログに表示されます",
+    "validateClaimCode": "",
+    "claimCodeSecurityNote": "このセキュリティ対策は、許可されたユーザーのみが初めてのセットアップを完了することを保証します"
+  },
+  "dashboard": {
+    "alerts": "アラート",
+    "plays": "再生",
+    "watchTime": "ウォッチ時間",
+    "activeUsers": "アクティブなユーザー",
+    "nowPlaying": "再生中",
+    "streamLocations": "ストリームの場所",
+    "serverResources": "サーバーリソース",
+    "bandwidth": "",
+    "noActiveStreams": "有効なストリームがありません",
+    "streamsAppearHere": "ユーザーが視聴を開始すると、アクティブなストリームがここに表示されます"
+  },
+  "users": {
+    "title": "ユーザー",
+    "showRemoved": "",
+    "noUsersFound": "ユーザーが見つかりませんでした。",
+    "searchPlaceholder": "ユーザーを検索...",
+    "selectAllUsers": "すべての {{count}} ユーザーを選択",
+    "serversColumn": "",
+    "resetTrustScore": "信頼スコアをリセット",
+    "resetTrustScoreTitle_one": "{{count}} ユーザーのトラストスコアをリセット",
+    "resetTrustScoreTitle_other": "{{count}} ユーザーのトラストスコアをリセット",
+    "resetTrustScoreConfirm": "信頼度を100にリセットしてもよろしいですか？この操作は元に戻せません。",
+    "mergeUsers": "",
+    "mergeTitleSuggestion": "",
+    "mergeTitleBulk": "",
+    "mergeReasonEmail": "",
+    "mergeReasonEmailUsername": "",
+    "mergeReasonUsername": "",
+    "mergeKeep": "",
+    "mergeFoldIn": "",
+    "mergeSwap": "",
+    "mergeRequired": "",
+    "mergeLastActive": "",
+    "mergeNeverActive": "",
+    "mergeSessions_one": "",
+    "mergeSessions_other": "",
+    "mergeMoreServers": "",
+    "mergeWhatHappens": "",
+    "mergeMoves_one": "",
+    "mergeMoves_other": "",
+    "mergeMovesNoCount": "",
+    "mergeCarriesOver": "",
+    "mergeDeleted": "",
+    "mergeRulesKept": "",
+    "mergeIrreversibleTitle": "",
+    "mergeIrreversibleBody": "",
+    "mergeServerLabel": "",
+    "mergeServerUnknown": "",
+    "mergeIrreversibleAcknowledge": "",
+    "mergeServerAccountRemoved": "",
+    "mergeConfirmInto": "",
+    "mergeSelectTwo": "",
+    "mergeSameIdentity": "",
+    "mergeSelectAllActive": "",
+    "suggestionsTitle": "",
+    "suggestionsCount_one": "",
+    "suggestionsCount_other": "",
+    "suggestionsPairEmail": "",
+    "suggestionsPairEmailMore_one": "",
+    "suggestionsPairEmailMore_other": "",
+    "suggestionsPairEmailUsername": "",
+    "suggestionsPairEmailUsernameMore_one": "",
+    "suggestionsPairEmailUsernameMore_other": "",
+    "suggestionsPairUsername": "",
+    "suggestionsPairUsernameMore_one": "",
+    "suggestionsPairUsernameMore_other": "",
+    "suggestionsSheetDescription": "",
+    "suggestionsReview": "",
+    "suggestionsNotSame": "",
+    "suggestionsMatchEmail": "",
+    "suggestionsMatchEmailUsername": "",
+    "suggestionsMatchUsername": "",
+    "suggestionsEmpty": "",
+    "suggestionsDismissed": "",
+    "suggestionsDismissedPair": "",
+    "suggestionsDismissedAt": "",
+    "suggestionsRestore": "",
+    "suggestionsError": "",
+    "filterHasAccessTo": "",
+    "filterHasAccessToPlaceholder": "",
+    "filterHasAccessToHint": ""
+  },
+  "userDetail": {
+    "backToUsers": "ユーザーに戻る",
+    "userNotFound": "ユーザーが見つかりません",
+    "userInfo": "ユーザー情報",
+    "statistics": "統計情報",
+    "sessions": "セッション",
+    "violations": "違反",
+    "terminationHistory": "終了履歴",
+    "noViolationsFound": "このユーザーに対する違反はありません。",
+    "noTerminationsFound": "このユーザーに対する配信終了はありません。",
+    "byRule": "",
+    "manual": "マニュアル",
+    "unknownRule": "不明なルール",
+    "adjustTrustScore": "信頼スコアを調整",
+    "linkedAccounts": "",
+    "splitAccount": "",
+    "splitConfirmTitle": "",
+    "splitConfirmDescription": "",
+    "splitConfirmLoading": "",
+    "acrossAllServers": "",
+    "overallTrust": "",
+    "serverScope": "",
+    "allServers": "",
+    "title": "",
+    "editIdentity": "",
+    "editIdentityDescription": "",
+    "displayName": "",
+    "contactEmail": "",
+    "contactEmailHelp": "",
+    "contactEmailLabel": "",
+    "contactEmailNone": "",
+    "contactEmailNoLogin": "",
+    "locations": "場所"
+  },
+  "history": {
+    "title": "沿革",
+    "description": "",
+    "loadingMore": "さらに読み込み中...",
+    "scrollForMore": "詳細はスクロール",
+    "showingAllResults": "すべての {{total}} 結果を表示",
+    "deleteSession_one": "{{count}} セッションを削除",
+    "deleteSession_other": "{{count}} セッションを削除",
+    "deleteSessionsConfirm": "本当に削除しますか？この操作は元に戻せません。",
+    "totalPlays": "",
+    "uniqueTitles": "",
+    "uniqueUsers": ""
+  },
+  "library": {
+    "title": "ライブラリ",
+    "description": "",
+    "topMovies": "トップ 映画",
+    "topShows": "トップのテレビショー",
+    "noMoviePlays": "この期間には動画が再生されていません",
+    "noShowPlays": "この期間にはテレビ番組が再生されていません",
+    "overview": {
+      "description": "",
+      "lastUpdated": "最終更新日:",
+      "totalItems": "合計アイテム数",
+      "shows": "ショー",
+      "added": "追加しました",
+      "libraryGrowth": "図書館成長",
+      "failedToLoad": "ライブラリの統計情報の読み込みに失敗しました",
+      "failedToLoadDesc": "ライブラリデータを取得できませんでした。もう一度やり直してください。",
+      "thisPeriod": "この期間",
+      "thisWeek": "今週間",
+      "thisMonth": "今月",
+      "thisYear": "今年は",
+      "serversNeedSync": ""
+    },
+    "quality": {
+      "title": "品質",
+      "description": "",
+      "qualityEvolution": "品質の進化",
+      "all": "すべて",
+      "failedToLoad": "品質データの読み込みに失敗しました",
+      "failedToLoadDesc": "品質データを取得できませんでした。もう一度やり直してください。"
+    },
+    "storage": {
+      "title": "ストレージ",
+      "description": "",
+      "totalStorage": "合計ストレージ",
+      "growthRate": "成長率",
+      "duplicates": "重複",
+      "groups": "グループ",
+      "recoverable": "回復可能",
+      "staleContent": "古いコンテンツ",
+      "staleContentDesc": "",
+      "items": "項目",
+      "unused": "未使用",
+      "storageTrend": "ストレージのトレンド",
+      "confidence": "自信度：",
+      "confidenceHigh": "高い",
+      "confidenceMedium": "ミディアム",
+      "confidenceLow": "低い",
+      "zeroGrowth": "0 GB/月",
+      "predictions": "予測",
+      "contentROI": "",
+      "contentROIDesc": "",
+      "avgHoursPerGB": "平均時間/GB",
+      "insufficientData": "データが不足しています",
+      "of": "/",
+      "days": "日",
+      "failedToLoad": "ストレージデータの読み込みに失敗しました",
+      "failedToLoadDesc": "ストレージデータを取得できませんでした。もう一度やり直してください。",
+      "duplicatesTitle": "",
+      "duplicatesSubtitle": "",
+      "growthPreChangeover": "",
+      "loadingDuplicates": "",
+      "duplicatesFailed": "",
+      "noDuplicatesTitle": "",
+      "noDuplicatesDesc": "",
+      "colTitle": "",
+      "colType": "",
+      "colMatchType": "",
+      "colCopies": "",
+      "colRecoverable": "",
+      "sameServer": "",
+      "mirror": "",
+      "missingOnServer": "",
+      "missingOnServerHint": "",
+      "copyPath": ""
+    },
+    "watch": {
+      "title": "分析を見る",
+      "description": "",
+      "watched": "視聴済み",
+      "percentWatched": "視聴率",
+      "totalWatchTime": "合計視聴時間",
+      "avgPerItem": "項目あたりの平均値",
+      "completed": "完了",
+      "peakHour": "ピーク時間",
+      "viewingHours": "表示時間",
+      "peak": "ピーク:",
+      "monthlyTrends": "毎月のトレンド",
+      "busiest": "最も印象的な:",
+      "quietest": "",
+      "bingeHighlights": "Bingeハイライト",
+      "bingeHighlightsDesc": "",
+      "bingeSessions": "bingeセッション",
+      "noData": "ウォッチデータがまだありません",
+      "noDataDesc": "コンテンツが再生されると、ウォッチ解析がここに表示されます。いくつかの閲覧後に再度ご確認ください。",
+      "failedToLoad": "ウォッチ解析の読み込みに失敗しました",
+      "failedToLoadDesc": "ウォッチデータを取得できませんでした。"
+    },
+    "emptyState": {
+      "checkingStatus": "",
+      "backfillAvailable": {
+        "title": "",
+        "bodyWithDays": "",
+        "bodyGeneric": "",
+        "syncRunningTitle": "",
+        "syncRunningBody": ""
+      },
+      "generateHistory": "",
+      "starting": "",
+      "syncInProgress": {
+        "title": "",
+        "body": ""
+      },
+      "notSynced": {
+        "title": "",
+        "body": ""
+      },
+      "noMedia": {
+        "title": "",
+        "body": ""
+      },
+      "syncNow": "",
+      "syncing": "",
+      "notSyncedShort": "",
+      "backfillRunning": {
+        "title": "",
+        "fallbackBody": "",
+        "progress": "",
+        "snapshotsSuffix": ""
+      },
+      "multiServer": {
+        "title": "",
+        "body": "",
+        "needsBackfillIntro": ""
+      },
+      "toast": {
+        "noServerSelected": "",
+        "syncStartedTitle": "",
+        "syncStartedDesc": "",
+        "syncFailedTitle": "",
+        "genericRetry": "",
+        "backfillStartedTitle": "",
+        "backfillStartedDesc": "",
+        "backfillFailedTitle": "",
+        "backfillCompleteTitle": "",
+        "backfillErrorTitle": ""
+      }
+    },
+    "versionsBackfill": {
+      "banner": "",
+      "action": "",
+      "syncFailed": "",
+      "syncStarted": ""
+    }
+  },
+  "activity": {
+    "title": "アクティビティ",
+    "description": "",
+    "playsOverTime": "再生時間",
+    "concurrentStreams": "同時ストリーム",
+    "engagementBreakdown": "エンゲージメントの分析",
+    "howUsersEngage": "ユーザーがコンテンツをどのように利用するか",
+    "playsVsSessions": "再生対セッション",
+    "playsVsSessionsDesc": "完全な完了のみ — 合計ウォッチ時間がコンテンツのランタイム全体をカバーする場合、再生をカウントします",
+    "activityByDayOfWeek": "曜日ごとのアクティビティ",
+    "activityByHourOfDay": "毎日のアクティビティ",
+    "platforms": "プラットフォーム",
+    "streamQuality": "ストリーム品質"
+  },
+  "violations": {
+    "title": "違反",
+    "tryAdjustingFilters": "フィルターを調整してみてください",
+    "selectAllViolations": "すべての {{count}} 違反マッチングフィルターを選択",
+    "dismissViolation": "違反を却下する",
+    "dismissViolationConfirm": "この違反を却下してもよろしいですか？違反ログから完全に削除されます。",
+    "dismissViolation_one": "{{count}} 違反を却下する",
+    "dismissViolation_other": "{{count}} 違反を却下する",
+    "dismissViolationsConfirm": "本当に却下しますか？これにより違反ログから削除され、関連する信頼スコアが復元されます。",
+    "noViolationsFound": "違反は見つかりませんでした",
+    "noViolationsRecorded": "違反は記録されていません。",
+    "allSeverities": "すべての重要度",
+    "allStatuses": "すべてのステータス",
+    "allRules": "",
+    "filterPeople": "",
+    "allPeople": "",
+    "peopleSelectedCount": "",
+    "personFilterPlaceholder": "",
+    "personFilterEmpty": "",
+    "personFilterError": "",
+    "filterByPerson": "",
+    "detail": {
+      "notFound": "違反が見つかりません",
+      "violationDetails": "違反の詳細",
+      "userInfo": "ユーザー",
+      "sessions": "セッション",
+      "noSessions": "この違反に関連するセッションはありません",
+      "trigger": "トリガー",
+      "map": "セッション場所",
+      "actions": "取られたアクション",
+      "timestamps": "タイムスタンプ",
+      "created": "作成済み",
+      "acknowledged": "承認済み",
+      "detected": "検出済み",
+      "inactivity": "非アクティブの詳細",
+      "daysInactive": "非アクティブ日数",
+      "threshold": "しきい値",
+      "lastActivity": "前回のアクティビティ",
+      "neverActive": "アクティブにしない",
+      "conditionEvidence": "条件の証拠",
+      "conditionGroup": "条件グループ {{index}}",
+      "matched": "{{matched}}/{{total}} が一致しました",
+      "actual": "実際：",
+      "relatedSessions": "{{count}} 関連セッション",
+      "relatedSessions_one": "{{count}} 関連セッション",
+      "relatedSessions_other": "{{count}} 関連セッション"
+    }
+  },
+  "automations": {
+    "actions": {
+      "send": {
+        "label": "",
+        "description": "",
+        "fields": {
+          "cooldown_minutes": {
+            "description": ""
+          }
+        },
+        "ran": ""
+      },
+      "trust": {
+        "label": "",
+        "description": "",
+        "fields": {
+          "mode": {
+            "label": ""
+          },
+          "amount": {
+            "label": "",
+            "description": ""
+          },
+          "value": {
+            "label": ""
+          }
+        },
+        "ran": ""
+      },
+      "kill_stream": {
+        "label": "",
+=======
   "activity": {
     "activityByDayOfWeek": "曜日ごとのアクティビティ",
     "activityByHourOfDay": "毎日のアクティビティ",
@@ -25,12 +444,39 @@
   "automations": {
     "actions": {
       "kill_stream": {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         "description": "",
         "fields": {
           "cooldown_minutes": {
             "description": ""
           },
           "delay_seconds": {
+<<<<<<< HEAD
+            "label": "",
+            "description": ""
+          },
+          "target": {
+            "description": ""
+          },
+          "message": {
+            "placeholder": ""
+          }
+        },
+        "ran": ""
+      },
+      "message_client": {
+        "label": "",
+        "description": "",
+        "hint": "",
+        "fields": {
+          "target": {
+            "description": ""
+          },
+          "message": {
+            "placeholder": ""
+          }
+        },
+=======
             "description": "",
             "label": ""
           },
@@ -83,10 +529,150 @@
           }
         },
         "label": "",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         "ran": ""
       }
     },
     "activity": {
+<<<<<<< HEAD
+      "title": "",
+      "description": "",
+      "outcome": "",
+      "who": "",
+      "where": "",
+      "playing": "",
+      "from": "",
+      "summary": "",
+      "started": "",
+      "finished": "",
+      "noSummary": "",
+      "outcomes": {
+        "completed": "",
+        "stopped_by_condition": "",
+        "error": ""
+      },
+      "empty": "",
+      "emptyDescription": "",
+      "runTitle": "",
+      "runLoading": "",
+      "triggeredBy": "",
+      "unknownStep": "",
+      "tabs": {
+        "all": "",
+        "completed": "",
+        "stopped_by_condition": "",
+        "error": ""
+      },
+      "group": "",
+      "branch": {
+        "then": "",
+        "else": ""
+      },
+      "whyBranch": "",
+      "openInEditor": "",
+      "tabsLabel": "",
+      "emptyRan": "",
+      "emptyRanDescription_one": "",
+      "emptyRanDescription_other": "",
+      "item": "",
+      "recordedViolation": ""
+    },
+    "allKinds": "",
+    "allStatuses": "",
+    "allSeverities": "",
+    "bind": {
+      "nameHelper": "",
+      "namePlaceholder": "",
+      "activeLabel": "",
+      "back": "",
+      "submit": "",
+      "submitting": "",
+      "customize": "",
+      "doors": {
+        "helper": ""
+      },
+      "anyServer": "",
+      "serverHelper": "",
+      "serverLabel": "",
+      "accountLabel": "",
+      "personLabel": "",
+      "destinationsLabel": "",
+      "required": "",
+      "needs": {
+        "title": ""
+      },
+      "helper": {
+        "killMessage": "",
+        "clientMessage": ""
+      },
+      "noInputs": "",
+      "failed": "",
+      "created": "",
+      "createdOff": ""
+    },
+    "builder": {
+      "destinationDisabled": "",
+      "noAlertRecipientsTooltip": "",
+      "noDestinations": "",
+      "newDestination": "",
+      "errors": {
+        "sendNeedsDestination": "",
+        "nameRequired": "",
+        "scopeIncomplete": "",
+        "triggerRequired": "",
+        "policyNeedsSubject": "",
+        "fieldUnavailable": "",
+        "operatorInvalid": "",
+        "valueInvalid": "",
+        "actionUnavailable": "",
+        "variableUnavailable": "",
+        "minutesRange": "",
+        "daysRange": "",
+        "measureInvalid": "",
+        "fieldNotAvailableFor": "",
+        "trustAmountRange": "",
+        "trustValueRange": "",
+        "messageRequired": "",
+        "tooLong": ""
+      },
+      "recordAs": {
+        "label": "",
+        "policy": "",
+        "policyDescription": "",
+        "notification": "",
+        "notificationDescription": ""
+      },
+      "severityLabel": "",
+      "activeLabel": "",
+      "saving": "",
+      "selectPlaceholder": "",
+      "searchPlaceholder": "",
+      "noMatches": "",
+      "clearSelection": "",
+      "selectedCount": "",
+      "scope": {
+        "label": "",
+        "global": "",
+        "server": "",
+        "account": "",
+        "person": "",
+        "serverLabel": "",
+        "serverPlaceholder": "",
+        "accountLabel": "",
+        "accountPlaceholder": "",
+        "personLabel": "",
+        "personPlaceholder": "",
+        "personHelper": "",
+        "noServers": "",
+        "enforceAcrossServers": "",
+        "enforceAcrossServersDescription": ""
+      },
+      "conditions": {
+        "addGroup": "",
+        "fieldPlaceholder": "",
+        "windowPrefix": "",
+        "windowUnit": "",
+=======
       "branch": {
         "else": "",
         "then": ""
@@ -214,10 +800,104 @@
         "recentlySeen": "",
         "removeGroup": "",
         "sectionTitle": "",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         "uniqueDevices": "",
         "uniqueDevicesHint": "",
         "uniqueIps": "",
         "uniqueIpsHint": "",
+<<<<<<< HEAD
+        "allDeviceTypes": "",
+        "deviceTypesHint": "",
+        "yes": "",
+        "no": "",
+        "recentlySeen": "",
+        "allCountries": "",
+        "sectionTitle": "",
+        "optional": "",
+        "helper": "",
+        "emptyLine": "",
+        "all": "",
+        "any": "",
+        "allHint": "",
+        "anyHint": "",
+        "matchLabel": "",
+        "fieldLabel": "",
+        "operatorLabel": "",
+        "valueLabel": "",
+        "canNeverPass": "",
+        "noFields": "",
+        "groupSeparator": "",
+        "addAnother": "",
+        "addFirst": "",
+        "removeGroup": ""
+      },
+      "actions": {
+        "add": "",
+        "sectionTitle": "",
+        "ifTitle": "",
+        "helper": "",
+        "emptyTitle": "",
+        "emptyDescription": "",
+        "emptyAction": "",
+        "moveUp": "",
+        "moveDown": "",
+        "menu": "",
+        "branchName": "",
+        "confirmRemoveTitle": "",
+        "confirmRemoveDescription": "",
+        "policyNote": "",
+        "branchThen": "",
+        "branchElse": "",
+        "branchElseEmpty": "",
+        "ifNothing": "",
+        "ifAddCheck": "",
+        "addBranch": "",
+        "expandBranch": "",
+        "collapseBranch": ""
+      },
+      "when": {
+        "title": "",
+        "helper": "",
+        "emptyTitle": "",
+        "emptyDescription": "",
+        "emptyAction": "",
+        "add": "",
+        "or": ""
+      },
+      "heldFor": {
+        "prefix": "",
+        "minutesLabel": "",
+        "unit": "",
+        "measureLabel": "",
+        "current": "",
+        "total": ""
+      },
+      "inactiveFor": {
+        "prefix": "",
+        "daysLabel": "",
+        "unit": ""
+      },
+      "rows": {
+        "toggle": "",
+        "remove": "",
+        "skipped": "",
+        "toggleHint": "",
+        "removeHint": "",
+        "expandHint": "",
+        "moveHint": ""
+      },
+      "picker": {
+        "searchPlaceholder": "",
+        "empty": "",
+        "navigate": "",
+        "select": "",
+        "close": ""
+      },
+      "sentence": {
+        "label": "",
+        "placeholderTrigger": "",
+        "placeholderAction": ""
+=======
         "valueLabel": "",
         "windowPrefix": "",
         "windowUnit": "",
@@ -243,10 +923,831 @@
         "trustValueRange": "",
         "valueInvalid": "",
         "variableUnavailable": ""
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       },
       "footer": {
         "problems_one": "",
         "problems_other": "",
+<<<<<<< HEAD
+        "remaining_one": "",
+        "remaining_other": "",
+        "ready": "",
+        "search": ""
+      },
+      "leave": {
+        "title": "",
+        "confirm": ""
+      },
+      "liveCheck": {
+        "title": "",
+        "checking": "",
+        "empty": "",
+        "failed": "",
+        "footnote": "",
+        "expand": "",
+        "passed": "",
+        "notPassed": "",
+        "actual": "",
+        "unfinished": "",
+        "paused": "",
+        "sampleTitle": "",
+        "sampleGone": "",
+        "backToLive": ""
+      }
+    },
+    "categories": {
+      "session_behavior": "",
+      "stream_quality": "",
+      "user_attributes": "",
+      "device_client": "",
+      "network_location": "",
+      "scope": "",
+      "media": ""
+    },
+    "createAutomation": "",
+    "customAutomation": "",
+    "deleteAutomationConfirm": "",
+    "deleteAutomation_one": "",
+    "deleteAutomation_other": "",
+    "deleteAutomationsConfirm": "",
+    "describe": {
+      "more_one": "",
+      "more_other": "",
+      "noValues": "",
+      "includesSameDevice": "",
+      "uniqueIps": "",
+      "deviceTypesOnly": "",
+      "when": "",
+      "or": "",
+      "nothing": "",
+      "onlyWhen": "",
+      "andAlso": "",
+      "allOf": "",
+      "anyOf": "",
+      "joinAll": "",
+      "joinAny": "",
+      "then": "",
+      "otherwise": "",
+      "appliesTo": "",
+      "duration": {
+        "minutes_one": "",
+        "minutes_other": "",
+        "days_one": "",
+        "days_other": ""
+      },
+      "triggers": {
+        "sessionStarted": "",
+        "sessionFirstSeen": "",
+        "sessionStopped": "",
+        "sessionTranscodeChanged": "",
+        "sessionPaused": "",
+        "sessionHeldFor": "",
+        "sessionHeldForTotal": "",
+        "accountInactiveFor": "",
+        "accountNewDevice": "",
+        "accountTrustChanged": "",
+        "mediaAdded": "",
+        "mediaUpgraded": "",
+        "serverDown": "",
+        "serverUp": "",
+        "pluginUpdateAvailable": "",
+        "serverUpdateAvailable": "",
+        "tracearrUpdateAvailable": "",
+        "newsletterSent": "",
+        "newsletterFailed": ""
+      },
+      "operators": {
+        "eq": "",
+        "neq": "",
+        "gt": "",
+        "gte": "",
+        "lt": "",
+        "lte": "",
+        "in": "",
+        "not_in": "",
+        "contains": "",
+        "not_contains": ""
+      },
+      "fields": {
+        "concurrent_streams": "",
+        "active_session_distance_km": "",
+        "travel_speed_kmh": "",
+        "unique_ips_in_window": "",
+        "unique_devices_in_window": "",
+        "inactive_days": "",
+        "current_pause_minutes": "",
+        "total_pause_minutes": "",
+        "source_resolution": "",
+        "output_resolution": "",
+        "source_dynamic_range": "",
+        "source_video_codec": "",
+        "is_transcoding": "",
+        "is_transcode_downgrade": "",
+        "source_bitrate_mbps": "",
+        "user_id": "",
+        "trust_score": "",
+        "account_age_days": "",
+        "device_type": "",
+        "client_name": "",
+        "platform": "",
+        "is_local_network": "",
+        "country": "",
+        "ip_in_range": "",
+        "server_id": "",
+        "media_type": "",
+        "season_number": "",
+        "episode_number": "",
+        "library_item_type": "",
+        "library_name": "",
+        "resolution_after": "",
+        "dynamic_range_after": "",
+        "video_codec_after": "",
+        "audio_channels_after": "",
+        "file_size_after": ""
+      },
+      "states": {
+        "is_local_network": {
+          "yes": "",
+          "no": ""
+        },
+        "is_transcode_downgrade": {
+          "yes": "",
+          "no": ""
+        },
+        "is_transcoding": {
+          "video": {
+            "yes": "",
+            "no": ""
+          },
+          "audio": {
+            "yes": "",
+            "no": ""
+          },
+          "video_or_audio": {
+            "yes": "",
+            "no": ""
+          },
+          "neither": {
+            "yes": "",
+            "no": ""
+          }
+        }
+      },
+      "actions": {
+        "if": "",
+        "flagIt": "",
+        "doNothing": "",
+        "send": "",
+        "sendAnywhere": "",
+        "kill_stream": "",
+        "message_client": "",
+        "trustUp": "",
+        "trustDown": "",
+        "trustAdjust": "",
+        "trustSet": "",
+        "trustReset": ""
+      },
+      "scope": {
+        "server": "",
+        "account": "",
+        "person": ""
+      },
+      "sameDeviceInput": "",
+      "uniqueIpsInput": "",
+      "unbound": {
+        "server": "",
+        "account": "",
+        "person": "",
+        "destinations": "",
+        "field_value": "",
+        "select": "",
+        "number": "",
+        "duration": "",
+        "text": "",
+        "boolean": "",
+        "listed": ""
+      }
+    },
+    "description": "",
+    "detail": {
+      "notFound": "",
+      "title": "",
+      "unsaved": "",
+      "runsLine_one": "",
+      "runsLine_other": "",
+      "noRuns": ""
+    },
+    "disable": "",
+    "editAutomation": "",
+    "effects": {
+      "title": "",
+      "kill": "",
+      "trust": "",
+      "message": "",
+      "violation": "",
+      "tellsOnly": "",
+      "allServers": "",
+      "everyServer": "",
+      "oneServer": ""
+    },
+    "emptyTitle": "",
+    "emptyDescription": "",
+    "emptySeeAll": "",
+    "emptySeeAllLoading": "",
+    "enable": "",
+    "evaluations": {
+      "disclosure": "",
+      "reasons": {
+        "cooldown_active": "",
+        "edge_replayed": "",
+        "gate_blocked": "",
+        "trigger_filter_failed": ""
+      }
+    },
+    "export": {
+      "title": "",
+      "description": "",
+      "carries": "",
+      "copyCode": "",
+      "copyJson": "",
+      "authorLabel": "",
+      "authorPlaceholder": "",
+      "authorHelper": "",
+      "save": "",
+      "saved": "",
+      "saveFailed": "",
+      "failed": "",
+      "saveHelper": "",
+      "authorInCode": "",
+      "groupLabel": "",
+      "groupHelper": "",
+      "gallery": {
+        "trigger": "",
+        "body": ""
+      },
+      "openRepository": ""
+    },
+    "fields": {
+      "concurrent_streams": {
+        "label": "",
+        "description": ""
+      },
+      "active_session_distance_km": {
+        "label": "",
+        "description": ""
+      },
+      "travel_speed_kmh": {
+        "label": "",
+        "description": ""
+      },
+      "unique_ips_in_window": {
+        "label": "",
+        "description": ""
+      },
+      "unique_devices_in_window": {
+        "label": "",
+        "description": ""
+      },
+      "inactive_days": {
+        "label": "",
+        "description": ""
+      },
+      "current_pause_minutes": {
+        "label": "",
+        "description": ""
+      },
+      "total_pause_minutes": {
+        "label": "",
+        "description": ""
+      },
+      "source_resolution": {
+        "label": "",
+        "description": ""
+      },
+      "output_resolution": {
+        "label": "",
+        "description": ""
+      },
+      "source_dynamic_range": {
+        "label": "",
+        "description": ""
+      },
+      "source_video_codec": {
+        "label": "",
+        "description": ""
+      },
+      "is_transcoding": {
+        "label": "",
+        "description": ""
+      },
+      "is_transcode_downgrade": {
+        "label": "",
+        "description": ""
+      },
+      "source_bitrate_mbps": {
+        "label": "",
+        "description": ""
+      },
+      "user_id": {
+        "label": "",
+        "description": "",
+        "placeholder": ""
+      },
+      "trust_score": {
+        "label": "",
+        "description": ""
+      },
+      "account_age_days": {
+        "label": "",
+        "description": ""
+      },
+      "device_type": {
+        "label": "",
+        "description": ""
+      },
+      "client_name": {
+        "label": "",
+        "description": "",
+        "placeholder": ""
+      },
+      "platform": {
+        "label": "",
+        "description": ""
+      },
+      "is_local_network": {
+        "label": "",
+        "description": ""
+      },
+      "country": {
+        "label": "",
+        "description": "",
+        "placeholder": ""
+      },
+      "ip_in_range": {
+        "label": "",
+        "description": "",
+        "placeholder": ""
+      },
+      "server_id": {
+        "label": "",
+        "description": "",
+        "placeholder": ""
+      },
+      "media_type": {
+        "label": "",
+        "description": ""
+      },
+      "season_number": {
+        "label": "",
+        "description": ""
+      },
+      "episode_number": {
+        "label": "",
+        "description": ""
+      },
+      "library_item_type": {
+        "label": "",
+        "description": ""
+      },
+      "library_name": {
+        "label": "",
+        "description": "",
+        "placeholder": ""
+      },
+      "resolution_after": {
+        "label": "",
+        "description": ""
+      },
+      "dynamic_range_after": {
+        "label": "",
+        "description": ""
+      },
+      "video_codec_after": {
+        "label": "",
+        "description": ""
+      },
+      "audio_channels_after": {
+        "label": "",
+        "description": ""
+      },
+      "file_size_after": {
+        "label": "",
+        "description": ""
+      }
+    },
+    "gallery": {
+      "title": "",
+      "description": "",
+      "searchPlaceholder": "",
+      "noMatches": "",
+      "noMatchesHint": "",
+      "group": {
+        "notifications": "",
+        "server_health": "",
+        "policies": "",
+        "housekeeping": "",
+        "other": ""
+      },
+      "builtin": "",
+      "kind": {
+        "policy": "",
+        "notification": ""
+      },
+      "paste": {
+        "title": "",
+        "description": ""
+      },
+      "scratch": {
+        "title": "",
+        "description": ""
+      },
+      "failed": "",
+      "retry": "",
+      "missing": "",
+      "hint": {
+        "move": "",
+        "use": "",
+        "close": ""
+      },
+      "loading": ""
+    },
+    "import": {
+      "title": "",
+      "description": "",
+      "reviewDescription": "",
+      "placeholder": "",
+      "formatHint": "",
+      "check": "",
+      "checking": "",
+      "valid": "",
+      "madeBy": "",
+      "codeShort": "",
+      "paused": {
+        "label": "",
+        "helper": ""
+      },
+      "submit": "",
+      "adding": "",
+      "existing": "",
+      "existingUse": "",
+      "collision": {
+        "title": "",
+        "add": "",
+        "replace": ""
+      },
+      "raw": "",
+      "errors": {
+        "notACode": "",
+        "notACodeHint": "",
+        "tooBig": "",
+        "tooBigHint": "",
+        "truncated": "",
+        "truncatedHint": "",
+        "tooNew": "",
+        "tooNewHint": "",
+        "tooMany": "",
+        "tooManyHint": "",
+        "rejected": "",
+        "rejectedHint": ""
+      },
+      "source": "",
+      "validCaveat": "",
+      "builtinMatch": ""
+    },
+    "kind": {
+      "policy": "",
+      "notification": ""
+    },
+    "kindColumn": "",
+    "name": "",
+    "newAutomation": "",
+    "namePlaceholder": "",
+    "nameInvalid": "",
+    "descriptionLabel": "",
+    "descriptionPlaceholder": "",
+    "thisAutomation": "",
+    "cooldownLabel": "",
+    "cooldownInvalid": "",
+    "retentionLabel": "",
+    "retentionPlaceholder": "",
+    "retentionInvalid": "",
+    "noAutomationsFound": "",
+    "operators": {
+      "eq": "",
+      "neq": "",
+      "gt": "",
+      "gte": "",
+      "lt": "",
+      "lte": "",
+      "in": "",
+      "not_in": "",
+      "contains": "",
+      "not_contains": ""
+    },
+    "options": {
+      "4K": "",
+      "1080p": "",
+      "720p": "",
+      "480p": "",
+      "SD": "",
+      "unknown": "",
+      "mobile": "",
+      "tablet": "",
+      "tv": "",
+      "desktop": "",
+      "browser": "",
+      "ios": "",
+      "android": "",
+      "windows": "",
+      "macos": "",
+      "linux": "",
+      "tvos": "",
+      "androidtv": "",
+      "roku": "",
+      "webos": "",
+      "tizen": "",
+      "movie": "",
+      "episode": "",
+      "track": "",
+      "photo": "",
+      "live": "",
+      "trailer": "",
+      "video": "",
+      "audio": "",
+      "video_or_audio": "",
+      "neither": "",
+      "8K": "",
+      "1440p": "",
+      "sdr": "",
+      "hdr": "",
+      "hdr10": "",
+      "hdr10+": "",
+      "hlg": "",
+      "dolby vision": "",
+      "libraryItemType": {
+        "movie": "",
+        "show": "",
+        "season": "",
+        "episode": "",
+        "artist": "",
+        "album": "",
+        "track": "",
+        "photo": ""
+      }
+    },
+    "provenance": {
+      "builtin": "",
+      "imported": "",
+      "importedBy": "",
+      "saved": "",
+      "customized": "",
+      "customizedFromRemoved": ""
+    },
+    "recordsOnly": "",
+    "scope": {
+      "global": "",
+      "person": "",
+      "account": "",
+      "crossServer": ""
+    },
+    "searchPlaceholder": "",
+    "sessionTargets": {
+      "triggering": {
+        "label": "",
+        "tooltip": ""
+      },
+      "oldest": {
+        "label": "",
+        "tooltip": ""
+      },
+      "newest": {
+        "label": "",
+        "tooltip": ""
+      },
+      "all_except_one": {
+        "label": "",
+        "tooltip": ""
+      },
+      "all_user": {
+        "label": "",
+        "tooltip": ""
+      }
+    },
+    "configFields": {
+      "cooldown_minutes": {
+        "label": ""
+      },
+      "target": {
+        "label": ""
+      },
+      "message": {
+        "label": ""
+      }
+    },
+    "trustModes": {
+      "adjust": {
+        "label": ""
+      },
+      "set": {
+        "label": ""
+      },
+      "reset": {
+        "label": ""
+      }
+    },
+    "severity": {
+      "low": "",
+      "warning": "",
+      "high": ""
+    },
+    "template": {
+      "version": "",
+      "updateAvailable": "",
+      "updatedTitle": "",
+      "updatedBody": "",
+      "before": "",
+      "after": "",
+      "review": "",
+      "save": "",
+      "customize": "",
+      "customizeTitle": "",
+      "customizeConfirm": "",
+      "customizeConfirmAction": "",
+      "customizeFirst": "",
+      "customizeFailed": "",
+      "upgradeFailed": "",
+      "gone": "",
+      "doorsHelper": ""
+    },
+    "templates": {
+      "account-inactivity": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "concurrent-streams": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "device-velocity": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "geo-restriction": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "impossible-travel": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "kill-paused-streams": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "media-added": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "media-upgraded": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "new-device": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "newsletter-failed": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "no-4k-transcodes": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "paused-too-long": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "plugin-update": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "server-down": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "server-up": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "server-update": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "simultaneous-locations": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "stream-ended": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "stream-started": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "tracearr-update": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "transcode-started": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "trust-score-changed": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      }
+    },
+    "title": "",
+    "toggleAutomation": "",
+    "tryAdjustingFilters": "",
+    "units": {
+      "km": "",
+      "kmh": "",
+      "mbps": "",
+      "days": "",
+      "minutes": "",
+      "hours": "",
+      "gb": "",
+      "seconds": ""
+    },
+    "updateAutomation": "",
+    "catalog": {
+      "groups": {
+        "sessions": "",
+        "accounts": "",
+        "library": "",
+        "servers": "",
+        "updates": "",
+        "notifications": "",
+        "notify": "",
+        "policy": "",
+        "control": ""
+      },
+      "suggested": "",
+      "triggers": {
+        "sessionStarted": {
+          "description": "",
+          "synonyms": ""
+        },
+        "sessionFirstSeen": {
+          "description": "",
+          "synonyms": ""
+        },
+        "sessionStopped": {
+          "description": "",
+          "synonyms": ""
+        },
+        "sessionTranscodeChanged": {
+          "description": "",
+          "synonyms": ""
+        },
+        "sessionPaused": {
+          "description": "",
+          "synonyms": ""
+        },
+        "sessionHeldFor": {
+          "label": "",
+          "description": "",
+          "synonyms": ""
+        },
+        "accountInactiveFor": {
+          "label": "",
+          "description": "",
+=======
         "ready": "",
         "remaining_one": "",
         "remaining_other": "",
@@ -385,6 +1886,7 @@
         "accountInactiveFor": {
           "description": "",
           "label": "",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           "synonyms": ""
         },
         "accountNewDevice": {
@@ -403,6 +1905,8 @@
           "description": "",
           "synonyms": ""
         },
+<<<<<<< HEAD
+=======
         "newsletterFailed": {
           "description": "",
           "synonyms": ""
@@ -415,6 +1919,7 @@
           "description": "",
           "synonyms": ""
         },
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         "serverDown": {
           "description": "",
           "synonyms": ""
@@ -423,6 +1928,13 @@
           "description": "",
           "synonyms": ""
         },
+<<<<<<< HEAD
+        "pluginUpdateAvailable": {
+          "description": "",
+          "synonyms": ""
+        },
+        "serverUpdateAvailable": {
+=======
         "serverUpdateAvailable": {
           "description": "",
           "synonyms": ""
@@ -449,12 +1961,48 @@
           "synonyms": ""
         },
         "sessionTranscodeChanged": {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           "description": "",
           "synonyms": ""
         },
         "tracearrUpdateAvailable": {
           "description": "",
           "synonyms": ""
+<<<<<<< HEAD
+        },
+        "newsletterSent": {
+          "description": "",
+          "synonyms": ""
+        },
+        "newsletterFailed": {
+          "description": "",
+          "synonyms": ""
+        }
+      },
+      "actions": {
+        "send": {
+          "synonyms": ""
+        },
+        "trust": {
+          "synonyms": ""
+        },
+        "kill_stream": {
+          "synonyms": ""
+        },
+        "message_client": {
+          "synonyms": ""
+        },
+        "if": {
+          "label": "",
+          "description": "",
+          "synonyms": ""
+        }
+      }
+    },
+    "filters": {
+      "source": "",
+      "allSources": "",
+=======
         }
       }
     },
@@ -837,12 +2385,77 @@
       "allSources": "",
       "allTriggers": "",
       "source": "",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       "sources": {
         "builtin": "",
         "import": "",
         "local": "",
         "own": ""
       },
+<<<<<<< HEAD
+      "trigger": "",
+      "allTriggers": ""
+    },
+    "openGallery": ""
+  },
+  "terminateStream": {
+    "title": "配信を終了",
+    "stopMedia": "@{{mediaTitle}}の \"{{username}}\" を停止しますか？",
+    "messageLabel": "ユーザーへのメッセージ (オプション)",
+    "messagePlaceholder": "例えば、アカウントを共有しないでください",
+    "messageHint": "このメッセージは再生中に表示されます",
+    "terminating": "終了中...",
+    "killStream": "キルストリーム"
+  },
+  "notFound": {
+    "title": "",
+    "heading": "ページが見つかりません",
+    "description": "お探しのページは存在しないか、移動されていません。"
+  },
+  "settings": {
+    "plex": {
+      "noServersFound": "プレックスサーバーが見つかりません",
+      "noServersFoundHint": "Plexサーバーを少なくとも1つ所有していることを確認してください",
+      "noReachableConnections": "接続可能な接続がありません",
+      "local": "ローカル",
+      "remote": "リモート",
+      "custom": "",
+      "secure": "セキュア",
+      "mayNotConnect": "接続できません",
+      "recommended": "",
+      "customUrl": "カスタム URL",
+      "connectionError": {
+        "timeout": "",
+        "dns": "",
+        "refused": "",
+        "unreachable": "",
+        "reset": "",
+        "tls": "",
+        "http": "",
+        "unknown": ""
+      },
+      "connectionsReachable": "{{reachable}} / {{total}} コネクションに到達可能",
+      "connectionsAvailable": "{{count}} コネクションが利用可能です",
+      "hideFiltered": "フィルターを隠す",
+      "showAll": "すべて表示",
+      "moreConnections": "+{{count}} 他のコネクション",
+      "connectingTo": "{{name}} に接続中...",
+      "ownerOnly": "",
+      "noAccountsLinked": "プレックスアカウントがリンクされていません",
+      "noAccountsLinkedHint": "Plexアカウントをリンクして、PlexサーバーをTracearrに追加します。",
+      "linkPlexAccount": "プレックスアカウントをリンク",
+      "linkAnotherAccount": "別のプレックスアカウントにリンク",
+      "linking": "リンクしています...",
+      "loginEnabled": "ログインが有効です",
+      "serversConnected_one": "{{count}} サーバーが接続されました",
+      "serversConnected_other": "{{count}} サーバーが接続されました",
+      "unlinkAccount": "このプレックスアカウントの連携を解除する",
+      "reauthorizeAccount": "",
+      "deleteServersFirst": "このアカウントの連携を解除するには、最初に接続されているサーバーを削除してください",
+      "unlinkPlexAccount": "プレックスアカウントのリンクを解除",
+      "unlinkConfirm": "このプレックスアカウントのリンクを解除してもよろしいですか？再度リンクするまで、このアカウントからサーバーを追加することはできません。"
+    },
+=======
       "trigger": ""
     },
     "gallery": {
@@ -1835,6 +3448,7 @@
     "windowWillClose": "このウィンドウは自動的に閉じます..."
   },
   "settings": {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "destinations": {
       "add": "",
       "alertsGoTo": "",
@@ -1847,6 +3461,75 @@
       "emailDescription": "",
       "empty": "",
       "fields": {
+<<<<<<< HEAD
+        "webhookUrl": "",
+        "url": "",
+        "serverUrl": "",
+        "apiUrl": "",
+        "topic": "",
+        "authToken": "",
+        "userKey": "",
+        "apiToken": "",
+        "preset": "",
+        "host": "",
+        "port": "",
+        "security": "",
+        "verifyCertificate": "",
+        "username": "",
+        "password": "",
+        "fromName": "",
+        "fromAddress": "",
+        "to": "",
+        "replyTo": "",
+        "messagesPerSecond": "",
+        "messageStream": ""
+      },
+      "groups": {
+        "connection": "",
+        "sender": "",
+        "alerts": ""
+      },
+      "hints": {
+        "authTokenOptional": "",
+        "smtpPreset": "",
+        "smtpVerifyCertificate": "",
+        "smtpUsernameOptional": "",
+        "smtpTo": "",
+        "smtpRate": "",
+        "smtpMessageStream": "",
+        "smtpGmailUsername": "",
+        "smtpGmailPassword": "",
+        "smtpResendUsername": "",
+        "smtpResendPassword": "",
+        "smtpSendgridUsername": "",
+        "smtpSendgridPassword": "",
+        "smtpMailgunUsername": "",
+        "smtpMailgunPassword": "",
+        "smtpBrevoUsername": "",
+        "smtpBrevoPassword": "",
+        "smtpSesUsername": "",
+        "smtpSesPassword": "",
+        "smtpPostmarkUsername": "",
+        "smtpPostmarkPassword": ""
+      },
+      "newsletterAlertsNote": "",
+      "newsletterDescription": "",
+      "newsletterTitle": "",
+      "newslettersOnly": "",
+      "noAlertRecipients": "",
+      "options": {
+        "securityStarttls": "",
+        "securityTls": "",
+        "securityNone": "",
+        "presetCustom": "",
+        "presetPostmark": "",
+        "presetResend": "",
+        "presetSes": "",
+        "presetMailgun": "",
+        "presetSendgrid": "",
+        "presetBrevo": "",
+        "presetGmail": ""
+=======
         "apiToken": "",
         "apiUrl": "",
         "authToken": "",
@@ -1909,6 +3592,7 @@
         "securityNone": "None (plain text, port 25)",
         "securityStarttls": "STARTTLS (usually port 587)",
         "securityTls": "TLS (usually port 465)"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       },
       "ownerOnly": "",
       "pushNote": "",
@@ -1922,6 +3606,22 @@
       "testHint": "",
       "testNeedsForm": "",
       "types": {
+<<<<<<< HEAD
+        "discord": "",
+        "jsonWebhook": "",
+        "ntfy": "",
+        "gotify": "",
+        "apprise": "",
+        "pushover": "",
+        "email": "",
+        "push": "",
+        "webToast": ""
+      },
+      "usedBy": "",
+      "usedBy_other": "",
+      "usedByNewsletters": "",
+      "usedByNewsletters_other": "",
+=======
         "apprise": "",
         "discord": "",
         "email": "Email",
@@ -1936,11 +3636,589 @@
       "usedByNewsletters": "",
       "usedByNewsletters_other": "",
       "usedBy_other": "",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       "violationsOff": "",
       "violationsOn": "",
       "webToastNote": ""
     },
     "jobs": {
+<<<<<<< HEAD
+      "runNow": "今すぐ実行",
+      "running": "実行中...",
+      "lastRun": "最終実行",
+      "nextRun": "次の実行",
+      "schedule": "スケジュール"
+    },
+    "mobile": {
+      "editDisplayName": "表示名を編集",
+      "editDisplayNameDesc": "このデバイスの表示方法を変更する",
+      "displayName": "表示名",
+      "displayNamePlaceholder": "例えば、iPhone",
+      "updating": "更新中..."
+    }
+  },
+  "maintenance": {
+    "startingTitle": "Tracearrを起動しています...",
+    "interruptionTitle": "サービスの中断",
+    "startingDescription": "サーバーはバックエンドサービスが利用可能になるのを待っています。このページは準備が整ったら自動的に更新されます。",
+    "interruptionDescription": "1 つ以上のバックエンドサービスが利用できなくなりました。接続が復元されると、このページは自動的に更新されます。",
+    "unreachable": "",
+    "restoreTitle": "バックアップから復元しています...",
+    "restoreFailed": "復元に失敗しました",
+    "restorePhase": {
+      "validating": "バックアップを検証中",
+      "creating_restore_point": "復元ポイントの作成",
+      "shutting_down": "サービスを終了する",
+      "restoring_database": "データベースを復元中",
+      "running_migrations": "マイグレーションの実行",
+      "rebuilding_aggregates": "集計の再構築",
+      "restarting": "サービスを再起動中",
+      "complete": ""
+    },
+    "initStep": {
+      "migrations": "",
+      "timescale": "",
+      "services": ""
+    },
+    "doNotRestart": ""
+  },
+  "map": {
+    "allUsers": "すべてのユーザー",
+    "allTypes": "すべてのタイプ",
+    "heatmap": "ヒートマップ",
+    "circles": "円",
+    "streams": "ストリーム",
+    "locations": "場所",
+    "allActivity": "すべてのアクティビティ",
+    "basemapMissing": "",
+    "webglUnavailable": "",
+    "webglHint": "",
+    "basemapShadowed": "",
+    "badMounts": ""
+  },
+  "devices": {
+    "title": "デバイスの互換性",
+    "description": "",
+    "analyzedSessions": "",
+    "analyzedSessionsTooltip": "",
+    "directPlayRate": "ダイレクトプレイレート",
+    "videoAndAudio": "",
+    "uniqueDevices": "ユニークなデバイス",
+    "uniqueCodecs": "ユニークなコーデック：",
+    "deviceHealth": "デバイスの健康",
+    "deviceHealthDesc": "",
+    "transcodeHotspots": "ホットスポットの変換",
+    "transcodeHotspotsDesc": "",
+    "deviceAndCodec": "デバイス + コーデック",
+    "transcodes": "トランスコード",
+    "pctOfTotal": "合計の%",
+    "noTranscodeHotspots": "トランスコードのホットスポットがありません",
+    "compatibilityMatrix": "互換マトリクス",
+    "compatibilityMatrixDesc": "デバイスとビデオコーデック別のダイレクトプレイレート。セッションボリュームでソートされます。",
+    "noDeviceDataPeriod": "この期間にデバイスデータがありません",
+    "legend": "凡例:",
+    "directPlayHigh": "80%以上の直接アクセス",
+    "directPlayMid": "",
+    "directPlayLow": "",
+    "topTranscodingUsers": "トップトランスコーディングユーザー",
+    "topTranscodingUsersDesc": "",
+    "noTranscodingUsers": "トランスコーディングユーザーが見つかりません"
+  },
+  "statsBandwidth": {
+    "title": "",
+    "description": "",
+    "dataTransferred": "データの転送",
+    "avgBitrate": "平均ビットレート",
+    "avgBitrateMbps": "平均ビットレート(Mbps)",
+    "peakBitrate": "ピーク: {{value}} Mbps",
+    "totalWatchTime": "合計視聴時間",
+    "uniqueUsers": "一意のユーザー",
+    "dailyUsage": "毎日の帯域幅の使用",
+    "dailyUsageDesc": "",
+    "topUsers": "上位の帯域幅ユーザー",
+    "topUsersDesc": "",
+    "noData": "利用可能な帯域幅データがありません"
+  },
+  "statsUsers": {
+    "noActivity": "アクティビティはまだありません",
+    "noActivityDesc": "あなたのトップユーザーをここで見るためにストリーミングを開始します",
+    "top3": "トップ 3",
+    "runnersUp": "Runner Up"
+  },
+  "plexCallback": {
+    "authComplete": "認証完了",
+    "windowWillClose": "このウィンドウは自動的に閉じます..."
+  },
+  "apiDocs": {
+    "backToSettings": "設定に戻る",
+    "apiKeyAutoLoaded": "APIキーが自動的に読み込まれました",
+    "noApiKey": "APIキーが生成されていません - エンドポイントをテストするための設定を作成します",
+    "versionSwitcherLabel": "",
+    "versionV1": "",
+    "versionV2": "",
+    "specLoadError": ""
+  },
+  "debug": {
+    "title": "デバッグツール",
+    "description": "",
+    "overview": "概要",
+    "librarySnapshots": "ライブラリのスナップショット",
+    "tasks": "タスク",
+    "logs": "ログ",
+    "plexAccounts": "プレックスアカウント",
+    "terminations": "終了",
+    "libraryItems": "ライブラリ項目",
+    "environment": "環境",
+    "systemInformation": "システム情報",
+    "cpu": "",
+    "memory": "メモリ",
+    "uptime": "稼働時間",
+    "database": "データベース",
+    "databaseDesc": "",
+    "totalSize": "合計サイズ",
+    "maintenance": "メンテナンス",
+    "destructiveActions": "破壊的な行動",
+    "refreshAggregates": "集計を更新",
+    "clearStuckJobs": "スタックジョブをクリア",
+    "obliterateAllJobs": "すべての作業を拒否する",
+    "clearQueryCache": "クエリーキャッシュをクリア",
+    "clearMobileDevices": "モバイルデバイスをクリア",
+    "clearViolations": "違反をクリア",
+    "clearAutomations": "",
+    "clearAutomationsConfirm": "",
+    "clearTerminationLogs": "終了ログをクリア",
+    "clearLibraryCache": "ライブラリキャッシュをクリア",
+    "clearSessions": "セッションをクリア",
+    "clearUsers": "ユーザーをクリア",
+    "clearServers": "サーバーをクリア",
+    "factoryReset": "工場出荷時のリセット",
+    "manageSnapshots": "ストレージ トレンドと品質進化チャートに使用されるライブラリ スナップショットを管理します",
+    "suspiciousOnly": "不審者のみ",
+    "load": "読み込み",
+    "noSuspiciousSnapshots": "不審なスナップショットは見つかりませんでした",
+    "clickLoadToView": "スナップショットを表示するには「読み込み」をクリックしてください",
+    "deleteSelected": "選択したものを削除",
+    "deleteAllSuspicious": "不審者をすべて削除",
+    "suspicious": "不審者",
+    "ok": "",
+    "selected": "選択済み",
+    "snapshots": "",
+    "of": "/",
+    "logExplorerUnavailable": "ログエクスプローラはDocker環境でのみ利用できます"
+  },
+  "media": {
+    "landing": {
+      "title": "メディア",
+      "lens": {
+        "label": "表示するユーザー",
+        "allUsers": "すべてのユーザー"
+      },
+      "shelves": {
+        "recentlyAddedMovies": "",
+        "recentlyAddedShows": "",
+        "recentlyUpdated": "",
+        "mostPopularMovies": "",
+        "mostPopularShows": "",
+        "emptyRecentlyAdded": "",
+        "emptyRecentlyUpdated": "",
+        "emptyMostPopular": "",
+        "captionRecentlyAdded": "",
+        "captionRecentlyUpdated": "",
+        "captionMostPopular": {
+          "day": "",
+          "week": "",
+          "month": "",
+          "year": "",
+          "all": "",
+          "custom": ""
+        }
+      },
+      "card": {
+        "newEpisodes_one": "新しいエピソード {{count}} 件",
+        "newEpisodes_other": "新しいエピソード {{count}} 件",
+        "replacedEpisodes_one": "",
+        "replacedEpisodes_other": "",
+        "addedAgo": "{{date}}に追加",
+        "addedCompactAgo": "",
+        "newEpisodesChip": ""
+      },
+      "deadWeight": {
+        "title": "",
+        "summary": "",
+        "empty": "",
+        "columns": {
+          "poster": "",
+          "title": "",
+          "size": "",
+          "added": "",
+          "servers": ""
+        },
+        "viewAll": "",
+        "viewAllTooltip": ""
+      },
+      "loadError": ""
+    },
+    "movies": {
+      "title": "映画"
+    },
+    "shows": {
+      "title": "番組"
+    },
+    "genres": {
+      "title": "ジャンル",
+      "subtitle": "",
+      "chart": {
+        "title": "",
+        "valueLabel": "",
+        "itemCount_one": "",
+        "itemCount_other": "",
+        "ariaLabel": ""
+      },
+      "table": {
+        "title": "",
+        "columns": {
+          "genre": "",
+          "items": "",
+          "plays": "",
+          "watchTime": ""
+        },
+        "browseMovies": "",
+        "browseShows": ""
+      },
+      "empty": {
+        "title": "",
+        "description": ""
+      },
+      "loadError": ""
+    },
+    "detail": {
+      "title": "メディア詳細",
+      "breadcrumb": {
+        "ariaLabel": ""
+      },
+      "notFound": {
+        "title": "",
+        "message": "",
+        "backLink": ""
+      },
+      "hero": {
+        "loadError": "",
+        "meta": {
+          "seasons_one": "",
+          "seasons_other": "",
+          "episodes_one": "",
+          "episodes_other": ""
+        },
+        "availability": {
+          "added": "",
+          "addedRemoved": "",
+          "replaced": ""
+        },
+        "removedEverywhere": {
+          "caption": ""
+        },
+        "actions": {
+          "fullHistory": "",
+          "openOnServer": ""
+        }
+      },
+      "kpis": {
+        "ariaLabel": "",
+        "loadError": "",
+        "completionLoadError": "",
+        "plays": {
+          "label": "",
+          "caption": ""
+        },
+        "watchTime": {
+          "label": "",
+          "detail": ""
+        },
+        "viewers": {
+          "label": "",
+          "detail": ""
+        },
+        "completion": {
+          "label": "",
+          "detail": "",
+          "detailMovie": ""
+        }
+      },
+      "watchers": {
+        "title": "",
+        "loadError": "",
+        "empty": "",
+        "lastWatchedAgo": "",
+        "completionLabel": "",
+        "columns": {
+          "user": "",
+          "plays": "",
+          "episodes": "",
+          "completion": "",
+          "lastWatched": ""
+        }
+      },
+      "seasons": {
+        "title": "",
+        "loadError": "",
+        "empty": "",
+        "episodeCount_one": "",
+        "episodeCount_other": "",
+        "watchedPct": "",
+        "stripSummary": "",
+        "episodeLabel": {
+          "watched": "",
+          "partial": "",
+          "unwatched": ""
+        }
+      },
+      "platforms": {
+        "title": "",
+        "loadError": "",
+        "empty": "",
+        "unknown": "",
+        "columns": {
+          "platform": "",
+          "plays": "",
+          "watchTime": ""
+        }
+      },
+      "history": {
+        "title": "",
+        "loadError": "",
+        "empty": "",
+        "watched": "",
+        "notWatched": "",
+        "columns": {
+          "date": "",
+          "user": "",
+          "content": "",
+          "server": "",
+          "duration": ""
+        }
+      },
+      "copies": {
+        "title": "",
+        "loadError": "",
+        "unknownLibrary": "",
+        "columns": {
+          "server": "",
+          "library": "",
+          "quality": "",
+          "episodes": "",
+          "size": "",
+          "added": ""
+        },
+        "versionLabel": ""
+      }
+    },
+    "posterCard": {
+      "rankSuffix": "、{{rank}}位",
+      "onServers": "{{servers}}で利用可能",
+      "addedLabel": "{{date}}に追加",
+      "plays_one": "{{count}} 回再生",
+      "plays_other": "{{count}} 回再生",
+      "viewers_one": "{{count}} 人が視聴",
+      "viewers_other": "{{count}} 人が視聴",
+      "watchedState": {
+        "watched": "視聴済み",
+        "partial": "一部視聴済み",
+        "watchedByOthers": "",
+        "watchedByYou": ""
+      },
+      "tileLabel": {
+        "added": "追加",
+        "plays": "再生",
+        "viewers": "視聴者",
+        "resolution": ""
+      },
+      "rankChip": "",
+      "playsCompact_one": "",
+      "playsCompact_other": "",
+      "versionsChip": "",
+      "versions_one": "",
+      "versions_other": "",
+      "moreServers": ""
+    },
+    "grid": {
+      "toolbar": {
+        "ariaLabel": "",
+        "typeLabel": "",
+        "moviesToggle": "",
+        "showsToggle": "",
+        "searchPlaceholder": "",
+        "searchLabel": "",
+        "removeFilter": "",
+        "filtersLabel": "",
+        "filtersSheetTitle": "",
+        "done": "",
+        "watchedLabel": "",
+        "watched": {
+          "all": "",
+          "watched": "",
+          "partial": "",
+          "unwatched": ""
+        },
+        "unwatchedByLens": "",
+        "resolutionLabel": "",
+        "resolutionAll": "",
+        "hdrLabel": "",
+        "hdrAll": "",
+        "hdrOnly": "",
+        "hdrChip": "",
+        "genreLabel": "",
+        "genreAll": "",
+        "serverLabel": "",
+        "serverAll": "",
+        "libraryLabel": "",
+        "libraryAll": "",
+        "yearFromLabel": "",
+        "yearToLabel": "",
+        "sizeGbMinLabel": "",
+        "sizeGbMaxLabel": "",
+        "sizeChipAtLeast": "",
+        "sizeChipAtMost": "",
+        "sizeChipRange": "",
+        "sortLabel": "",
+        "sort": {
+          "title": "",
+          "added": "",
+          "year": "",
+          "plays": "",
+          "watch_time": "",
+          "viewers": ""
+        },
+        "count": "",
+        "countTotal_one": "",
+        "countTotal_other": ""
+      },
+      "scrubber": {
+        "label": "",
+        "current": ""
+      },
+      "loaderError": "",
+      "retry": "",
+      "clearJumpAction": "",
+      "showingFrom": "",
+      "showAll": "",
+      "emptyFilter": "",
+      "emptySearch": "",
+      "emptyAnchored": "",
+      "loadError": ""
+    }
+  },
+  "requests": {
+    "status": {
+      "pending": "",
+      "approved": "",
+      "declined": "",
+      "failed": "",
+      "completed": "",
+      "deleted": ""
+    },
+    "columns": {
+      "requester": "",
+      "title": "",
+      "status": "",
+      "requested": "",
+      "wait": "",
+      "seasons": "",
+      "watched": ""
+    },
+    "wait": {
+      "pending": "",
+      "declined": ""
+    },
+    "seasons": {
+      "all": "",
+      "item": ""
+    },
+    "flags": {
+      "fourK": "",
+      "auto": ""
+    },
+    "hero": {
+      "line": "",
+      "landed": "",
+      "waiting": ""
+    },
+    "mediaPanel": {
+      "title": "",
+      "loadError": "",
+      "empty": ""
+    },
+    "userCard": {
+      "title": "",
+      "loadError": "",
+      "viewAll": "",
+      "showLess": "",
+      "summary": {
+        "requests": "",
+        "medianWait": "",
+        "approvalRate": "",
+        "neverWatched": ""
+      },
+      "empty": ""
+    },
+    "unattributed": "",
+    "watched": {
+      "byRequester": "",
+      "byOthers": ""
+    },
+    "page": {
+      "title": "",
+      "description": "",
+      "failedToLoad": "",
+      "notConfigured": "",
+      "notConfiguredDescription": "",
+      "linkSeerr": "",
+      "kpi": {
+        "requested": "",
+        "landedOf": "",
+        "watched": "",
+        "neverPlayed": "",
+        "ofLanded": "",
+        "onDisk": ""
+      }
+    },
+    "funnel": {
+      "title": "",
+      "description": "",
+      "requested": "",
+      "landed": "",
+      "watched": "",
+      "share": "",
+      "empty": ""
+    },
+    "unplayed": {
+      "title": "",
+      "description": "",
+      "emptyTitle": "",
+      "emptyDescription": ""
+    },
+    "outcomes": {
+      "title": "",
+      "requester": "",
+      "wait": "",
+      "requested": "",
+      "onDisk": "",
+      "untitled": "",
+      "failedToLoad": ""
+    },
+    "followThrough": {
+      "title": "",
+      "description": "",
+      "person": "",
+      "asked": "",
+      "landed": "",
+      "watched": "",
+      "watchedByOthers": "",
+      "medianWait": "",
+      "emptyTitle": "",
+      "emptyDescription": "",
+      "failedToLoad": ""
+    }
+=======
       "lastRun": "最終実行",
       "nextRun": "次の実行",
       "runNow": "今すぐ実行",
@@ -2144,5 +4422,6 @@
     "selectAllViolations": "すべての {{count}} 違反マッチングフィルターを選択",
     "title": "違反",
     "tryAdjustingFilters": "フィルターを調整してみてください"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   }
 }

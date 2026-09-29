@@ -39,6 +39,20 @@ const SESSION_VARS = [
   'server.name',
   'server.type',
 ] as const;
+<<<<<<< HEAD
+/**
+ * What is on screen, for the triggers that carry a whole stream. `account.new_device`
+ * announces the device rather than the file, so it keeps the shorter list.
+ */
+const STREAM_VARS = [
+  ...SESSION_VARS,
+  'session.sourceDynamicRange',
+  'session.sourceVideoCodec',
+  'session.seasonNumber',
+  'session.episodeNumber',
+] as const;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 const ACCOUNT_VARS = ['user.username', 'user.identityName', 'server.name', 'server.type'] as const;
 const SERVER_VARS = ['server.name', 'server.type'] as const;
 /** `server.name` doubles `media.server` so an automation that also carries a server trigger keeps one. */
@@ -89,6 +103,21 @@ export const TRIGGER_GROUPS = [
 export type TriggerGroup = (typeof TRIGGER_GROUPS)[number];
 
 export const TRIGGERS = {
+<<<<<<< HEAD
+  'session.started': { context: 'session', group: 'sessions', variables: STREAM_VARS },
+  'session.first_seen': { context: 'session', group: 'sessions', variables: STREAM_VARS },
+  'session.stopped': {
+    context: 'session',
+    group: 'sessions',
+    variables: [...STREAM_VARS, 'durationMinutes'],
+  },
+  'session.transcode_changed': { context: 'session', group: 'sessions', variables: STREAM_VARS },
+  'session.paused': { context: 'session', group: 'sessions', variables: STREAM_VARS },
+  'session.held_for': {
+    context: 'session',
+    group: 'sessions',
+    variables: [...STREAM_VARS, 'minutes'],
+=======
   'session.started': { context: 'session', group: 'sessions', variables: SESSION_VARS },
   'session.first_seen': { context: 'session', group: 'sessions', variables: SESSION_VARS },
   'session.stopped': {
@@ -102,6 +131,7 @@ export const TRIGGERS = {
     context: 'session',
     group: 'sessions',
     variables: [...SESSION_VARS, 'minutes'],
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   'account.inactive_for': {
     context: 'account',
@@ -155,6 +185,16 @@ export const TRIGGERS = {
 >;
 
 export type TriggerType = keyof typeof TRIGGERS;
+<<<<<<< HEAD
+
+/** The release that first shipped a trigger; one not listed has been there since 2.2.0. */
+export const TRIGGER_INTRODUCED_IN: Partial<Record<TriggerType, string>> = {
+  'session.first_seen': '2.3.0',
+  'newsletter.sent': '2.3.0',
+  'newsletter.failed': '2.3.0',
+};
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 export const TRIGGER_TYPES = Object.keys(TRIGGERS) as TriggerType[];
 
 /** Triggers a violation is never about: nobody did anything wrong by picking up a new phone. */

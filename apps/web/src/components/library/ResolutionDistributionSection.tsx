@@ -2,13 +2,26 @@ import { useMemo } from 'react';
 import { Film, Tv, PieChart } from 'lucide-react';
 import Highcharts from 'highcharts';
 import { HighchartsReact } from 'highcharts-react-official';
+<<<<<<< HEAD
+import {
+  RESOLUTION_LABELS,
+  resolutionBucket,
+  type ResolutionBreakdown,
+  type Server,
+} from '@tracearr/shared';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartSkeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PerServerCardGrid } from '@/components/server';
 import { useLibraryResolution } from '@/hooks/queries';
+<<<<<<< HEAD
+import { RESOLUTION_COLORS } from '@/lib/resolutionColors';
+=======
 import type { Server } from '@tracearr/shared';
 import type { ResolutionBreakdown } from '@tracearr/shared';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 interface ResolutionDistributionSectionProps {
   serverId?: string | null;
@@ -16,6 +29,8 @@ interface ResolutionDistributionSectionProps {
   isMultiServer?: boolean;
 }
 
+<<<<<<< HEAD
+=======
 const QUALITY_COLORS = {
   '4K': '#10b981',
   '1080p': '#3b82f6',
@@ -23,6 +38,7 @@ const QUALITY_COLORS = {
   SD: '#ef4444',
 };
 
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 interface ResolutionDonutProps {
   data: ResolutionBreakdown | undefined;
   isLoading?: boolean;
@@ -42,12 +58,20 @@ function ResolutionDonut({
 }: ResolutionDonutProps) {
   const chartData = useMemo(() => {
     if (!data) return [];
+<<<<<<< HEAD
+    return RESOLUTION_LABELS.map((label) => ({
+      name: label,
+      y: data.counts[resolutionBucket(label) ?? 'sd'],
+      color: RESOLUTION_COLORS[label],
+    })).filter((d) => d.y > 0);
+=======
     return [
       { name: '4K', y: data.count4k, color: QUALITY_COLORS['4K'] },
       { name: '1080p', y: data.count1080p, color: QUALITY_COLORS['1080p'] },
       { name: '720p', y: data.count720p, color: QUALITY_COLORS['720p'] },
       { name: 'SD', y: data.countSd, color: QUALITY_COLORS['SD'] },
     ].filter((d) => d.y > 0);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   }, [data]);
 
   const options = useMemo<Highcharts.Options>(() => {

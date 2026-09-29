@@ -1,4 +1,37 @@
 {
+<<<<<<< HEAD
+  "dashboard": "Controlepaneel",
+  "map": "Kaart",
+  "history": "Geschiedenis",
+  "stats": "Statistieken",
+  "activity": "Activiteit",
+  "library": "Bibliotheek",
+  "users": "Gebruikers",
+  "automations": "Automatiseringen",
+  "violations": "Overtredingen",
+  "requests": "",
+  "alerts": "Waarschuwingen",
+  "settings": "Instellingen",
+  "overview": "Overzicht",
+  "quality": "Kwaliteit",
+  "storage": "Opslag",
+  "watch": "Kijken",
+  "performance": "Prestaties",
+  "devices": "Apparaten",
+  "bandwidth": "Bandbreedte",
+  "jobs": "Taken",
+  "accessControl": "Toegangsbeheer",
+  "media": "",
+  "mediaBrowse": "Bladeren",
+  "mediaGenres": "",
+  "session": "Sessie",
+  "user": "Gebruiker",
+  "violation": "Overtreding",
+  "monitor": "",
+  "manage": "Beheer",
+  "userStats": "Op Gebruiker",
+  "toggleSidebar": "Navigatie in-/uitschakelen"
+=======
   "accessControl": "Toegangsbeheer",
   "activity": "Activiteit",
   "alerts": "Waarschuwingen",
@@ -29,4 +62,5 @@
   "violation": "Overtreding",
   "violations": "Overtredingen",
   "watch": "Kijken"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }

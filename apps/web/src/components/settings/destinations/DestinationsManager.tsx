@@ -27,7 +27,11 @@ export function DestinationsManager() {
     );
   }
 
+<<<<<<< HEAD
+  const rows = destinations ?? [];
+=======
   const rows = [...(destinations ?? [])].sort((a, b) => Number(b.builtin) - Number(a.builtin));
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
   const addButton = (
     <Button onClick={() => setDialog({ mode: 'create' })}>

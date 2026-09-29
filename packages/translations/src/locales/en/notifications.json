@@ -108,6 +108,14 @@
         "title": "Server Updated",
         "message": "The server has been updated successfully"
       },
+<<<<<<< HEAD
+      "serverLocationSaved": {
+        "title": "Server location saved",
+        "queued": "Past local sessions are being updated in the background.",
+        "waiting": "Past local sessions will update once the current job finishes."
+      },
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       "syncCompletedWithErrors": {
         "title": "Sync Completed with Errors"
       },
@@ -159,6 +167,11 @@
       "serverUserSplit": {
         "title": "Account split into a separate user"
       },
+<<<<<<< HEAD
+      "mergeSuggestionDismissed": "Marked as not the same person",
+      "mergeSuggestionRestored": "Suggestion restored",
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       "destinationSaved": "Destination saved",
       "destinationDeleted": "Destination deleted",
       "destinationTestSent": "Test notification sent",
@@ -189,6 +202,10 @@
       "streamTerminateFailed": "Failed to terminate stream",
       "serverUrlUpdateFailed": "Failed to update server URL",
       "serverUpdateFailed": "Failed to update server",
+<<<<<<< HEAD
+      "serverLocationSaveFailed": "Could not save the server location",
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       "serverReorderFailed": "Failed to reorder servers",
       "sessionsDeleteFailed": "Failed to delete sessions",
       "apiKeyGenerateFailed": "Failed to generate API key",
@@ -215,6 +232,11 @@
       "plexDirectUrl": "plex.direct URLs are relay addresses that cannot be used here. Please use a direct IP address or hostname instead.",
       "userMergeFailed": "Failed to merge users",
       "serverUserSplitFailed": "Failed to split account",
+<<<<<<< HEAD
+      "mergeSuggestionDismissFailed": "Could not dismiss the suggestion",
+      "mergeSuggestionRestoreFailed": "Could not restore the suggestion",
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       "invalidClaimCode": {
         "title": "Invalid claim code",
         "message": "Please check the server logs"

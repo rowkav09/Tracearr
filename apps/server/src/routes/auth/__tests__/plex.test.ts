@@ -257,8 +257,13 @@ describe('Plex Auth Routes', () => {
   let app: FastifyInstance;
 
   // Re-establish default mock implementations after each reset. These are
+<<<<<<< HEAD
+  // depended on by multiple suites (PlexClient instance method, getAllServerIds
+  // lookup, fire-and-forget background sync) — hoisting them here
+=======
   // depended on by multiple suites (PlexClient instance method, generateTokens
   // server-id lookup, fire-and-forget background sync) — hoisting them here
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   // keeps the resetAllMocks pattern free of order-dependent leaks across
   // describes.
   beforeEach(() => {
@@ -287,6 +292,34 @@ describe('Plex Auth Routes', () => {
   });
 
   describe('GET /plex/available-servers', () => {
+<<<<<<< HEAD
+    // The token lookup ends in orderBy().limit(); the connected-server lookup
+    // awaits where() directly and yields the one connected machine id.
+    const mockAvailableServersDb = (connectedMachineId: string) => {
+      const makeChain = (result: unknown[]) => {
+        const chain: Record<string, unknown> = {
+          limit: vi.fn().mockResolvedValue(result),
+        };
+        chain.orderBy = vi.fn().mockReturnValue(chain);
+        return chain;
+      };
+
+      const selectMock = {
+        from: vi.fn().mockReturnThis(),
+        where: vi
+          .fn()
+          .mockImplementation(() =>
+            Object.assign(
+              Promise.resolve([{ machineIdentifier: connectedMachineId }]),
+              makeChain([{ plexToken: mockExistingServer.token }])
+            )
+          ),
+      };
+      vi.mocked(db.select).mockReturnValue(selectMock as never);
+    };
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     it('returns 403 for non-owner users', async () => {
       app = await buildTestApp(viewerUser);
 
@@ -324,13 +357,20 @@ describe('Plex Auth Routes', () => {
       expect(body.servers).toEqual([]);
     });
 
+<<<<<<< HEAD
+    it('returns empty servers when all owned servers are connected', async () => {
+=======
     // TODO: Fix this test - the DB mock chain is complex due to multiple query patterns
     it.skip('returns empty servers when all owned servers are connected', async () => {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       app = await buildTestApp(ownerUser);
 
       // Mock getUserById to return the user
       vi.mocked(getUserById).mockResolvedValue(mockDbUser as never);
 
+<<<<<<< HEAD
+      mockAvailableServersDb(mockExistingServer.machineIdentifier);
+=======
       // Create a flexible mock that handles various query chain patterns
       // Route queries: 1) servers for token, 2) servers for connected list
       const makeChain = (result: unknown[]) => ({
@@ -357,6 +397,7 @@ describe('Plex Auth Routes', () => {
         }),
       };
       vi.mocked(db.select).mockReturnValue(selectMock as never);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
       // Mock PlexClient.getServers to return only the existing server
       vi.mocked(PlexClient.getServers).mockResolvedValue([
@@ -384,6 +425,9 @@ describe('Plex Auth Routes', () => {
       // Mock getUserById to return the user
       vi.mocked(getUserById).mockResolvedValue(mockDbUser as never);
 
+<<<<<<< HEAD
+      mockAvailableServersDb('other-machine-id');
+=======
       // Create a flexible mock
       const makeChain = (result: unknown[]) => {
         const chain: Record<string, unknown> = {
@@ -403,6 +447,7 @@ describe('Plex Auth Routes', () => {
         }),
       };
       vi.mocked(db.select).mockReturnValue(selectMock as never);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
       // Return a new server not yet connected
       vi.mocked(PlexClient.getServers).mockResolvedValue([mockPlexServer]);

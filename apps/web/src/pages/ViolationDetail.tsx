@@ -34,6 +34,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { SeverityBadge } from '@/components/violations/SeverityBadge';
 import { ActionResultsList } from '@/components/violations/ActionResultsList';
 import { getAvatarUrl } from '@/components/users/utils';
+<<<<<<< HEAD
+import { LocalBadge } from '@/components/sessions/LocalBadge';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { fieldLabel, operatorLabel } from '@/lib/automations';
 import { getCountryName, getMediaDisplay } from '@/lib/utils';
 import { ServerBadge } from '@/components/server';
@@ -230,7 +234,11 @@ export function ViolationDetail() {
 
     for (const session of allSessions) {
       if (session.geoLat == null || session.geoLon == null) continue;
+<<<<<<< HEAD
+      const key = `${session.geoLat},${session.geoLon},${session.isLocal}`;
+=======
       const key = `${session.geoLat},${session.geoLon}`;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       const existing = locationMap.get(key);
       if (existing) {
         existing.count += 1;
@@ -239,6 +247,10 @@ export function ViolationDetail() {
           city: session.geoCity,
           region: session.geoRegion,
           country: session.geoCountry,
+<<<<<<< HEAD
+          isLocal: session.isLocal,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           lat: session.geoLat,
           lon: session.geoLon,
           count: 1,
@@ -255,7 +267,12 @@ export function ViolationDetail() {
   const sessionColumns = useMemo(
     () =>
       sessionColumn.columns([
+<<<<<<< HEAD
+        sessionColumn.accessor((session) => getMediaDisplay(session).title, {
+          id: 'media',
+=======
         sessionColumn.accessor('mediaTitle', {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           header: t('common:labels.media'),
           cell: ({ row }) => {
             const session = row.original;
@@ -287,6 +304,35 @@ export function ViolationDetail() {
           header: t('common:labels.ipAddress'),
           cell: ({ row }) => <span className="font-mono text-sm">{row.original.ipAddress}</span>,
         }),
+<<<<<<< HEAD
+        sessionColumn.accessor(
+          (session) =>
+            [session.geoCity, getCountryName(session.geoCountry)].filter(Boolean).join(', '),
+          {
+            id: 'location',
+            header: t('common:labels.location'),
+            cell: ({ row }) => {
+              const session = row.original;
+              if (!session.geoCity && !session.geoCountry) {
+                return <span className="text-muted-foreground">—</span>;
+              }
+              return (
+                <span className="text-sm">
+                  {session.geoCity && `${session.geoCity}, `}
+                  {getCountryName(session.geoCountry) ?? ''}
+                  <LocalBadge
+                    isLocal={session.isLocal}
+                    country={session.geoCountry}
+                    className="ml-1.5 align-middle"
+                  />
+                </span>
+              );
+            },
+          }
+        ),
+        sessionColumn.accessor((session) => session.device || session.platform || '', {
+          id: 'device',
+=======
         sessionColumn.accessor('geoCity', {
           header: t('common:labels.location'),
           cell: ({ row }) => {
@@ -303,6 +349,7 @@ export function ViolationDetail() {
           },
         }),
         sessionColumn.accessor('device', {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           header: t('common:labels.device'),
           cell: ({ row }) => {
             const session = row.original;
@@ -603,6 +650,10 @@ export function ViolationDetail() {
                 />
               </DataTableViewport>
               <DataTablePager
+<<<<<<< HEAD
+                variant="footer"
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                 {...sessionsPager}
                 labels={{
                   navigation: t('common:table.pagination'),

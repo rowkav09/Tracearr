@@ -170,6 +170,8 @@ describe('Plays Routes', () => {
       expect(params).toContain('episode');
     });
 
+<<<<<<< HEAD
+=======
     it('accepts music tracks and includes them in primary statistics', async () => {
       const ownerUser = createOwnerUser();
       app = await buildTestApp(ownerUser);
@@ -181,13 +183,18 @@ describe('Plays Routes', () => {
       expect(params).toContain('track');
     });
 
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     it('rejects a mediaType value outside the primary media types', async () => {
       const ownerUser = createOwnerUser();
       app = await buildTestApp(ownerUser);
 
       const response = await app.inject({
         method: 'GET',
+<<<<<<< HEAD
+        url: '/stats/plays?mediaType=track',
+=======
         url: '/stats/plays?mediaType=photo',
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       });
 
       expect(response.statusCode).toBe(400);

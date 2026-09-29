@@ -11,6 +11,11 @@ import type {
   TriggerNode,
 } from './automations/index.js';
 import type { NotificationToast } from './destinations.js';
+<<<<<<< HEAD
+import type { UpgradeWarning } from './releaseNotes.js';
+import type { ResolutionBucket } from './resolution.js';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import type { statPeriodSchema } from './schemas.js';
 import type { z } from 'zod';
 
@@ -42,7 +47,11 @@ export const isOwner = (role: UserRole): boolean => role === 'owner';
 export const isActive = (role: UserRole): boolean => canLogin(role);
 
 // Server types
+<<<<<<< HEAD
+export type ServerType = 'plex' | 'jellyfin' | 'emby';
+=======
 export type ServerType = 'plex' | 'jellyfin' | 'emby' | 'navidrome';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 export interface Server {
   id: string;
@@ -62,6 +71,30 @@ export interface Server {
   updatedAt: Date;
 }
 
+<<<<<<< HEAD
+export interface ServerLocationEntry {
+  /** ISO datetime the location took effect; null covers everything before the first dated entry */
+  effectiveFrom: string | null;
+  lat: number;
+  lon: number;
+  city: string | null;
+  region: string | null;
+  /** ISO 3166-1 alpha-2 */
+  country: string;
+}
+
+export interface ServerLocationsResponse {
+  entries: ServerLocationEntry[];
+  /** Entries changed since the location sync last applied them */
+  syncPending: boolean;
+}
+
+export interface UpdateServerLocationsResponse extends ServerLocationsResponse {
+  syncQueued: boolean;
+}
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 // User types - Identity layer (the real human)
 export interface User {
   id: string;
@@ -233,6 +266,13 @@ export interface MergeSuggestionIdentity {
   email: string | null;
   role: UserRole;
   loginCapable: boolean;
+<<<<<<< HEAD
+  /** Latest activity across every account the identity has; null before any. */
+  lastActivityAt: string | null;
+  /** Sessions across every account the identity has. */
+  sessionCount: number;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   serverUsers: {
     id: string;
     serverId: string;
@@ -248,9 +288,23 @@ export interface MergeSuggestion {
   matchValue: string;
   users: [MergeSuggestionIdentity, MergeSuggestionIdentity];
   requiredTargetUserId: string | null;
+<<<<<<< HEAD
+  /** The identity a merge keeps unless the owner swaps: `rankMergeTarget` over the pair, so it is requiredTargetUserId whenever that is set. */
+  suggestedTargetUserId: string;
   wouldCombineSameServer: boolean;
 }
 
+/** A pair the owner marked as not the same person; it is not suggested again until restored. */
+export interface DismissedMergeSuggestion {
+  users: [MergeSuggestionIdentity, MergeSuggestionIdentity];
+  dismissedAt: string;
+}
+
+=======
+  wouldCombineSameServer: boolean;
+}
+
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 export interface SetupStatus {
   needsSetup: boolean;
   requiresClaimCode: boolean;
@@ -442,6 +496,11 @@ export interface Session extends StreamDetailFields {
   geoLon: number | null;
   geoAsnNumber: number | null;
   geoAsnOrganization: string | null;
+<<<<<<< HEAD
+  // A local network session; its geo fields hold its server's location when one is set
+  isLocal: boolean;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   playerName: string | null; // Friendly device name
   deviceId: string | null; // Unique device identifier (machineIdentifier)
   product: string | null; // Product/app name (e.g., "Plex for iOS")
@@ -600,6 +659,10 @@ export interface ViolationSessionInfo {
   geoCity: string | null;
   geoRegion: string | null;
   geoCountry: string | null;
+<<<<<<< HEAD
+  isLocal: boolean;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   geoContinent: string | null;
   geoPostal: string | null;
   geoLat: number | null;
@@ -668,6 +731,10 @@ export interface LocationStats {
   city: string | null;
   region: string | null; // State/province
   country: string | null;
+<<<<<<< HEAD
+  isLocal: boolean;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   lat: number;
   lon: number;
   count: number;
@@ -915,9 +982,19 @@ export interface ImageCacheStatus {
   sweptAt: string | null;
   freedBytesLastSweep: number;
   deletedFilesLastSweep: number;
+<<<<<<< HEAD
+  /** A full pass this process completed was followed by an empty cache, so the
+   *  directory is not surviving restarts. */
+  notPersisting: boolean;
+  /** Distinct (server, thumb path) pairs in library_items, removed rows
+   *  included: one cache file each, however many rows share the image. */
+  postersWithThumb: number;
+  /** postersWithThumb × ESTIMATED_POSTER_BYTES. */
+=======
   /** Rows in library_items with a thumb path, removed ones included. */
   postersWithThumb: number;
   /** postersWithThumb × 18 KB. */
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   estimatedNeedBytes: number;
   freeBytes: number;
   totalBytes: number;
@@ -1020,6 +1097,14 @@ export interface JellystatImportProgress {
   errorRecords: number;
   /** Number of media items enriched with metadata from Jellyfin */
   enrichedRecords: number;
+<<<<<<< HEAD
+  uncheckedRecords?: number;
+  unlinkedEpisodeRecords?: number;
+  vetoedRecords?: number;
+  pluginUncheckedRecords?: number;
+  overlongRecords?: number;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   /** Current phase message */
   message: string;
   /** Present when status='waiting' - what this job is waiting for */
@@ -1035,6 +1120,14 @@ export interface JellystatImportResult {
   filtered: number;
   errors: number;
   enriched: number;
+<<<<<<< HEAD
+  unchecked: number;
+  unlinkedEpisodes: number;
+  vetoed: number;
+  pluginUnchecked: number;
+  overlong: number;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   message: string;
   /** Details about users that were skipped (not found in Tracearr) */
   skippedUsers?: {
@@ -1068,6 +1161,11 @@ export interface PlaybackReportingImportProgress {
   overlapRecords: number;
   /** Skipped: theme songs, trailers, etc. */
   filteredRecords: number;
+<<<<<<< HEAD
+  /** Skipped: recorded play time runs past the media runtime plus 60 s */
+  overlongRecords: number;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   errorRecords: number;
   enrichedRecords: number;
   message: string;
@@ -1082,6 +1180,10 @@ export interface PlaybackReportingImportResult {
   duplicates: number;
   overlap: number;
   filtered: number;
+<<<<<<< HEAD
+  overlong: number;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   errors: number;
   enriched: number;
   message: string;
@@ -1130,6 +1232,10 @@ export interface ServerToClientEvents {
   'notification:toast': (data: NotificationToast) => void;
   'destinations:changed': () => void;
   'servers:changed': () => void;
+<<<<<<< HEAD
+  'requests:changed': (data: { serviceId: string }) => void;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 export interface ClientToServerEvents {
@@ -1142,6 +1248,10 @@ export interface UserLocation {
   city: string | null;
   region: string | null; // State/province/subdivision
   country: string | null;
+<<<<<<< HEAD
+  isLocal: boolean;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   lat: number | null;
   lon: number | null;
   sessionCount: number;
@@ -1154,6 +1264,10 @@ export interface DeviceLocation {
   city: string | null;
   region: string | null;
   country: string | null;
+<<<<<<< HEAD
+  isLocal: boolean;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   sessionCount: number;
   lastSeenAt: Date;
 }
@@ -1238,7 +1352,11 @@ export interface UserFilterOption {
 export interface ServerFilterOption {
   id: string;
   name: string;
+<<<<<<< HEAD
+  type: 'plex' | 'jellyfin' | 'emby';
+=======
   type: 'plex' | 'jellyfin' | 'emby' | 'navidrome';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 /**
@@ -1342,7 +1460,11 @@ export interface MobilePairResponse {
   server: {
     id: string;
     name: string;
+<<<<<<< HEAD
+    type: 'plex' | 'jellyfin' | 'emby';
+=======
     type: 'plex' | 'jellyfin' | 'emby' | 'navidrome';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   };
   user: {
     userId: string;
@@ -1741,7 +1863,14 @@ export type MaintenanceJobType =
   | 'cleanup_old_chunks'
   | 'full_aggregate_rebuild'
   | 'repair_corrupted_chunks'
+<<<<<<< HEAD
+  | 'backfill_session_identity'
+  | 'remove_import_duplicates'
+  | 'link_imported_history'
+  | 'sync_server_locations';
+=======
   | 'backfill_session_identity';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 export type MaintenanceJobStatus = 'idle' | 'waiting' | 'running' | 'complete' | 'error';
 
@@ -1958,6 +2087,10 @@ export interface VersionInfo {
     isPrerelease: boolean; // Whether this update is a prerelease
     releaseName: string | null; // Release title from GitHub
     releaseNotes: string | null; // Release body/notes from GitHub (markdown)
+<<<<<<< HEAD
+    upgradeWarnings: UpgradeWarning[]; // Warnings from every release between current and latest, newest first
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   } | null;
   // Update status
   updateAvailable: boolean;
@@ -2152,6 +2285,12 @@ export interface BandwidthSummary {
 // Library Statistics Types
 // =============================================================================
 
+<<<<<<< HEAD
+/** Titles per resolution bucket. Buckets overlap: a 4K+1080p title counts in both. */
+export type ResolutionCounts = Record<ResolutionBucket, number>;
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 // Library Stats Response (GET /library/stats)
 export interface LibraryStatsResponse {
   totalItems: number;
@@ -2159,12 +2298,16 @@ export interface LibraryStatsResponse {
   movieCount: number;
   episodeCount: number;
   showCount: number;
+<<<<<<< HEAD
+  qualityBreakdown: ResolutionCounts;
+=======
   qualityBreakdown: {
     count4k: number;
     count1080p: number;
     count720p: number;
     countSd: number;
   };
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   asOf: string | null;
 }
 
@@ -2188,6 +2331,9 @@ export interface LibraryGrowthResponse {
 export interface QualityDataPoint {
   day: string;
   totalItems: number;
+<<<<<<< HEAD
+  counts: ResolutionCounts;
+=======
   count4k: number;
   count1080p: number;
   count720p: number;
@@ -2196,6 +2342,7 @@ export interface QualityDataPoint {
   pct1080p: number;
   pct720p: number;
   pctSd: number;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   hevcCount: number;
   h264Count: number;
   av1Count: number;
@@ -2257,6 +2404,11 @@ export type MatchType = 'imdb' | 'tmdb' | 'tvdb' | 'fuzzy' | 'version';
 
 /** One physical file of a duplicate item */
 export interface DuplicateItemVersion {
+<<<<<<< HEAD
+  /** The server's own id for this file, what a file-existence check answers by */
+  serverVersionKey: string;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   resolution: string | null;
   videoCodec: string | null;
   fileSize: number | null;
@@ -2279,6 +2431,13 @@ export interface DuplicateItem {
   title: string;
   year: number | null;
   mediaType: string;
+<<<<<<< HEAD
+  /** Show for an episode, artist for a track; null for anything flat */
+  grandparentTitle: string | null;
+  seasonNumber: number | null;
+  episodeNumber: number | null;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   fileSize: number | null;
   resolution: string | null;
   versions: DuplicateItemVersion[];
@@ -2317,6 +2476,26 @@ export interface DuplicatesResponse {
   pagination: { page: number; pageSize: number; total: number };
 }
 
+<<<<<<< HEAD
+// Duplicate file existence (GET /library/duplicates/files)
+/** One file the server was asked about, by the item it belongs to and its version key */
+export interface DuplicateFileStatus {
+  itemId: string;
+  serverVersionKey: string;
+  exists: boolean;
+}
+
+export interface DuplicateFilesResponse {
+  /**
+   * False when no server in the requested set can answer (only Plex can) or
+   * the probe failed. Callers show nothing rather than guess at a missing file.
+   */
+  checked: boolean;
+  files: DuplicateFileStatus[];
+}
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 // Library Stale Content Response (GET /library/stale)
 export type StaleCategory = 'never_watched' | 'stale';
 
@@ -2550,6 +2729,21 @@ export type ShelvesPeriod = z.infer<typeof statPeriodSchema>;
 export interface RecentlyAddedShelfRow extends ShelfRow {
   /** Newly-tracked episode count for a show card; always null for movies. */
   newEpisodes: number | null;
+<<<<<<< HEAD
+  /** When the newest qualifying episode arrived. Null for movies, whose own
+   *  copy date already says it; a show's copy date is when the series first
+   *  appeared, which is years off once episodes keep arriving. */
+  newestEpisodeAt: string | null;
+}
+
+/** A title whose file this server replaced: the old copy left and a new one took its place. */
+export interface RecentlyUpdatedShelfRow extends ShelfRow {
+  /** Replaced episode count for a show card; always null for movies. */
+  replacedEpisodes: number | null;
+  /** When the newest replaced episode arrived; null for movies. */
+  newestEpisodeAt: string | null;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 export interface MostPopularShelfRow extends ShelfRow {
@@ -2605,6 +2799,10 @@ export interface ShelvesResponse {
   period: ShelvesPeriod;
   recentlyAddedMovies: RecentlyAddedShelfRow[];
   recentlyAddedShows: RecentlyAddedShelfRow[];
+<<<<<<< HEAD
+  recentlyUpdated: RecentlyUpdatedShelfRow[];
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   mostPopularMovies: MostPopularShelfRow[];
   mostPopularShows: MostPopularShelfRow[];
   deadWeight?: DeadWeightRow[];
@@ -2681,6 +2879,12 @@ export interface MediaDetailResponse {
   availability: MediaAvailabilityEntry[];
   seasonCount: number | null;
   episodeCount: number | null;
+<<<<<<< HEAD
+  posterUrl: string | null;
+  posterVersion: string | null;
+  dominantColor: string | null;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 export interface MediaChildEntry {
@@ -2959,6 +3163,12 @@ export interface LibraryCodecsResponse {
 // Library Resolution Types
 // ============================================================================
 
+<<<<<<< HEAD
+/** Resolution breakdown for a media type */
+export interface ResolutionBreakdown {
+  counts: ResolutionCounts;
+  total: number;
+=======
 /** Single resolution entry with count and percentage */
 export interface ResolutionEntry {
   resolution: string;
@@ -2974,6 +3184,7 @@ export interface ResolutionBreakdown {
   countSd: number;
   total: number;
   entries: ResolutionEntry[];
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 /** Response from /library/resolution endpoint */

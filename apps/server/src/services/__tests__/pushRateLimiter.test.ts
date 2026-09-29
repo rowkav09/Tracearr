@@ -10,8 +10,14 @@
  * Uses a mock Redis that simulates Lua script execution.
  */
 
+<<<<<<< HEAD
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import type { Redis } from 'ioredis';
+import { CACHE_TTL, REDIS_KEYS } from '@tracearr/shared';
+=======
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { Redis } from 'ioredis';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import {
   PushRateLimiter,
   initPushRateLimiter,
@@ -32,6 +38,10 @@ function createMockRedis(): Redis & {
 } {
   const store = new Map<string, string>();
   const ttls = new Map<string, number>();
+<<<<<<< HEAD
+  const expiries = new Map<string, number>();
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
   return {
     store,
@@ -86,6 +96,23 @@ function createMockRedis(): Redis & {
       }
     ),
 
+<<<<<<< HEAD
+    // SET key value EX|PX ttl NX, the only form the limiter uses
+    set: vi.fn(async (key: string, value: string, unit: 'EX' | 'PX', ttl: number, _nx: 'NX') => {
+      const expiresAt = expiries.get(key);
+      if (expiresAt !== undefined && expiresAt > Date.now()) return null;
+      store.set(key, value);
+      expiries.set(key, Date.now() + (unit === 'EX' ? ttl * 1000 : ttl));
+      return 'OK';
+    }),
+
+    pttl: vi.fn(async (key: string) => {
+      const expiresAt = expiries.get(key);
+      return expiresAt !== undefined && expiresAt > Date.now() ? expiresAt - Date.now() : -2;
+    }),
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     get: vi.fn(async (key: string) => store.get(key) ?? null),
 
     ttl: vi.fn(async (key: string) => ttls.get(key) ?? -2),
@@ -246,6 +273,71 @@ describe('PushRateLimiter', () => {
     });
   });
 
+<<<<<<< HEAD
+  describe('claimSessionsSync', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-09-17T12:00:00.000Z'));
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('lets the first claim send now and opens a ten minute window', async () => {
+      const sendTrailing = vi.fn(async () => {});
+
+      expect(await rateLimiter.claimSessionsSync('session-1', sendTrailing)).toBe(true);
+      expect(await rateLimiter.claimSessionsSync('session-2', sendTrailing)).toBe(true);
+
+      expect(mockRedis.set).toHaveBeenCalledWith(
+        REDIS_KEYS.PUSH_SESSIONS_SYNC('session-1'),
+        '1',
+        'EX',
+        CACHE_TTL.PUSH_SESSIONS_SYNC,
+        'NX'
+      );
+      await vi.runAllTimersAsync();
+      expect(sendTrailing).not.toHaveBeenCalled();
+    });
+
+    it('schedules one trailing send across instances however many claims land in the window', async () => {
+      const otherInstance = new PushRateLimiter(mockRedis);
+      const sendTrailing = vi.fn(async () => {});
+      await rateLimiter.claimSessionsSync('session-1', sendTrailing);
+
+      vi.advanceTimersByTime(4 * 60 * 1000);
+      expect(await rateLimiter.claimSessionsSync('session-1', sendTrailing)).toBe(false);
+      expect(await otherInstance.claimSessionsSync('session-1', sendTrailing)).toBe(false);
+
+      expect(mockRedis.set).toHaveBeenCalledWith(
+        REDIS_KEYS.PUSH_SESSIONS_SYNC_PENDING('session-1'),
+        '1',
+        'PX',
+        CACHE_TTL.PUSH_SESSIONS_SYNC * 1000 - 4 * 60 * 1000,
+        'NX'
+      );
+      await vi.runAllTimersAsync();
+      expect(sendTrailing).toHaveBeenCalledTimes(1);
+    });
+
+    it('sends the trailing sync when the window ends and opens a new window', async () => {
+      const sendTrailing = vi.fn(async () => {});
+      await rateLimiter.claimSessionsSync('session-1', sendTrailing);
+      vi.advanceTimersByTime(60 * 1000);
+      await rateLimiter.claimSessionsSync('session-1', sendTrailing);
+
+      await vi.advanceTimersByTimeAsync(CACHE_TTL.PUSH_SESSIONS_SYNC * 1000 - 60 * 1000 - 1);
+      expect(sendTrailing).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(1);
+      expect(sendTrailing).toHaveBeenCalledTimes(1);
+      expect(await rateLimiter.claimSessionsSync('session-1', sendTrailing)).toBe(false);
+    });
+  });
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   describe('reset', () => {
     it('clears rate limit counters', async () => {
       // Exhaust limits

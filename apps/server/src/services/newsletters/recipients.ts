@@ -6,6 +6,11 @@ import type {
   NewsletterScope,
 } from '@tracearr/shared';
 import { db } from '../../db/client.js';
+<<<<<<< HEAD
+import { compareNames } from '../../utils/collation.js';
+import { lastDeliveredUserIds } from './store.js';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { normalizeAddress, suppressedAmong } from './suppressions.js';
 
 export interface RecipientCandidate {
@@ -22,7 +27,14 @@ export interface RecipientCandidate {
   serverIds: string[];
   contactEmail: string | null;
   identityEmail: string | null;
+<<<<<<< HEAD
+  /** Plex accounts first: theirs are real emails, a Jellyfin or Emby one is a username. */
   accountEmails: string[];
+  /** No Plex account has an email, so any account email is a Jellyfin or Emby username. */
+  accountEmailsFromUsernames: boolean;
+=======
+  accountEmails: string[];
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   /** Banned or pending identities stay on the list as excluded so the owner sees why a name is missing. */
   blocked: 'banned' | 'pending' | null;
 }
@@ -38,6 +50,11 @@ export interface ResolvedRecipient {
   serverName: string | null;
   thumbUrl: string | null;
   serverIds: string[];
+<<<<<<< HEAD
+  newSinceLastSend: boolean;
+  addressFromUsername: boolean;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 export interface RecipientResolution {
@@ -46,6 +63,22 @@ export interface RecipientResolution {
   excluded: NewsletterExcludedPerson[];
 }
 
+<<<<<<< HEAD
+type NamedPerson = { name: string | null; username: string | null; userId: string | null };
+
+function byName(a: NamedPerson, b: NamedPerson): number {
+  return (
+    compareNames(a.name ?? a.username ?? '', b.name ?? b.username ?? '') ||
+    (a.userId ?? '').localeCompare(b.userId ?? '')
+  );
+}
+
+function byRecipientName(a: ResolvedRecipient, b: ResolvedRecipient): number {
+  return byName(a, b) || a.address.localeCompare(b.address);
+}
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 function firstAddress(candidate: RecipientCandidate): string | null {
   const raw =
     candidate.contactEmail ?? candidate.identityEmail ?? candidate.accountEmails[0] ?? null;
@@ -63,7 +96,11 @@ const person = (candidate: RecipientCandidate): NewsletterRecipientPerson => ({
   serverIds: candidate.serverIds,
 });
 
+<<<<<<< HEAD
+/** Identities first, in the order given; hand-typed extras after; one row per address, which keeps the first identity and gains the servers of any later one sharing it. Excluded identities are set aside before addressing. */
+=======
 /** Identities first, in the order given; hand-typed extras after; one row per address. Excluded identities are set aside before addressing. */
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 export function mergeRecipients(
   candidates: RecipientCandidate[],
   extras: { address: string; name?: string }[],
@@ -71,7 +108,11 @@ export function mergeRecipients(
   excludeUserIds: readonly string[] = []
 ): RecipientResolution {
   const excludedIds = new Set(excludeUserIds);
+<<<<<<< HEAD
+  const byAddress = new Map<string, ResolvedRecipient>();
+=======
   const seen = new Set<string>();
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   const recipients: ResolvedRecipient[] = [];
   const missing: NewsletterRecipientPerson[] = [];
   const excluded: NewsletterExcludedPerson[] = [];
@@ -89,9 +130,20 @@ export function mergeRecipients(
       missing.push(person(candidate));
       continue;
     }
+<<<<<<< HEAD
+    const kept = byAddress.get(address);
+    if (kept) {
+      for (const serverId of candidate.serverIds) {
+        if (!kept.serverIds.includes(serverId)) kept.serverIds.push(serverId);
+      }
+      continue;
+    }
+    const recipient: ResolvedRecipient = {
+=======
     if (seen.has(address)) continue;
     seen.add(address);
     recipients.push({
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       address,
       userId: candidate.userId,
       serverUserId: candidate.serverUserId,
@@ -101,6 +153,22 @@ export function mergeRecipients(
       serverId: candidate.serverId,
       serverName: candidate.serverName,
       thumbUrl: candidate.thumbUrl,
+<<<<<<< HEAD
+      serverIds: [...candidate.serverIds],
+      newSinceLastSend: false,
+      addressFromUsername:
+        candidate.contactEmail === null &&
+        candidate.identityEmail === null &&
+        candidate.accountEmailsFromUsernames,
+    };
+    byAddress.set(address, recipient);
+    recipients.push(recipient);
+  }
+  for (const extra of extras) {
+    const address = normalizeAddress(extra.address);
+    if (byAddress.has(address)) continue;
+    const recipient: ResolvedRecipient = {
+=======
       serverIds: candidate.serverIds,
     });
   }
@@ -109,6 +177,7 @@ export function mergeRecipients(
     if (seen.has(address)) continue;
     seen.add(address);
     recipients.push({
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       address,
       userId: null,
       serverUserId: null,
@@ -119,7 +188,15 @@ export function mergeRecipients(
       serverName: null,
       thumbUrl: null,
       serverIds: [],
+<<<<<<< HEAD
+      newSinceLastSend: false,
+      addressFromUsername: false,
+    };
+    byAddress.set(address, recipient);
+    recipients.push(recipient);
+=======
     });
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   }
   return { recipients, missing, excluded };
 }
@@ -131,6 +208,10 @@ interface CandidateRow {
   contact_email: string | null;
   identity_email: string | null;
   account_emails: string[] | null;
+<<<<<<< HEAD
+  account_emails_from_usernames: boolean;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   usernames: string[] | null;
   server_ids: string[] | null;
   server_names: string[] | null;
@@ -147,7 +228,12 @@ export async function loadCandidates(serverIds: string[]): Promise<RecipientCand
            u.name,
            u.contact_email,
            u.email AS identity_email,
+<<<<<<< HEAD
+           array_remove(array_agg(su.email ORDER BY s.type <> 'plex', su.created_at, su.id), NULL) AS account_emails,
+           bool_and(su.email IS NULL OR s.type <> 'plex') AS account_emails_from_usernames,
+=======
            array_remove(array_agg(su.email ORDER BY su.created_at, su.id), NULL) AS account_emails,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
            array_agg(su.username ORDER BY su.created_at, su.id) AS usernames,
            array_agg(su.server_id ORDER BY su.created_at, su.id) AS server_ids,
            array_agg(s.name ORDER BY su.created_at, su.id) AS server_names,
@@ -172,14 +258,29 @@ export async function loadCandidates(serverIds: string[]): Promise<RecipientCand
     contactEmail: row.contact_email,
     identityEmail: row.identity_email,
     accountEmails: row.account_emails ?? [],
+<<<<<<< HEAD
+    accountEmailsFromUsernames: row.account_emails_from_usernames,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     blocked: row.blocked ?? null,
   }));
 }
 
+<<<<<<< HEAD
+/** newSinceLastSend stays false unless the saved newsletter's id is passed; the send pipeline and previews skip that lookup. */
+export async function resolveRecipients(
+  newsletter: {
+    scope: NewsletterScope;
+    recipients: NewsletterRecipients;
+  },
+  newSinceLastSendOf?: string
+): Promise<RecipientResolution> {
+=======
 export async function resolveRecipients(newsletter: {
   scope: NewsletterScope;
   recipients: NewsletterRecipients;
 }): Promise<RecipientResolution> {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   const { members, extraAddresses, excludeUserIds } = newsletter.recipients;
   const candidates = members ? await loadCandidates(newsletter.scope.serverIds) : [];
   const excludedIds = new Set(excludeUserIds);
@@ -190,6 +291,29 @@ export async function resolveRecipients(newsletter: {
       .filter((a): a is string => a !== null),
     ...extraAddresses.map((e) => normalizeAddress(e.address)),
   ];
+<<<<<<< HEAD
+  const [suppressed, reached] = await Promise.all([
+    suppressedAmong(addresses),
+    members && newSinceLastSendOf !== undefined ? lastDeliveredUserIds(newSinceLastSendOf) : null,
+  ]);
+  const merged = mergeRecipients(candidates, extraAddresses, suppressed, excludeUserIds);
+  const resolution: RecipientResolution = {
+    recipients: [
+      ...merged.recipients.filter((r) => r.userId !== null).sort(byRecipientName),
+      ...merged.recipients.filter((r) => r.userId === null).sort(byRecipientName),
+    ],
+    missing: merged.missing.sort(byName),
+    excluded: merged.excluded.sort(byName),
+  };
+  if (!reached) return resolution;
+  return {
+    ...resolution,
+    recipients: resolution.recipients.map((r) =>
+      r.userId !== null && !reached.has(r.userId) ? { ...r, newSinceLastSend: true } : r
+    ),
+  };
+=======
   const suppressed = await suppressedAmong(addresses);
   return mergeRecipients(candidates, extraAddresses, suppressed, excludeUserIds);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }

@@ -70,7 +70,15 @@
   },
   "resources": {
     "cpu": "",
+<<<<<<< HEAD
+    "ram": "",
+    "item": "",
+    "noData": "",
+    "system": "",
+    "waiting": ""
+=======
     "ram": ""
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "notifications": {
     "testSent": "Test odeslán",
@@ -98,11 +106,27 @@
     "criticalOverrideDescription": "",
     "rateLimitDescription": "",
     "sendTestNotification": "",
+<<<<<<< HEAD
+    "testDescription": "",
+    "pushNotifications": "",
+    "ruleTypes": {
+      "accountInactivity": "",
+      "deviceVelocity": "",
+      "geoRestriction": "",
+      "impossibleTravel": "",
+      "simultaneousLocations": ""
+    },
+    "severityAll": "",
+    "severityHighOnly": "",
+    "severityWarningUp": "",
+    "violationTypes": ""
+=======
     "testDescription": ""
   },
   "dashboard": {
     "today": "",
     "hrs": ""
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "session": {
     "streamTerminated": "",
@@ -117,6 +141,44 @@
     "moreDevices": "",
     "noViolations": "",
     "noTerminations": "",
+<<<<<<< HEAD
+    "lastSeen": "",
+    "terminatedBy": "",
+    "trustScoreConfirm": "",
+    "trustScoreRange": ""
+  },
+  "violation": {
+    "violationNotFoundDesc": "",
+    "ips": ""
+  },
+  "alerts": {
+    "clearFilters": "",
+    "acknowledgeAll": "",
+    "acknowledgeAllBody": "",
+    "acknowledgeAllBodySeverity": "",
+    "acknowledgeAllTitle_one": "",
+    "acknowledgeAllTitle_other": "",
+    "all": "",
+    "allClear": "",
+    "allServers": "",
+    "noAlertsRecorded": "",
+    "noMatches": "",
+    "pendingCount": ""
+  },
+  "history": {
+    "adjustFilters": "",
+    "historyWillAppear": "",
+    "filters": {
+      "clearCount": "",
+      "countries": "",
+      "filterBy": "",
+      "mediaType": "",
+      "noCountries": "",
+      "noPlatforms": "",
+      "noUsers": "",
+      "sectionSelected": ""
+    }
+=======
     "trustLow": "",
     "trustMedium": "",
     "trustHigh": ""
@@ -135,16 +197,28 @@
     "noHistoryFound": "",
     "adjustFilters": "",
     "historyWillAppear": ""
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "users": {
     "owner": "",
     "noUsers": "",
     "usersWillAppear": "",
+<<<<<<< HEAD
+    "noUsersMatch": "",
+    "joinedRelative": "",
+    "sortActive": "",
+    "sortTrust": ""
+  },
+  "activity": {
+    "playsOverTime": "Přehrávání v průběhu času",
+    "concurrentStreams": "",
+=======
     "noUsersMatch": ""
   },
   "activity": {
     "playsOverTime": "Přehrávání v průběhu času",
     "concurrentStreams": "Souběžné streamy",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "platforms": "Platformy",
     "playbackQuality": ""
   },
@@ -160,7 +234,10 @@
     "allServers": ""
   },
   "reconnected": "",
+<<<<<<< HEAD
+=======
   "actionsExecuted": "",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   "serverScope": {
     "single": ""
   },
@@ -169,10 +246,77 @@
     "alerts": "",
     "alertsCount": "",
     "settings": "",
+<<<<<<< HEAD
+    "trustScore": "",
+    "decreaseTrustScore": "",
+    "filtersActive": "",
+    "increaseTrustScore": "",
+    "sortAscending": "",
+    "sortDescending": ""
+=======
     "trustScore": ""
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "map": {
     "noData": "",
     "unavailable": ""
+<<<<<<< HEAD
+  },
+  "automations": {
+    "conditions_one": "",
+    "conditions_other": "",
+    "editOnWeb": "",
+    "emptyDescription": "",
+    "kind": {
+      "notification": "",
+      "policy": ""
+    },
+    "lastRun": "",
+    "truncated": "",
+    "turnOffFailed": "",
+    "turnOnFailed": "",
+    "unsupportedDescription": "",
+    "unsupportedTitle": "",
+    "versionCheckFailed": ""
+  },
+  "charts": {
+    "weekOf": ""
+  },
+  "push": {
+    "violationTitle": ""
+  },
+  "streamDetails": {
+    "bitrate": "",
+    "channels": "",
+    "codec": "",
+    "color": "",
+    "container": "",
+    "forced": "",
+    "format": "",
+    "framerate": "",
+    "hwDecode": "",
+    "hwEncode": "",
+    "mono": "",
+    "noDetails": "",
+    "notAvailable": "",
+    "profile": "",
+    "sampleRate": "",
+    "source": "",
+    "speed": "",
+    "stereo": "",
+    "stream": "",
+    "subtitles": "",
+    "throttled": "",
+    "transcodeDetails": ""
+  },
+  "widget": {
+    "asOf": "",
+    "serversDown_one": "",
+    "serversDown_other": "",
+    "signedOut": "",
+    "transcodes_one": "",
+    "transcodes_other": ""
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   }
 }

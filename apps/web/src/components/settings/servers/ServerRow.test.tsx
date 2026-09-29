@@ -10,6 +10,13 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
+<<<<<<< HEAD
+vi.mock('@/components/settings/request-services', () => ({
+  RequestServiceLine: () => <div>request service line</div>,
+}));
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 vi.mock('@dnd-kit/sortable', () => ({
   useSortable: () => ({
     attributes: {},
@@ -89,6 +96,17 @@ describe('ServerRow', () => {
     expect(trigger).toHaveClass('text-warning');
   });
 
+<<<<<<< HEAD
+  it('carries the Seerr line only for callers that pass one', () => {
+    renderRow();
+    expect(screen.queryByText('request service line')).not.toBeInTheDocument();
+
+    renderRow({ requestService: { service: undefined } });
+    expect(screen.getByText('request service line')).toBeInTheDocument();
+  });
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   it('says nothing about realtime for a Plex server', () => {
     renderRow({ server: server({ type: 'plex' }) });
 

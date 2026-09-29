@@ -7,16 +7,27 @@ import {
   rowPaginationFeature,
   rowSelectionFeature,
   rowSortingFeature,
+<<<<<<< HEAD
+  sortFn_alphanumericCaseSensitive,
+  sortFn_basic,
+  sortFn_datetime,
+=======
   sortFn_alphanumeric,
   sortFn_alphanumericCaseSensitive,
   sortFn_basic,
   sortFn_datetime,
   sortFn_text,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   sortFn_textCaseSensitive,
   tableFeatures,
   type useTable,
 } from '@tanstack/react-table';
 
+<<<<<<< HEAD
+import { compareText } from '@/lib/collation';
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 /**
  * Per-column presentation hints. This is the `columnMeta` feature slot rather
  * than a `declare module` augmentation: declaration merging is global and would
@@ -44,11 +55,20 @@ export const dataTableFeatures = tableFeatures({
   rowSortingFeature,
   sortedRowModel: createSortedRowModel(),
   sortFns: {
+<<<<<<< HEAD
+    alphanumeric: (rowA, rowB, columnId) =>
+      compareText(rowA.getValue(columnId), rowB.getValue(columnId)),
+    alphanumericCaseSensitive: sortFn_alphanumericCaseSensitive,
+    basic: sortFn_basic,
+    datetime: sortFn_datetime,
+    text: (rowA, rowB, columnId) => compareText(rowA.getValue(columnId), rowB.getValue(columnId)),
+=======
     alphanumeric: sortFn_alphanumeric,
     alphanumericCaseSensitive: sortFn_alphanumericCaseSensitive,
     basic: sortFn_basic,
     datetime: sortFn_datetime,
     text: sortFn_text,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     textCaseSensitive: sortFn_textCaseSensitive,
   },
   rowPaginationFeature,

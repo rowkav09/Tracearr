@@ -51,6 +51,10 @@ describe('BrandingForm', () => {
       {
         logo: { mode: 'url', url: 'https://x.test/logo.png' },
         accentColor: '#123456',
+<<<<<<< HEAD
+        systemTitle: null,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         footerText: 'See you next week',
         postalAddress: null,
         mailtoUnsubscribe: true,
@@ -71,6 +75,29 @@ describe('BrandingForm', () => {
     expect(screen.getByRole('button', { name: 'email.branding.save' })).toBeDisabled();
   });
 
+<<<<<<< HEAD
+  it('sends a typed system title', async () => {
+    renderForm();
+    await userEvent.type(screen.getByLabelText('email.branding.systemTitle'), 'Tracearr for Emby');
+    await userEvent.click(screen.getByRole('button', { name: 'email.branding.save' }));
+    expect(saveMutate).toHaveBeenCalledWith(
+      expect.objectContaining({ systemTitle: 'Tracearr for Emby' }),
+      expect.anything()
+    );
+  });
+
+  it('sends null when a stored title is cleared', async () => {
+    renderForm({ ...stored, systemTitle: 'Tracearr for Emby' });
+    await userEvent.clear(screen.getByLabelText('email.branding.systemTitle'));
+    await userEvent.click(screen.getByRole('button', { name: 'email.branding.save' }));
+    expect(saveMutate).toHaveBeenCalledWith(
+      expect.objectContaining({ systemTitle: null }),
+      expect.anything()
+    );
+  });
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   it('shows a skeleton while loading', () => {
     renderForm(stored, true);
     expect(screen.getByTestId('branding-loading')).toBeInTheDocument();

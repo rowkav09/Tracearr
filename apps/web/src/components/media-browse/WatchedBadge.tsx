@@ -6,10 +6,20 @@ import { cn } from '@/lib/utils';
 interface WatchedBadgeProps {
   /** Anyone-grain: has any user watched this. */
   watchedState: WatchedState;
+<<<<<<< HEAD
+  /** The grain that earns the solid tone: the viewer's own on the catalog, the
+   * requester's on the requests tables. Omitted on shelf cards (all-users
+   * aggregate, no per-viewer state), which falls back to the single-tone
+   * "someone watched this" rendering below. */
+  watchedStateSelf?: WatchedState;
+  /** Overrides the accessible name, which otherwise assumes the viewer grain. */
+  label?: string;
+=======
   /** Requester-grain: has the signed-in admin personally watched this.
    * Omitted on shelf cards (all-users aggregate, no per-viewer state), which
    * falls back to the single-tone "someone watched this" rendering below. */
   watchedStateSelf?: WatchedState;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   className?: string;
 }
 
@@ -21,6 +31,23 @@ export function watchedByRequester(watchedStateSelf: WatchedState | undefined): 
   return watchedStateSelf === 'watched';
 }
 
+<<<<<<< HEAD
+/**
+ * A background conic-gradient is not clipped to the border radius by Firefox
+ * once an ancestor is transformed (the hovered poster card), so the pie is an
+ * SVG arc instead. The slice is a fixed 62%: a glyph for "partly watched",
+ * not a progress meter.
+ */
+const PARTIAL_FRACTION = 0.62;
+const PARTIAL_ARC = (() => {
+  const angle = PARTIAL_FRACTION * 2 * Math.PI;
+  const x = (1 + Math.sin(angle)).toFixed(3);
+  const y = (1 - Math.cos(angle)).toFixed(3);
+  return `M1 1 L1 0 A1 1 0 ${PARTIAL_FRACTION > 0.5 ? 1 : 0} 1 ${x} ${y} Z`;
+})();
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 type WatchedLabelKey =
   | 'media.posterCard.watchedState.watched'
   | 'media.posterCard.watchedState.watchedByYou'
@@ -49,7 +76,16 @@ export function watchedLabelKey(watchedStateSelf: WatchedState | undefined): Wat
  * Green wins whenever both are true. Teal was tried for the self tone and
  * reads as green at 18px, which hid the split entirely.
  */
+<<<<<<< HEAD
+export function WatchedBadge({
+  watchedState,
+  watchedStateSelf,
+  label,
+  className,
+}: WatchedBadgeProps) {
+=======
 export function WatchedBadge({ watchedState, watchedStateSelf, className }: WatchedBadgeProps) {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   const { t } = useTranslation('pages');
 
   if (watchedState === 'watched') {
@@ -63,7 +99,11 @@ export function WatchedBadge({ watchedState, watchedStateSelf, className }: Watc
         )}
       >
         <Check aria-hidden="true" className="h-3 w-3" strokeWidth={3} />
+<<<<<<< HEAD
+        <span className="sr-only">{label ?? t(watchedLabelKey(watchedStateSelf))}</span>
+=======
         <span className="sr-only">{t(watchedLabelKey(watchedStateSelf))}</span>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       </span>
     );
   }
@@ -74,6 +114,16 @@ export function WatchedBadge({ watchedState, watchedStateSelf, className }: Watc
     return (
       <span
         className={cn(
+<<<<<<< HEAD
+          'border-background/55 inline-flex size-[18px] overflow-hidden rounded-full border-2',
+          className
+        )}
+      >
+        <svg viewBox="0 0 2 2" className="size-full" aria-hidden="true">
+          <circle cx="1" cy="1" r="1" fill="hsl(var(--muted-foreground) / 0.6)" />
+          <path d={PARTIAL_ARC} fill={`hsl(var(${tone}))`} />
+        </svg>
+=======
           'border-background/55 inline-flex size-[18px] rounded-full border-2',
           className
         )}
@@ -81,6 +131,7 @@ export function WatchedBadge({ watchedState, watchedStateSelf, className }: Watc
           background: `conic-gradient(hsl(var(${tone})) 0 62%, hsl(var(--muted)) 62% 100%)`,
         }}
       >
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         <span className="sr-only">{t('media.posterCard.watchedState.partial')}</span>
       </span>
     );

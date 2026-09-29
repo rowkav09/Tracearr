@@ -32,6 +32,11 @@ const member = (address: string, serverIds: string[]): ResolvedRecipient => ({
   username: null,
   serverName: '',
   thumbUrl: null,
+<<<<<<< HEAD
+  newSinceLastSend: false,
+  addressFromUsername: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 });
 const extra = (address: string): ResolvedRecipient => ({
   ...member(address, []),
@@ -42,7 +47,11 @@ const extra = (address: string): ResolvedRecipient => ({
 });
 
 describe('orderServers', () => {
+<<<<<<< HEAD
+  it('follows the scope list, and keeps server order when the scope names none', () => {
+=======
   it('follows the scope list, and keeps name order when the scope names none', () => {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     expect(orderServers({ serverIds: [B, A] }, [attic, basement]).map((s) => s.name)).toEqual([
       'Basement',
       'Attic',

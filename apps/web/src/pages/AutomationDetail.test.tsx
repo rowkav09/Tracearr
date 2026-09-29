@@ -545,6 +545,10 @@ describe('AutomationDetail run sheet', () => {
       ipAddress: '10.0.0.9',
       city: 'Boston',
       country: 'United States',
+<<<<<<< HEAD
+      isLocal: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     },
     evidence: [],
     ...overrides,

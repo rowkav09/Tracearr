@@ -84,7 +84,11 @@ describe('CopiesPanel', () => {
     expect(screen.getAllByText('Plex')).toHaveLength(2);
     expect(screen.getByText('Movies')).toBeInTheDocument();
     expect(screen.getByText('4K Movies')).toBeInTheDocument();
+<<<<<<< HEAD
+    expect(screen.getByText('4K')).toBeInTheDocument();
+=======
     expect(screen.getByText('4k')).toBeInTheDocument();
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     expect(screen.getByText('1080p')).toBeInTheDocument();
   });
 
@@ -106,7 +110,11 @@ describe('CopiesPanel', () => {
       ],
     });
 
+<<<<<<< HEAD
+    expect(screen.getByText('1080p · 4K')).toBeInTheDocument();
+=======
     expect(screen.getByText('1080p · 4k')).toBeInTheDocument();
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     expect(screen.getByText('16.8 GB')).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Episodes' })).toBeInTheDocument();
     expect(screen.getByText('42')).toBeInTheDocument();
@@ -125,7 +133,11 @@ describe('CopiesPanel', () => {
       ],
     });
 
+<<<<<<< HEAD
+    expect(screen.getByText('4K · 1080p · 720p +2')).toBeInTheDocument();
+=======
     expect(screen.getByText('4k · 1080p · 720p +2')).toBeInTheDocument();
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   });
 
   it('keeps the movie shape: single resolution, own file size, no Episodes column', () => {

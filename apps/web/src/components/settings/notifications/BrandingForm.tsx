@@ -87,6 +87,21 @@ function BrandingFields({ stored }: { stored: EmailBrandingSettings }) {
           </Field>
         )}
       </Field>
+<<<<<<< HEAD
+      <Field>
+        <FieldLabel htmlFor="branding-system-title">{t('email.branding.systemTitle')}</FieldLabel>
+        <Input
+          id="branding-system-title"
+          maxLength={120}
+          value={state.systemTitle ?? ''}
+          onChange={(event) =>
+            patch({ systemTitle: event.target.value === '' ? null : event.target.value })
+          }
+        />
+        <FieldDescription>{t('email.branding.systemTitleHelp')}</FieldDescription>
+      </Field>
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       <Field className="max-w-xs" data-invalid={errors.accentColor !== undefined}>
         <FieldLabel htmlFor="branding-accent">{t('email.branding.accent')}</FieldLabel>
         <InputGroup>

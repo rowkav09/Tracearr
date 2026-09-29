@@ -1,4 +1,37 @@
 {
+<<<<<<< HEAD
+  "dashboard": "Instrumentpanel",
+  "map": "Karta",
+  "history": "Historik",
+  "stats": "Statistik",
+  "activity": "Aktivitet",
+  "library": "Bibliotek",
+  "users": "Användare",
+  "automations": "",
+  "violations": "Överträdelser",
+  "requests": "",
+  "alerts": "Varningar",
+  "settings": "Inställningar",
+  "overview": "Översikt",
+  "quality": "Kvalitet",
+  "storage": "Lagring",
+  "watch": "Titta",
+  "performance": "Prestation",
+  "devices": "Enheter",
+  "bandwidth": "Bandbredd",
+  "jobs": "Jobb",
+  "accessControl": "Åtkomstkontroll",
+  "media": "",
+  "mediaBrowse": "Bläddra",
+  "mediaGenres": "Genrer",
+  "session": "",
+  "user": "",
+  "violation": "",
+  "monitor": "",
+  "manage": "",
+  "userStats": "",
+  "toggleSidebar": ""
+=======
   "accessControl": "Åtkomstkontroll",
   "activity": "Aktivitet",
   "alerts": "Varningar",
@@ -29,4 +62,5 @@
   "violation": "",
   "violations": "Överträdelser",
   "watch": "Titta"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }

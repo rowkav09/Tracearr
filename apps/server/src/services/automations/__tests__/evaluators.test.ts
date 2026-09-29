@@ -83,6 +83,10 @@ function createMockSession(overrides: Partial<Session> = {}): Session {
     geoLon: -74.006,
     geoAsnNumber: 7922,
     geoAsnOrganization: 'Comcast',
+<<<<<<< HEAD
+    isLocal: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     playerName: 'Player 1',
     deviceId: 'device-1',
     product: 'Plex Web',
@@ -257,15 +261,27 @@ describe('Helper Functions', () => {
       expect(getResolution(1920, null)).toBe('1080p');
     });
 
+<<<<<<< HEAD
+    it('returns 1440p for 2560x1440 and 8K for 7680x4320', () => {
+      expect(getResolution(2560, 1440)).toBe('1440p');
+      expect(getResolution(7680, 4320)).toBe('8K');
+=======
     // regression: issue #798, 1440p folds up to 4K since VideoResolution has no 1440p tier
     it('returns 4K for 1440p dimensions 2560x1440 (previously 1080p under the old ladder)', () => {
       expect(getResolution(2560, 1440)).toBe('4K');
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     });
   });
 
   describe('resolutionToNumber', () => {
     it('converts resolution strings to numeric values', () => {
+<<<<<<< HEAD
+      expect(resolutionToNumber('8K')).toBe(4320);
       expect(resolutionToNumber('4K')).toBe(2160);
+      expect(resolutionToNumber('1440p')).toBe(1440);
+=======
+      expect(resolutionToNumber('4K')).toBe(2160);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       expect(resolutionToNumber('1080p')).toBe(1080);
       expect(resolutionToNumber('720p')).toBe(720);
       expect(resolutionToNumber('480p')).toBe(480);
@@ -1025,6 +1041,38 @@ describe('Session Behavior Evaluators', () => {
       );
       expect(matched(counted)).toBe(true);
     });
+<<<<<<< HEAD
+
+    it('does not measure distance to a local session placed at its server', () => {
+      const local = createMockSession({
+        id: 's1',
+        serverUserId: 'user-1',
+        isLocal: true,
+        geoCountry: 'US',
+        geoLat: 41.8781,
+        geoLon: -87.6298,
+        deviceId: 'device-1',
+      });
+      const remote = createMockSession({
+        id: 's2',
+        serverUserId: 'user-1',
+        geoLat: 34.0522,
+        geoLon: -118.2437,
+        deviceId: 'device-2',
+      });
+      const ctx = createTestContext({
+        session: remote,
+        serverUser: createMockServerUser({ id: 'user-1' }),
+        activeSessions: [local, remote],
+      });
+      const result = evaluatorRegistry.active_session_distance_km(
+        ctx,
+        createCondition({ field: 'active_session_distance_km', operator: 'gt', value: 0 })
+      );
+      expect(matched(result)).toBe(false);
+    });
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   });
 
   describe('travel_speed_kmh', () => {
@@ -1219,6 +1267,40 @@ describe('Session Behavior Evaluators', () => {
         )
       ).toBe(true);
     });
+<<<<<<< HEAD
+
+    it('does not compute travel from a local session placed at its server', () => {
+      const now = new Date();
+      const current = createMockSession({
+        id: 's1',
+        serverUserId: 'user-1',
+        startedAt: now,
+        geoLat: 34.0522,
+        geoLon: -118.2437,
+      });
+      const previousLocal = createMockSession({
+        id: 's2',
+        serverUserId: 'user-1',
+        startedAt: new Date(now.getTime() - 60 * 60 * 1000),
+        isLocal: true,
+        geoCountry: 'US',
+        geoLat: 41.8781,
+        geoLon: -87.6298,
+        deviceId: 'device-2',
+      });
+      const ctx = createTestContext({
+        session: current,
+        serverUser: createMockServerUser({ id: 'user-1' }),
+        recentSessions: [current, previousLocal],
+      });
+      const result = evaluatorRegistry.travel_speed_kmh(
+        ctx,
+        createCondition({ field: 'travel_speed_kmh', operator: 'gt', value: 0 })
+      );
+      expect(matched(result)).toBe(false);
+    });
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   });
 
   describe('unique_ips_in_window', () => {
@@ -2014,6 +2096,102 @@ describe('Stream Quality Evaluators', () => {
     });
   });
 
+<<<<<<< HEAD
+  describe('source_dynamic_range', () => {
+    const evaluate = (
+      label: string | null,
+      operator: 'eq' | 'neq' | 'in' | 'not_in',
+      value: string | string[]
+    ) =>
+      evaluatorRegistry.source_dynamic_range(
+        createTestContext({
+          session: createMockSession({
+            sourceVideoDetails: label === null ? null : { dynamicRange: label },
+          }),
+        }),
+        createCondition({ field: 'source_dynamic_range', operator, value })
+      ) as EvaluatorResult;
+
+    it('matches the server label against the token the picker offers', () => {
+      const result = evaluate('Dolby Vision', 'eq', 'dolby vision');
+      expect(result.matched).toBe(true);
+      expect(result.actual).toBe('dolby vision');
+    });
+
+    it('reads "is not SDR" as any HDR flavour', () => {
+      expect(evaluate('HDR10', 'neq', 'sdr').matched).toBe(true);
+      expect(evaluate('SDR', 'neq', 'sdr').matched).toBe(false);
+    });
+
+    it('picks specific formats out of a list', () => {
+      expect(evaluate('HDR10', 'in', ['hdr10', 'dolby vision']).matched).toBe(true);
+      expect(evaluate('HLG', 'in', ['hdr10', 'dolby vision']).matched).toBe(false);
+    });
+
+    it('never matches a session that reported no range, even for "is not"', () => {
+      expect(evaluate(null, 'eq', 'sdr').matched).toBe(false);
+      expect(evaluate(null, 'neq', 'sdr').matched).toBe(false);
+    });
+  });
+
+  describe('source_video_codec', () => {
+    const evaluate = (
+      codec: string | null,
+      operator: 'eq' | 'neq' | 'contains' | 'not_contains',
+      value: string
+    ) =>
+      evaluatorRegistry.source_video_codec(
+        createTestContext({ session: createMockSession({ sourceVideoCodec: codec }) }),
+        createCondition({ field: 'source_video_codec', operator, value })
+      ) as EvaluatorResult;
+
+    it('folds case on both sides', () => {
+      expect(evaluate('AV1', 'eq', 'av1').matched).toBe(true);
+      expect(evaluate('HEVC', 'contains', 'hev').matched).toBe(true);
+    });
+
+    it('reports the codec as the server spelled it', () => {
+      expect(evaluate('HEVC', 'eq', 'hevc').actual).toBe('HEVC');
+    });
+
+    it('never matches a session with no codec', () => {
+      expect(evaluate(null, 'eq', 'av1').matched).toBe(false);
+      expect(evaluate(null, 'neq', 'av1').matched).toBe(false);
+    });
+  });
+
+  describe('season_number and episode_number', () => {
+    const evaluate = (
+      field: 'season_number' | 'episode_number',
+      session: Partial<Session>,
+      operator: Operator,
+      value: number
+    ) =>
+      evaluatorRegistry[field](
+        createTestContext({ session: createMockSession(session) }),
+        createCondition({ field, operator, value })
+      ) as EvaluatorResult;
+
+    const premiere = { mediaType: 'episode' as const, seasonNumber: 2, episodeNumber: 1 };
+
+    it('spots a season premiere', () => {
+      expect(evaluate('episode_number', premiere, 'eq', 1).matched).toBe(true);
+      expect(evaluate('season_number', premiere, 'gte', 2).matched).toBe(true);
+    });
+
+    it('leaves the rest of the season alone', () => {
+      const midSeason = { ...premiere, episodeNumber: 6 };
+      expect(evaluate('episode_number', midSeason, 'eq', 1).matched).toBe(false);
+    });
+
+    it('stays quiet on a movie, which would otherwise answer every "is not"', () => {
+      expect(evaluate('episode_number', { mediaType: 'movie' }, 'neq', 1).matched).toBe(false);
+      expect(evaluate('season_number', { mediaType: 'movie' }, 'neq', 1).matched).toBe(false);
+    });
+  });
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   describe('is_transcoding', () => {
     it('evaluates "video" - matches when video is transcoding', () => {
       const session = createMockSession({
@@ -2774,6 +2952,42 @@ describe('Network/Location Evaluators', () => {
         matched(evaluator(ctx, createCondition({ field: 'country', operator: 'neq', value: 'US' })))
       ).toBe(false);
     });
+<<<<<<< HEAD
+
+    it('never matches a local session, even with its server location on the row', () => {
+      const session = createMockSession({
+        isLocal: true,
+        geoCountry: 'US',
+        geoCity: 'Chicago',
+        geoLat: 41.88,
+      });
+      const ctx = createTestContext({ session });
+      const evaluator = evaluatorRegistry.country;
+      expect(
+        matched(evaluator(ctx, createCondition({ field: 'country', operator: 'eq', value: 'US' })))
+      ).toBe(false);
+      expect(
+        matched(evaluator(ctx, createCondition({ field: 'country', operator: 'neq', value: 'CA' })))
+      ).toBe(false);
+    });
+
+    it('treats a session cached before the flag existed by its Local Network label', () => {
+      const session = {
+        ...createMockSession({ geoCountry: 'Local Network', geoCity: null, geoLat: null }),
+        isLocal: undefined,
+      } as unknown as Session;
+      const ctx = createTestContext({ session });
+      expect(
+        matched(
+          evaluatorRegistry.country(
+            ctx,
+            createCondition({ field: 'country', operator: 'neq', value: 'US' })
+          )
+        )
+      ).toBe(false);
+    });
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   });
 
   describe('ip_in_range', () => {

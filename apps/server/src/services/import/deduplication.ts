@@ -34,6 +34,12 @@ export interface ExistingSession {
   pausedDurationMs: number | null;
   watched: boolean | null;
   sourceVideoCodec: string | null;
+<<<<<<< HEAD
+  mediaType: string;
+  mediaId: string | null;
+  showMediaId: string | null;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 /**
@@ -134,6 +140,12 @@ export async function queryExistingByExternalIds(
         pausedDurationMs: sessions.pausedDurationMs,
         watched: sessions.watched,
         sourceVideoCodec: sessions.sourceVideoCodec,
+<<<<<<< HEAD
+        mediaType: sessions.mediaType,
+        mediaId: sessions.mediaId,
+        showMediaId: sessions.showMediaId,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       })
       .from(sessions)
       .where(and(...conditions));
@@ -193,6 +205,12 @@ export async function queryExistingByTimeKeys(
         pausedDurationMs: sessions.pausedDurationMs,
         watched: sessions.watched,
         sourceVideoCodec: sessions.sourceVideoCodec,
+<<<<<<< HEAD
+        mediaType: sessions.mediaType,
+        mediaId: sessions.mediaId,
+        showMediaId: sessions.showMediaId,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       })
       .from(sessions)
       .where(

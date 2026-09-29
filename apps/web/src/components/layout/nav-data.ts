@@ -16,6 +16,10 @@ import {
   Eye,
   LayoutGrid,
   Tags,
+<<<<<<< HEAD
+  Inbox,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 } from 'lucide-react';
 import type { NavKey } from '@tracearr/translations';
 
@@ -23,6 +27,10 @@ export interface NavItem {
   nameKey: NavKey;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
+<<<<<<< HEAD
+  requiresSeerr?: true;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 export interface NavSection {
@@ -62,6 +70,10 @@ export const navigation: NavSection[] = [
       { nameKey: 'quality', href: '/library/quality', icon: Sparkles },
       { nameKey: 'storage', href: '/library/storage', icon: HardDrive },
       { nameKey: 'watch', href: '/library/watch', icon: Eye },
+<<<<<<< HEAD
+      { nameKey: 'requests', href: '/requests', icon: Inbox, requiresSeerr: true },
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     ],
   },
   {

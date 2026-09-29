@@ -2,7 +2,11 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { initI18n } from '@tracearr/translations';
+<<<<<<< HEAD
+import type { MediaAvailabilityEntry, MediaRequestEntry } from '@tracearr/shared';
+=======
 import type { MediaAvailabilityEntry } from '@tracearr/shared';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { DetailHero, hexToHslTriple, type HeroServerLookupEntry } from './DetailHero';
 import type { MediaDetailData, MediaDetailStub } from '@/hooks/queries';
 
@@ -86,6 +90,35 @@ function fullDetail(overrides: Partial<MediaDetailData> = {}): MediaDetailData {
   };
 }
 
+<<<<<<< HEAD
+function requestEntry(overrides: Partial<MediaRequestEntry> = {}): MediaRequestEntry {
+  return {
+    id: 'req-1',
+    serverId: 'srv-plex',
+    status: 'completed',
+    requestedAt: '2026-01-08T12:00:00.000Z',
+    availableAt: '2026-01-08T12:02:00.000Z',
+    waitMs: 2 * 60 * 1000,
+    deletedAt: null,
+    seasons: null,
+    is4k: false,
+    isAutoRequest: false,
+    watchedState: 'unwatched',
+    watchedStateRequester: 'unwatched',
+    requester: {
+      serverUserId: 'su-1',
+      userId: 'u-1',
+      serverId: 'srv-plex',
+      username: 'agelwarg',
+      identityName: 'Alice',
+      thumb: null,
+    },
+    ...overrides,
+  };
+}
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 describe('hexToHslTriple', () => {
   it('converts a hex color to an unwrapped H S% L% triple', () => {
     expect(hexToHslTriple('#1f6f6f')).toMatch(/^\d+ \d+% \d+%$/);
@@ -205,7 +238,11 @@ describe('DetailHero', () => {
     renderHero({ data: fullDetail({ availability }) });
 
     const caption = screen.getByText(
+<<<<<<< HEAD
+      'added Aug 6, 2026 · 1080p · 1.8 GB · replaced Aug 13, 2026 · 4K · 4.9 GB'
+=======
       'added Aug 6, 2026 · 1080p · 1.8 GB · replaced Aug 13, 2026 · 4k · 4.9 GB'
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     );
     expect(caption).not.toHaveClass('line-through');
   });
@@ -246,4 +283,38 @@ describe('DetailHero', () => {
     screen.getByRole('button', { name: /Try again/ }).click();
     expect(onRetry).toHaveBeenCalled();
   });
+<<<<<<< HEAD
+
+  it('renders the request line naming the requester when a request is passed', () => {
+    renderHero({ data: fullDetail(), stub, request: requestEntry() });
+
+    expect(screen.getByText(/Requested by Alice/)).toBeInTheDocument();
+  });
+
+  it('falls back to the server username when the requester has no identity name', () => {
+    renderHero({
+      data: fullDetail(),
+      stub,
+      request: requestEntry({
+        requester: {
+          serverUserId: 'su-1',
+          userId: null,
+          serverId: 'srv-plex',
+          username: 'agelwarg',
+          identityName: null,
+          thumb: null,
+        },
+      }),
+    });
+
+    expect(screen.getByText(/Requested by agelwarg/)).toBeInTheDocument();
+  });
+
+  it('renders no request line without a request', () => {
+    renderHero({ data: fullDetail(), stub });
+
+    expect(screen.queryByText(/Requested by/)).not.toBeInTheDocument();
+  });
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 });

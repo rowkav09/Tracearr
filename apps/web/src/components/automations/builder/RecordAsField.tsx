@@ -12,7 +12,10 @@ import {
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { SEVERITIES, severityLabel } from '@/lib/automations';
 import { nodeDomId, type BuilderDispatch } from './builderReducer';
+<<<<<<< HEAD
+=======
 import { SELECTED_TOGGLE } from './selection';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { StepFooterField } from './StepFooterField';
 import { BUILDER_SECTIONS } from './validation';
 
@@ -46,7 +49,11 @@ export function RecordAsField({ kind, severity, dispatch }: RecordAsFieldProps) 
               }}
             >
               {AUTOMATION_KINDS.map((option) => (
+<<<<<<< HEAD
+                <ToggleGroupItem key={option} value={option}>
+=======
                 <ToggleGroupItem key={option} value={option} className={SELECTED_TOGGLE}>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                   {t(`automations.builder.recordAs.${option}`)}
                 </ToggleGroupItem>
               ))}

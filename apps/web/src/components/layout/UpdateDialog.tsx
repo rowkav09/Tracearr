@@ -1,6 +1,10 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+<<<<<<< HEAD
+import { ExternalLink, ArrowRight, Terminal, Package, Sparkles, TriangleAlert } from 'lucide-react';
+=======
 import { ExternalLink, ArrowRight, Terminal, Package, Sparkles } from 'lucide-react';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import type { VersionInfo } from '@tracearr/shared';
 import {
   Dialog,
@@ -9,6 +13,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+<<<<<<< HEAD
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -101,6 +109,25 @@ export function UpdateDialog({ open, onOpenChange, version }: UpdateDialogProps)
             <div className="text-sm font-medium">{latest.releaseName}</div>
           )}
 
+<<<<<<< HEAD
+          {latest.upgradeWarnings.length > 0 && (
+            <Alert variant="warning">
+              <TriangleAlert />
+              <AlertTitle>{t('settings:update.beforeUpdating')}</AlertTitle>
+              <AlertDescription>
+                <ul className="space-y-1">
+                  {latest.upgradeWarnings.map((warning) => (
+                    <li key={warning.version}>
+                      <span className="font-medium">v{warning.version}</span>: {warning.text}
+                    </li>
+                  ))}
+                </ul>
+              </AlertDescription>
+            </Alert>
+          )}
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           {/* Release notes */}
           {latest.releaseNotes && (
             <div className="space-y-2">

@@ -7,9 +7,16 @@
  */
 
 import { alias } from 'drizzle-orm/pg-core';
+<<<<<<< HEAD
+import { and, asc, desc, eq, inArray, isNull, like, lt, ne, or, sql } from 'drizzle-orm';
+import { canLogin, rankMergeTarget, type MergeRankInput, type UserRole } from '@tracearr/shared';
+import type {
+  DismissedMergeSuggestion,
+=======
 import { and, asc, eq, inArray, isNull, lt, ne, or, sql } from 'drizzle-orm';
 import { canLogin, type UserRole } from '@tracearr/shared';
 import type {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   MergeSuggestion,
   MergeSuggestionIdentity,
   ServerUserSplitResult,
@@ -24,12 +31,25 @@ import {
   sessions,
   automationRuns,
   automations,
+<<<<<<< HEAD
+  mediaRequests,
+  plexAccounts,
+  mobileSessions,
+  mobileTokens,
+  newsletters,
+  newsletterSendRecipients,
+  terminationLogs,
+  authAccounts,
+  userMergeAudits,
+  dismissals,
+=======
   plexAccounts,
   mobileSessions,
   mobileTokens,
   terminationLogs,
   authAccounts,
   userMergeAudits,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 } from '../db/schema.js';
 import { uncapDecompressionForTx } from '../db/timescale.js';
 import { invalidateAutomationsCache } from '../jobs/poller/database.js';
@@ -293,6 +313,13 @@ async function combineServerUsers(
     .update(terminationLogs)
     .set({ serverUserId: targetServerUserId })
     .where(eq(terminationLogs.serverUserId, sourceServerUserId));
+<<<<<<< HEAD
+  await tx
+    .update(mediaRequests)
+    .set({ serverUserId: targetServerUserId })
+    .where(eq(mediaRequests.serverUserId, sourceServerUserId));
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
   // Per-user rule overrides: primary wins on name conflicts, the rest move over.
   // Conflicting source rules are dropped rather than kept as duplicates; their
@@ -387,6 +414,12 @@ export async function mergeUsers(
     assertMergeDirection(source, target);
 
     const [sourceUser] = await tx.select().from(users).where(eq(users.id, sourceUserId)).limit(1);
+<<<<<<< HEAD
+    if (!sourceUser) {
+      throw new UserNotFoundError(sourceUserId);
+    }
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
     const sourceSus = await tx
       .select({ id: serverUsers.id, serverId: serverUsers.serverId })
@@ -451,6 +484,55 @@ export async function mergeUsers(
       .set({ targetUserId })
       .where(eq(userMergeAudits.targetUserId, sourceUserId));
 
+<<<<<<< HEAD
+    // The delete would null these rows and orphan the jsonb exclusions; split hands neither back.
+    await tx
+      .update(newsletterSendRecipients)
+      .set({ userId: targetUserId })
+      .where(eq(newsletterSendRecipients.userId, sourceUserId));
+    const excluding = await tx
+      .select({ id: newsletters.id, recipients: newsletters.recipients })
+      .from(newsletters)
+      .where(
+        sql`${newsletters.recipients}->'excludeUserIds' @> ${JSON.stringify([sourceUserId])}::jsonb`
+      );
+    for (const newsletter of excluding) {
+      const excludeUserIds = [
+        ...new Set(
+          newsletter.recipients.excludeUserIds.map((id) =>
+            id === sourceUserId ? targetUserId : id
+          )
+        ),
+      ];
+      await tx
+        .update(newsletters)
+        .set({ recipients: { ...newsletter.recipients, excludeUserIds } })
+        .where(eq(newsletters.id, newsletter.id));
+    }
+
+    const carriedContactEmail = sourceUser.contactEmail
+      ? await tx
+          .update(users)
+          .set({ contactEmail: sourceUser.contactEmail, updatedAt: new Date() })
+          .where(and(eq(users.id, targetUserId), isNull(users.contactEmail)))
+          .returning({ id: users.id })
+      : [];
+
+    const sourceKey = sourceUserId.toLowerCase();
+    await tx
+      .delete(dismissals)
+      .where(
+        and(
+          eq(dismissals.kind, 'merge_suggestion'),
+          or(
+            like(dismissals.subjectKey, `${sourceKey}:%`),
+            like(dismissals.subjectKey, `%:${sourceKey}`)
+          )
+        )
+      );
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     await tx.delete(users).where(eq(users.id, sourceUserId));
 
     const [audit] = await tx
@@ -463,11 +545,21 @@ export async function mergeUsers(
         combinedServerUsers: plan.combines,
         wasSameServerCombine: plan.combines.length > 0,
         sourceUserSnapshot: {
+<<<<<<< HEAD
+          username: sourceUser.username,
+          name: sourceUser.name,
+          email: sourceUser.email,
+          thumbnail: sourceUser.thumbnail,
+          role: sourceUser.role,
+          contactEmail: sourceUser.contactEmail,
+          contactEmailCarried: carriedContactEmail.length > 0,
+=======
           username: sourceUser!.username,
           name: sourceUser!.name,
           email: sourceUser!.email,
           thumbnail: sourceUser!.thumbnail,
           role: sourceUser!.role,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         },
         movedIdentityRowIds,
       })
@@ -546,14 +638,32 @@ export async function splitServerUser(
       .orderBy(asc(userMergeAudits.createdAt))
       .limit(1);
 
+<<<<<<< HEAD
+    const [accountServer] = await tx
+      .select({ type: servers.type })
+      .from(servers)
+      .where(eq(servers.id, serverUser.serverId))
+      .limit(1);
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     const identity = audit
       ? audit.sourceUserSnapshot
       : {
           username: serverUser.username,
           name: null as string | null,
+<<<<<<< HEAD
+          // A Jellyfin or Emby account's email is its username, never an identity email.
+          email: accountServer?.type === 'plex' ? serverUser.email : null,
+          thumbnail: serverUser.thumbUrl,
+          role: 'member',
+          contactEmail: null,
+          contactEmailCarried: false,
+=======
           email: serverUser.email,
           thumbnail: serverUser.thumbUrl,
           role: 'member',
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         };
 
     let email = identity.email?.toLowerCase() ?? null;
@@ -578,6 +688,10 @@ export async function splitServerUser(
         username: identity.username,
         name: identity.name,
         email,
+<<<<<<< HEAD
+        contactEmail: identity.contactEmail ?? null,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         thumbnail: identity.thumbnail,
         role: 'member',
       })
@@ -599,6 +713,18 @@ export async function splitServerUser(
         await repointIdentityRowsBack(tx, audit.movedIdentityRowIds, oldUserId, newUser!.id);
       }
 
+<<<<<<< HEAD
+      // Only a gap-filled address the owner has not since retyped goes back.
+      const { contactEmail, contactEmailCarried } = audit.sourceUserSnapshot;
+      if (contactEmailCarried && contactEmail) {
+        await tx
+          .update(users)
+          .set({ contactEmail: null, updatedAt: new Date() })
+          .where(and(eq(users.id, oldUserId), eq(users.contactEmail, contactEmail)));
+      }
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       // A multi-account merge (movedServerUserIds has more than one entry)
       // must stay usable for further splits until every account it moved has
       // been split away. Marking it undone after only the first split would
@@ -683,7 +809,11 @@ export async function getMergeSuggestions(): Promise<MergeSuggestion[]> {
   // One suggestion per identity pair; email matches outrank username matches.
   // When two rows share the same matchType, the lexicographically smallest
   // matchValue wins so the result never depends on unspecified SQL row order.
+<<<<<<< HEAD
+  const pairKey = (row: (typeof pairRows)[number]) => mergeSuggestionKey(row.userA, row.userB);
+=======
   const pairKey = (row: (typeof pairRows)[number]) => `${row.userA}:${row.userB}`;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   const bestByPair = new Map<string, (typeof pairRows)[number]>();
   for (const row of pairRows) {
     const existing = bestByPair.get(pairKey(row));
@@ -695,6 +825,29 @@ export async function getMergeSuggestions(): Promise<MergeSuggestion[]> {
     }
   }
 
+<<<<<<< HEAD
+  const dismissedRows = await db
+    .select({ subjectKey: dismissals.subjectKey })
+    .from(dismissals)
+    .where(
+      and(
+        eq(dismissals.kind, 'merge_suggestion'),
+        inArray(dismissals.subjectKey, [...bestByPair.keys()])
+      )
+    );
+  for (const { subjectKey } of dismissedRows) {
+    bestByPair.delete(subjectKey);
+  }
+
+  const identities = await loadMergeIdentities([
+    ...new Set([...bestByPair.values()].flatMap((r) => [r.userA, r.userB])),
+  ]);
+
+  const suggestions: MergeSuggestion[] = [];
+  for (const row of bestByPair.values()) {
+    const first = identities.get(row.userA);
+    const second = identities.get(row.userB);
+=======
   const userIds = [...new Set([...bestByPair.values()].flatMap((r) => [r.userA, r.userB]))];
 
   const userRows = await db.select().from(users).where(inArray(users.id, userIds));
@@ -767,6 +920,7 @@ export async function getMergeSuggestions(): Promise<MergeSuggestion[]> {
   for (const row of bestByPair.values()) {
     const first = toIdentity(row.userA);
     const second = toIdentity(row.userB);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     if (!first || !second) continue;
     // Both identities login-capable has no valid merge direction; nothing to suggest.
     if (first.loginCapable && second.loginCapable) continue;
@@ -783,6 +937,10 @@ export async function getMergeSuggestions(): Promise<MergeSuggestion[]> {
         : second.loginCapable
           ? second.userId
           : null,
+<<<<<<< HEAD
+      suggestedTargetUserId: rankMergeTarget(toRankInput(first), toRankInput(second)),
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       wouldCombineSameServer,
     });
   }
@@ -796,3 +954,158 @@ export async function getMergeSuggestions(): Promise<MergeSuggestion[]> {
   );
   return suggestions;
 }
+<<<<<<< HEAD
+
+// Lowercase hex order is uuid byte order, so this matches least()/greatest() in the pair query.
+function mergeSuggestionKey(userA: string, userB: string): string {
+  const a = userA.toLowerCase();
+  const b = userB.toLowerCase();
+  return a < b ? `${a}:${b}` : `${b}:${a}`;
+}
+
+function toRankInput(identity: MergeSuggestionIdentity): MergeRankInput {
+  return {
+    ...identity,
+    removed: identity.serverUsers.every((su) => su.removedAt !== null),
+  };
+}
+
+async function loadMergeIdentities(
+  userIds: string[]
+): Promise<Map<string, MergeSuggestionIdentity>> {
+  if (userIds.length === 0) return new Map();
+
+  const [userRows, suRows, plexCounts, authAccountCounts, sessionCounts] = await Promise.all([
+    db.select().from(users).where(inArray(users.id, userIds)),
+    db
+      .select({
+        id: serverUsers.id,
+        userId: serverUsers.userId,
+        serverId: serverUsers.serverId,
+        serverName: servers.name,
+        username: serverUsers.username,
+        email: serverUsers.email,
+        removedAt: serverUsers.removedAt,
+      })
+      .from(serverUsers)
+      .innerJoin(servers, eq(serverUsers.serverId, servers.id))
+      .where(inArray(serverUsers.userId, userIds)),
+    db
+      .select({ userId: plexAccounts.userId, count: sql<number>`count(*)::int` })
+      .from(plexAccounts)
+      .where(inArray(plexAccounts.userId, userIds))
+      .groupBy(plexAccounts.userId),
+    db
+      .select({ userId: authAccounts.userId, count: sql<number>`count(*)::int` })
+      .from(authAccounts)
+      .where(inArray(authAccounts.userId, userIds))
+      .groupBy(authAccounts.userId),
+    // All-time count, so there is no started_at bound to prune chunks with. The
+    // daily_bandwidth_by_user aggregate would be cheaper but only exists when the
+    // TimescaleDB extension is installed.
+    db
+      .select({ userId: serverUsers.userId, count: sql<number>`count(*)::int` })
+      .from(sessions)
+      .innerJoin(serverUsers, eq(sessions.serverUserId, serverUsers.id))
+      .where(inArray(serverUsers.userId, userIds))
+      .groupBy(serverUsers.userId),
+  ]);
+
+  const susByUser = new Map<string, typeof suRows>();
+  for (const su of suRows) {
+    const list = susByUser.get(su.userId) ?? [];
+    list.push(su);
+    susByUser.set(su.userId, list);
+  }
+  const plexCountByUser = new Map(plexCounts.map((r) => [r.userId, r.count]));
+  const authAccountCountByUser = new Map(authAccountCounts.map((r) => [r.userId, r.count]));
+  const sessionCountByUser = new Map(sessionCounts.map((r) => [r.userId, r.count]));
+
+  return new Map(
+    userRows.map((user): [string, MergeSuggestionIdentity] => [
+      user.id,
+      {
+        userId: user.id,
+        username: user.username,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        loginCapable: isLoginCapable({
+          id: user.id,
+          role: user.role,
+          passwordHash: user.passwordHash,
+          plexAccountId: user.plexAccountId,
+          linkedPlexAccountCount: plexCountByUser.get(user.id) ?? 0,
+          authAccountCount: authAccountCountByUser.get(user.id) ?? 0,
+        }),
+        lastActivityAt: user.lastActivityAt?.toISOString() ?? null,
+        sessionCount: sessionCountByUser.get(user.id) ?? 0,
+        serverUsers: (susByUser.get(user.id) ?? []).map((su) => ({
+          id: su.id,
+          serverId: su.serverId,
+          serverName: su.serverName,
+          username: su.username,
+          email: su.email,
+          removedAt: su.removedAt ? su.removedAt.toISOString() : null,
+        })),
+      },
+    ])
+  );
+}
+
+export async function getDismissedMergeSuggestions(): Promise<DismissedMergeSuggestion[]> {
+  const identityExists = (part: 1 | 2) =>
+    sql`exists (select 1 from ${users} where ${users.id} = split_part(${dismissals.subjectKey}, ':', ${sql.raw(String(part))})::uuid)`;
+  const rows = await db
+    .select({ subjectKey: dismissals.subjectKey, createdAt: dismissals.createdAt })
+    .from(dismissals)
+    .where(and(eq(dismissals.kind, 'merge_suggestion'), identityExists(1), identityExists(2)))
+    .orderBy(desc(dismissals.createdAt), asc(dismissals.subjectKey));
+
+  const pairs = rows.map((row) => {
+    const [userA = '', userB = ''] = row.subjectKey.split(':');
+    return { userA, userB, dismissedAt: row.createdAt.toISOString() };
+  });
+  const identities = await loadMergeIdentities([
+    ...new Set(pairs.flatMap((p) => [p.userA, p.userB])),
+  ]);
+
+  const dismissed: DismissedMergeSuggestion[] = [];
+  for (const { userA, userB, dismissedAt } of pairs) {
+    const first = identities.get(userA);
+    const second = identities.get(userB);
+    if (first && second) dismissed.push({ users: [first, second], dismissedAt });
+  }
+  return dismissed;
+}
+
+export async function dismissMergeSuggestion(
+  userIds: [string, string],
+  actingUserId: string
+): Promise<void> {
+  const found = await db.select({ id: users.id }).from(users).where(inArray(users.id, userIds));
+  const missing = userIds.find((id) => !found.some((u) => u.id === id.toLowerCase()));
+  if (missing) throw new UserNotFoundError(missing);
+
+  await db
+    .insert(dismissals)
+    .values({
+      kind: 'merge_suggestion',
+      subjectKey: mergeSuggestionKey(...userIds),
+      dismissedByUserId: actingUserId,
+    })
+    .onConflictDoNothing({ target: [dismissals.kind, dismissals.subjectKey] });
+}
+
+export async function restoreMergeSuggestion(userA: string, userB: string): Promise<void> {
+  await db
+    .delete(dismissals)
+    .where(
+      and(
+        eq(dismissals.kind, 'merge_suggestion'),
+        eq(dismissals.subjectKey, mergeSuggestionKey(userA, userB))
+      )
+    );
+}
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)

@@ -42,6 +42,10 @@ vi.mock('../geoip.js', () => ({
       lat: null,
       lon: null,
     })),
+<<<<<<< HEAD
+    isPrivateIP: vi.fn(() => false),
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
 }));
 
@@ -63,14 +67,28 @@ vi.mock('../../db/timescale.js', () => ({
 
 vi.mock('../../jobs/maintenanceQueue.js', () => ({
   enqueueMaintenanceJob: vi.fn().mockResolvedValue('job-1'),
+<<<<<<< HEAD
+  enqueueServerLocationSyncIfBehind: vi.fn().mockResolvedValue(false),
+}));
+
+vi.mock('../serverLocations.js', () => ({
+  markImportedServerLocations: vi.fn(),
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }));
 
 vi.mock('../../jobs/poller/database.js', () => ({
   batchGetLibraryItemIdentity: vi.fn(),
 }));
 
+<<<<<<< HEAD
+vi.mock('../settings.js', async (importActual) => ({
+  ...(await importActual<typeof import('../settings.js')>()),
+  getWatchedThresholds: vi.fn().mockResolvedValue({ movie: 0.9, episode: 0.9, track: 0.9 }),
+=======
 vi.mock('../settings.js', () => ({
   getWatchedThreshold: vi.fn().mockResolvedValue(0.9),
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }));
 
 vi.mock('../import/index.js', async (importActual) => {
@@ -336,12 +354,23 @@ describe('importPlaybackReporting', () => {
   const SERVER_USER_ID = 'server-user-uuid-1';
   const PAGE_SIZE = 5000;
 
+<<<<<<< HEAD
+  // Later than every row date the existing tests use, so the cutoff itself
+  // never interferes unless a test sets it explicitly.
+  const SERVER_CREATED_AT = new Date('2030-01-01T00:00:00Z');
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   const JF_SERVER = {
     id: SERVER_ID,
     name: 'Test Jellyfin Server',
     type: 'jellyfin',
     url: 'http://jellyfin.local:8096',
     token: 'test-token',
+<<<<<<< HEAD
+    createdAt: SERVER_CREATED_AT,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   };
 
   const EMBY_SERVER = {
@@ -350,6 +379,10 @@ describe('importPlaybackReporting', () => {
     type: 'emby',
     url: 'http://emby.local:8096',
     token: 'test-token',
+<<<<<<< HEAD
+    createdAt: SERVER_CREATED_AT,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   };
 
   function pluginInfo(totalRecords: number) {
@@ -579,6 +612,50 @@ describe('importPlaybackReporting', () => {
     expect((db.select as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(1);
   });
 
+<<<<<<< HEAD
+  it('still skips rows at or after the server cutoff when importFullRange is set', async () => {
+    const earlyCutoffServer = { ...JF_SERVER, createdAt: new Date('2023-05-02T00:00:00Z') };
+    mockDbSelects([earlyCutoffServer]);
+    mockQueryPlaybackReporting = vi
+      .fn()
+      .mockResolvedValueOnce([
+        pluginRow(1, '2023-05-01 20:00:00'),
+        pluginRow(2, '2023-05-02 20:00:00'),
+      ])
+      .mockResolvedValue([]);
+
+    const result = await importPlaybackReporting(SERVER_ID, {
+      ...defaultOptions,
+      importFullRange: true,
+    });
+
+    expect(result.imported).toBe(1);
+    expect(result.overlap).toBe(1);
+    const [batch] = vi.mocked(flushInsertBatch).mock.calls[0]!;
+    expect(batch[0]?.externalSessionId).toBe('pr-1');
+  });
+
+  it('uses the earlier of the tracked-history watermark and the server cutoff', async () => {
+    const lateCutoffServer = { ...JF_SERVER, createdAt: new Date('2030-01-01T00:00:00Z') };
+    mockDbSelects([lateCutoffServer], [{ min: new Date('2023-05-02T00:00:00Z') }]);
+    mockQueryPlaybackReporting = vi
+      .fn()
+      .mockResolvedValueOnce([
+        pluginRow(1, '2023-05-01 20:00:00'),
+        pluginRow(2, '2023-05-02 20:00:00'),
+      ])
+      .mockResolvedValue([]);
+
+    const result = await importPlaybackReporting(SERVER_ID, defaultOptions);
+
+    expect(result.imported).toBe(1);
+    expect(result.overlap).toBe(1);
+    const [batch] = vi.mocked(flushInsertBatch).mock.calls[0]!;
+    expect(batch[0]?.externalSessionId).toBe('pr-1');
+  });
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   it('tracks rows whose user is not in Tracearr as skipped unknown users', async () => {
     vi.mocked(createUserMapping).mockResolvedValue(new Map());
     mockQueryPlaybackReporting = vi
@@ -682,6 +759,36 @@ describe('importPlaybackReporting', () => {
     expect(result.message).toContain('1 filtered');
   });
 
+<<<<<<< HEAD
+  it('refuses a row past the runtime plus 60 s and keeps one exactly on it', async () => {
+    mockQueryPlaybackReporting = vi
+      .fn()
+      .mockResolvedValueOnce([
+        pluginRow(1, '2023-05-01 20:00:00', KNOWN_USER_ID, '5461'),
+        pluginRow(2, '2023-05-02 20:00:00', KNOWN_USER_ID, '5460'),
+      ])
+      .mockResolvedValue([]);
+    vi.mocked(fetchMediaEnrichment).mockResolvedValue(
+      new Map([
+        ['item-1', { runtimeMs: 5_400_000 }],
+        ['item-2', { runtimeMs: 5_400_000 }],
+      ])
+    );
+
+    const result = await importPlaybackReporting(SERVER_ID, {
+      ...defaultOptions,
+      enrichMedia: true,
+    });
+
+    expect(result.imported).toBe(1);
+    expect(result.skipped).toBe(1);
+    expect(result.overlong).toBe(1);
+    expect(result.message).toContain('1 longer than the media runtime');
+    expect(vi.mocked(flushInsertBatch).mock.calls[0]?.[0]).toHaveLength(1);
+  });
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   it('returns a failed result with partial counters when a later page fetch throws', async () => {
     mockGetPlaybackReportingInfo = vi.fn().mockResolvedValue(pluginInfo(PAGE_SIZE + 2));
     mockQueryPlaybackReporting = vi

@@ -26,7 +26,11 @@ export interface VariantPlan {
   excluded: NewsletterExcludedPerson[];
 }
 
+<<<<<<< HEAD
+/** The newsletter's servers in its own order: the scope's list, or server order (loadServerLinks) when the scope names none. */
+=======
 /** The newsletter's servers in its own order: the scope's list, or name order (loadServerLinks) when the scope names none. */
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 export function orderServers(
   scope: Pick<NewsletterScope, 'serverIds'>,
   servers: ServerLink[]
@@ -102,6 +106,11 @@ export function testVariantPlan(
     username: null,
     serverName: null,
     thumbUrl: null,
+<<<<<<< HEAD
+    newSinceLastSend: false,
+    addressFromUsername: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   };
   return { variants: [variantFor(servers, ids, [recipient])], excluded: [] };
 }

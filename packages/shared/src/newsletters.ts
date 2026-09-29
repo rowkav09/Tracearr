@@ -220,6 +220,17 @@ export const newsletterPreviewDraftSchema = z.strictObject({
 });
 export type NewsletterPreviewDraftInput = z.infer<typeof newsletterPreviewDraftSchema>;
 
+<<<<<<< HEAD
+/** POST /newsletters/recipients: only the scope and the recipients decide who is listed; the saved row's id marks members its last send missed. */
+export const newsletterRecipientsDraftSchema = z.strictObject({
+  newsletterId: uuidSchema.optional(),
+  scope: newsletterScopeSchema,
+  recipients: newsletterRecipientsSchema,
+});
+export type NewsletterRecipientsDraftInput = z.infer<typeof newsletterRecipientsDraftSchema>;
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 export const emailSuppressionCreateSchema = z.strictObject({ address });
 export const newsletterSendsQuerySchema = paginationSchema;
 
@@ -248,6 +259,11 @@ export const emailBrandingSchema = z.strictObject({
     ])
     .default({ mode: 'tracearr' }),
   accentColor: hexColor.default(DEFAULT_ACCENT_COLOR),
+<<<<<<< HEAD
+  /** Header name beside the logo. Null keeps the per-send name (the server or newsletter). */
+  systemTitle: z.string().trim().max(120).nullable().default(null),
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   footerText: z.string().trim().max(500).nullable().default(null),
   postalAddress: z.string().trim().max(500).nullable().default(null),
   mailtoUnsubscribe: z.boolean().default(false),
@@ -394,9 +410,19 @@ export interface NewsletterResolvedRecipient {
   thumbUrl: string | null;
   /** Every scoped server the person has an account on; empty for an extra address. */
   serverIds: string[];
+<<<<<<< HEAD
+  /** A member the newsletter's last delivered send did not reach; false before the first send and for extra addresses. */
+  newSinceLastSend: boolean;
+  /** The address is a Jellyfin or Emby username, used because the person has no contact, identity or Plex email. */
+  addressFromUsername: boolean;
+}
+
+/** POST /newsletters/recipients: who the next send reaches, who has no address, and who the owner excluded. */
+=======
 }
 
 /** GET /newsletters/:id/recipients: who the next send reaches, who has no address, and who the owner excluded. */
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 export interface NewsletterRecipientsView {
   recipients: NewsletterResolvedRecipient[];
   missing: NewsletterRecipientPerson[];

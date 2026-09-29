@@ -6,6 +6,10 @@ import { Badge } from '@/components/ui/badge';
 import { MapPin, ChevronDown, ChevronUp, Globe } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import type { UserLocation } from '@tracearr/shared';
+<<<<<<< HEAD
+import { LocalBadge } from '@/components/sessions/LocalBadge';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 interface UserLocationsCardProps {
   locations: UserLocation[];
@@ -86,7 +90,11 @@ export function UserLocationsCard({
       <CardContent>
         <div className="space-y-3">
           {displayedLocations.map((location) => {
+<<<<<<< HEAD
+            const locationKey = `${location.city ?? 'unknown'}-${location.country ?? 'unknown'}-${location.lat}-${location.lon}-${location.isLocal}`;
+=======
             const locationKey = `${location.city ?? 'unknown'}-${location.country ?? 'unknown'}-${location.lat}-${location.lon}`;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
             const percentage =
               totalSessions > 0 ? Math.round((location.sessionCount / totalSessions) * 100) : 0;
 
@@ -108,6 +116,10 @@ export function UserLocationsCard({
                     </p>
                     <div className="text-muted-foreground flex items-center gap-2 text-xs">
                       <span>{location.country ?? 'Unknown'}</span>
+<<<<<<< HEAD
+                      <LocalBadge isLocal={location.isLocal} country={location.country} />
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                       <span>·</span>
                       <span>
                         {location.sessionCount} session{location.sessionCount !== 1 ? 's' : ''}

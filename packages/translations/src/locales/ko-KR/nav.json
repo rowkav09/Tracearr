@@ -8,6 +8,10 @@
   "users": "사용자",
   "automations": "자동화",
   "violations": "위반 내역",
+<<<<<<< HEAD
+  "requests": "요청",
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   "alerts": "알림",
   "settings": "설정",
   "overview": "개요",

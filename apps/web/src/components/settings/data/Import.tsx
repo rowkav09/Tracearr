@@ -403,7 +403,11 @@ function JellystatImportSection({
 
         <div className="ml-8 space-y-4">
           <FileDropzone
+<<<<<<< HEAD
+            accept=".json,.jsonl"
+=======
             accept=".json"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
             maxSize={500 * 1024 * 1024}
             onFileSelect={handleFileSelect}
             selectedFile={selectedFile}
@@ -411,8 +415,13 @@ function JellystatImportSection({
           />
           <Alert>
             <Info />
+<<<<<<< HEAD
+            <AlertTitle>{t('import.exportFullBackupHint')}</AlertTitle>
+            <AlertDescription>{t('import.exportFullBackupHelp')}</AlertDescription>
+=======
             <AlertTitle>{t('import.exportBackupHint')}</AlertTitle>
             <AlertDescription>{t('import.exportBackupHelp')}</AlertDescription>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           </Alert>
         </div>
       </div>
@@ -661,6 +670,10 @@ export function Import() {
               unknownUserRecords: 0,
               overlapRecords: 0,
               filteredRecords: 0,
+<<<<<<< HEAD
+              overlongRecords: 0,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
               errorRecords: 0,
               enrichedRecords: 0,
               message:
@@ -826,7 +839,12 @@ export function Import() {
   };
 
   const handleFileSelect = (file: File | null) => {
+<<<<<<< HEAD
+    const name = file?.name.toLowerCase() ?? '';
+    if (file && !name.endsWith('.json') && !name.endsWith('.jsonl')) {
+=======
     if (file && !file.name.endsWith('.json')) {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       setJellystatProgress({
         status: 'error',
         totalRecords: 0,
@@ -836,7 +854,11 @@ export function Import() {
         errorRecords: 0,
         filteredRecords: 0,
         enrichedRecords: 0,
+<<<<<<< HEAD
+        message: t('import.pleaseSelectBackupFile'),
+=======
         message: t('import.pleaseSelectJsonFile'),
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       });
       return;
     }
@@ -907,6 +929,10 @@ export function Import() {
       unknownUserRecords: 0,
       overlapRecords: 0,
       filteredRecords: 0,
+<<<<<<< HEAD
+      overlongRecords: 0,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       errorRecords: 0,
       enrichedRecords: 0,
       message: t('import.startingImport'),
@@ -936,6 +962,10 @@ export function Import() {
         unknownUserRecords: 0,
         overlapRecords: 0,
         filteredRecords: 0,
+<<<<<<< HEAD
+        overlongRecords: 0,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         errorRecords: 0,
         enrichedRecords: 0,
         message: err instanceof Error ? err.message : 'Import failed',

@@ -140,12 +140,19 @@ describe('supportsWatchHistory', () => {
 // ============================================================================
 
 describe('IMediaServerClient Interface Compliance', () => {
+<<<<<<< HEAD
+  const createTestClient = (type: 'plex' | 'jellyfin' | 'emby'): IMediaServerClient => {
+=======
   const createTestClient = (type: 'plex' | 'jellyfin' | 'emby' | 'navidrome'): IMediaServerClient => {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     const urls = {
       plex: 'http://plex.local:32400',
       jellyfin: 'http://jellyfin.local:8096',
       emby: 'http://emby.local:8096',
+<<<<<<< HEAD
+=======
       navidrome: 'http://navidrome.local:4533',
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     };
     return createMediaServerClient({
       type,
@@ -283,6 +290,17 @@ describe('PlexClient Static Methods', () => {
   it('should have getAllUsersWithLibraries static method', () => {
     expect(typeof PlexClient.getAllUsersWithLibraries).toBe('function');
   });
+<<<<<<< HEAD
+
+  it('rejects when plex.tv fails to list shared servers, since an empty list reads as nobody having access', async () => {
+    const fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response('busy', { status: 503 }));
+    await expect(PlexClient.getSharedServerUsers('token', 'machine-1')).rejects.toThrow();
+    fetchSpy.mockRestore();
+  });
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 });
 
 describe('JellyfinClient Static Methods', () => {

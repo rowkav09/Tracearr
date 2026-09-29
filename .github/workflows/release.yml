@@ -128,7 +128,11 @@ jobs:
           --health-retries 10
 
       redis:
+<<<<<<< HEAD
+        image: redis:8-alpine@sha256:ef216d85ec44f4fdf7c0e6df2d1757a4734ed32fbb278cabd3181b5a27353b79
+=======
         image: redis:8-alpine@sha256:becdda6c7f4b3fb42e42fd7f120bbf5c54c4caaaf16f26da24e4563d2c1f0576
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         ports:
           - 6380:6379
         options: >-
@@ -168,26 +172,102 @@ jobs:
       - name: Run integration tests
         run: pnpm --filter @tracearr/server test:integration
 
+<<<<<<< HEAD
+  release-notes:
+    name: Release Notes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --filter @tracearr/shared
+
+      - name: Build shared
+        run: pnpm --filter @tracearr/shared build
+
+      - name: Validate and render release notes
+        run: node .github/scripts/render-release-notes.mjs
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_NOTES_OUT_DIR: release-notes-out
+
+      - name: Upload release notes
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-notes
+          path: |
+            release-notes-out/release_notes.md
+            release-notes-out/release-notes.json
+          if-no-files-found: error
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   # Determine if this is a prerelease (alpha, beta, rc, etc.)
   check-release-type:
     name: Check Release Type
     runs-on: ubuntu-latest
+<<<<<<< HEAD
+    needs: [lint-and-typecheck, test, test-integration, release-notes]
+    outputs:
+      prerelease: ${{ steps.check.outputs.prerelease }}
+      # true when the next channel should follow this tag: every prerelease,
+      # and a stable that is newer than the newest beta, so beta users are
+      # never behind stable after a hotfix
+      moves-next: ${{ steps.check.outputs.moves_next }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
+=======
     needs: [lint-and-typecheck, test, test-integration]
     outputs:
       prerelease: ${{ steps.check.outputs.prerelease }}
 
     steps:
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       - name: Check if prerelease
         id: check
         run: |
           TAG="${{ github.ref_name }}"
           if [[ "$TAG" == *-* ]]; then
             echo "prerelease=true" >> "$GITHUB_OUTPUT"
+<<<<<<< HEAD
+            echo "moves_next=true" >> "$GITHUB_OUTPUT"
+            echo "This is a prerelease: $TAG"
+            exit 0
+          fi
+          echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          NEWEST_BETA=$(git tag -l 'v*-*' | sort -V | tail -1)
+          MOVES_NEXT=$(node -e '
+            const [tag, beta] = process.argv.slice(1);
+            const parse = (v) => { const [base, pre] = v.replace(/^v/, "").split("-"); return { n: base.split(".").map(Number), pre }; };
+            const cmp = (a, b) => { for (let i = 0; i < 3; i++) { if (a.n[i] !== b.n[i]) return a.n[i] - b.n[i]; } if (!a.pre && b.pre) return 1; if (a.pre && !b.pre) return -1; return 0; };
+            console.log(!beta || cmp(parse(tag), parse(beta)) > 0 ? "true" : "false");
+          ' "$TAG" "$NEWEST_BETA")
+          echo "moves_next=$MOVES_NEXT" >> "$GITHUB_OUTPUT"
+          echo "This is a stable release: $TAG (newest beta ${NEWEST_BETA:-none}, moves next: $MOVES_NEXT)"
+=======
             echo "This is a prerelease: $TAG"
           else
             echo "prerelease=false" >> "$GITHUB_OUTPUT"
             echo "This is a stable release: $TAG"
           fi
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
   # Build each platform natively in parallel (much faster than QEMU emulation)
   build-docker:
@@ -230,8 +310,16 @@ jobs:
           echo "Download failed, using existing database as fallback"
           ls -la data/GeoLite2-City.mmdb data/GeoLite2-ASN.mmdb
 
+<<<<<<< HEAD
+      - name: Fetch basemap
+        uses: ./.github/actions/fetch-basemap
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+=======
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
       - name: Log in to Container Registry
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
@@ -248,7 +336,11 @@ jobs:
 
       - name: Build and push by digest
         id: build
+<<<<<<< HEAD
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+=======
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         with:
           context: .
           file: ./docker/Dockerfile
@@ -296,7 +388,11 @@ jobs:
           merge-multiple: true
 
       - name: Set up Docker Buildx
+<<<<<<< HEAD
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+=======
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
       - name: Log in to Container Registry
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
@@ -315,7 +411,11 @@ jobs:
             type=semver,pattern={{major}}.{{minor}},enable=${{ needs.check-release-type.outputs.prerelease == 'false' }}
             type=semver,pattern={{major}},enable=${{ needs.check-release-type.outputs.prerelease == 'false' }}
             type=raw,value=latest,enable=${{ needs.check-release-type.outputs.prerelease == 'false' }}
+<<<<<<< HEAD
+            type=raw,value=next,enable=${{ needs.check-release-type.outputs.moves-next == 'true' }}
+=======
             type=raw,value=next,enable=${{ needs.check-release-type.outputs.prerelease == 'true' }}
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
       - name: Create manifest list and push
         working-directory: /tmp/digests
@@ -373,8 +473,16 @@ jobs:
           echo "Download failed, using existing database as fallback"
           ls -la data/GeoLite2-City.mmdb data/GeoLite2-ASN.mmdb
 
+<<<<<<< HEAD
+      - name: Fetch basemap
+        uses: ./.github/actions/fetch-basemap
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+=======
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
       - name: Log in to Container Registry
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
@@ -391,7 +499,11 @@ jobs:
 
       - name: Build and push by digest
         id: build
+<<<<<<< HEAD
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+=======
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         with:
           context: .
           file: ./docker/Dockerfile.supervised
@@ -439,7 +551,11 @@ jobs:
           merge-multiple: true
 
       - name: Set up Docker Buildx
+<<<<<<< HEAD
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+=======
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
       - name: Log in to Container Registry
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
@@ -461,7 +577,11 @@ jobs:
           tags: |
             type=semver,pattern={{version}}
             type=raw,value=supervised,enable=${{ needs.check-release-type.outputs.prerelease == 'false' }},prefix=
+<<<<<<< HEAD
+            type=raw,value=supervised-next,enable=${{ needs.check-release-type.outputs.moves-next == 'true' }},prefix=
+=======
             type=raw,value=supervised-next,enable=${{ needs.check-release-type.outputs.prerelease == 'true' }},prefix=
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
       - name: Create manifest list and push
         working-directory: /tmp/digests
@@ -519,6 +639,36 @@ jobs:
             fi
             (cd "packages/${pkg}" && npm pkg set version="$VERSION" && npm publish --tag "$TAG")
           done
+<<<<<<< HEAD
+          if [ "$TAG" = "latest" ] && [ "${{ needs.check-release-type.outputs.moves-next }}" = "true" ]; then
+            for pkg in shared translations; do
+              npm dist-tag add "@tracearr/${pkg}@${VERSION}" next
+            done
+          fi
+
+  # Tells Tracearr/Mobile-App to pin this release's published packages so the
+  # mobile app never drifts from a version the server actually shipped.
+  dispatch-mobile-sync:
+    name: Dispatch mobile package sync
+    runs-on: ubuntu-latest
+    needs: [publish-packages]
+    permissions: {}
+
+    steps:
+      - name: Tell Tracearr/Mobile-App to pin ${{ github.ref_name }}
+        env:
+          GH_TOKEN: ${{ secrets.MOBILE_APP_DISPATCH_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::MOBILE_APP_DISPATCH_TOKEN is not set; run the mobile sync by hand for $TAG"
+            exit 1
+          fi
+          gh api repos/Tracearr/Mobile-App/dispatches \
+            -f event_type=tracearr-release \
+            -F "client_payload[tag]=$TAG"
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
   # Keep the Helm chart's appVersion in sync with stable releases so the
   # chart's default image tag (which falls back to appVersion) doesn't drift.
@@ -585,6 +735,13 @@ jobs:
       - name: Generate OpenAPI specs
         run: pnpm --filter @tracearr/server openapi:dump "$GITHUB_WORKSPACE"
 
+<<<<<<< HEAD
+      - name: Download release notes
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: release-notes
+          path: release-notes-out
+=======
       - name: Get tag annotation
         id: tag_info
         run: |
@@ -596,18 +753,27 @@ jobs:
           else
             echo "$SUBJECT" > tag_message.txt
           fi
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
         with:
           name: ${{ github.ref_name }}
+<<<<<<< HEAD
+          body_path: release-notes-out/release_notes.md
+=======
           body_path: tag_message.txt
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           prerelease: ${{ needs.check-release-type.outputs.prerelease }}
           generate_release_notes: false
           fail_on_unmatched_files: true
           files: |
             openapi-v1.json
             openapi-v2.json
+<<<<<<< HEAD
+            release-notes-out/release-notes.json
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
   announce-reddit:
     name: Post to Reddit
@@ -619,6 +785,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
+<<<<<<< HEAD
+      - name: Download release notes
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: release-notes
+          path: release-notes-out
+=======
       - name: Get tag annotation
         run: |
           SUBJECT=$(git tag -l --format='%(contents:subject)' ${{ github.ref_name }})
@@ -628,6 +801,7 @@ jobs:
           else
             echo "$SUBJECT" > tag_message.txt
           fi
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
       - name: Post release to Reddit
         run: node .github/scripts/post-release-to-reddit.mjs
@@ -637,4 +811,35 @@ jobs:
           REDDIT_REFRESH_TOKEN: ${{ secrets.REDDIT_REFRESH_TOKEN }}
           RELEASE_TAG: ${{ github.ref_name }}
           TITLE_PREFIX: ${{ needs.check-release-type.outputs.prerelease == 'true' && 'Beta Release' || 'Release' }}
+<<<<<<< HEAD
+          NOTES_FILE: release-notes-out/release_notes.md
+
+  announce-discord:
+    name: Post to Discord
+    runs-on: ubuntu-latest
+    needs: [check-release-type, create-release]
+    continue-on-error: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Download release notes
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: release-notes
+          path: release-notes-out
+
+      - name: Post release to Discord
+        run: node .github/scripts/post-release-to-discord.mjs
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_ANNOUNCEMENTS_CHANNEL_ID: ${{ vars.DISCORD_ANNOUNCEMENTS_CHANNEL_ID }}
+          DISCORD_RELEASE_ROLE_ID: ${{ vars.DISCORD_RELEASE_ROLE_ID }}
+          DISCORD_BETA_ROLE_ID: ${{ vars.DISCORD_BETA_ROLE_ID }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          PRERELEASE: ${{ needs.check-release-type.outputs.prerelease }}
+          NOTES_FILE: release-notes-out/release-notes.json
+=======
           NOTES_FILE: tag_message.txt
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)

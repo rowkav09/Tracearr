@@ -22,13 +22,19 @@ vi.mock('@/hooks/queries', () => ({
   useNewsletterRecipients: vi.fn(),
   useServers: vi.fn(),
   useUpdateUserIdentity: () => ({ mutate: vi.fn(), isPending: false }),
+<<<<<<< HEAD
+=======
   newsletterKeys: { recipients: (id: string) => ['newsletters', id, 'recipients'] },
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }));
 import { useDestinations, useNewsletterRecipients, useServers, useSettings } from '@/hooks/queries';
 
 let queryClient: QueryClient;
 
+<<<<<<< HEAD
+=======
 /** RecipientsPanel reads the query cache directly, so anything that can render it needs a real client. */
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 function Providers({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
@@ -52,6 +58,20 @@ const discord = {
   config: {},
 } as unknown as Destination;
 
+<<<<<<< HEAD
+const dee = {
+  userId: 'u4',
+  serverUserId: 'su-4',
+  name: 'Dee',
+  username: 'dee',
+  serverId: 's1',
+  serverName: 'Home Plex',
+  serverIds: ['s1'],
+  thumbUrl: null,
+};
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 function props(over: Partial<NewsletterFormState> = {}) {
   const onChange = vi.fn();
   return {
@@ -64,6 +84,18 @@ function props(over: Partial<NewsletterFormState> = {}) {
   };
 }
 
+<<<<<<< HEAD
+function mockRecipients(data: NewsletterRecipientsView | undefined) {
+  vi.mocked(useNewsletterRecipients).mockReturnValue({
+    data,
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  } as unknown as ReturnType<typeof useNewsletterRecipients>);
+}
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 beforeEach(() => {
   vi.clearAllMocks();
   queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -73,19 +105,31 @@ beforeEach(() => {
   vi.mocked(useSettings).mockReturnValue({
     data: { externalUrl: 'https://tracearr.example.com' } as Settings,
   } as unknown as ReturnType<typeof useSettings>);
+<<<<<<< HEAD
+  mockRecipients(undefined);
+=======
   vi.mocked(useNewsletterRecipients).mockReturnValue({
     data: undefined,
     isLoading: false,
   } as unknown as ReturnType<typeof useNewsletterRecipients>);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   vi.mocked(useServers).mockReturnValue({ data: [] } as unknown as ReturnType<typeof useServers>);
 });
 
 describe('RecipientsFields', () => {
+<<<<<<< HEAD
+  it('toggles members, keeps extra addresses folded away until opened, and edits a row', async () => {
+    const p = props();
+    const { rerender } = render(
+      <Providers>
+        <RecipientsFields {...p} newsletterId={null} savedExcludeUserIds={[]} />
+=======
   it('toggles members and edits extra addresses row by row', async () => {
     const p = props();
     const { rerender } = render(
       <Providers>
         <RecipientsFields {...p} newsletterId={null} savedServerIds={null} onPreview={vi.fn()} />
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       </Providers>
     );
     await userEvent.click(
@@ -96,20 +140,33 @@ describe('RecipientsFields', () => {
     });
     expect(p.touch).toHaveBeenCalledWith('recipients');
 
+<<<<<<< HEAD
+    const trigger = screen.getByRole('button', {
+      name: 'newsletters.editor.recipients.extraTrigger:{"count":0}',
+    });
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await userEvent.click(trigger);
+    expect(screen.getByText('newsletters.editor.recipients.extraHelp')).toBeInTheDocument();
+=======
     await userEvent.click(
       screen.getByRole('button', { name: 'newsletters.editor.recipients.addAddress' })
     );
     expect(p.onChange).toHaveBeenCalledWith({
       recipients: { ...p.state.recipients, extraAddresses: [{ address: '' }] },
     });
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
     rerender(
       <Providers>
         <RecipientsFields
           {...p}
           newsletterId={null}
+<<<<<<< HEAD
+          savedExcludeUserIds={[]}
+=======
           savedServerIds={null}
           onPreview={vi.fn()}
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           state={{
             ...p.state,
             recipients: { ...p.state.recipients, extraAddresses: [{ address: 'nope' }] },
@@ -133,13 +190,67 @@ describe('RecipientsFields', () => {
     });
   });
 
+<<<<<<< HEAD
+  it('adds pasted addresses once each, skips ones already listed, and flags a bad one at once', async () => {
+    const listed = { members: true, extraAddresses: [{ address: 'A@x.com' }], excludeUserIds: [] };
+    const p = props({ recipients: listed });
+    const { rerender } = render(
+      <Providers>
+        <RecipientsFields {...p} newsletterId={null} savedExcludeUserIds={[]} />
+      </Providers>
+    );
+    const box = screen.getByRole('textbox', {
+      name: 'newsletters.editor.recipients.pasteAddresses',
+    });
+    await userEvent.type(box, 'a@x.com{enter}b@x.com, b@x.com{enter}nope');
+    await userEvent.click(screen.getByRole('button', { name: 'common:actions.add' }));
+    const added = [{ address: 'A@x.com' }, { address: 'b@x.com' }, { address: 'nope' }];
+    expect(p.onChange).toHaveBeenLastCalledWith({
+      recipients: { ...listed, extraAddresses: added },
+    });
+    expect(box).toHaveValue('');
+
+    rerender(
+      <Providers>
+        <RecipientsFields
+          {...p}
+          newsletterId={null}
+          savedExcludeUserIds={[]}
+          state={{ ...p.state, recipients: { ...listed, extraAddresses: added } }}
+        />
+      </Providers>
+    );
+    expect(screen.getAllByText('newsletters.editor.recipients.badAddress')).toHaveLength(1);
+  });
+
+  it('opens extra addresses when the form reports a recipients error', () => {
+    const p = props();
+    render(
+      <Providers>
+        <RecipientsFields
+          {...p}
+          errors={{ recipients: 'Too many addresses' }}
+          newsletterId={null}
+          savedExcludeUserIds={[]}
+        />
+      </Providers>
+    );
+    expect(screen.getByText('Too many addresses')).toBeInTheDocument();
+  });
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   it('calls an address bad only once the field has been left', async () => {
     const p = props({
       recipients: { members: true, extraAddresses: [{ address: '' }], excludeUserIds: [] },
     });
     const { rerender } = render(
       <Providers>
+<<<<<<< HEAD
+        <RecipientsFields {...p} newsletterId={null} savedExcludeUserIds={[]} />
+=======
         <RecipientsFields {...p} newsletterId={null} savedServerIds={null} onPreview={vi.fn()} />
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       </Providers>
     );
     const input = screen.getByLabelText('newsletters.editor.recipients.addressLabel:{"n":1}');
@@ -149,8 +260,12 @@ describe('RecipientsFields', () => {
         <RecipientsFields
           {...p}
           newsletterId={null}
+<<<<<<< HEAD
+          savedExcludeUserIds={[]}
+=======
           savedServerIds={null}
           onPreview={vi.fn()}
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           state={{
             ...p.state,
             recipients: { ...p.state.recipients, extraAddresses: [{ address: 'someone@' }] },
@@ -176,7 +291,11 @@ describe('RecipientsFields', () => {
     });
     const { rerender } = render(
       <Providers>
+<<<<<<< HEAD
+        <RecipientsFields {...p} newsletterId={null} savedExcludeUserIds={[]} />
+=======
         <RecipientsFields {...p} newsletterId={null} savedServerIds={null} onPreview={vi.fn()} />
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       </Providers>
     );
     const second = screen.getByDisplayValue('b@x.com');
@@ -191,8 +310,12 @@ describe('RecipientsFields', () => {
         <RecipientsFields
           {...p}
           newsletterId={null}
+<<<<<<< HEAD
+          savedExcludeUserIds={[]}
+=======
           savedServerIds={null}
           onPreview={vi.fn()}
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           state={{
             ...p.state,
             recipients: { ...p.state.recipients, extraAddresses: [{ address: 'b@x.com' }] },
@@ -203,13 +326,23 @@ describe('RecipientsFields', () => {
     expect(screen.getByDisplayValue('b@x.com')).toBe(second);
   });
 
+<<<<<<< HEAD
+  it('names the chosen servers in the members help', () => {
+=======
   it('names the chosen servers in the members help, says what an extra address gets, and flags a moved scope', () => {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     vi.mocked(useServers).mockReturnValue({
       data: [
         { id: 's-1', name: 'Basement' },
         { id: 's-2', name: 'Attic' },
       ],
     } as unknown as ReturnType<typeof useServers>);
+<<<<<<< HEAD
+    const p = props({ scope: { serverIds: ['s-2'], libraries: [] } });
+    render(
+      <Providers>
+        <RecipientsFields {...p} newsletterId="n-1" savedExcludeUserIds={[]} />
+=======
     vi.mocked(useNewsletterRecipients).mockReturnValue({
       data: {
         recipients: [
@@ -237,12 +370,37 @@ describe('RecipientsFields', () => {
     const { rerender } = render(
       <Providers>
         <RecipientsFields {...p} newsletterId="n-1" savedServerIds={['s-1']} onPreview={vi.fn()} />
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       </Providers>
     );
     expect(
       screen.getByText('newsletters.editor.recipients.membersHelp:{"servers":"Attic"}')
     ).toBeInTheDocument();
     expect(screen.getByText('newsletters.editor.recipients.ownerNote')).toBeInTheDocument();
+<<<<<<< HEAD
+  });
+
+  it('excludes a person and includes them back, patching recipients each time', async () => {
+    mockRecipients({
+      recipients: [
+        {
+          ...dee,
+          address: 'dee@x.com',
+          suppressed: false,
+          newSinceLastSend: true,
+          addressFromUsername: false,
+        },
+      ],
+      missing: [],
+      excluded: [],
+    });
+    const p = props();
+    const { rerender } = render(
+      <Providers>
+        <RecipientsFields {...p} newsletterId="n-1" savedExcludeUserIds={[]} />
+      </Providers>
+    );
+=======
     expect(
       screen.getByText('newsletters.editor.recipients.extraAddressesHelp')
     ).toBeInTheDocument();
@@ -288,6 +446,7 @@ describe('RecipientsFields', () => {
     );
 
     // Dee starts server-excluded but not locally excluded, so her "included after save" bucket must offer the same Exclude action a normal recipient gets.
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     await userEvent.click(
       screen.getByRole('button', { name: 'newsletters.editor.recipients.exclude:{"name":"Dee"}' })
     );
@@ -295,21 +454,34 @@ describe('RecipientsFields', () => {
       recipients: { ...p.state.recipients, excludeUserIds: ['u4'] },
     });
 
+<<<<<<< HEAD
+    mockRecipients({ recipients: [], missing: [], excluded: [{ ...dee, reason: 'excluded' }] });
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     rerender(
       <Providers>
         <RecipientsFields
           {...p}
           newsletterId="n-1"
+<<<<<<< HEAD
+          savedExcludeUserIds={[]}
+=======
           savedServerIds={[]}
           onPreview={vi.fn()}
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           state={{ ...p.state, recipients: { ...p.state.recipients, excludeUserIds: ['u4'] } }}
         />
       </Providers>
     );
+<<<<<<< HEAD
+    expect(screen.getByRole('listitem', { name: 'Dee' })).toHaveTextContent(
+      'newsletters.editor.recipients.excludedAfterSave'
+=======
     await userEvent.click(
       screen.getByRole('button', {
         name: 'newsletters.editor.recipients.excludedCount:{"count":1}',
       })
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     );
     await userEvent.click(
       screen.getByRole('button', { name: 'newsletters.editor.recipients.include:{"name":"Dee"}' })
@@ -317,6 +489,8 @@ describe('RecipientsFields', () => {
     expect(p.onChange).toHaveBeenLastCalledWith({
       recipients: { ...p.state.recipients, excludeUserIds: [] },
     });
+<<<<<<< HEAD
+=======
 
     rerender(
       <Providers>
@@ -335,6 +509,7 @@ describe('RecipientsFields', () => {
     expect(p.onChange).toHaveBeenLastCalledWith({
       recipients: { ...p.state.recipients, excludeUserIds: ['u4'] },
     });
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   });
 });
 

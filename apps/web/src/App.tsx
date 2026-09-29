@@ -31,6 +31,10 @@ import { Automations } from '@/pages/Automations';
 import { AutomationBuilderPage } from '@/pages/AutomationBuilderPage';
 import { AutomationDetail } from '@/pages/AutomationDetail';
 import { Violations } from '@/pages/Violations';
+<<<<<<< HEAD
+import { Requests } from '@/pages/Requests';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { ViolationDetail } from '@/pages/ViolationDetail';
 import { History } from '@/pages/History';
 import { Settings } from '@/pages/Settings';
@@ -109,6 +113,10 @@ export const appRoutes = (
         <Route path="automations/:id/edit" element={<AutomationBuilderPage />} />
         <Route path="violations" element={<Violations />} />
         <Route path="violations/:id" element={<ViolationDetail />} />
+<<<<<<< HEAD
+        <Route path="requests" element={<Requests />} />
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         <Route path="settings/*" element={<Settings />} />
         <Route
           path="api-docs"

@@ -1,4 +1,37 @@
 {
+<<<<<<< HEAD
+  "dashboard": "Panel de control",
+  "map": "Mapa",
+  "history": "Historial",
+  "stats": "Estadísticas",
+  "activity": "Actividad",
+  "library": "Biblioteca",
+  "users": "Usuarios",
+  "automations": "",
+  "violations": "Infracciones",
+  "requests": "",
+  "alerts": "Alertas",
+  "settings": "Ajustes",
+  "overview": "Resumen",
+  "quality": "Calidad",
+  "storage": "Almacenamiento",
+  "watch": "Reproducciones",
+  "performance": "Rendimiento",
+  "devices": "Dispositivos",
+  "bandwidth": "Ancho de banda",
+  "jobs": "Tareas",
+  "accessControl": "Control de acceso",
+  "media": "Multimedia",
+  "mediaBrowse": "Explorar",
+  "mediaGenres": "Géneros",
+  "session": "",
+  "user": "",
+  "violation": "",
+  "monitor": "",
+  "manage": "",
+  "userStats": "",
+  "toggleSidebar": ""
+=======
   "accessControl": "Control de acceso",
   "activity": "Actividad",
   "alerts": "Alertas",
@@ -29,4 +62,5 @@
   "violation": "",
   "violations": "Infracciones",
   "watch": "Reproducciones"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }

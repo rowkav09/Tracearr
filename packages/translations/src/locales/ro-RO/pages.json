@@ -1,4 +1,423 @@
 {
+<<<<<<< HEAD
+  "login": {
+    "title": "",
+    "tagline": "Tracearr - Management de acces Stream",
+    "createAccountHeading": "Creează-ți un cont pentru a începe",
+    "signInHeading": "Conectează-te la contul tău",
+    "createAccountDescription": "Creaţi un cont pentru a gestiona serverele media",
+    "signInDescription": "Conectează-te pentru a-ți accesa tabloul de bord",
+    "selectPlexServer": "Selectează serverul tău Plex",
+    "waitingForPlex": "Se așteaptă autorizarea Plex...",
+    "completeInPopup": "Autentificare completă în fereastra pop-up",
+    "reopenPlexLogin": "Redeschide autentificarea Plex",
+    "continueWith": "",
+    "usernameOrEmail": "",
+    "identifierPlaceholder": "",
+    "username": "",
+    "usernamePlaceholder": "",
+    "emailPlaceholder": "adresa@email.com",
+    "displayNamePlaceholder": "Alegeți un nume afișat",
+    "passwordPlaceholder": "Cel puțin 8 caractere",
+    "yourPasswordPlaceholder": "Parola ta",
+    "setupNote": "Dupa crearea contului, vei adauga serverele tale Plex sau Jellyfin din Setari.",
+    "localDisabledHint": "",
+    "oidcError": "",
+    "accountCreated": "Cont creat cu succes!",
+    "connectedTo": "Conectat la {{name}}",
+    "plexAuthFailed": "Autentificare Plex eșuată",
+    "plexStartFailed": "Pornirea autentificării Plex a eșuat",
+    "serverConnectFailed": "Conectarea la server a eșuat",
+    "signupFailed": "Înregistrare eșuată",
+    "createAccountFailed": "Crearea contului a eșuat",
+    "loginFailed": "Autentificare eșuată",
+    "invalidCredentials": "E-mail sau parolă nevalide",
+    "claimCodeRequired": "Configurarea pentru prima dată necesită un cod de solicitare",
+    "enterClaimCode": "Introduceți codul de solicitare",
+    "claimCodeDescription": "Verificați jurnalele serverului pentru a solicita cod pentru a continua cu configurarea",
+    "claimCodeLabel": "Solicită cod",
+    "claimCodeHint": "Codul de solicitare este tipărit în jurnalele serverului atunci când începe containerul",
+    "validateClaimCode": "",
+    "claimCodeSecurityNote": "Această măsură de securitate asigură că numai utilizatorii autorizați pot finaliza configurarea pentru prima dată"
+  },
+  "dashboard": {
+    "alerts": "Alerte",
+    "plays": "Jocuri",
+    "watchTime": "Timp de urmărire",
+    "activeUsers": "Utilizatori activi",
+    "nowPlaying": "Acum se redă",
+    "streamLocations": "Locații stream",
+    "serverResources": "Resurse server",
+    "bandwidth": "Lățimea benzii",
+    "noActiveStreams": "Nici un flux activ",
+    "streamsAppearHere": "Fluxurile active vor apărea aici atunci când utilizatorii încep să vizioneze"
+  },
+  "users": {
+    "title": "Utilizatori",
+    "showRemoved": "",
+    "noUsersFound": "Niciun utilizator găsit.",
+    "searchPlaceholder": "Caută utilizatori...",
+    "selectAllUsers": "Selectați toți utilizatorii {{count}}",
+    "serversColumn": "",
+    "resetTrustScore": "Resetează scorul de încredere",
+    "resetTrustScoreTitle_one": "Resetează scorul de încredere pentru utilizatorul {{count}}",
+    "resetTrustScoreTitle_other": "Resetați scorul de încredere pentru {{count}} Utilizatori",
+    "resetTrustScoreConfirm": "Ești sigur că vrei să resetezi scorul de încredere la 100? Această acțiune nu poate fi anulată.",
+    "mergeUsers": "",
+    "mergeTitleSuggestion": "",
+    "mergeTitleBulk": "",
+    "mergeReasonEmail": "",
+    "mergeReasonEmailUsername": "",
+    "mergeReasonUsername": "",
+    "mergeKeep": "",
+    "mergeFoldIn": "",
+    "mergeSwap": "",
+    "mergeRequired": "",
+    "mergeLastActive": "",
+    "mergeNeverActive": "",
+    "mergeSessions_one": "",
+    "mergeSessions_other": "",
+    "mergeMoreServers": "",
+    "mergeWhatHappens": "",
+    "mergeMoves_one": "",
+    "mergeMoves_other": "",
+    "mergeMovesNoCount": "",
+    "mergeCarriesOver": "",
+    "mergeDeleted": "",
+    "mergeRulesKept": "",
+    "mergeIrreversibleTitle": "",
+    "mergeIrreversibleBody": "",
+    "mergeServerLabel": "",
+    "mergeServerUnknown": "",
+    "mergeIrreversibleAcknowledge": "",
+    "mergeServerAccountRemoved": "",
+    "mergeConfirmInto": "",
+    "mergeSelectTwo": "",
+    "mergeSameIdentity": "",
+    "mergeSelectAllActive": "",
+    "suggestionsTitle": "",
+    "suggestionsCount_one": "",
+    "suggestionsCount_other": "",
+    "suggestionsPairEmail": "",
+    "suggestionsPairEmailMore_one": "",
+    "suggestionsPairEmailMore_other": "",
+    "suggestionsPairEmailUsername": "",
+    "suggestionsPairEmailUsernameMore_one": "",
+    "suggestionsPairEmailUsernameMore_other": "",
+    "suggestionsPairUsername": "",
+    "suggestionsPairUsernameMore_one": "",
+    "suggestionsPairUsernameMore_other": "",
+    "suggestionsSheetDescription": "",
+    "suggestionsReview": "",
+    "suggestionsNotSame": "",
+    "suggestionsMatchEmail": "",
+    "suggestionsMatchEmailUsername": "",
+    "suggestionsMatchUsername": "",
+    "suggestionsEmpty": "",
+    "suggestionsDismissed": "",
+    "suggestionsDismissedPair": "",
+    "suggestionsDismissedAt": "",
+    "suggestionsRestore": "",
+    "suggestionsError": "",
+    "filterHasAccessTo": "",
+    "filterHasAccessToPlaceholder": "",
+    "filterHasAccessToHint": ""
+  },
+  "userDetail": {
+    "backToUsers": "Înapoi la Utilizatori",
+    "userNotFound": "Utilizator negăsit",
+    "userInfo": "Informaţii utilizator",
+    "statistics": "Statistici",
+    "sessions": "Sesiuni",
+    "violations": "Incalcari",
+    "terminationHistory": "Istoric Terminare",
+    "noViolationsFound": "Nu există încălcări pentru acest utilizator.",
+    "noTerminationsFound": "Nici o terminare de flux pentru acest utilizator.",
+    "byRule": "De / Regulă",
+    "manual": "",
+    "unknownRule": "Regulă necunoscută",
+    "adjustTrustScore": "Reglaţi scorul de încredere",
+    "linkedAccounts": "",
+    "splitAccount": "",
+    "splitConfirmTitle": "",
+    "splitConfirmDescription": "",
+    "splitConfirmLoading": "",
+    "acrossAllServers": "",
+    "overallTrust": "",
+    "serverScope": "",
+    "allServers": "",
+    "title": "",
+    "editIdentity": "",
+    "editIdentityDescription": "",
+    "displayName": "",
+    "contactEmail": "",
+    "contactEmailHelp": "",
+    "contactEmailLabel": "",
+    "contactEmailNone": "",
+    "contactEmailNoLogin": "",
+    "locations": "Locații"
+  },
+  "history": {
+    "title": "Istoric",
+    "description": "",
+    "loadingMore": "Se încarcă mai mult...",
+    "scrollForMore": "Derulează pentru mai multe",
+    "showingAllResults": "Arată toate rezultatele {{total}}",
+    "deleteSession_one": "Șterge {{count}} Sesiune",
+    "deleteSession_other": "Șterge {{count}} Sesiuni",
+    "deleteSessionsConfirm": "Sunteţi sigur că doriţi să ştergeţi? Această acţiune nu poate fi anulată.",
+    "totalPlays": "",
+    "uniqueTitles": "",
+    "uniqueUsers": ""
+  },
+  "library": {
+    "title": "Bibliotecă",
+    "description": "",
+    "topMovies": "Top filme",
+    "topShows": "Top seriale TV",
+    "noMoviePlays": "Niciun film nu redă în această perioadă",
+    "noShowPlays": "Nicio emisiune TV în această perioadă",
+    "overview": {
+      "description": "",
+      "lastUpdated": "Ultima actualizare:",
+      "totalItems": "Total articole",
+      "shows": "spectacole",
+      "added": "Adăugat",
+      "libraryGrowth": "Creștere bibliotecă",
+      "failedToLoad": "Încărcarea statisticilor bibliotecii nu a reușit",
+      "failedToLoadDesc": "Nu s-au putut prelua datele din bibliotecă. Vă rugăm să încercați din nou.",
+      "thisPeriod": "această perioadă",
+      "thisWeek": "săptămâna aceasta",
+      "thisMonth": "luna aceasta",
+      "thisYear": "în acest an",
+      "serversNeedSync": ""
+    },
+    "quality": {
+      "title": "Calitate",
+      "description": "",
+      "qualityEvolution": "Evoluția calității",
+      "all": "Toate",
+      "failedToLoad": "Încărcarea datelor de calitate nu a reușit",
+      "failedToLoadDesc": "Datele de calitate nu au putut fi preluate. Vă rugăm să încercați din nou."
+    },
+    "storage": {
+      "title": "Depozitare",
+      "description": "",
+      "totalStorage": "Stocare totală",
+      "growthRate": "Rata de creştere",
+      "duplicates": "Duplicate",
+      "groups": "grupuri",
+      "recoverable": "recuperabil",
+      "staleContent": "Conținut vechi",
+      "staleContentDesc": "",
+      "items": "articole",
+      "unused": "neutilizat",
+      "storageTrend": "Tendinţă de stocare",
+      "confidence": "Încrederea",
+      "confidenceHigh": "Ridicat",
+      "confidenceMedium": "Medie",
+      "confidenceLow": "scazut",
+      "zeroGrowth": "0 GB/lună",
+      "predictions": "Predicții",
+      "contentROI": "",
+      "contentROIDesc": "",
+      "avgHoursPerGB": "ore medii/GB",
+      "insufficientData": "Date insuficiente",
+      "of": "din",
+      "days": "zile",
+      "failedToLoad": "Încărcarea datelor de stocare a eșuat",
+      "failedToLoadDesc": "Nu s-au putut prelua datele de stocare. Vă rugăm să încercați din nou.",
+      "duplicatesTitle": "",
+      "duplicatesSubtitle": "",
+      "growthPreChangeover": "",
+      "loadingDuplicates": "",
+      "duplicatesFailed": "",
+      "noDuplicatesTitle": "",
+      "noDuplicatesDesc": "",
+      "colTitle": "",
+      "colType": "",
+      "colMatchType": "",
+      "colCopies": "",
+      "colRecoverable": "",
+      "sameServer": "",
+      "mirror": "",
+      "missingOnServer": "",
+      "missingOnServerHint": "",
+      "copyPath": ""
+    },
+    "watch": {
+      "title": "Urmărește analiza",
+      "description": "",
+      "watched": "Vizionat",
+      "percentWatched": "% vizionat",
+      "totalWatchTime": "Timp total de urmărire",
+      "avgPerItem": "medie pe articol",
+      "completed": "Completat",
+      "peakHour": "Ora de vârf",
+      "viewingHours": "Vizualizare Ore",
+      "peak": "Vârf:",
+      "monthlyTrends": "Tendințe lunare",
+      "busiest": "Puternic:",
+      "quietest": "Liniște:",
+      "bingeHighlights": "Evidențieri ale bătăliei",
+      "bingeHighlightsDesc": "",
+      "bingeSessions": "sesiuni bursiere",
+      "noData": "Nu există date de vizionare",
+      "noDataDesc": "Vizionați datele analitice vor apărea aici odată ce conținutul a fost redat. Verificați din nou după o activitate de vizualizare.",
+      "failedToLoad": "Încărcarea datelor analitice a eșuat",
+      "failedToLoadDesc": "Nu s-au putut accesa datele."
+    },
+    "emptyState": {
+      "checkingStatus": "",
+      "backfillAvailable": {
+        "title": "",
+        "bodyWithDays": "",
+        "bodyGeneric": "",
+        "syncRunningTitle": "",
+        "syncRunningBody": ""
+      },
+      "generateHistory": "",
+      "starting": "",
+      "syncInProgress": {
+        "title": "",
+        "body": ""
+      },
+      "notSynced": {
+        "title": "",
+        "body": ""
+      },
+      "noMedia": {
+        "title": "",
+        "body": ""
+      },
+      "syncNow": "",
+      "syncing": "",
+      "notSyncedShort": "",
+      "backfillRunning": {
+        "title": "",
+        "fallbackBody": "",
+        "progress": "",
+        "snapshotsSuffix": ""
+      },
+      "multiServer": {
+        "title": "",
+        "body": "",
+        "needsBackfillIntro": ""
+      },
+      "toast": {
+        "noServerSelected": "",
+        "syncStartedTitle": "",
+        "syncStartedDesc": "",
+        "syncFailedTitle": "",
+        "genericRetry": "",
+        "backfillStartedTitle": "",
+        "backfillStartedDesc": "",
+        "backfillFailedTitle": "",
+        "backfillCompleteTitle": "",
+        "backfillErrorTitle": ""
+      }
+    },
+    "versionsBackfill": {
+      "banner": "",
+      "action": "",
+      "syncFailed": "",
+      "syncStarted": ""
+    }
+  },
+  "activity": {
+    "title": "Activitate",
+    "description": "",
+    "playsOverTime": "Joacă în timp",
+    "concurrentStreams": "Stream-uri Concurente",
+    "engagementBreakdown": "Defalcare angajament",
+    "howUsersEngage": "Modul în care utilizatorii interacționează cu conținutul",
+    "playsVsSessions": "Jocuri vs Sesiuni",
+    "playsVsSessionsDesc": "Doar completări complete - contorizează un joc atunci când timpul total de ceas acoperă tot conținutul",
+    "activityByDayOfWeek": "Activitate pe ziua de săptămână",
+    "activityByHourOfDay": "Activitate la Ora de Zi",
+    "platforms": "Platforme",
+    "streamQuality": "Calitatea fluxului"
+  },
+  "violations": {
+    "title": "Incalcari",
+    "tryAdjustingFilters": "Încercați să ajustați filtrele",
+    "selectAllViolations": "Selectați toate filtrele de încălcare {{count}}",
+    "dismissViolation": "Respinge Încălcarea",
+    "dismissViolationConfirm": "Sigur doriți să respingeți această încălcare? Acest lucru îl va elimina definitiv din jurnalul de încălcare a normelor.",
+    "dismissViolation_one": "Respinge {{count}} Încălcare",
+    "dismissViolation_other": "Respinge {{count}} Încălcări",
+    "dismissViolationsConfirm": "Sigur doriți să respingeți? Acest lucru le va elimina din jurnalul de încălcare permanent și va restabili scorurile de încredere asociate.",
+    "noViolationsFound": "Nicio încălcare găsită",
+    "noViolationsRecorded": "Nu au fost înregistrate încă încălcări ale legii.",
+    "allSeverities": "Toate severitățile",
+    "allStatuses": "Toate stările",
+    "allRules": "",
+    "filterPeople": "",
+    "allPeople": "",
+    "peopleSelectedCount": "",
+    "personFilterPlaceholder": "",
+    "personFilterEmpty": "",
+    "personFilterError": "",
+    "filterByPerson": "",
+    "detail": {
+      "notFound": "Încălcarea nu a fost găsită",
+      "violationDetails": "Detalii Incalcare",
+      "userInfo": "Utilizator",
+      "sessions": "Sesiuni",
+      "noSessions": "Nicio sesiune asociată cu această încălcare",
+      "trigger": "Declanșare",
+      "map": "Locații Sesiune",
+      "actions": "Acțiuni luate",
+      "timestamps": "Marcaje de timp",
+      "created": "Creat",
+      "acknowledged": "Recunoscute",
+      "detected": "Detectat",
+      "inactivity": "Detalii inactivitate",
+      "daysInactive": "Zile inactive",
+      "threshold": "Pragul",
+      "lastActivity": "Ultima activitate",
+      "neverActive": "Niciodată activ",
+      "conditionEvidence": "Dovada stării",
+      "conditionGroup": "",
+      "matched": "{{matched}}/{{total}} corespondență",
+      "actual": "Actuală",
+      "relatedSessions": "{{count}} sesiune legată de",
+      "relatedSessions_one": "{{count}} sesiune legată de",
+      "relatedSessions_other": "{{count}} sesiuni asociate"
+    }
+  },
+  "automations": {
+    "actions": {
+      "send": {
+        "label": "",
+        "description": "",
+        "fields": {
+          "cooldown_minutes": {
+            "description": ""
+          }
+        },
+        "ran": ""
+      },
+      "trust": {
+        "label": "",
+        "description": "",
+        "fields": {
+          "mode": {
+            "label": ""
+          },
+          "amount": {
+            "label": "",
+            "description": ""
+          },
+          "value": {
+            "label": ""
+          }
+        },
+        "ran": ""
+      },
+      "kill_stream": {
+        "label": "",
+=======
   "activity": {
     "activityByDayOfWeek": "Activitate pe ziua de săptămână",
     "activityByHourOfDay": "Activitate la Ora de Zi",
@@ -25,12 +444,39 @@
   "automations": {
     "actions": {
       "kill_stream": {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         "description": "",
         "fields": {
           "cooldown_minutes": {
             "description": ""
           },
           "delay_seconds": {
+<<<<<<< HEAD
+            "label": "",
+            "description": ""
+          },
+          "target": {
+            "description": ""
+          },
+          "message": {
+            "placeholder": ""
+          }
+        },
+        "ran": ""
+      },
+      "message_client": {
+        "label": "",
+        "description": "",
+        "hint": "",
+        "fields": {
+          "target": {
+            "description": ""
+          },
+          "message": {
+            "placeholder": ""
+          }
+        },
+=======
             "description": "",
             "label": ""
           },
@@ -83,10 +529,150 @@
           }
         },
         "label": "",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         "ran": ""
       }
     },
     "activity": {
+<<<<<<< HEAD
+      "title": "",
+      "description": "",
+      "outcome": "",
+      "who": "",
+      "where": "",
+      "playing": "",
+      "from": "",
+      "summary": "",
+      "started": "",
+      "finished": "",
+      "noSummary": "",
+      "outcomes": {
+        "completed": "",
+        "stopped_by_condition": "",
+        "error": ""
+      },
+      "empty": "",
+      "emptyDescription": "",
+      "runTitle": "",
+      "runLoading": "",
+      "triggeredBy": "",
+      "unknownStep": "",
+      "tabs": {
+        "all": "",
+        "completed": "",
+        "stopped_by_condition": "",
+        "error": ""
+      },
+      "group": "",
+      "branch": {
+        "then": "",
+        "else": ""
+      },
+      "whyBranch": "",
+      "openInEditor": "",
+      "tabsLabel": "",
+      "emptyRan": "",
+      "emptyRanDescription_one": "",
+      "emptyRanDescription_other": "",
+      "item": "",
+      "recordedViolation": ""
+    },
+    "allKinds": "",
+    "allStatuses": "",
+    "allSeverities": "",
+    "bind": {
+      "nameHelper": "",
+      "namePlaceholder": "",
+      "activeLabel": "",
+      "back": "",
+      "submit": "",
+      "submitting": "",
+      "customize": "",
+      "doors": {
+        "helper": ""
+      },
+      "anyServer": "",
+      "serverHelper": "",
+      "serverLabel": "",
+      "accountLabel": "",
+      "personLabel": "",
+      "destinationsLabel": "",
+      "required": "",
+      "needs": {
+        "title": ""
+      },
+      "helper": {
+        "killMessage": "",
+        "clientMessage": ""
+      },
+      "noInputs": "",
+      "failed": "",
+      "created": "",
+      "createdOff": ""
+    },
+    "builder": {
+      "destinationDisabled": "",
+      "noAlertRecipientsTooltip": "",
+      "noDestinations": "",
+      "newDestination": "",
+      "errors": {
+        "sendNeedsDestination": "",
+        "nameRequired": "",
+        "scopeIncomplete": "",
+        "triggerRequired": "",
+        "policyNeedsSubject": "",
+        "fieldUnavailable": "",
+        "operatorInvalid": "",
+        "valueInvalid": "",
+        "actionUnavailable": "",
+        "variableUnavailable": "",
+        "minutesRange": "",
+        "daysRange": "",
+        "measureInvalid": "",
+        "fieldNotAvailableFor": "",
+        "trustAmountRange": "",
+        "trustValueRange": "",
+        "messageRequired": "",
+        "tooLong": ""
+      },
+      "recordAs": {
+        "label": "",
+        "policy": "",
+        "policyDescription": "",
+        "notification": "",
+        "notificationDescription": ""
+      },
+      "severityLabel": "",
+      "activeLabel": "",
+      "saving": "",
+      "selectPlaceholder": "",
+      "searchPlaceholder": "",
+      "noMatches": "",
+      "clearSelection": "",
+      "selectedCount": "",
+      "scope": {
+        "label": "",
+        "global": "",
+        "server": "",
+        "account": "",
+        "person": "",
+        "serverLabel": "",
+        "serverPlaceholder": "",
+        "accountLabel": "",
+        "accountPlaceholder": "",
+        "personLabel": "",
+        "personPlaceholder": "",
+        "personHelper": "",
+        "noServers": "",
+        "enforceAcrossServers": "",
+        "enforceAcrossServersDescription": ""
+      },
+      "conditions": {
+        "addGroup": "",
+        "fieldPlaceholder": "",
+        "windowPrefix": "",
+        "windowUnit": "",
+=======
       "branch": {
         "else": "",
         "then": ""
@@ -214,10 +800,926 @@
         "recentlySeen": "",
         "removeGroup": "",
         "sectionTitle": "",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         "uniqueDevices": "",
         "uniqueDevicesHint": "",
         "uniqueIps": "",
         "uniqueIpsHint": "",
+<<<<<<< HEAD
+        "allDeviceTypes": "",
+        "deviceTypesHint": "",
+        "yes": "",
+        "no": "",
+        "recentlySeen": "",
+        "allCountries": "",
+        "sectionTitle": "",
+        "optional": "",
+        "helper": "",
+        "emptyLine": "",
+        "all": "",
+        "any": "",
+        "allHint": "",
+        "anyHint": "",
+        "matchLabel": "",
+        "fieldLabel": "",
+        "operatorLabel": "",
+        "valueLabel": "",
+        "canNeverPass": "",
+        "noFields": "",
+        "groupSeparator": "",
+        "addAnother": "",
+        "addFirst": "",
+        "removeGroup": ""
+      },
+      "actions": {
+        "add": "",
+        "sectionTitle": "",
+        "ifTitle": "",
+        "helper": "",
+        "emptyTitle": "",
+        "emptyDescription": "",
+        "emptyAction": "",
+        "moveUp": "",
+        "moveDown": "",
+        "menu": "",
+        "branchName": "",
+        "confirmRemoveTitle": "",
+        "confirmRemoveDescription": "",
+        "policyNote": "",
+        "branchThen": "",
+        "branchElse": "",
+        "branchElseEmpty": "",
+        "ifNothing": "",
+        "ifAddCheck": "",
+        "addBranch": "",
+        "expandBranch": "",
+        "collapseBranch": ""
+      },
+      "when": {
+        "title": "",
+        "helper": "",
+        "emptyTitle": "",
+        "emptyDescription": "",
+        "emptyAction": "",
+        "add": "",
+        "or": ""
+      },
+      "heldFor": {
+        "prefix": "",
+        "minutesLabel": "",
+        "unit": "",
+        "measureLabel": "",
+        "current": "",
+        "total": ""
+      },
+      "inactiveFor": {
+        "prefix": "",
+        "daysLabel": "",
+        "unit": ""
+      },
+      "rows": {
+        "toggle": "",
+        "remove": "",
+        "skipped": "",
+        "toggleHint": "",
+        "removeHint": "",
+        "expandHint": "",
+        "moveHint": ""
+      },
+      "picker": {
+        "searchPlaceholder": "",
+        "empty": "",
+        "navigate": "",
+        "select": "",
+        "close": ""
+      },
+      "sentence": {
+        "label": "",
+        "placeholderTrigger": "",
+        "placeholderAction": ""
+      },
+      "footer": {
+        "problems_one": "",
+        "problems_other": "",
+        "remaining_one": "",
+        "remaining_other": "",
+        "ready": "",
+        "search": ""
+      },
+      "leave": {
+        "title": "",
+        "confirm": ""
+      },
+      "liveCheck": {
+        "title": "",
+        "checking": "",
+        "empty": "",
+        "failed": "",
+        "footnote": "",
+        "expand": "",
+        "passed": "",
+        "notPassed": "",
+        "actual": "",
+        "unfinished": "",
+        "paused": "",
+        "sampleTitle": "",
+        "sampleGone": "",
+        "backToLive": ""
+      }
+    },
+    "categories": {
+      "session_behavior": "",
+      "stream_quality": "",
+      "user_attributes": "",
+      "device_client": "",
+      "network_location": "",
+      "scope": "",
+      "media": ""
+    },
+    "createAutomation": "",
+    "customAutomation": "",
+    "deleteAutomationConfirm": "",
+    "deleteAutomation_one": "",
+    "deleteAutomation_other": "",
+    "deleteAutomationsConfirm": "",
+    "describe": {
+      "more_one": "",
+      "more_other": "",
+      "noValues": "",
+      "includesSameDevice": "",
+      "uniqueIps": "",
+      "deviceTypesOnly": "",
+      "when": "",
+      "or": "",
+      "nothing": "",
+      "onlyWhen": "",
+      "andAlso": "",
+      "allOf": "",
+      "anyOf": "",
+      "joinAll": "",
+      "joinAny": "",
+      "then": "",
+      "otherwise": "",
+      "appliesTo": "",
+      "duration": {
+        "minutes_one": "",
+        "minutes_other": "",
+        "days_one": "",
+        "days_other": ""
+      },
+      "triggers": {
+        "sessionStarted": "",
+        "sessionFirstSeen": "",
+        "sessionStopped": "",
+        "sessionTranscodeChanged": "",
+        "sessionPaused": "",
+        "sessionHeldFor": "",
+        "sessionHeldForTotal": "",
+        "accountInactiveFor": "",
+        "accountNewDevice": "",
+        "accountTrustChanged": "",
+        "mediaAdded": "",
+        "mediaUpgraded": "",
+        "serverDown": "",
+        "serverUp": "",
+        "pluginUpdateAvailable": "",
+        "serverUpdateAvailable": "",
+        "tracearrUpdateAvailable": "",
+        "newsletterSent": "",
+        "newsletterFailed": ""
+      },
+      "operators": {
+        "eq": "",
+        "neq": "",
+        "gt": "",
+        "gte": "",
+        "lt": "",
+        "lte": "",
+        "in": "",
+        "not_in": "",
+        "contains": "",
+        "not_contains": ""
+      },
+      "fields": {
+        "concurrent_streams": "",
+        "active_session_distance_km": "",
+        "travel_speed_kmh": "",
+        "unique_ips_in_window": "",
+        "unique_devices_in_window": "",
+        "inactive_days": "",
+        "current_pause_minutes": "",
+        "total_pause_minutes": "",
+        "source_resolution": "",
+        "output_resolution": "",
+        "source_dynamic_range": "",
+        "source_video_codec": "",
+        "is_transcoding": "",
+        "is_transcode_downgrade": "",
+        "source_bitrate_mbps": "",
+        "user_id": "",
+        "trust_score": "",
+        "account_age_days": "",
+        "device_type": "",
+        "client_name": "",
+        "platform": "",
+        "is_local_network": "",
+        "country": "",
+        "ip_in_range": "",
+        "server_id": "",
+        "media_type": "",
+        "season_number": "",
+        "episode_number": "",
+        "library_item_type": "",
+        "library_name": "",
+        "resolution_after": "",
+        "dynamic_range_after": "",
+        "video_codec_after": "",
+        "audio_channels_after": "",
+        "file_size_after": ""
+      },
+      "states": {
+        "is_local_network": {
+          "yes": "",
+          "no": ""
+        },
+        "is_transcode_downgrade": {
+          "yes": "",
+          "no": ""
+        },
+        "is_transcoding": {
+          "video": {
+            "yes": "",
+            "no": ""
+          },
+          "audio": {
+            "yes": "",
+            "no": ""
+          },
+          "video_or_audio": {
+            "yes": "",
+            "no": ""
+          },
+          "neither": {
+            "yes": "",
+            "no": ""
+          }
+        }
+      },
+      "actions": {
+        "if": "",
+        "flagIt": "",
+        "doNothing": "",
+        "send": "",
+        "sendAnywhere": "",
+        "kill_stream": "",
+        "message_client": "",
+        "trustUp": "",
+        "trustDown": "",
+        "trustAdjust": "",
+        "trustSet": "",
+        "trustReset": ""
+      },
+      "scope": {
+        "server": "",
+        "account": "",
+        "person": ""
+      },
+      "sameDeviceInput": "",
+      "uniqueIpsInput": "",
+      "unbound": {
+        "server": "",
+        "account": "",
+        "person": "",
+        "destinations": "",
+        "field_value": "",
+        "select": "",
+        "number": "",
+        "duration": "",
+        "text": "",
+        "boolean": "",
+        "listed": ""
+      }
+    },
+    "description": "",
+    "detail": {
+      "notFound": "",
+      "title": "",
+      "unsaved": "",
+      "runsLine_one": "",
+      "runsLine_other": "",
+      "noRuns": ""
+    },
+    "disable": "",
+    "editAutomation": "",
+    "effects": {
+      "title": "",
+      "kill": "",
+      "trust": "",
+      "message": "",
+      "violation": "",
+      "tellsOnly": "",
+      "allServers": "",
+      "everyServer": "",
+      "oneServer": ""
+    },
+    "emptyTitle": "",
+    "emptyDescription": "",
+    "emptySeeAll": "",
+    "emptySeeAllLoading": "",
+    "enable": "",
+    "evaluations": {
+      "disclosure": "",
+      "reasons": {
+        "cooldown_active": "",
+        "edge_replayed": "",
+        "gate_blocked": "",
+        "trigger_filter_failed": ""
+      }
+    },
+    "export": {
+      "title": "",
+      "description": "",
+      "carries": "",
+      "copyCode": "",
+      "copyJson": "",
+      "authorLabel": "",
+      "authorPlaceholder": "",
+      "authorHelper": "",
+      "save": "",
+      "saved": "",
+      "saveFailed": "",
+      "failed": "",
+      "saveHelper": "",
+      "authorInCode": "",
+      "groupLabel": "",
+      "groupHelper": "",
+      "gallery": {
+        "trigger": "",
+        "body": ""
+      },
+      "openRepository": ""
+    },
+    "fields": {
+      "concurrent_streams": {
+        "label": "",
+        "description": ""
+      },
+      "active_session_distance_km": {
+        "label": "",
+        "description": ""
+      },
+      "travel_speed_kmh": {
+        "label": "",
+        "description": ""
+      },
+      "unique_ips_in_window": {
+        "label": "",
+        "description": ""
+      },
+      "unique_devices_in_window": {
+        "label": "",
+        "description": ""
+      },
+      "inactive_days": {
+        "label": "",
+        "description": ""
+      },
+      "current_pause_minutes": {
+        "label": "",
+        "description": ""
+      },
+      "total_pause_minutes": {
+        "label": "",
+        "description": ""
+      },
+      "source_resolution": {
+        "label": "",
+        "description": ""
+      },
+      "output_resolution": {
+        "label": "",
+        "description": ""
+      },
+      "source_dynamic_range": {
+        "label": "",
+        "description": ""
+      },
+      "source_video_codec": {
+        "label": "",
+        "description": ""
+      },
+      "is_transcoding": {
+        "label": "",
+        "description": ""
+      },
+      "is_transcode_downgrade": {
+        "label": "",
+        "description": ""
+      },
+      "source_bitrate_mbps": {
+        "label": "",
+        "description": ""
+      },
+      "user_id": {
+        "label": "",
+        "description": "",
+        "placeholder": ""
+      },
+      "trust_score": {
+        "label": "",
+        "description": ""
+      },
+      "account_age_days": {
+        "label": "",
+        "description": ""
+      },
+      "device_type": {
+        "label": "",
+        "description": ""
+      },
+      "client_name": {
+        "label": "",
+        "description": "",
+        "placeholder": ""
+      },
+      "platform": {
+        "label": "",
+        "description": ""
+      },
+      "is_local_network": {
+        "label": "",
+        "description": ""
+      },
+      "country": {
+        "label": "",
+        "description": "",
+        "placeholder": ""
+      },
+      "ip_in_range": {
+        "label": "",
+        "description": "",
+        "placeholder": ""
+      },
+      "server_id": {
+        "label": "",
+        "description": "",
+        "placeholder": ""
+      },
+      "media_type": {
+        "label": "",
+        "description": ""
+      },
+      "season_number": {
+        "label": "",
+        "description": ""
+      },
+      "episode_number": {
+        "label": "",
+        "description": ""
+      },
+      "library_item_type": {
+        "label": "",
+        "description": ""
+      },
+      "library_name": {
+        "label": "",
+        "description": "",
+        "placeholder": ""
+      },
+      "resolution_after": {
+        "label": "",
+        "description": ""
+      },
+      "dynamic_range_after": {
+        "label": "",
+        "description": ""
+      },
+      "video_codec_after": {
+        "label": "",
+        "description": ""
+      },
+      "audio_channels_after": {
+        "label": "",
+        "description": ""
+      },
+      "file_size_after": {
+        "label": "",
+        "description": ""
+      }
+    },
+    "gallery": {
+      "title": "",
+      "description": "",
+      "searchPlaceholder": "",
+      "noMatches": "",
+      "noMatchesHint": "",
+      "group": {
+        "notifications": "",
+        "server_health": "",
+        "policies": "",
+        "housekeeping": "",
+        "other": ""
+      },
+      "builtin": "",
+      "kind": {
+        "policy": "",
+        "notification": ""
+      },
+      "paste": {
+        "title": "",
+        "description": ""
+      },
+      "scratch": {
+        "title": "",
+        "description": ""
+      },
+      "failed": "",
+      "retry": "",
+      "missing": "",
+      "hint": {
+        "move": "",
+        "use": "",
+        "close": ""
+      },
+      "loading": ""
+    },
+    "import": {
+      "title": "",
+      "description": "",
+      "reviewDescription": "",
+      "placeholder": "",
+      "formatHint": "",
+      "check": "",
+      "checking": "",
+      "valid": "",
+      "madeBy": "",
+      "codeShort": "",
+      "paused": {
+        "label": "",
+        "helper": ""
+      },
+      "submit": "",
+      "adding": "",
+      "existing": "",
+      "existingUse": "",
+      "collision": {
+        "title": "",
+        "add": "",
+        "replace": ""
+      },
+      "raw": "",
+      "errors": {
+        "notACode": "",
+        "notACodeHint": "",
+        "tooBig": "",
+        "tooBigHint": "",
+        "truncated": "",
+        "truncatedHint": "",
+        "tooNew": "",
+        "tooNewHint": "",
+        "tooMany": "",
+        "tooManyHint": "",
+        "rejected": "",
+        "rejectedHint": ""
+      },
+      "source": "",
+      "validCaveat": "",
+      "builtinMatch": ""
+    },
+    "kind": {
+      "policy": "",
+      "notification": ""
+    },
+    "kindColumn": "",
+    "name": "",
+    "newAutomation": "",
+    "namePlaceholder": "",
+    "nameInvalid": "",
+    "descriptionLabel": "",
+    "descriptionPlaceholder": "",
+    "thisAutomation": "",
+    "cooldownLabel": "",
+    "cooldownInvalid": "",
+    "retentionLabel": "",
+    "retentionPlaceholder": "",
+    "retentionInvalid": "",
+    "noAutomationsFound": "",
+    "operators": {
+      "eq": "",
+      "neq": "",
+      "gt": "",
+      "gte": "",
+      "lt": "",
+      "lte": "",
+      "in": "",
+      "not_in": "",
+      "contains": "",
+      "not_contains": ""
+    },
+    "options": {
+      "4K": "",
+      "1080p": "",
+      "720p": "",
+      "480p": "",
+      "SD": "",
+      "unknown": "",
+      "mobile": "",
+      "tablet": "",
+      "tv": "",
+      "desktop": "",
+      "browser": "",
+      "ios": "",
+      "android": "",
+      "windows": "",
+      "macos": "",
+      "linux": "",
+      "tvos": "",
+      "androidtv": "",
+      "roku": "",
+      "webos": "",
+      "tizen": "",
+      "movie": "",
+      "episode": "",
+      "track": "",
+      "photo": "",
+      "live": "",
+      "trailer": "",
+      "video": "",
+      "audio": "",
+      "video_or_audio": "",
+      "neither": "",
+      "8K": "",
+      "1440p": "",
+      "sdr": "",
+      "hdr": "",
+      "hdr10": "",
+      "hdr10+": "",
+      "hlg": "",
+      "dolby vision": "",
+      "libraryItemType": {
+        "movie": "",
+        "show": "",
+        "season": "",
+        "episode": "",
+        "artist": "",
+        "album": "",
+        "track": "",
+        "photo": ""
+      }
+    },
+    "provenance": {
+      "builtin": "",
+      "imported": "",
+      "importedBy": "",
+      "saved": "",
+      "customized": "",
+      "customizedFromRemoved": ""
+    },
+    "recordsOnly": "",
+    "scope": {
+      "global": "",
+      "person": "",
+      "account": "",
+      "crossServer": ""
+    },
+    "searchPlaceholder": "",
+    "sessionTargets": {
+      "triggering": {
+        "label": "",
+        "tooltip": ""
+      },
+      "oldest": {
+        "label": "",
+        "tooltip": ""
+      },
+      "newest": {
+        "label": "",
+        "tooltip": ""
+      },
+      "all_except_one": {
+        "label": "",
+        "tooltip": ""
+      },
+      "all_user": {
+        "label": "",
+        "tooltip": ""
+      }
+    },
+    "configFields": {
+      "cooldown_minutes": {
+        "label": ""
+      },
+      "target": {
+        "label": ""
+      },
+      "message": {
+        "label": ""
+      }
+    },
+    "trustModes": {
+      "adjust": {
+        "label": ""
+      },
+      "set": {
+        "label": ""
+      },
+      "reset": {
+        "label": ""
+      }
+    },
+    "severity": {
+      "low": "",
+      "warning": "",
+      "high": ""
+    },
+    "template": {
+      "version": "",
+      "updateAvailable": "",
+      "updatedTitle": "",
+      "updatedBody": "",
+      "before": "",
+      "after": "",
+      "review": "",
+      "save": "",
+      "customize": "",
+      "customizeTitle": "",
+      "customizeConfirm": "",
+      "customizeConfirmAction": "",
+      "customizeFirst": "",
+      "customizeFailed": "",
+      "upgradeFailed": "",
+      "gone": "",
+      "doorsHelper": ""
+    },
+    "templates": {
+      "account-inactivity": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "concurrent-streams": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "device-velocity": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "geo-restriction": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "impossible-travel": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "kill-paused-streams": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "media-added": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "media-upgraded": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "new-device": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "newsletter-failed": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "no-4k-transcodes": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "paused-too-long": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "plugin-update": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "server-down": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "server-up": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "server-update": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "simultaneous-locations": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "stream-ended": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "stream-started": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "tracearr-update": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "transcode-started": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "trust-score-changed": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      }
+    },
+    "title": "",
+    "toggleAutomation": "",
+    "tryAdjustingFilters": "",
+    "units": {
+      "km": "",
+      "kmh": "",
+      "mbps": "",
+      "days": "",
+      "minutes": "",
+      "hours": "",
+      "gb": "",
+      "seconds": ""
+    },
+    "updateAutomation": "",
+    "catalog": {
+      "groups": {
+        "sessions": "",
+        "accounts": "",
+        "library": "",
+        "servers": "",
+        "updates": "",
+        "notifications": "",
+        "notify": "",
+        "policy": "",
+        "control": ""
+      },
+      "suggested": "",
+      "triggers": {
+        "sessionStarted": {
+          "description": "",
+          "synonyms": ""
+        },
+        "sessionFirstSeen": {
+          "description": "",
+          "synonyms": ""
+        },
+        "sessionStopped": {
+          "description": "",
+          "synonyms": ""
+        },
+        "sessionTranscodeChanged": {
+          "description": "",
+          "synonyms": ""
+        },
+        "sessionPaused": {
+          "description": "",
+          "synonyms": ""
+        },
+        "sessionHeldFor": {
+          "label": "",
+          "description": "",
+          "synonyms": ""
+        },
+        "accountInactiveFor": {
+          "label": "",
+          "description": "",
+=======
         "valueLabel": "",
         "windowPrefix": "",
         "windowUnit": "",
@@ -385,6 +1887,7 @@
         "accountInactiveFor": {
           "description": "",
           "label": "",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           "synonyms": ""
         },
         "accountNewDevice": {
@@ -403,6 +1906,8 @@
           "description": "",
           "synonyms": ""
         },
+<<<<<<< HEAD
+=======
         "newsletterFailed": {
           "description": "",
           "synonyms": ""
@@ -415,6 +1920,7 @@
           "description": "",
           "synonyms": ""
         },
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         "serverDown": {
           "description": "",
           "synonyms": ""
@@ -423,6 +1929,13 @@
           "description": "",
           "synonyms": ""
         },
+<<<<<<< HEAD
+        "pluginUpdateAvailable": {
+          "description": "",
+          "synonyms": ""
+        },
+        "serverUpdateAvailable": {
+=======
         "serverUpdateAvailable": {
           "description": "",
           "synonyms": ""
@@ -449,12 +1962,48 @@
           "synonyms": ""
         },
         "sessionTranscodeChanged": {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           "description": "",
           "synonyms": ""
         },
         "tracearrUpdateAvailable": {
           "description": "",
           "synonyms": ""
+<<<<<<< HEAD
+        },
+        "newsletterSent": {
+          "description": "",
+          "synonyms": ""
+        },
+        "newsletterFailed": {
+          "description": "",
+          "synonyms": ""
+        }
+      },
+      "actions": {
+        "send": {
+          "synonyms": ""
+        },
+        "trust": {
+          "synonyms": ""
+        },
+        "kill_stream": {
+          "synonyms": ""
+        },
+        "message_client": {
+          "synonyms": ""
+        },
+        "if": {
+          "label": "",
+          "description": "",
+          "synonyms": ""
+        }
+      }
+    },
+    "filters": {
+      "source": "",
+      "allSources": "",
+=======
         }
       }
     },
@@ -837,12 +2386,77 @@
       "allSources": "",
       "allTriggers": "",
       "source": "",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       "sources": {
         "builtin": "",
         "import": "",
         "local": "",
         "own": ""
       },
+<<<<<<< HEAD
+      "trigger": "",
+      "allTriggers": ""
+    },
+    "openGallery": ""
+  },
+  "terminateStream": {
+    "title": "Terminare stream",
+    "stopMedia": "Opriți \"{{mediaTitle}}\" pentru @{{username}}?",
+    "messageLabel": "Mesaj către utilizator (opţional)",
+    "messagePlaceholder": "de exemplu, vă rugăm să nu partajați contul dvs.",
+    "messageHint": "Acest mesaj le va fi afișat în timpul redării",
+    "terminating": "Terminare...",
+    "killStream": "Oprește transmisiunea"
+  },
+  "notFound": {
+    "title": "",
+    "heading": "Pagina nu a fost găsită",
+    "description": "Pagina pe care o cauţi nu există sau a fost mutată."
+  },
+  "settings": {
+    "plex": {
+      "noServersFound": "Niciun server de Plex găsit",
+      "noServersFoundHint": "Asigură-te că deții cel puțin un server Plex",
+      "noReachableConnections": "Nu sunt conexiuni accesibile",
+      "local": "",
+      "remote": "Distanta",
+      "custom": "",
+      "secure": "Securizat",
+      "mayNotConnect": "Nu se poate conecta",
+      "recommended": "Recomandat",
+      "customUrl": "URL personalizat",
+      "connectionError": {
+        "timeout": "",
+        "dns": "",
+        "refused": "",
+        "unreachable": "",
+        "reset": "",
+        "tls": "",
+        "http": "",
+        "unknown": ""
+      },
+      "connectionsReachable": "{{reachable}} de {{total}} conexiuni accesibile",
+      "connectionsAvailable": "{{count}} conexiuni disponibile",
+      "hideFiltered": "Ascunde filtrate",
+      "showAll": "Arată toate",
+      "moreConnections": "+{{count}} mai multe conexiuni",
+      "connectingTo": "Conectare la {{name}}...",
+      "ownerOnly": "",
+      "noAccountsLinked": "Niciun cont Plex legat",
+      "noAccountsLinkedHint": "Leagă un cont Plex pentru a adăuga servere Plex la Tracearr.",
+      "linkPlexAccount": "Asociază contul Plex",
+      "linkAnotherAccount": "Leagă un alt cont Plex",
+      "linking": "Conectare...",
+      "loginEnabled": "Autentificare activată",
+      "serversConnected_one": "{{count}} server conectat",
+      "serversConnected_other": "{{count}} servere conectate",
+      "unlinkAccount": "Deconectați acest cont Plex",
+      "reauthorizeAccount": "",
+      "deleteServersFirst": "Șterge mai întâi serverele conectate pentru a deconecta acest cont",
+      "unlinkPlexAccount": "Deconectează contul Plex",
+      "unlinkConfirm": "Ești sigur că vrei să deconectezi acest cont Plex? Nu vei mai putea adăuga servere din acest cont până nu îl conectezi din nou."
+    },
+=======
       "trigger": ""
     },
     "gallery": {
@@ -1835,6 +3449,7 @@
     "windowWillClose": "Această fereastră se va închide automat..."
   },
   "settings": {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "destinations": {
       "add": "",
       "alertsGoTo": "",
@@ -1847,6 +3462,75 @@
       "emailDescription": "",
       "empty": "",
       "fields": {
+<<<<<<< HEAD
+        "webhookUrl": "",
+        "url": "",
+        "serverUrl": "",
+        "apiUrl": "",
+        "topic": "",
+        "authToken": "",
+        "userKey": "",
+        "apiToken": "",
+        "preset": "",
+        "host": "",
+        "port": "",
+        "security": "",
+        "verifyCertificate": "",
+        "username": "",
+        "password": "",
+        "fromName": "",
+        "fromAddress": "",
+        "to": "",
+        "replyTo": "",
+        "messagesPerSecond": "",
+        "messageStream": ""
+      },
+      "groups": {
+        "connection": "",
+        "sender": "",
+        "alerts": ""
+      },
+      "hints": {
+        "authTokenOptional": "",
+        "smtpPreset": "",
+        "smtpVerifyCertificate": "",
+        "smtpUsernameOptional": "",
+        "smtpTo": "",
+        "smtpRate": "",
+        "smtpMessageStream": "",
+        "smtpGmailUsername": "",
+        "smtpGmailPassword": "",
+        "smtpResendUsername": "",
+        "smtpResendPassword": "",
+        "smtpSendgridUsername": "",
+        "smtpSendgridPassword": "",
+        "smtpMailgunUsername": "",
+        "smtpMailgunPassword": "",
+        "smtpBrevoUsername": "",
+        "smtpBrevoPassword": "",
+        "smtpSesUsername": "",
+        "smtpSesPassword": "",
+        "smtpPostmarkUsername": "",
+        "smtpPostmarkPassword": ""
+      },
+      "newsletterAlertsNote": "",
+      "newsletterDescription": "",
+      "newsletterTitle": "",
+      "newslettersOnly": "",
+      "noAlertRecipients": "",
+      "options": {
+        "securityStarttls": "",
+        "securityTls": "",
+        "securityNone": "",
+        "presetCustom": "",
+        "presetPostmark": "",
+        "presetResend": "",
+        "presetSes": "",
+        "presetMailgun": "",
+        "presetSendgrid": "",
+        "presetBrevo": "",
+        "presetGmail": ""
+=======
         "apiToken": "",
         "apiUrl": "",
         "authToken": "",
@@ -1909,6 +3593,7 @@
         "securityNone": "None (plain text, port 25)",
         "securityStarttls": "STARTTLS (usually port 587)",
         "securityTls": "TLS (usually port 465)"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       },
       "ownerOnly": "",
       "pushNote": "",
@@ -1922,6 +3607,22 @@
       "testHint": "",
       "testNeedsForm": "",
       "types": {
+<<<<<<< HEAD
+        "discord": "",
+        "jsonWebhook": "",
+        "ntfy": "",
+        "gotify": "",
+        "apprise": "",
+        "pushover": "",
+        "email": "",
+        "push": "",
+        "webToast": ""
+      },
+      "usedBy": "",
+      "usedBy_other": "",
+      "usedByNewsletters": "",
+      "usedByNewsletters_other": "",
+=======
         "apprise": "",
         "discord": "",
         "email": "Email",
@@ -1936,11 +3637,589 @@
       "usedByNewsletters": "",
       "usedByNewsletters_other": "",
       "usedBy_other": "",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       "violationsOff": "",
       "violationsOn": "",
       "webToastNote": ""
     },
     "jobs": {
+<<<<<<< HEAD
+      "runNow": "Rulează acum",
+      "running": "Rulează...",
+      "lastRun": "Ultima execuție",
+      "nextRun": "Următoarea execuție",
+      "schedule": "Programare"
+    },
+    "mobile": {
+      "editDisplayName": "Editare nume afișat",
+      "editDisplayNameDesc": "Schimbă modul în care acest dispozitiv apare în lista dispozitivului",
+      "displayName": "Nume afișat",
+      "displayNamePlaceholder": "de exemplu iPhone meu",
+      "updating": "Actualizare..."
+    }
+  },
+  "maintenance": {
+    "startingTitle": "Tracearr pornește...",
+    "interruptionTitle": "Întreruperea serviciului",
+    "startingDescription": "Serverul așteaptă ca serviciile backend să devină disponibile. Această pagină se va reîmprospăta automat când totul este gata.",
+    "interruptionDescription": "Unul sau mai multe servicii backend au devenit indisponibile. Această pagină se va reîmprospăta automat atunci când conectivitatea este restabilită.",
+    "unreachable": "",
+    "restoreTitle": "Restaurare din backup...",
+    "restoreFailed": "Restabilirea a eșuat",
+    "restorePhase": {
+      "validating": "Validare backup",
+      "creating_restore_point": "Crearea punctului de restaurare",
+      "shutting_down": "Servicii de închidere",
+      "restoring_database": "Restabilirea bazei de date",
+      "running_migrations": "Rularea migrărilor",
+      "rebuilding_aggregates": "Reconstruire agregate",
+      "restarting": "Repornire servicii",
+      "complete": ""
+    },
+    "initStep": {
+      "migrations": "",
+      "timescale": "",
+      "services": ""
+    },
+    "doNotRestart": ""
+  },
+  "map": {
+    "allUsers": "Toți utilizatorii",
+    "allTypes": "Toate tipurile",
+    "heatmap": "Hartă",
+    "circles": "Cercuri",
+    "streams": "fluxuri",
+    "locations": "locații",
+    "allActivity": "Toată activitatea",
+    "basemapMissing": "",
+    "webglUnavailable": "",
+    "webglHint": "",
+    "basemapShadowed": "",
+    "badMounts": ""
+  },
+  "devices": {
+    "title": "Compatibilitate dispozitiv",
+    "description": "",
+    "analyzedSessions": "",
+    "analyzedSessionsTooltip": "",
+    "directPlayRate": "Rată de redare directă",
+    "videoAndAudio": "",
+    "uniqueDevices": "Dispozitive unice",
+    "uniqueCodecs": "Codec-uri unice",
+    "deviceHealth": "Sănătatea dispozitivului",
+    "deviceHealthDesc": "",
+    "transcodeHotspots": "Transcodare Hotspot-uri",
+    "transcodeHotspotsDesc": "",
+    "deviceAndCodec": "Dispozitiv + Codec",
+    "transcodes": "Transcoduri",
+    "pctOfTotal": "% din total",
+    "noTranscodeHotspots": "Fără hotspoturi transcodare",
+    "compatibilityMatrix": "Compatibilitate Matricea",
+    "compatibilityMatrixDesc": "Ratele de redare directă pe dispozitiv și codecul video. Sortat după volumul sesiunii.",
+    "noDeviceDataPeriod": "Nu există date despre dispozitiv în această perioadă",
+    "legend": "Legendă:",
+    "directPlayHigh": "≥80% direct",
+    "directPlayMid": "",
+    "directPlayLow": "",
+    "topTranscodingUsers": "Top utilizatori de Transcodare",
+    "topTranscodingUsersDesc": "",
+    "noTranscodingUsers": "Niciun utilizator de transcodare găsit"
+  },
+  "statsBandwidth": {
+    "title": "Lățimea benzii",
+    "description": "",
+    "dataTransferred": "Date transferate",
+    "avgBitrate": "Bitrate mediu",
+    "avgBitrateMbps": "Bitrate mediu (Mbps)",
+    "peakBitrate": "Vârf: {{value}} Mbps",
+    "totalWatchTime": "Timp total de urmărire",
+    "uniqueUsers": "Utilizatori Unici",
+    "dailyUsage": "Utilizare zilnică a lățimii de bandă",
+    "dailyUsageDesc": "",
+    "topUsers": "Utilizatori lățime de bandă superioară",
+    "topUsersDesc": "",
+    "noData": "Nu sunt disponibile date despre lățimea benzii"
+  },
+  "statsUsers": {
+    "noActivity": "Nicio activitate încă",
+    "noActivityDesc": "Începe streaming-ul pentru a vedea utilizatorii de top aici",
+    "top3": "",
+    "runnersUp": "Alergători sus"
+  },
+  "plexCallback": {
+    "authComplete": "Autentificare completă",
+    "windowWillClose": "Această fereastră se va închide automat..."
+  },
+  "apiDocs": {
+    "backToSettings": "Înapoi la Setări",
+    "apiKeyAutoLoaded": "Cheie API auto-încărcată",
+    "noApiKey": "Nicio cheie API generată - creați una în Setări pentru a testa criteriile finale",
+    "versionSwitcherLabel": "",
+    "versionV1": "",
+    "versionV2": "",
+    "specLoadError": ""
+  },
+  "debug": {
+    "title": "Instrumente de depanare",
+    "description": "",
+    "overview": "Prezentare generală",
+    "librarySnapshots": "Instantanee ale bibliotecii",
+    "tasks": "Sarcini",
+    "logs": "Jurnale",
+    "plexAccounts": "Conturi Plex",
+    "terminations": "Terminări",
+    "libraryItems": "Elementele bibliotecii",
+    "environment": "Mediul",
+    "systemInformation": "Informatii Sistem",
+    "cpu": "procesor",
+    "memory": "Memorie",
+    "uptime": "",
+    "database": "Baza de date",
+    "databaseDesc": "",
+    "totalSize": "Mărime totală",
+    "maintenance": "Mentenanţă",
+    "destructiveActions": "Acțiuni distructive",
+    "refreshAggregates": "Reîmprospătare Agregate",
+    "clearStuckJobs": "Șterge joburile blocate",
+    "obliterateAllJobs": "Obliterați Toate Joburile",
+    "clearQueryCache": "Curăță Cache interogare",
+    "clearMobileDevices": "Curăță dispozitivele mobile",
+    "clearViolations": "Curăță Încălcările",
+    "clearAutomations": "",
+    "clearAutomationsConfirm": "",
+    "clearTerminationLogs": "Curăță jurnalele terminării",
+    "clearLibraryCache": "Curăță Cache Librărie",
+    "clearSessions": "Șterge sesiunile",
+    "clearUsers": "Ștergeți utilizatorii",
+    "clearServers": "Curăță Servere",
+    "factoryReset": "Resetare fabrică",
+    "manageSnapshots": "Gestionează instantanee din bibliotecă utilizate pentru graficele de stocare și de îmbunătățire a calității",
+    "suspiciousOnly": "Doar suspecte",
+    "load": "Încărcare",
+    "noSuspiciousSnapshots": "Nu s-au găsit imagini suspecte",
+    "clickLoadToView": "Faceți clic pe \"Încărcare\" pentru a vedea imaginile",
+    "deleteSelected": "Şterge cele selectate",
+    "deleteAllSuspicious": "Șterge toate suspiciunile",
+    "suspicious": "Suspicios",
+    "ok": "Ok",
+    "selected": "selectat",
+    "snapshots": "",
+    "of": "din",
+    "logExplorerUnavailable": "Exploratorul de jurnale este disponibil doar în medii Docker"
+  },
+  "media": {
+    "landing": {
+      "title": "",
+      "lens": {
+        "label": "Se vede ca",
+        "allUsers": "Toți utilizatorii"
+      },
+      "shelves": {
+        "recentlyAddedMovies": "",
+        "recentlyAddedShows": "",
+        "recentlyUpdated": "",
+        "mostPopularMovies": "",
+        "mostPopularShows": "",
+        "emptyRecentlyAdded": "",
+        "emptyRecentlyUpdated": "",
+        "emptyMostPopular": "",
+        "captionRecentlyAdded": "",
+        "captionRecentlyUpdated": "",
+        "captionMostPopular": {
+          "day": "",
+          "week": "",
+          "month": "",
+          "year": "",
+          "all": "",
+          "custom": ""
+        }
+      },
+      "card": {
+        "newEpisodes_one": "{{count}} episod nou",
+        "newEpisodes_other": "{{count}} episoade noi",
+        "replacedEpisodes_one": "",
+        "replacedEpisodes_other": "",
+        "addedAgo": "adăugat {{date}}",
+        "addedCompactAgo": "",
+        "newEpisodesChip": ""
+      },
+      "deadWeight": {
+        "title": "",
+        "summary": "",
+        "empty": "",
+        "columns": {
+          "poster": "",
+          "title": "",
+          "size": "",
+          "added": "",
+          "servers": ""
+        },
+        "viewAll": "",
+        "viewAllTooltip": ""
+      },
+      "loadError": ""
+    },
+    "movies": {
+      "title": "Filme"
+    },
+    "shows": {
+      "title": "Seriale"
+    },
+    "genres": {
+      "title": "Genuri",
+      "subtitle": "",
+      "chart": {
+        "title": "",
+        "valueLabel": "",
+        "itemCount_one": "",
+        "itemCount_other": "",
+        "ariaLabel": ""
+      },
+      "table": {
+        "title": "",
+        "columns": {
+          "genre": "",
+          "items": "",
+          "plays": "",
+          "watchTime": ""
+        },
+        "browseMovies": "",
+        "browseShows": ""
+      },
+      "empty": {
+        "title": "",
+        "description": ""
+      },
+      "loadError": ""
+    },
+    "detail": {
+      "title": "Detalii media",
+      "breadcrumb": {
+        "ariaLabel": ""
+      },
+      "notFound": {
+        "title": "",
+        "message": "",
+        "backLink": ""
+      },
+      "hero": {
+        "loadError": "",
+        "meta": {
+          "seasons_one": "",
+          "seasons_other": "",
+          "episodes_one": "",
+          "episodes_other": ""
+        },
+        "availability": {
+          "added": "",
+          "addedRemoved": "",
+          "replaced": ""
+        },
+        "removedEverywhere": {
+          "caption": ""
+        },
+        "actions": {
+          "fullHistory": "",
+          "openOnServer": ""
+        }
+      },
+      "kpis": {
+        "ariaLabel": "",
+        "loadError": "",
+        "completionLoadError": "",
+        "plays": {
+          "label": "",
+          "caption": ""
+        },
+        "watchTime": {
+          "label": "",
+          "detail": ""
+        },
+        "viewers": {
+          "label": "",
+          "detail": ""
+        },
+        "completion": {
+          "label": "",
+          "detail": "",
+          "detailMovie": ""
+        }
+      },
+      "watchers": {
+        "title": "",
+        "loadError": "",
+        "empty": "",
+        "lastWatchedAgo": "",
+        "completionLabel": "",
+        "columns": {
+          "user": "",
+          "plays": "",
+          "episodes": "",
+          "completion": "",
+          "lastWatched": ""
+        }
+      },
+      "seasons": {
+        "title": "",
+        "loadError": "",
+        "empty": "",
+        "episodeCount_one": "",
+        "episodeCount_other": "",
+        "watchedPct": "",
+        "stripSummary": "",
+        "episodeLabel": {
+          "watched": "",
+          "partial": "",
+          "unwatched": ""
+        }
+      },
+      "platforms": {
+        "title": "",
+        "loadError": "",
+        "empty": "",
+        "unknown": "",
+        "columns": {
+          "platform": "",
+          "plays": "",
+          "watchTime": ""
+        }
+      },
+      "history": {
+        "title": "",
+        "loadError": "",
+        "empty": "",
+        "watched": "",
+        "notWatched": "",
+        "columns": {
+          "date": "",
+          "user": "",
+          "content": "",
+          "server": "",
+          "duration": ""
+        }
+      },
+      "copies": {
+        "title": "",
+        "loadError": "",
+        "unknownLibrary": "",
+        "columns": {
+          "server": "",
+          "library": "",
+          "quality": "",
+          "episodes": "",
+          "size": "",
+          "added": ""
+        },
+        "versionLabel": ""
+      }
+    },
+    "posterCard": {
+      "rankSuffix": ", locul {{rank}}",
+      "onServers": "Pe {{servers}}",
+      "addedLabel": "Adăugat {{date}}",
+      "plays_one": "{{count}} vizionare",
+      "plays_other": "{{count}} vizionări",
+      "viewers_one": "{{count}} spectator",
+      "viewers_other": "{{count}} spectatori",
+      "watchedState": {
+        "watched": "Vizionat",
+        "partial": "Vizionat parțial",
+        "watchedByOthers": "",
+        "watchedByYou": ""
+      },
+      "tileLabel": {
+        "added": "adăugat",
+        "plays": "vizionări",
+        "viewers": "spectatori",
+        "resolution": ""
+      },
+      "rankChip": "",
+      "playsCompact_one": "",
+      "playsCompact_other": "",
+      "versionsChip": "",
+      "versions_one": "",
+      "versions_other": "",
+      "moreServers": ""
+    },
+    "grid": {
+      "toolbar": {
+        "ariaLabel": "",
+        "typeLabel": "",
+        "moviesToggle": "",
+        "showsToggle": "",
+        "searchPlaceholder": "",
+        "searchLabel": "",
+        "removeFilter": "",
+        "filtersLabel": "",
+        "filtersSheetTitle": "",
+        "done": "",
+        "watchedLabel": "",
+        "watched": {
+          "all": "",
+          "watched": "",
+          "partial": "",
+          "unwatched": ""
+        },
+        "unwatchedByLens": "",
+        "resolutionLabel": "",
+        "resolutionAll": "",
+        "hdrLabel": "",
+        "hdrAll": "",
+        "hdrOnly": "",
+        "hdrChip": "",
+        "genreLabel": "",
+        "genreAll": "",
+        "serverLabel": "",
+        "serverAll": "",
+        "libraryLabel": "",
+        "libraryAll": "",
+        "yearFromLabel": "",
+        "yearToLabel": "",
+        "sizeGbMinLabel": "",
+        "sizeGbMaxLabel": "",
+        "sizeChipAtLeast": "",
+        "sizeChipAtMost": "",
+        "sizeChipRange": "",
+        "sortLabel": "",
+        "sort": {
+          "title": "",
+          "added": "",
+          "year": "",
+          "plays": "",
+          "watch_time": "",
+          "viewers": ""
+        },
+        "count": "",
+        "countTotal_one": "",
+        "countTotal_other": ""
+      },
+      "scrubber": {
+        "label": "",
+        "current": ""
+      },
+      "loaderError": "",
+      "retry": "",
+      "clearJumpAction": "",
+      "showingFrom": "",
+      "showAll": "",
+      "emptyFilter": "",
+      "emptySearch": "",
+      "emptyAnchored": "",
+      "loadError": ""
+    }
+  },
+  "requests": {
+    "status": {
+      "pending": "",
+      "approved": "",
+      "declined": "",
+      "failed": "",
+      "completed": "",
+      "deleted": ""
+    },
+    "columns": {
+      "requester": "",
+      "title": "",
+      "status": "",
+      "requested": "",
+      "wait": "",
+      "seasons": "",
+      "watched": ""
+    },
+    "wait": {
+      "pending": "",
+      "declined": ""
+    },
+    "seasons": {
+      "all": "",
+      "item": ""
+    },
+    "flags": {
+      "fourK": "",
+      "auto": ""
+    },
+    "hero": {
+      "line": "",
+      "landed": "",
+      "waiting": ""
+    },
+    "mediaPanel": {
+      "title": "",
+      "loadError": "",
+      "empty": ""
+    },
+    "userCard": {
+      "title": "",
+      "loadError": "",
+      "viewAll": "",
+      "showLess": "",
+      "summary": {
+        "requests": "",
+        "medianWait": "",
+        "approvalRate": "",
+        "neverWatched": ""
+      },
+      "empty": ""
+    },
+    "unattributed": "",
+    "watched": {
+      "byRequester": "",
+      "byOthers": ""
+    },
+    "page": {
+      "title": "",
+      "description": "",
+      "failedToLoad": "",
+      "notConfigured": "",
+      "notConfiguredDescription": "",
+      "linkSeerr": "",
+      "kpi": {
+        "requested": "",
+        "landedOf": "",
+        "watched": "",
+        "neverPlayed": "",
+        "ofLanded": "",
+        "onDisk": ""
+      }
+    },
+    "funnel": {
+      "title": "",
+      "description": "",
+      "requested": "",
+      "landed": "",
+      "watched": "",
+      "share": "",
+      "empty": ""
+    },
+    "unplayed": {
+      "title": "",
+      "description": "",
+      "emptyTitle": "",
+      "emptyDescription": ""
+    },
+    "outcomes": {
+      "title": "",
+      "requester": "",
+      "wait": "",
+      "requested": "",
+      "onDisk": "",
+      "untitled": "",
+      "failedToLoad": ""
+    },
+    "followThrough": {
+      "title": "",
+      "description": "",
+      "person": "",
+      "asked": "",
+      "landed": "",
+      "watched": "",
+      "watchedByOthers": "",
+      "medianWait": "",
+      "emptyTitle": "",
+      "emptyDescription": "",
+      "failedToLoad": ""
+    }
+=======
       "lastRun": "Ultima execuție",
       "nextRun": "Următoarea execuție",
       "runNow": "Rulează acum",
@@ -2144,5 +4423,6 @@
     "selectAllViolations": "Selectați toate filtrele de încălcare {{count}}",
     "title": "Incalcari",
     "tryAdjustingFilters": "Încercați să ajustați filtrele"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   }
 }

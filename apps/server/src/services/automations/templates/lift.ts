@@ -5,11 +5,18 @@
 
 import {
   AUTOMATION_NAME_MAX,
+<<<<<<< HEAD
+=======
   TEMPLATE_MIN_SERVER_VERSION,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   TEMPLATE_SCHEMA_VERSION,
   fingerprintOf,
   liftAutomation,
   templateEnvelopeSchema,
+<<<<<<< HEAD
+  templateMinServerVersion,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   type TEMPLATE_GROUPS,
   type TemplateEnvelope,
 } from '@tracearr/shared';
@@ -81,7 +88,11 @@ export function exportEnvelope(
     group: context.group ?? (automation.kind === 'notification' ? 'notifications' : 'policies'),
     kind: automation.kind,
     ...(context.author === undefined ? {} : { author: context.author }),
+<<<<<<< HEAD
+    minServerVersion: templateMinServerVersion(lifted),
+=======
     minServerVersion: TEMPLATE_MIN_SERVER_VERSION,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     inputs: lifted.inputs,
     definition: lifted.definition,
     fingerprint: fingerprintOf(lifted, sha256Hex),

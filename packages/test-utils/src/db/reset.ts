@@ -28,6 +28,12 @@ const ROOT_TABLES = [
   'servers',
   'users',
   'settings',
+<<<<<<< HEAD
+  'destinations',
+  'newsletters',
+  'email_suppressions',
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 ];
 
 let cachedTables: string[] | null = null;

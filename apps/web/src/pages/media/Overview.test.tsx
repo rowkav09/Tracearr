@@ -147,6 +147,10 @@ function fullShelves(): ShelvesResponse {
         year: 2024,
         watchedState: 'unwatched',
         newEpisodes: null,
+<<<<<<< HEAD
+        newestEpisodeAt: null,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       },
     ],
     recentlyAddedShows: [
@@ -158,6 +162,22 @@ function fullShelves(): ShelvesResponse {
         year: 2023,
         watchedState: 'partial',
         newEpisodes: 3,
+<<<<<<< HEAD
+        newestEpisodeAt: '2026-03-04T00:00:00Z',
+      },
+    ],
+    recentlyUpdated: [
+      {
+        ...rowBase,
+        mediaId: 'ru-1',
+        mediaType: 'movie',
+        title: 'Replaced Movie',
+        year: 2021,
+        watchedState: 'unwatched',
+        replacedEpisodes: null,
+        newestEpisodeAt: null,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       },
     ],
     mostPopularMovies: [
@@ -290,15 +310,26 @@ describe('MediaOverview', () => {
     expect(screen.queryByText('media.landing.shelves.recentlyAddedMovies')).not.toBeInTheDocument();
   });
 
+<<<<<<< HEAD
+  it('renders all five shelves with their rows', () => {
+=======
   it('renders all four shelves with their rows', () => {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     mockShelvesReturn({ data: fullShelves() });
 
     renderOverview();
 
     expect(screen.getByText('media.landing.shelves.recentlyAddedMovies')).toBeInTheDocument();
     expect(screen.getByText('media.landing.shelves.recentlyAddedShows')).toBeInTheDocument();
+<<<<<<< HEAD
+    expect(screen.getByText('media.landing.shelves.recentlyUpdated')).toBeInTheDocument();
     expect(screen.getByText('media.landing.shelves.mostPopularMovies')).toBeInTheDocument();
     expect(screen.getByText('media.landing.shelves.mostPopularShows')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Replaced Movie/ })).toBeInTheDocument();
+=======
+    expect(screen.getByText('media.landing.shelves.mostPopularMovies')).toBeInTheDocument();
+    expect(screen.getByText('media.landing.shelves.mostPopularShows')).toBeInTheDocument();
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     expect(screen.getByRole('link', { name: /Recently Added Movie/ })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Grouped Show/ })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Popular Movie/ })).toBeInTheDocument();
@@ -327,6 +358,28 @@ describe('MediaOverview', () => {
     expect(screen.getAllByText(/2022/)).toHaveLength(1);
   });
 
+<<<<<<< HEAD
+  it('dates a show card by its newest episode, not by when the series was first added', () => {
+    const shelves = fullShelves();
+    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString();
+    mockShelvesReturn({
+      data: {
+        ...shelves,
+        recentlyAddedShows: shelves.recentlyAddedShows.map((row) => ({
+          ...row,
+          newestEpisodeAt: threeDaysAgo,
+        })),
+      },
+    });
+
+    renderOverview();
+
+    // The series' own copy sits at 2024-01-01, which would read in years.
+    expect(screen.getByText('media.landing.card.addedCompactAgo:{"age":"3d"}')).toBeInTheDocument();
+  });
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   it('refetches shelves with the new period when the time range changes', async () => {
     const user = userEvent.setup();
     mockShelvesReturn({ data: fullShelves() });
@@ -411,6 +464,10 @@ describe('MediaOverview', () => {
         ...fullShelves(),
         recentlyAddedMovies: [],
         recentlyAddedShows: [],
+<<<<<<< HEAD
+        recentlyUpdated: [],
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         mostPopularMovies: [],
         mostPopularShows: [],
         deadWeight: [],

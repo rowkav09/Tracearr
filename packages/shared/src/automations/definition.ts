@@ -429,6 +429,10 @@ export interface RunSessionContext {
   ipAddress: string | null;
   city: string | null;
   country: string | null;
+<<<<<<< HEAD
+  isLocal: boolean;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 export interface AutomationRunSummary {

@@ -3,17 +3,36 @@
  *
  * GET /resolution - Resolution distribution for library items by media type
  *
+<<<<<<< HEAD
+ * Returns per-tier counts split by:
+=======
  * Returns resolution breakdowns (4K, 1080p, 720p, SD) split by:
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
  * - Movies
  * - TV Shows (episodes)
  */
 
 import type { FastifyPluginAsync } from 'fastify';
+<<<<<<< HEAD
+import { sql, type SQL } from 'drizzle-orm';
+import { z } from 'zod';
+import {
+  REDIS_KEYS,
+  CACHE_TTL,
+  RESOLUTION_BUCKETS,
+  uuidSchema,
+  type LibraryResolutionResponse,
+  type ResolutionBreakdown,
+} from '@tracearr/shared';
+import { db } from '../../db/client.js';
+import { readResolutionCounts, versionBucketFlagsJoin } from '../../utils/resolutionBuckets.js';
+=======
 import { sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { REDIS_KEYS, CACHE_TTL, uuidSchema } from '@tracearr/shared';
 import { db } from '../../db/client.js';
 import { hasVersionInBucket } from '../../utils/resolutionBuckets.js';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import {
   validateServerAccess,
   resolveServerIds,
@@ -29,6 +48,24 @@ const resolutionQuerySchema = z.object({
 
 type ResolutionQueryInput = z.infer<typeof resolutionQuerySchema>;
 
+<<<<<<< HEAD
+/** Items with no resolution at all count as SD here, unlike the snapshot writers. */
+function bucketCountsSelect(): SQL {
+  return sql.join(
+    RESOLUTION_BUCKETS.map((bucket) =>
+      bucket === 'sd'
+        ? sql`COUNT(*) FILTER (WHERE vb.has_sd OR library_items.video_resolution IS NULL)::int AS count_sd`
+        : sql`COUNT(*) FILTER (WHERE ${sql.raw(`vb.has_${bucket}`)})::int AS ${sql.raw(`count_${bucket}`)}`
+    ),
+    sql`, `
+  );
+}
+
+function buildBreakdown(row: Record<string, unknown> | undefined): ResolutionBreakdown {
+  const counts = readResolutionCounts(row);
+  const total = RESOLUTION_BUCKETS.reduce((sum, bucket) => sum + counts[bucket], 0);
+  return { counts, total };
+=======
 /** Single resolution entry with count and percentage */
 interface ResolutionEntry {
   resolution: string;
@@ -87,6 +124,7 @@ function buildBreakdown(
     total,
     entries,
   };
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 export const libraryResolutionRoute: FastifyPluginAsync = async (app) => {
@@ -142,6 +180,25 @@ export const libraryResolutionRoute: FastifyPluginAsync = async (app) => {
       // Library filter
       const libraryFilter = libraryId ? sql`AND library_id = ${libraryId}` : sql``;
 
+<<<<<<< HEAD
+      const countsFor = (mediaType: 'movie' | 'episode') =>
+        db.execute(sql`
+          SELECT ${bucketCountsSelect()}
+          FROM library_items
+          ${versionBucketFlagsJoin('library_items.id', { includeNullAsSd: true })}
+          WHERE media_type = ${mediaType}
+            AND removed_at IS NULL
+            ${serverFilter}
+            ${libraryFilter}
+        `);
+
+      const moviesResult = await countsFor('movie');
+      const tvResult = await countsFor('episode');
+
+      const response: LibraryResolutionResponse = {
+        movies: buildBreakdown(moviesResult.rows[0]),
+        tv: buildBreakdown(tvResult.rows[0]),
+=======
       // Query resolution counts for movies
       const moviesResult = await db.execute(sql`
         SELECT
@@ -203,6 +260,7 @@ export const libraryResolutionRoute: FastifyPluginAsync = async (app) => {
           tvRow?.count_720p ?? 0,
           tvRow?.count_sd ?? 0
         ),
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       };
 
       // Cache for 5 minutes

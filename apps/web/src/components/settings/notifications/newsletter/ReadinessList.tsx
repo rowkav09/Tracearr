@@ -12,12 +12,18 @@ import {
 import {
   memberFacingUrl,
   type Destination,
+<<<<<<< HEAD
+=======
   type NewsletterRecipients,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   type NewsletterRecipientsView,
   type NewsletterVariantsView,
   type Server,
 } from '@tracearr/shared';
 import { Button } from '@/components/ui/button';
+<<<<<<< HEAD
+import { useDestinations, useNewsletterVariants, useServers, useSettings } from '@/hooks/queries';
+=======
 import { FieldDescription } from '@/components/ui/field';
 import {
   useDestinations,
@@ -26,6 +32,7 @@ import {
   useServers,
   useSettings,
 } from '@/hooks/queries';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { formatList } from '@/lib/listFormat';
 import { cn } from '@/lib/utils';
 import type { Translate } from '../newsletterFormat';
@@ -34,12 +41,20 @@ import {
   DELIVERY_CARD_ID,
   NEWSLETTER_FIELD_IDS,
   RECIPIENTS_CARD_ID,
+<<<<<<< HEAD
+  scopedServers,
+  type NewsletterFormState,
+} from './newsletterForm';
+import { partitionRecipients } from './recipientsView';
+import { useRecipientsView } from './useRecipientsView';
+=======
   recipientsQueryId,
   scopeMoved,
   scopedServers,
   type NewsletterFormState,
 } from './newsletterForm';
 import { extraRecipients, partitionRecipients } from './RecipientsPanel';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 export const DNS_DOCS_URL = 'https://docs.tracearr.com/configuration/email#spf-dkim-and-dmarc';
 
@@ -79,6 +94,16 @@ const domainOf = (address: string | null | undefined): string | null => {
   return address.slice(address.lastIndexOf('@') + 1).toLowerCase();
 };
 
+<<<<<<< HEAD
+/** A form that could reach nobody is known without asking; anything else waits for the view. */
+export function recipientsState(
+  empty: boolean,
+  view: NewsletterRecipientsView | undefined
+): { resolvable: number; known: boolean } {
+  if (empty) return { resolvable: 0, known: true };
+  if (!view) return { resolvable: 0, known: false };
+  return { resolvable: partitionRecipients(view).receive.length, known: true };
+=======
 /** Members off is always known client-side; members on is known once the saved view resolves. */
 export function recipientsState(
   form: NewsletterRecipients,
@@ -89,6 +114,7 @@ export function recipientsState(
   if (!view) return { resolvable: 0, known: false };
   const { receive, included } = partitionRecipients(view, form.excludeUserIds);
   return { resolvable: receive.length + included.length, known: true };
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 export function readinessChecks(input: {
@@ -96,14 +122,22 @@ export function readinessChecks(input: {
   destinationId: string | null;
   destination: Destination | null;
   destinationsError: boolean;
+<<<<<<< HEAD
+  recipients: { empty: boolean; view: NewsletterRecipientsView | undefined };
+=======
   recipients: { form: NewsletterRecipients; view: NewsletterRecipientsView | undefined };
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   servers: Pick<Server, 'name' | 'type' | 'url' | 'publicUrl'>[];
   variants: NewsletterVariantsView | undefined;
   variantsError: boolean;
 }): ReadinessCheck[] {
   const from = domainOf(input.destination?.config?.['fromAddress']);
   const user = domainOf(input.destination?.config?.['username']);
+<<<<<<< HEAD
+  const recipients = recipientsState(input.recipients.empty, input.recipients.view);
+=======
   const recipients = recipientsState(input.recipients.form, input.recipients.view);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   const privateServers: ReadinessCheck[] = input.servers
     .filter((s) => s.type !== 'plex' && memberFacingUrl(s) === null)
     .map((s) => ({
@@ -180,21 +214,32 @@ const TONES: Record<ReadinessStatus, string> = {
 export function ReadinessList({
   state,
   newsletterId,
+<<<<<<< HEAD
+}: {
+  state: NewsletterFormState;
+  newsletterId: string | null;
+=======
   savedServerIds,
 }: {
   state: NewsletterFormState;
   newsletterId: string | null;
   /** The saved row's `scope.serverIds`, or null before the first save; the recipient rows read the saved row. */
   savedServerIds: string[] | null;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }) {
   const { t, i18n } = useTranslation('settings');
   const translate = t as Translate;
   const { data: settings } = useSettings();
   const { data: destinations, isError: destinationsError } = useDestinations();
   const { data: servers } = useServers();
+<<<<<<< HEAD
+  const { query: recipientsQuery, empty } = useRecipientsView(state, newsletterId);
+  const { data: view, isError: recipientsError } = recipientsQuery;
+=======
   const { data: view, isError: recipientsError } = useNewsletterRecipients(
     recipientsQueryId(state.recipients, newsletterId)
   );
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   const { data: variants, isError: variantsError } = useNewsletterVariants(
     newsletterId ?? undefined
   );
@@ -205,12 +250,19 @@ export function ReadinessList({
     destinationId: state.destinationId,
     destination,
     destinationsError,
+<<<<<<< HEAD
+    recipients: { empty, view },
+=======
     recipients: { form: state.recipients, view },
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     servers: inScope,
     variants,
     variantsError,
   });
+<<<<<<< HEAD
+=======
   const staleScope = scopeMoved(savedServerIds, state.scope.serverIds);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
   const copyFor = (check: ReadinessCheck): ReactNode => {
     switch (check.id) {
@@ -232,10 +284,16 @@ export function ReadinessList({
         if (check.status === 'pass')
           return translate('newsletters.editor.readiness.recipients', { count: check.count });
         if (check.status === 'fail') return t('newsletters.editor.readiness.recipientsFail');
+<<<<<<< HEAD
+        return recipientsError
+          ? t('newsletters.editor.readiness.recipientsLoadFailed')
+          : t('newsletters.editor.readiness.recipientsChecking');
+=======
         // A saved newsletter whose recipients failed to load says so; an unsaved one has nothing to query yet, so it says recipients are unknown until save.
         return newsletterId !== null && recipientsError
           ? t('newsletters.editor.readiness.recipientsLoadFailed')
           : t('newsletters.editor.readiness.recipientsUnknown');
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       case 'privateServer': {
         const link = (
           <Link to={SERVER_SETTINGS_PATH} className="underline underline-offset-4">
@@ -326,9 +384,12 @@ export function ReadinessList({
       title={t('newsletters.editor.readiness.title')}
       description={t('newsletters.editor.readiness.intro')}
     >
+<<<<<<< HEAD
+=======
       {staleScope && (
         <FieldDescription>{t('newsletters.editor.readiness.staleScope')}</FieldDescription>
       )}
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       <ul className="flex flex-col gap-2">
         {checks.map((check) => {
           const Icon = ICONS[check.status];

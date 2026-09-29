@@ -24,6 +24,36 @@ const CLIENT_VERSION = '1.0.0';
 const DEVICE_ID = 'tracearr-server';
 const DEVICE_NAME = 'Tracearr Server';
 
+<<<<<<< HEAD
+// MusicArtist is only requested for music libraries: Jellyfin 12 answers it
+// with every artist on the server whatever ParentId the query names
+const LIBRARY_ITEM_TYPES: Record<string, string> = {
+  movies: 'Movie',
+  tvshows: 'Series',
+  music: 'MusicArtist,MusicAlbum,Audio',
+};
+const DEFAULT_LIBRARY_ITEM_TYPES = 'Movie,Series,MusicAlbum,Audio';
+// Leaves included: the existence check covers every row a scan tracks for the
+// library, and must not answer for types the library never lists (an artist
+// filed under a video library by the leak above stays gone)
+const LIBRARY_ALL_ITEM_TYPES: Record<string, string> = {
+  movies: 'Movie',
+  tvshows: 'Series,Season,Episode',
+  music: 'MusicArtist,MusicAlbum,Audio',
+};
+const DEFAULT_ALL_ITEM_TYPES = 'Movie,Series,Season,Episode,MusicArtist,MusicAlbum,Audio';
+const ID_LOOKUP_BATCH_SIZE = 100;
+
+function libraryItemTypes(libraryType?: string): string {
+  return LIBRARY_ITEM_TYPES[(libraryType ?? '').toLowerCase()] ?? DEFAULT_LIBRARY_ITEM_TYPES;
+}
+
+function libraryAllItemTypes(libraryType?: string): string {
+  return LIBRARY_ALL_ITEM_TYPES[(libraryType ?? '').toLowerCase()] ?? DEFAULT_ALL_ITEM_TYPES;
+}
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 export function buildJellyfinEmbyAuthHeader(token: string): string {
   return `MediaBrowser Client="${CLIENT_NAME}", Device="${DEVICE_NAME}", DeviceId="${DEVICE_ID}", Version="${CLIENT_VERSION}", Token="${token}"`;
 }
@@ -222,7 +252,11 @@ export abstract class BaseMediaServerClient
    */
   async getLibraryItems(
     libraryId: string,
+<<<<<<< HEAD
+    options?: { offset?: number; limit?: number; libraryType?: string }
+=======
     options?: { offset?: number; limit?: number }
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   ): Promise<{ items: MediaLibraryItem[]; totalCount: number; rawCount: number }> {
     const offset = options?.offset ?? 0;
     const limit = options?.limit ?? 100;
@@ -232,7 +266,14 @@ export abstract class BaseMediaServerClient
       Recursive: 'true',
       // Episode and Season: fetched separately via getLibraryLeaves() to avoid
       // double-counting and to keep this query's totalCount top-level-only
+<<<<<<< HEAD
+      IncludeItemTypes: libraryItemTypes(options?.libraryType),
+      // Jellyfin 12 otherwise folds collection members into their BoxSet and
+      // leaves the movies themselves out of the listing
+      CollapseBoxSetItems: 'false',
+=======
       IncludeItemTypes: 'Movie,Series,MusicArtist,MusicAlbum,Audio',
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       // IsMissing=false excludes "missing" items that Jellyfin/Emby knows about from metadata
       // but the user doesn't have files for (fixes #240 - inflated episode counts)
       IsMissing: 'false',
@@ -275,7 +316,11 @@ export abstract class BaseMediaServerClient
   async getLibraryItemsSince(
     libraryId: string,
     since: Date,
+<<<<<<< HEAD
+    options?: { offset?: number; limit?: number; libraryType?: string }
+=======
     _options?: { offset?: number; limit?: number }
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   ): Promise<{ items: MediaLibraryItem[]; totalCount: number }> {
     const PAGE_SIZE = 200;
     const allItems: MediaLibraryItem[] = [];
@@ -285,7 +330,12 @@ export abstract class BaseMediaServerClient
       const params = new URLSearchParams({
         ParentId: libraryId,
         Recursive: 'true',
+<<<<<<< HEAD
+        IncludeItemTypes: libraryItemTypes(options?.libraryType),
+        CollapseBoxSetItems: 'false',
+=======
         IncludeItemTypes: 'Movie,Series,MusicArtist,MusicAlbum,Audio',
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         IsMissing: 'false',
         Fields:
           'ProviderIds,Path,MediaSources,DateCreated,ProductionYear,SeriesName,SeriesId,ParentIndexNumber,IndexNumber,Album,AlbumArtist,Artists,AlbumId,AlbumPrimaryImageTag,Genres,ImageTags',
@@ -571,6 +621,36 @@ export abstract class BaseMediaServerClient
   // ==========================================================================
 
   /**
+<<<<<<< HEAD
+   * Which of the given item ids the server still has as items a library of
+   * this type holds. Virtual items (metadata without a file) count as gone,
+   * matching the IsMissing=false listings.
+   */
+  async findExistingRatingKeys(
+    ratingKeys: string[],
+    library: { id: string; type: string }
+  ): Promise<Set<string>> {
+    const existing = new Set<string>();
+    for (let start = 0; start < ratingKeys.length; start += ID_LOOKUP_BATCH_SIZE) {
+      const params = new URLSearchParams({
+        Ids: ratingKeys.slice(start, start + ID_LOOKUP_BATCH_SIZE).join(','),
+        IncludeItemTypes: libraryAllItemTypes(library.type),
+        IsMissing: 'false',
+      });
+      const data = await fetchJson<{ Items?: Array<{ Id?: string; LocationType?: string }> }>(
+        `${this.baseUrl}/Items?${params}`,
+        { headers: this.buildHeaders(), service: this.serverType, timeout: 30000 }
+      );
+      for (const item of data.Items ?? []) {
+        if (item.Id && item.LocationType !== 'Virtual') existing.add(item.Id);
+      }
+    }
+    return existing;
+  }
+
+  /**
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
    * Batch fetch media items by their IDs
    */
   async getItems(ids: string[]): Promise<JellyfinEmbyItemResult[]> {

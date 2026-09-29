@@ -84,7 +84,14 @@
     "stopped": "Stopped",
     "directPlay": "Direct Play",
     "directStream": "Direct Stream",
+<<<<<<< HEAD
+    "transcode": "Transcode",
+    "hwTranscode": "HW Transcode",
+    "burnIn": "Burn-in",
+    "watched": "Watched"
+=======
     "transcode": "Transcode"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "severity": {
     "low": "Low",
@@ -116,7 +123,16 @@
     "last30Days": "Last 30 Days",
     "lastYear": "Last Year",
     "byDay": "By Day",
+<<<<<<< HEAD
+    "byHour": "By Hour",
+    "short7Days": "7d",
+    "short30Days": "30d",
+    "shortYear": "1y",
+    "shortAll": "All",
+    "timeRange": "Time range"
+=======
     "byHour": "By Hour"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "units": {
     "km": "km",
@@ -130,6 +146,10 @@
     "content": "Content",
     "platform": "Platform",
     "location": "Location",
+<<<<<<< HEAD
+    "local": "Local",
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "ipAddress": "IP Address",
     "quality": "Quality",
     "duration": "Duration",
@@ -180,7 +200,12 @@
     "segments": "segments",
     "streamDetails": "Stream Details",
     "transcodeReason": "Transcode Reason",
+<<<<<<< HEAD
+    "loadMore": "Load More",
+    "playback": "Playback"
+=======
     "loadMore": "Load More"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "search": {
     "placeholder": "Search...",
@@ -191,7 +216,12 @@
     "selectAllOnPage": "Select all on page",
     "selectRow": "Select row",
     "pageOf": "Page {{page}} of {{total}}",
+<<<<<<< HEAD
+    "pagination": "Pagination",
+    "goToPage": "Go to page {{page}}"
+=======
     "pagination": "Pagination"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "filters": {
     "clearAll": "Clear all",
@@ -283,7 +313,15 @@
     "location_one": "{{count}} location",
     "location_other": "{{count}} locations",
     "device_one": "{{count}} device",
+<<<<<<< HEAD
+    "device_other": "{{count}} devices",
+    "play_one": "{{count}} play",
+    "play_other": "{{count}} plays",
+    "segment_one": "{{count}} segment",
+    "segment_other": "{{count}} segments"
+=======
     "device_other": "{{count}} devices"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "messages": {
     "noChangesDetected": "No changes detected"

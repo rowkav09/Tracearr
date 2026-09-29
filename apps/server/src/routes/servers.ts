@@ -3,7 +3,11 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify';
+<<<<<<< HEAD
+import { eq, inArray, and } from 'drizzle-orm';
+=======
 import { eq, inArray, and, asc } from 'drizzle-orm';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import {
   createServerSchema,
   serverIdParamSchema,
@@ -15,16 +19,27 @@ import {
 } from '@tracearr/shared';
 import { db } from '../db/client.js';
 import { servers, plexAccounts } from '../db/schema.js';
+<<<<<<< HEAD
+import { PlexClient, JellyfinClient, EmbyClient } from '../services/mediaServer/index.js';
+=======
 // Token encryption removed - tokens now stored in plain text (DB is localhost-only)
 import { PlexClient, JellyfinClient, EmbyClient } from '../services/mediaServer/index.js';
 import { NavidromeClient } from '../services/mediaServer/navidrome/client.js';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { getServerLiveStats, getServerResourceStats } from '../services/serverLiveStats.js';
 import { syncServer } from '../services/sync.js';
 import { sseManager } from '../services/sseManager.js';
 import { getCacheService } from '../services/cache.js';
 import { enqueueLibrarySync } from '../jobs/librarySyncQueue.js';
 import { publishServersChanged } from '../jobs/poller/database.js';
+<<<<<<< HEAD
+import { readServerIdentity } from '../services/serverIdentity.js';
+import { rearmImportedHistoryLink } from '../services/settings.js';
+import { buildServerAccessCondition, hasServerAccess } from '../utils/serverFiltering.js';
+import { serverOrderBy } from '../utils/serverOrder.js';
+=======
 import { buildServerAccessCondition } from '../utils/serverFiltering.js';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 export const serverRoutes: FastifyPluginAsync = async (app) => {
   /**
@@ -52,7 +67,11 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
       })
       .from(servers)
       .where(buildServerAccessCondition(authUser, servers.id))
+<<<<<<< HEAD
+      .orderBy(...serverOrderBy());
+=======
       .orderBy(asc(servers.displayOrder));
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
     // Backfill colors for any servers missing them
     const uncolored = serverList.filter((s) => !s.color);
@@ -144,12 +163,19 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
             return reply.serviceUnavailable(adminCheck.message);
           }
           if (adminCheck.code === JellyfinClient.AdminVerifyError.INVALID_KEY) {
+<<<<<<< HEAD
+            return reply.badRequest(adminCheck.message);
+          }
+          return reply.forbidden(adminCheck.message);
+        }
+=======
             return reply.unauthorized(adminCheck.message);
           }
           return reply.forbidden(adminCheck.message);
         }
       } else if (type === 'navidrome') {
         await new NavidromeClient({ url, token }).testConnection();
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       } else if (type === 'emby') {
         const adminCheck = await EmbyClient.verifyServerAdmin(token, url);
         if (!adminCheck.success) {
@@ -157,7 +183,11 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
             return reply.serviceUnavailable(adminCheck.message);
           }
           if (adminCheck.code === EmbyClient.AdminVerifyError.INVALID_KEY) {
+<<<<<<< HEAD
+            return reply.badRequest(adminCheck.message);
+=======
             return reply.unauthorized(adminCheck.message);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           }
           return reply.forbidden(adminCheck.message);
         }
@@ -204,6 +234,13 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
 
     await publishServersChanged();
 
+<<<<<<< HEAD
+    if (server.type === 'plex') {
+      await rearmImportedHistoryLink({ keepProviderPass: false });
+    }
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     // Auto-sync users and libraries in background
     syncServer(server.id, { syncUsers: true, syncLibraries: true })
       .then((result) => {
@@ -229,9 +266,15 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
   });
 
   /**
+<<<<<<< HEAD
+   * PATCH /servers/:id - Update a server's name, URL, color, public address or API key
+   * At least one is required. A URL or API key change is verified against the server, and
+   * refused when it reaches a different server than the one the row belongs to.
+=======
    * PATCH /servers/:id - Update server name and/or URL
    * Accepts optional name and/or url; at least one is required.
    * When url is provided, verifies the new URL is reachable with existing token before updating.
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
    *
    * For Plex servers with clientIdentifier:
    * - Validates that the clientIdentifier matches the server's machineIdentifier
@@ -255,6 +298,10 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
       clientIdentifier,
       color: newColor,
       publicUrl: newPublicUrl,
+<<<<<<< HEAD
+      apiKey: newApiKey,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     } = body.data;
     const newUrl = bodyUrl !== undefined ? bodyUrl.replace(/\/$/, '') : undefined;
     const authUser = request.user;
@@ -276,13 +323,25 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
       return reply.badRequest(PUBLIC_URL_PLEX_MESSAGE);
     }
 
+<<<<<<< HEAD
+    if (server.type === 'plex' && newApiKey !== undefined) {
+      return reply.badRequest('Plex servers sign in through plex.tv and have no API key to change');
+    }
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     const same = <T>(next: T | undefined, current: T): boolean =>
       next === undefined || next === current;
     if (
       same(newName, server.name) &&
       same(newUrl, server.url) &&
       same(newColor, server.color) &&
+<<<<<<< HEAD
+      same(newPublicUrl, server.publicUrl) &&
+      same(newApiKey, server.token)
+=======
       same(newPublicUrl, server.publicUrl)
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     ) {
       return {
         id: server.id,
@@ -296,8 +355,19 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
       };
     }
 
+<<<<<<< HEAD
+    const urlChanging = newUrl !== undefined && server.url !== newUrl;
+    const keyChanging = newApiKey !== undefined && server.token !== newApiKey;
+    const targetUrl = newUrl ?? server.url;
+    const token = newApiKey ?? server.token;
+
+    let backfilledIdentity: string | undefined;
+
+    if (urlChanging || keyChanging) {
+=======
     // Only verify when the URL is actually changing
     if (newUrl !== undefined && server.url !== newUrl) {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       // For Plex servers: Validate machineIdentifier if provided
       if (server.type === 'plex' && clientIdentifier) {
         if (server.machineIdentifier && server.machineIdentifier !== clientIdentifier) {
@@ -308,10 +378,16 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
         }
       }
 
+<<<<<<< HEAD
+      try {
+        if (server.type === 'plex') {
+          const adminCheck = await PlexClient.verifyServerAdmin(token, targetUrl);
+=======
       // Verify the new URL works with the existing token
       try {
         if (server.type === 'plex') {
           const adminCheck = await PlexClient.verifyServerAdmin(server.token, newUrl);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           if (!adminCheck.success) {
             if (adminCheck.code === PlexClient.AdminVerifyError.CONNECTION_FAILED) {
               return reply.serviceUnavailable(adminCheck.message);
@@ -319,12 +395,24 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
             return reply.forbidden(adminCheck.message);
           }
         } else if (server.type === 'jellyfin') {
+<<<<<<< HEAD
+          const adminCheck = await JellyfinClient.verifyServerAdmin(token, targetUrl);
+=======
           const adminCheck = await JellyfinClient.verifyServerAdmin(server.token, newUrl);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           if (!adminCheck.success) {
             if (adminCheck.code === JellyfinClient.AdminVerifyError.CONNECTION_FAILED) {
               return reply.serviceUnavailable(adminCheck.message);
             }
             if (adminCheck.code === JellyfinClient.AdminVerifyError.INVALID_KEY) {
+<<<<<<< HEAD
+              return reply.badRequest(adminCheck.message);
+            }
+            return reply.forbidden(adminCheck.message);
+          }
+        } else if (server.type === 'emby') {
+          const adminCheck = await EmbyClient.verifyServerAdmin(token, targetUrl);
+=======
               return reply.unauthorized(adminCheck.message);
             }
             return reply.forbidden(adminCheck.message);
@@ -333,22 +421,65 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
           await new NavidromeClient({ url: newUrl, token: server.token }).testConnection();
         } else if (server.type === 'emby') {
           const adminCheck = await EmbyClient.verifyServerAdmin(server.token, newUrl);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           if (!adminCheck.success) {
             if (adminCheck.code === EmbyClient.AdminVerifyError.CONNECTION_FAILED) {
               return reply.serviceUnavailable(adminCheck.message);
             }
             if (adminCheck.code === EmbyClient.AdminVerifyError.INVALID_KEY) {
+<<<<<<< HEAD
+              return reply.badRequest(adminCheck.message);
+=======
               return reply.unauthorized(adminCheck.message);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
             }
             return reply.forbidden(adminCheck.message);
           }
         }
       } catch (error) {
+<<<<<<< HEAD
+        app.log.error({ err: error, serverId: id, url: targetUrl }, 'Failed to verify server');
+        return reply.badRequest(
+          'Failed to connect to the server. Please verify the URL and API key are correct.'
+        );
+      }
+
+      const expectedIdentity =
+        server.machineIdentifier ?? (await readServerIdentity(server).catch(() => null));
+      if (!expectedIdentity) {
+        return reply.badRequest(
+          'Tracearr has no record of which server this is and cannot reach it with the saved address and key, so it cannot confirm the change points at the same server.'
+        );
+      }
+
+      const reachedIdentity = await readServerIdentity({
+        id,
+        type: server.type,
+        url: targetUrl,
+        token,
+      }).catch((error: unknown) => {
+        app.log.error(
+          { err: error, serverId: id, url: targetUrl },
+          'Failed to read server identity'
+        );
+        return null;
+      });
+      if (reachedIdentity === null) {
+        return reply.badRequest('Could not read which server answers at that address.');
+      }
+      if (reachedIdentity !== expectedIdentity) {
+        return reply.badRequest(
+          'That address or API key reaches a different server. A server can only be pointed at itself.'
+        );
+      }
+      if (!server.machineIdentifier) backfilledIdentity = expectedIdentity;
+=======
         app.log.error({ err: error, serverId: id, newUrl }, 'Failed to verify new server URL');
         return reply.badRequest(
           'Failed to connect to server at new URL. Please verify the URL is correct.'
         );
       }
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     }
 
     const updatePayload: {
@@ -356,12 +487,24 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
       url?: string;
       color?: string | null;
       publicUrl?: string | null;
+<<<<<<< HEAD
+      token?: string;
+      machineIdentifier?: string;
       updatedAt: Date;
     } = { updatedAt: new Date() };
+    if (backfilledIdentity !== undefined) updatePayload.machineIdentifier = backfilledIdentity;
+=======
+      updatedAt: Date;
+    } = { updatedAt: new Date() };
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     if (newName !== undefined) updatePayload.name = newName;
     if (newUrl !== undefined) updatePayload.url = newUrl;
     if (newColor !== undefined) updatePayload.color = newColor;
     if (newPublicUrl !== undefined) updatePayload.publicUrl = newPublicUrl;
+<<<<<<< HEAD
+    if (newApiKey !== undefined) updatePayload.token = newApiKey;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
     const updated = await db
       .update(servers)
@@ -395,6 +538,17 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
           app.log.error({ err: error, serverId: id }, 'SSE refresh failed after URL update');
         });
     }
+<<<<<<< HEAD
+    if (keyChanging) {
+      app.log.info({ serverId: id }, 'Server API key updated');
+      if (newUrl === undefined) {
+        sseManager.refresh().catch((error: unknown) => {
+          app.log.error({ err: error, serverId: id }, 'SSE refresh failed after API key update');
+        });
+      }
+    }
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     if (newName !== undefined) {
       app.log.info({ serverId: id, oldName: server.name, newName }, 'Server name updated');
     }
@@ -563,7 +717,11 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
   /**
    * GET /servers/:id/statistics - Get server resource statistics (CPU, RAM)
    * On-demand endpoint for dashboard - data is not stored
+<<<<<<< HEAD
+   * Plex only (undocumented /statistics/resources endpoint). /live-stats covers every server type.
+=======
    * Currently only supported for Plex servers (undocumented /statistics/resources endpoint)
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
    */
   app.get('/:id/statistics', { preHandler: [app.authenticate] }, async (request, reply) => {
     const params = serverIdParamSchema.safeParse(request.params);
@@ -573,6 +731,13 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
 
     const { id } = params.data;
 
+<<<<<<< HEAD
+    if (!hasServerAccess(request.user, id)) {
+      return reply.forbidden('You do not have access to this server');
+    }
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     // Get server with token
     const serverRows = await db.select().from(servers).where(eq(servers.id, id)).limit(1);
 
@@ -581,7 +746,11 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
       return reply.notFound('Server not found');
     }
 
+<<<<<<< HEAD
+    // Reads Plex's own statistics endpoint; Jellyfin and Emby are served by /live-stats
+=======
     // Only Plex is supported for now (Jellyfin/Emby don't have equivalent endpoint)
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     if (server.type !== 'plex') {
       return reply.badRequest('Server statistics are only available for Plex servers');
     }
@@ -611,6 +780,13 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
 
     const { id } = params.data;
 
+<<<<<<< HEAD
+    if (!hasServerAccess(request.user, id)) {
+      return reply.forbidden('You do not have access to this server');
+    }
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     const serverRows = await db.select().from(servers).where(eq(servers.id, id)).limit(1);
 
     const server = serverRows[0];
@@ -635,6 +811,8 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
   });
 
   /**
+<<<<<<< HEAD
+=======
    * GET /servers/:id/image/* - Proxy images from Plex/Jellyfin servers
    * This endpoint fetches images without exposing server tokens to the client
    *
@@ -714,6 +892,7 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
   });
 
   /**
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
    * GET /servers/health - Get health status for all servers
    * Returns which servers are currently unreachable based on cached health state
    */
@@ -727,7 +906,12 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
         name: servers.name,
       })
       .from(servers)
+<<<<<<< HEAD
+      .where(buildServerAccessCondition(authUser, servers.id))
+      .orderBy(...serverOrderBy());
+=======
       .where(buildServerAccessCondition(authUser, servers.id));
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
     const cacheService = getCacheService();
     const unhealthyServers: { serverId: string; serverName: string }[] = [];

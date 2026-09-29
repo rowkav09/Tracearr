@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
+<<<<<<< HEAD
+import { parseLibraryItemsResponse, parseRatingKeys } from '../parser.js';
+=======
 import { parseLibraryItemsResponse } from '../parser.js';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 function musicResponse(items: Array<Record<string, unknown>>) {
   return { MediaContainer: { Metadata: items } };
@@ -64,3 +68,98 @@ describe('parseLibraryItemsResponse - music', () => {
     expect(item!.parentRatingKey).toBe('10');
   });
 });
+<<<<<<< HEAD
+
+describe('parseRatingKeys', () => {
+  it('lists the rating keys a batched metadata lookup returned for the section', () => {
+    expect(
+      parseRatingKeys(
+        musicResponse([
+          { ratingKey: '100', librarySectionID: 3 },
+          { ratingKey: 200, librarySectionID: 3 },
+          { ratingKey: '300' },
+          {},
+        ]),
+        '3'
+      )
+    ).toEqual(['100', '200', '300']);
+  });
+
+  it('leaves out trashed items and items that moved to another section', () => {
+    expect(
+      parseRatingKeys(
+        musicResponse([
+          { ratingKey: '100', librarySectionID: 3, deletedAt: 1700000000 },
+          { ratingKey: '200', librarySectionID: 4 },
+        ]),
+        '3'
+      )
+    ).toEqual([]);
+  });
+
+  it('is empty for a container without metadata', () => {
+    expect(parseRatingKeys({ MediaContainer: {} }, '3')).toEqual([]);
+  });
+});
+
+describe('parseLibraryItemsResponse - external ids', () => {
+  it('keeps the first id per provider when the agent lists a second one', () => {
+    const [item] = parseLibraryItemsResponse(
+      musicResponse([
+        {
+          ratingKey: '491536',
+          title: 'Windows of Opportunity',
+          type: 'episode',
+          addedAt: 1700000000,
+          Guid: [
+            { id: 'imdb://tt32227355' },
+            { id: 'imdb://tt32429838' },
+            { id: 'tmdb://5175710' },
+            { id: 'tmdb://6086713' },
+            { id: 'tvdb://10339871' },
+          ],
+        },
+      ])
+    );
+
+    expect(item!.imdbId).toBe('tt32227355');
+    expect(item!.tmdbId).toBe(5175710);
+    expect(item!.tvdbId).toBe(10339871);
+  });
+});
+
+describe('parseLibraryItemsResponse - plexGuid', () => {
+  it('normalizes the main guid attribute for a movie', () => {
+    const [item] = parseLibraryItemsResponse(
+      musicResponse([
+        {
+          ratingKey: '1',
+          title: 'The Shawshank Redemption',
+          type: 'movie',
+          addedAt: 1700000000,
+          guid: 'plex://movie/5d776b59ad5437001f79c6f8?lang=en',
+        },
+      ])
+    );
+
+    expect(item!.plexGuid).toBe('plex://movie/5d776b59ad5437001f79c6f8');
+  });
+
+  it('sets plexGuid to null for a legacy agent guid', () => {
+    const [item] = parseLibraryItemsResponse(
+      musicResponse([
+        {
+          ratingKey: '2',
+          title: 'The Shawshank Redemption',
+          type: 'movie',
+          addedAt: 1700000000,
+          guid: 'com.plexapp.agents.imdb://tt0111161?lang=en',
+        },
+      ])
+    );
+
+    expect(item!.plexGuid).toBeNull();
+  });
+});
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)

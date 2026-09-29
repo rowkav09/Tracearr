@@ -12,6 +12,10 @@
  * - GET /:id/locations - Get user's unique locations
  * - GET /:id/devices - Get user's unique devices
  * - GET /:id/terminations - Get user's termination history
+<<<<<<< HEAD
+ * - GET /:id/requests - Get user's Seerr request history
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
  * - POST /:id/merge - Merge the source identity :id into another identity
  * - GET /merge-suggestions - Possible duplicate identities across servers
  */
@@ -23,6 +27,10 @@ import { sessionsRoutes } from './sessions.js';
 import { locationsRoutes } from './locations.js';
 import { devicesRoutes } from './devices.js';
 import { terminationsRoutes } from './terminations.js';
+<<<<<<< HEAD
+import { requestsRoutes } from './requests.js';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { mergeRoutes } from './merge.js';
 
 export const userRoutes: FastifyPluginAsync = async (app) => {
@@ -34,5 +42,9 @@ export const userRoutes: FastifyPluginAsync = async (app) => {
   await app.register(locationsRoutes);
   await app.register(devicesRoutes);
   await app.register(terminationsRoutes);
+<<<<<<< HEAD
+  await app.register(requestsRoutes);
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   await app.register(mergeRoutes);
 };

@@ -13,4 +13,8 @@ export { WatchCountChart } from './WatchCountChart';
 export { CompletionDonutChart } from './CompletionDonutChart';
 export { HourlyDistributionChart } from './HourlyDistributionChart';
 export { MonthlyTrendChart } from './MonthlyTrendChart';
+<<<<<<< HEAD
+export { RequestFunnelChart, type FunnelStage } from './RequestFunnelChart';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 export { ChartEmpty } from './ChartEmpty';

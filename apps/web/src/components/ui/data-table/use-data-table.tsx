@@ -43,6 +43,10 @@ export interface DataTablePagerState {
   canNext: boolean;
   onPrevious: () => void;
   onNext: () => void;
+<<<<<<< HEAD
+  onPage: (page: number) => void;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 export interface UseDataTableOptions<TData extends object> {
@@ -227,6 +231,13 @@ export function useDataTable<TData extends object>({
       onNext: () => {
         if (currentPage < totalPages) handlePaginationChange({ pageIndex: currentPage, pageSize });
       },
+<<<<<<< HEAD
+      onPage: (page: number) => {
+        const target = Math.min(Math.max(page, 1), totalPages);
+        if (target !== currentPage) handlePaginationChange({ pageIndex: target - 1, pageSize });
+      },
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     }),
     [currentPage, totalPages, handlePaginationChange, pageSize]
   );

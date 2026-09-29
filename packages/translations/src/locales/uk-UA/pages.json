@@ -11,16 +11,27 @@
     "completeInPopup": "Завершіть вхід у спливаючому вікні",
     "reopenPlexLogin": "Знову відкрити вхід до Plex",
     "continueWith": "Продовжити з {{provider}}",
+<<<<<<< HEAD
+    "usernameOrEmail": "Імʼя користувача або електронна пошта",
+    "identifierPlaceholder": "Ім'я користувача або адреса електронної пошти",
+    "username": "Ім'я користувача",
+    "usernamePlaceholder": "ваше ім'я користувача",
+=======
     "usernameOrEmail": "",
     "identifierPlaceholder": "",
     "username": "Ім'я користувача",
     "usernamePlaceholder": "",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "emailPlaceholder": "your@email.com",
     "displayNamePlaceholder": "Виберіть ім'я для відображення",
     "passwordPlaceholder": "Щонайменше 8 символів",
     "yourPasswordPlaceholder": "Ваш пароль",
     "setupNote": "Після створення облікового запису, ви додасте свої Plex або Jellyfin сервери у налаштуваннях.",
+<<<<<<< HEAD
+    "localDisabledHint": "Локальний вхід вимкнено для цього екземпляра. Попросіть адміністратора запустити \"enable-local-login\" від Tracearr CLI знову ввімкнути його.",
+=======
     "localDisabledHint": "",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "oidcError": "",
     "accountCreated": "Обліковий запис успішно створено!",
     "connectedTo": "Підключено до {{name}}",
@@ -63,6 +74,36 @@
     "resetTrustScoreTitle_other": "Скинути рейтинг довіри для {{count}} користувачів",
     "resetTrustScoreConfirm": "Ви впевнені, що хочете скинути рейтинг довіри до 100? Цю дію не можна скасувати.",
     "mergeUsers": "Об'єднати користувачів",
+<<<<<<< HEAD
+    "mergeTitleSuggestion": "Це одна й та сама людина?",
+    "mergeTitleBulk": "Об'єднати цих користувачів?",
+    "mergeReasonEmail": "",
+    "mergeReasonEmailUsername": "",
+    "mergeReasonUsername": "Обидва використовують ім'я користувача {{value}}.",
+    "mergeKeep": "Зберегти",
+    "mergeFoldIn": "",
+    "mergeSwap": "",
+    "mergeRequired": "{{name}} може увійти до Tracearr, тому {{name}} збережено.",
+    "mergeLastActive": "Останній активний {{relative}}",
+    "mergeNeverActive": "Ніколи не активний",
+    "mergeSessions_one": "",
+    "mergeSessions_other": "",
+    "mergeMoreServers": "+{{count}}",
+    "mergeWhatHappens": "Що відбувається",
+    "mergeMoves_one": "",
+    "mergeMoves_other": "",
+    "mergeMovesNoCount": "",
+    "mergeCarriesOver": "",
+    "mergeDeleted": "",
+    "mergeRulesKept": "",
+    "mergeIrreversibleTitle": "",
+    "mergeIrreversibleBody": "",
+    "mergeServerLabel": "Сервер",
+    "mergeServerUnknown": "Невідомий сервер",
+    "mergeIrreversibleAcknowledge": "",
+    "mergeServerAccountRemoved": "Видалено",
+    "mergeConfirmInto": "",
+=======
     "mergeDialogTitle": "Об'єднати користувачів",
     "mergeDialogDescription": "",
     "mergePickPrimary": "",
@@ -75,14 +116,40 @@
     "mergeSameServerFallbackName": "цей сервер",
     "mergeServerAccountRemoved": "Видалено",
     "mergeConfirm": "Об'єднати",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "mergeSelectTwo": "Виберіть рівно двох користувачів для об'єднання",
     "mergeSameIdentity": "Ці облікові записи вже належать одному й тому самому користувачеві",
     "mergeSelectAllActive": "",
     "suggestionsTitle": "",
+<<<<<<< HEAD
+    "suggestionsCount_one": "",
+    "suggestionsCount_other": "",
+    "suggestionsPairEmail": "",
+    "suggestionsPairEmailMore_one": "",
+    "suggestionsPairEmailMore_other": "",
+    "suggestionsPairEmailUsername": "",
+    "suggestionsPairEmailUsernameMore_one": "",
+    "suggestionsPairEmailUsernameMore_other": "",
+    "suggestionsPairUsername": "",
+    "suggestionsPairUsernameMore_one": "",
+    "suggestionsPairUsernameMore_other": "",
+    "suggestionsSheetDescription": "",
+    "suggestionsReview": "",
+    "suggestionsNotSame": "Не та сама людина",
+    "suggestionsMatchEmail": "Така ж адреса електронної пошти",
+    "suggestionsMatchEmailUsername": "",
+    "suggestionsMatchUsername": "",
+    "suggestionsEmpty": "",
+    "suggestionsDismissed": "",
+    "suggestionsDismissedPair": "",
+    "suggestionsDismissedAt": "",
+    "suggestionsRestore": "",
+=======
     "suggestionsDescription": "",
     "suggestionsReview": "",
     "suggestionsMatchEmail": "",
     "suggestionsMatchUsername": "",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "suggestionsError": "",
     "filterHasAccessTo": "Має доступ до",
     "filterHasAccessToPlaceholder": "Будь-який сервер",
@@ -119,27 +186,51 @@
     "contactEmailHelp": "",
     "contactEmailLabel": "",
     "contactEmailNone": "",
+<<<<<<< HEAD
+    "contactEmailNoLogin": "",
+    "locations": "Місцезнаходження"
+  },
+  "history": {
+    "title": "Історія",
+    "description": "",
+=======
     "contactEmailNoLogin": ""
   },
   "history": {
     "title": "Історія",
     "description": "Переглядайте всі потокові сесії з потужною фільтрацією",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "loadingMore": "Завантажується більше...",
     "scrollForMore": "Прокрутіть для додаткової інформації",
     "showingAllResults": "Показано всі {{total}} результати",
     "deleteSession_one": "Видалити {{count}} сеанс",
     "deleteSession_other": "Видалити {{count}} сеансів",
+<<<<<<< HEAD
+    "deleteSessionsConfirm": "Ви впевнені, що хочете видалити? Цю дію не можна скасувати.",
+    "totalPlays": "",
+    "uniqueTitles": "",
+    "uniqueUsers": ""
+  },
+  "library": {
+    "title": "Бібліотека",
+    "description": "",
+=======
     "deleteSessionsConfirm": "Ви впевнені, що хочете видалити? Цю дію не можна скасувати."
   },
   "library": {
     "title": "Бібліотека",
     "description": "Найкращі фільми та серіали на вашому сервері",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "topMovies": "Найкращі фільми",
     "topShows": "Найкращі серіали",
     "noMoviePlays": "За цей період відтворень фільмів не має",
     "noShowPlays": "За цей період відтворень серіалів не має",
     "overview": {
+<<<<<<< HEAD
+      "description": "",
+=======
       "description": "Показники для здоров'я і зростання бібліотеки",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       "lastUpdated": "Останнє оновлення:",
       "totalItems": "Всього позицій",
       "shows": "серіали",
@@ -155,7 +246,11 @@
     },
     "quality": {
       "title": "Якість",
+<<<<<<< HEAD
+      "description": "",
+=======
       "description": "Роздільна здатність і розподіл кодів",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       "qualityEvolution": "Еволюція якості",
       "all": "Всі",
       "failedToLoad": "Не вдалося завантажити дані про якість",
@@ -163,14 +258,22 @@
     },
     "storage": {
       "title": "Сховище",
+<<<<<<< HEAD
+      "description": "",
+=======
       "description": "Використання сховища, прогнози та оптимізація",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       "totalStorage": "Загальне сховище",
       "growthRate": "Темпи зростання",
       "duplicates": "Дублює",
       "groups": "групи",
       "recoverable": "відновлюваний",
       "staleContent": "Застарілий контент",
+<<<<<<< HEAD
+      "staleContentDesc": "",
+=======
       "staleContentDesc": "Контент, який може бути кандидатами на видалення",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       "items": "елементи",
       "unused": "не використовується",
       "storageTrend": "Температура зберігання",
@@ -181,7 +284,11 @@
       "zeroGrowth": "0 ГБ/МО",
       "predictions": "Прогнози",
       "contentROI": "",
+<<<<<<< HEAD
+      "contentROIDesc": "",
+=======
       "contentROIDesc": "Вартість годинника за пам'ять",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       "avgHoursPerGB": "середні години/ГБ",
       "insufficientData": "Недостатньо даних",
       "of": "з",
@@ -196,15 +303,30 @@
       "noDuplicatesTitle": "",
       "noDuplicatesDesc": "",
       "colTitle": "",
+<<<<<<< HEAD
+      "colType": "",
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       "colMatchType": "",
       "colCopies": "",
       "colRecoverable": "",
       "sameServer": "",
+<<<<<<< HEAD
+      "mirror": "",
+      "missingOnServer": "",
+      "missingOnServerHint": "",
+      "copyPath": ""
+    },
+    "watch": {
+      "title": "Дивитися аналітику",
+      "description": "",
+=======
       "mirror": ""
     },
     "watch": {
       "title": "Дивитися аналітику",
       "description": "Перегляд поведінки і вмісту залучення",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       "watched": "Переглянуто",
       "percentWatched": "% переглянуто",
       "totalWatchTime": "Загальний час спостереження",
@@ -217,7 +339,11 @@
       "busiest": "Берегий:",
       "quietest": "Тест:",
       "bingeHighlights": "Відмітини на бінге",
+<<<<<<< HEAD
+      "bingeHighlightsDesc": "",
+=======
       "bingeHighlightsDesc": "Показує за допомогою найбільш інтенсивних шаблонів перегляду",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       "bingeSessions": "сесій бінге",
       "noData": "Ще немає даних для перегляду",
       "noDataDesc": "Дивитись аналітики з'являтимуться тут після відтворення вмісту. Перевірте знову після якогось перегляду діяльності.",
@@ -283,7 +409,11 @@
   },
   "activity": {
     "title": "Активність",
+<<<<<<< HEAD
+    "description": "",
+=======
     "description": "Відтворення тенденцій, послідовностей і трансляцій",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "playsOverTime": "Грати з часом",
     "concurrentStreams": "Конактуальні потоки",
     "engagementBreakdown": "Розбиття заручини",
@@ -754,6 +884,11 @@
         "total_pause_minutes": "",
         "source_resolution": "",
         "output_resolution": "",
+<<<<<<< HEAD
+        "source_dynamic_range": "",
+        "source_video_codec": "",
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         "is_transcoding": "",
         "is_transcode_downgrade": "",
         "source_bitrate_mbps": "",
@@ -768,6 +903,11 @@
         "ip_in_range": "",
         "server_id": "",
         "media_type": "",
+<<<<<<< HEAD
+        "season_number": "",
+        "episode_number": "",
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         "library_item_type": "",
         "library_name": "",
         "resolution_after": "",
@@ -939,6 +1079,17 @@
         "label": "",
         "description": ""
       },
+<<<<<<< HEAD
+      "source_dynamic_range": {
+        "label": "",
+        "description": ""
+      },
+      "source_video_codec": {
+        "label": "",
+        "description": ""
+      },
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       "is_transcoding": {
         "label": "",
         "description": ""
@@ -1000,6 +1151,17 @@
         "label": "",
         "description": ""
       },
+<<<<<<< HEAD
+      "season_number": {
+        "label": "",
+        "description": ""
+      },
+      "episode_number": {
+        "label": "",
+        "description": ""
+      },
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       "library_item_type": {
         "label": "",
         "description": ""
@@ -1604,6 +1766,10 @@
         "host": "",
         "port": "",
         "security": "",
+<<<<<<< HEAD
+        "verifyCertificate": "",
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         "username": "",
         "password": "",
         "fromName": "",
@@ -1620,9 +1786,16 @@
       },
       "hints": {
         "authTokenOptional": "",
+<<<<<<< HEAD
+        "smtpPreset": "",
+        "smtpVerifyCertificate": "",
+        "smtpUsernameOptional": "",
+        "smtpTo": "",
+=======
         "smtpPreset": "Fills the host, port and security for common providers",
         "smtpUsernameOptional": "",
         "smtpTo": "Comma-separated addresses that receive alerts from this destination",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         "smtpRate": "",
         "smtpMessageStream": "",
         "smtpGmailUsername": "",
@@ -1640,6 +1813,12 @@
         "smtpPostmarkUsername": "",
         "smtpPostmarkPassword": ""
       },
+<<<<<<< HEAD
+      "newsletterAlertsNote": "",
+      "newsletterDescription": "",
+      "newsletterTitle": "",
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       "newslettersOnly": "",
       "noAlertRecipients": "",
       "options": {
@@ -1741,6 +1920,19 @@
   },
   "devices": {
     "title": "Сумісність пристроїв",
+<<<<<<< HEAD
+    "description": "",
+    "analyzedSessions": "",
+    "analyzedSessionsTooltip": "",
+    "directPlayRate": "Час безпоритви",
+    "videoAndAudio": "",
+    "uniqueDevices": "Унікальні пристрої",
+    "uniqueCodecs": "Унікальні кодеки",
+    "deviceHealth": "Здоров'я пристрою",
+    "deviceHealthDesc": "",
+    "transcodeHotspots": "Змінити точки доступу",
+    "transcodeHotspotsDesc": "",
+=======
     "description": "Глянути, які пристрої відтворювати проти кожного кодека",
     "analyzedSessions": "",
     "analyzedSessionsTooltip": "",
@@ -1752,6 +1944,7 @@
     "deviceHealthDesc": "Частота безпосереднє відтворення за типом пристрою",
     "transcodeHotspots": "Змінити точки доступу",
     "transcodeHotspotsDesc": "Комбінації викликають більшість перекодувань",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "deviceAndCodec": "Пристрій + кодек",
     "transcodes": "Зміна кодів",
     "pctOfTotal": "% від Загалом",
@@ -1764,12 +1957,20 @@
     "directPlayMid": "",
     "directPlayLow": "",
     "topTranscodingUsers": "Топ користувачів з транскодування",
+<<<<<<< HEAD
+    "topTranscodingUsersDesc": "",
+=======
     "topTranscodingUsersDesc": "Користувачі спричиняють найбільшу кількість перекодувань на вашому сервері",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "noTranscodingUsers": "Користувачів з транскодування не знайдено"
   },
   "statsBandwidth": {
     "title": "Пропускна здатність",
+<<<<<<< HEAD
+    "description": "",
+=======
     "description": "Використання пропускної здатності потокового каналу та аналіз бітрейту",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "dataTransferred": "Дані передано",
     "avgBitrate": "Середній бітрейт",
     "avgBitrateMbps": "Середній бітрейт (Мбіт)",
@@ -1777,9 +1978,15 @@
     "totalWatchTime": "Загальний час спостереження",
     "uniqueUsers": "Унікальні користувачі",
     "dailyUsage": "Щоденне використання пропускної здатності",
+<<<<<<< HEAD
+    "dailyUsageDesc": "",
+    "topUsers": "Топ користувачів пропускної здатності",
+    "topUsersDesc": "",
+=======
     "dailyUsageDesc": "З часом потрійний бітрейт та швидкість сесії",
     "topUsers": "Топ користувачів пропускної здатності",
     "topUsersDesc": "Користувачі, що використовують найбільшу пропускну здатність",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "noData": "Немає наявних даних пропускної здатності"
   },
   "statsUsers": {
@@ -1803,7 +2010,11 @@
   },
   "debug": {
     "title": "Інструменти налагодження",
+<<<<<<< HEAD
+    "description": "",
+=======
     "description": "Адміністративні комунальні підприємства для усунення несправностей і управління даними",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "overview": "Огляд",
     "librarySnapshots": "Бібліотека знімків",
     "tasks": "Завдання",
@@ -1817,7 +2028,11 @@
     "memory": "Пам'ять",
     "uptime": "Час роботи",
     "database": "База даних",
+<<<<<<< HEAD
+    "databaseDesc": "",
+=======
     "databaseDesc": "Розмір і статистика таблиць бази даних",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "totalSize": "Загальний розмір",
     "maintenance": "Ремонт",
     "destructiveActions": "Деструктивні дії",
@@ -1859,11 +2074,22 @@
       "shelves": {
         "recentlyAddedMovies": "",
         "recentlyAddedShows": "",
+<<<<<<< HEAD
+        "recentlyUpdated": "",
+        "mostPopularMovies": "",
+        "mostPopularShows": "",
+        "emptyRecentlyAdded": "",
+        "emptyRecentlyUpdated": "",
+        "emptyMostPopular": "",
+        "captionRecentlyAdded": "",
+        "captionRecentlyUpdated": "",
+=======
         "mostPopularMovies": "",
         "mostPopularShows": "",
         "emptyRecentlyAdded": "",
         "emptyMostPopular": "",
         "captionRecentlyAdded": "",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         "captionMostPopular": {
           "day": "",
           "week": "",
@@ -1876,6 +2102,11 @@
       "card": {
         "newEpisodes_one": "{{count}} нова серія",
         "newEpisodes_other": "{{count}} нових серій",
+<<<<<<< HEAD
+        "replacedEpisodes_one": "",
+        "replacedEpisodes_other": "",
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         "addedAgo": "додано {{date}}",
         "addedCompactAgo": "",
         "newEpisodesChip": ""
@@ -2144,5 +2375,120 @@
       "emptyAnchored": "",
       "loadError": ""
     }
+<<<<<<< HEAD
+  },
+  "requests": {
+    "status": {
+      "pending": "",
+      "approved": "",
+      "declined": "",
+      "failed": "",
+      "completed": "",
+      "deleted": ""
+    },
+    "columns": {
+      "requester": "",
+      "title": "",
+      "status": "",
+      "requested": "",
+      "wait": "",
+      "seasons": "",
+      "watched": ""
+    },
+    "wait": {
+      "pending": "",
+      "declined": ""
+    },
+    "seasons": {
+      "all": "",
+      "item": ""
+    },
+    "flags": {
+      "fourK": "",
+      "auto": ""
+    },
+    "hero": {
+      "line": "",
+      "landed": "",
+      "waiting": ""
+    },
+    "mediaPanel": {
+      "title": "",
+      "loadError": "",
+      "empty": ""
+    },
+    "userCard": {
+      "title": "",
+      "loadError": "",
+      "viewAll": "",
+      "showLess": "",
+      "summary": {
+        "requests": "",
+        "medianWait": "",
+        "approvalRate": "",
+        "neverWatched": ""
+      },
+      "empty": ""
+    },
+    "unattributed": "",
+    "watched": {
+      "byRequester": "",
+      "byOthers": ""
+    },
+    "page": {
+      "title": "",
+      "description": "",
+      "failedToLoad": "",
+      "notConfigured": "",
+      "notConfiguredDescription": "",
+      "linkSeerr": "",
+      "kpi": {
+        "requested": "",
+        "landedOf": "",
+        "watched": "",
+        "neverPlayed": "",
+        "ofLanded": "",
+        "onDisk": ""
+      }
+    },
+    "funnel": {
+      "title": "",
+      "description": "",
+      "requested": "",
+      "landed": "",
+      "watched": "",
+      "share": "",
+      "empty": ""
+    },
+    "unplayed": {
+      "title": "",
+      "description": "",
+      "emptyTitle": "",
+      "emptyDescription": ""
+    },
+    "outcomes": {
+      "title": "",
+      "requester": "",
+      "wait": "",
+      "requested": "",
+      "onDisk": "",
+      "untitled": "",
+      "failedToLoad": ""
+    },
+    "followThrough": {
+      "title": "",
+      "description": "",
+      "person": "",
+      "asked": "",
+      "landed": "",
+      "watched": "",
+      "watchedByOthers": "",
+      "medianWait": "",
+      "emptyTitle": "",
+      "emptyDescription": "",
+      "failedToLoad": ""
+    }
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   }
 }

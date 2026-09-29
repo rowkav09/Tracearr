@@ -3,6 +3,10 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type * as ReactRouter from 'react-router';
+<<<<<<< HEAD
+import type { MediaRequestEntry } from '@tracearr/shared';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { ApiError } from '@/lib/api';
 import { MediaDetail } from './Detail';
 
@@ -26,6 +30,10 @@ vi.mock('@/hooks/queries', () => ({
   useSeasonHeat: vi.fn(),
   useMediaPlatforms: vi.fn(),
   useMediaHistory: vi.fn(),
+<<<<<<< HEAD
+  useMediaRequests: vi.fn(),
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   useSession: vi.fn(),
   findCachedMediaStub: vi.fn(),
 }));
@@ -62,6 +70,10 @@ import {
   useSeasonHeat,
   useMediaPlatforms,
   useMediaHistory,
+<<<<<<< HEAD
+  useMediaRequests,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   useSession,
   findCachedMediaStub,
 } from '@/hooks/queries';
@@ -74,6 +86,10 @@ const mockUseMediaWatchers = vi.mocked(useMediaWatchers);
 const mockUseSeasonHeat = vi.mocked(useSeasonHeat);
 const mockUseMediaPlatforms = vi.mocked(useMediaPlatforms);
 const mockUseMediaHistory = vi.mocked(useMediaHistory);
+<<<<<<< HEAD
+const mockUseMediaRequests = vi.mocked(useMediaRequests);
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 const mockUseSession = vi.mocked(useSession);
 const mockFindCachedMediaStub = vi.mocked(findCachedMediaStub);
 const mockUseServer = vi.mocked(useServer);
@@ -89,6 +105,55 @@ function pendingQuery(overrides: Record<string, unknown> = {}) {
   } as never;
 }
 
+<<<<<<< HEAD
+function requestEntry(overrides: Partial<MediaRequestEntry> = {}): MediaRequestEntry {
+  return {
+    id: 'req-1',
+    serverId: 'srv-1',
+    status: 'completed',
+    requestedAt: '2026-01-08T12:00:00.000Z',
+    availableAt: '2026-01-08T12:02:00.000Z',
+    waitMs: 120_000,
+    deletedAt: null,
+    seasons: null,
+    is4k: false,
+    isAutoRequest: false,
+    watchedState: 'unwatched',
+    watchedStateRequester: 'unwatched',
+    requester: {
+      serverUserId: 'su-1',
+      userId: 'u-1',
+      serverId: 'srv-1',
+      username: 'agelwarg',
+      identityName: 'Alice',
+      thumb: null,
+    },
+    ...overrides,
+  };
+}
+
+function detailQuery(mediaType: string) {
+  return pendingQuery({
+    isLoading: false,
+    data: {
+      id: 'media-1',
+      mediaType,
+      title: 'Arrival',
+      year: 2016,
+      genres: [],
+      availability: [],
+      seasonCount: null,
+      episodeCount: null,
+      posterUrl: null,
+      posterVersion: null,
+      dominantColor: null,
+      servers: [],
+    },
+  });
+}
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
@@ -125,6 +190,10 @@ describe('MediaDetail page', () => {
     mockUseMediaHistory.mockReturnValue(
       pendingQuery({ hasNextPage: false, isFetchingNextPage: false, fetchNextPage: vi.fn() })
     );
+<<<<<<< HEAD
+    mockUseMediaRequests.mockReturnValue(pendingQuery({ data: { data: [] }, isLoading: false }));
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     mockUseSession.mockReturnValue(pendingQuery({ isLoading: false }));
   });
 
@@ -476,4 +545,65 @@ describe('MediaDetail page', () => {
     expect(mockUseSeasonHeat).toHaveBeenCalledWith('media-1', ['srv-1'], false);
     expect(screen.queryByText('media.detail.seasons.title')).not.toBeInTheDocument();
   });
+<<<<<<< HEAD
+
+  it('shows the requests panel for a title that has requests', () => {
+    mockUseMediaDetail.mockReturnValue(detailQuery('movie'));
+    mockUseMediaRequests.mockReturnValue(
+      pendingQuery({ isLoading: false, data: { data: [requestEntry()] } })
+    );
+
+    renderPage();
+
+    expect(mockUseMediaRequests).toHaveBeenCalledWith('media-1', ['srv-1']);
+    expect(screen.getByRole('heading', { name: 'requests.mediaPanel.title' })).toBeInTheDocument();
+  });
+
+  it('names the earliest request that is still live in the hero line', () => {
+    mockUseMediaDetail.mockReturnValue(detailQuery('movie'));
+    mockUseMediaRequests.mockReturnValue(
+      pendingQuery({
+        isLoading: false,
+        data: {
+          data: [
+            requestEntry({
+              id: 'req-removed',
+              requestedAt: '2026-01-02T12:00:00.000Z',
+              deletedAt: '2026-01-20T12:00:00.000Z',
+              requester: { ...requestEntry().requester, identityName: 'Removed Rita' },
+            }),
+            requestEntry({
+              id: 'req-later',
+              requestedAt: '2026-01-20T12:00:00.000Z',
+              requester: { ...requestEntry().requester, identityName: 'Later Leo' },
+            }),
+            requestEntry({
+              id: 'req-earliest',
+              requestedAt: '2026-01-05T12:00:00.000Z',
+              requester: { ...requestEntry().requester, identityName: 'Earliest Eve' },
+            }),
+          ],
+        },
+      })
+    );
+
+    renderPage();
+
+    expect(screen.getByText(/"name":"Earliest Eve"/)).toBeInTheDocument();
+  });
+
+  it('drops the requests panel on an episode, where the request belongs to the show', () => {
+    mockUseMediaDetail.mockReturnValue(detailQuery('episode'));
+    mockUseMediaRequests.mockReturnValue(
+      pendingQuery({ isLoading: false, data: { data: [requestEntry()] } })
+    );
+
+    renderPage();
+
+    expect(
+      screen.queryByRole('heading', { name: 'requests.mediaPanel.title' })
+    ).not.toBeInTheDocument();
+  });
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 });

@@ -3,6 +3,10 @@ import { z } from 'zod';
 import {
   createNewsletterSchema,
   newsletterPreviewDraftSchema,
+<<<<<<< HEAD
+  newsletterRecipientsDraftSchema,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   newsletterSendsQuerySchema,
   newsletterTestSendSchema,
   updateNewsletterSchema,
@@ -201,6 +205,20 @@ export async function newsletterRoutes(app: FastifyInstance): Promise<void> {
     return buildPreview({ ...newsletter, id: newsletterId ?? 'draft' }, watermark);
   });
 
+<<<<<<< HEAD
+  app.post('/recipients', owner, async (request, reply) => {
+    const parsed = newsletterRecipientsDraftSchema.safeParse(request.body);
+    if (!parsed.success)
+      return reply.badRequest(`Invalid request body: ${firstIssueMessage(parsed.error)}`);
+    const { newsletterId, ...draft } = parsed.data;
+    if (newsletterId !== undefined && !(await getNewsletter(newsletterId)))
+      return reply.notFound('Newsletter not found');
+    const view: NewsletterRecipientsView = await resolveRecipients(draft, newsletterId);
+    return view;
+  });
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   app.post('/:id/preview', owner, async (request, reply) => {
     const params = idParams.safeParse(request.params);
     if (!params.success) return reply.badRequest('Invalid id');
@@ -245,6 +263,8 @@ export async function newsletterRoutes(app: FastifyInstance): Promise<void> {
     return reply.code(202).send({ queued: true, jobId });
   });
 
+<<<<<<< HEAD
+=======
   app.get('/:id/recipients', owner, async (request, reply) => {
     const params = idParams.safeParse(request.params);
     if (!params.success) return reply.badRequest('Invalid id');
@@ -254,6 +274,7 @@ export async function newsletterRoutes(app: FastifyInstance): Promise<void> {
     return view;
   });
 
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   app.get('/:id/variants', owner, async (request, reply) => {
     const params = idParams.safeParse(request.params);
     if (!params.success) return reply.badRequest('Invalid id');

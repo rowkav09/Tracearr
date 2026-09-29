@@ -62,6 +62,10 @@ import { gracePeriodSessionIds } from '../../jobs/poller/processor.js';
 import { buildRuleContextSessions } from './events/contextAssembly.js';
 import { terminateSession } from '../termination.js';
 import { automationsLogger } from '../../utils/logger.js';
+<<<<<<< HEAD
+import { isLocalSession } from '../../utils/localSession.js';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { evaluateRulesAsync } from './engine.js';
 import type { EvaluationContext } from './types.js';
 
@@ -119,14 +123,25 @@ export async function reverifyKillCondition(
 
   // The TARGET decides the already-stopped short-circuit and is the session we
   // actually terminate.
+<<<<<<< HEAD
+  const targetFound = await db.query.sessions.findFirst({
+=======
   const targetRow = await db.query.sessions.findFirst({
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     where: eq(sessions.id, targetSessionId),
     with: { server: true, serverUser: true },
   });
 
+<<<<<<< HEAD
+  if (!targetFound) {
+    return { outcome: 'skipped_already_stopped' };
+  }
+  const targetRow = { ...targetFound, isLocal: isLocalSession(targetFound) };
+=======
   if (!targetRow) {
     return { outcome: 'skipped_already_stopped' };
   }
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
   if (targetRow.stoppedAt) {
     // A retry only happens after a prior attempt of this exact job got past
@@ -167,10 +182,18 @@ export async function reverifyKillCondition(
   // self-abort every time.
   let contextSession = targetRow;
   if (triggeringSessionId !== targetSessionId) {
+<<<<<<< HEAD
+    const triggerFound = await db.query.sessions.findFirst({
+      where: eq(sessions.id, triggeringSessionId),
+      with: { server: true, serverUser: true },
+    });
+    const triggerRow = triggerFound && { ...triggerFound, isLocal: isLocalSession(triggerFound) };
+=======
     const triggerRow = await db.query.sessions.findFirst({
       where: eq(sessions.id, triggeringSessionId),
       with: { server: true, serverUser: true },
     });
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
     if (triggerRow && !triggerRow.stoppedAt) {
       contextSession = triggerRow;

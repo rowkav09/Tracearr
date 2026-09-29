@@ -133,6 +133,10 @@ describe('Maintenance Routes', () => {
       const fixJob = body.jobs.find((j: { type: string }) => j.type === 'fix_imported_progress');
       expect(fixJob).toBeDefined();
       expect(fixJob.name).toBe('Fix Imported Session Progress');
+<<<<<<< HEAD
+      expect(fixJob.description).toMatch(/^Run this if .*before Tracearr 1\.3\.9/);
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     });
 
     it('includes rebuild_timescale_views job', async () => {
@@ -162,6 +166,41 @@ describe('Maintenance Routes', () => {
       expect(response.statusCode).toBe(403);
       expect(response.json().message).toContain('Only server owners');
     });
+<<<<<<< HEAD
+
+    it('marks remove_import_duplicates, cleanup_old_chunks and repair_corrupted_chunks as destructive', async () => {
+      app = await buildTestApp(ownerUser);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/maintenance/jobs',
+      });
+
+      const body = response.json();
+      for (const type of [
+        'remove_import_duplicates',
+        'cleanup_old_chunks',
+        'repair_corrupted_chunks',
+      ]) {
+        const job = body.jobs.find((j: { type: string }) => j.type === type);
+        expect(job.destructive, type).toBe(true);
+      }
+    });
+
+    it('leaves destructive unset on jobs that do not delete data', async () => {
+      app = await buildTestApp(ownerUser);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/maintenance/jobs',
+      });
+
+      const body = response.json();
+      const normalizeJob = body.jobs.find((j: { type: string }) => j.type === 'normalize_players');
+      expect(normalizeJob.destructive).toBeUndefined();
+    });
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   });
 
   describe('POST /maintenance/jobs/:type', () => {
@@ -583,6 +622,10 @@ describe('Maintenance Routes', () => {
           type: 'normalize_players' as const,
           state: 'completed' as const,
           createdAt: new Date('2024-01-01T10:00:00Z').getTime(),
+<<<<<<< HEAD
+          trigger: 'manual' as const,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           result: {
             success: true,
             type: 'normalize_players' as const,
@@ -599,6 +642,10 @@ describe('Maintenance Routes', () => {
           type: 'normalize_countries' as const,
           state: 'failed' as const,
           createdAt: new Date('2024-01-01T09:00:00Z').getTime(),
+<<<<<<< HEAD
+          trigger: 'auto' as const,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         },
       ];
       vi.mocked(getMaintenanceJobHistory).mockResolvedValue(mockHistory);
@@ -642,5 +689,39 @@ describe('Maintenance Routes', () => {
       expect(response.statusCode).toBe(403);
       expect(response.json().message).toContain('Only server owners');
     });
+<<<<<<< HEAD
+
+    it('passes through the trigger field on each history item', async () => {
+      app = await buildTestApp(ownerUser);
+
+      const mockHistory = [
+        {
+          jobId: 'job-1',
+          type: 'link_imported_history' as const,
+          state: 'completed' as const,
+          createdAt: new Date('2024-01-01T10:00:00Z').getTime(),
+          trigger: 'auto' as const,
+        },
+        {
+          jobId: 'job-2',
+          type: 'normalize_players' as const,
+          state: 'completed' as const,
+          createdAt: new Date('2024-01-01T09:00:00Z').getTime(),
+          trigger: 'manual' as const,
+        },
+      ];
+      vi.mocked(getMaintenanceJobHistory).mockResolvedValue(mockHistory);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/maintenance/history',
+      });
+
+      const body = response.json();
+      expect(body.history[0].trigger).toBe('auto');
+      expect(body.history[1].trigger).toBe('manual');
+    });
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   });
 });

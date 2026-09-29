@@ -59,7 +59,14 @@ import { resolutionBucketPredicate, resolutionRankSql } from '../../utils/resolu
 import { resolveServerIds, buildMultiServerFragment } from '../../utils/serverFiltering.js';
 import { uuidArraySql } from '../../utils/sqlArrays.js';
 import { normalizeTitle } from '../../services/library/mediaMatchKey.js';
+<<<<<<< HEAD
+import {
+  fetchEpisodeCounts,
+  resolveWatchedStates,
+} from '../../services/library/mediaWatchedService.js';
+=======
 import { resolveWatchedStates } from '../../services/library/mediaWatchedService.js';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { buildProxyUrl, posterVersionFor } from '../../services/imageProxy.js';
 import { getSetting } from '../../services/settings.js';
 import type { DateRange } from '../stats/utils.js';
@@ -248,7 +255,11 @@ export function buildValueRollupCte(
   return sql`
     value_rollup AS (
       SELECT COALESCE(am.merged_into_id, ${mediaCol}) AS canonical_id,
+<<<<<<< HEAD
+             COUNT(DISTINCT p.chain_id) FILTER (WHERE p.counted)::bigint AS plays,
+=======
              SUM(p.plays)::bigint AS plays,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
              SUM(p.watched_ms)::bigint AS watch_time_ms,
              COUNT(DISTINCT su.user_id)::bigint AS viewers
       FROM user_media_plays_daily p
@@ -805,6 +816,8 @@ export function buildLetterBuckets(counts: Map<string, number>): CatalogLetterBu
   }));
 }
 
+<<<<<<< HEAD
+=======
 export async function fetchEpisodeCounts(
   showIds: string[],
   serverIds: string[] | undefined
@@ -826,6 +839,7 @@ export async function fetchEpisodeCounts(
   return result;
 }
 
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 async function fetchPageEngagement(
   ids: string[],
   type: 'movie' | 'show',

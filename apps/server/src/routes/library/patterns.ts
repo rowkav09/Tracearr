@@ -237,6 +237,19 @@ export const libraryPatternsRoute: FastifyPluginAsync = async (app) => {
                       ${serverFragmentSess}
                   )
                 GROUP BY ecs.show_title
+<<<<<<< HEAD
+              ),
+              scored AS (
+                SELECT
+                  *,
+                  ROUND(
+                    LEAST(consecutive_episodes * 5, 40) +
+                    LEAST(COALESCE(consecutive_pct, 0), 30) +
+                    LEAST(COALESCE(max_episodes_in_one_day, 1) * 6, 30)
+                  , 1) AS binge_score
+                FROM binge_base
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
               )
               SELECT
                 show_title,
@@ -248,6 +261,11 @@ export const libraryPatternsRoute: FastifyPluginAsync = async (app) => {
                 avg_gap_minutes::text AS avg_gap_minutes,
                 COALESCE(max_episodes_in_one_day, 1)::text AS max_episodes_in_one_day,
                 ARRAY_TO_STRING(server_ids_arr, ',') AS server_ids,
+<<<<<<< HEAD
+                binge_score::text AS binge_score
+              FROM scored
+              ORDER BY scored.binge_score DESC, show_title ASC
+=======
                 ROUND(
                   LEAST(consecutive_episodes * 5, 40) +
                   LEAST(COALESCE(consecutive_pct, 0), 30) +
@@ -255,6 +273,7 @@ export const libraryPatternsRoute: FastifyPluginAsync = async (app) => {
                 , 1)::text AS binge_score
               FROM binge_base
               ORDER BY binge_score DESC
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
               LIMIT ${limit}
             `);
 

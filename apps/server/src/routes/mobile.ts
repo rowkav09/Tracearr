@@ -22,6 +22,10 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { randomBytes } from 'crypto';
 import { eq, and, gt, isNull, or, sql } from 'drizzle-orm';
+<<<<<<< HEAD
+import { Expo } from 'expo-server-sdk';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import type { Redis } from 'ioredis';
 import { z } from 'zod';
 import type {
@@ -48,8 +52,15 @@ import {
 import { getAuth } from '../lib/auth.js';
 import { terminateSession } from '../services/termination.js';
 import { getSetting, setSetting } from '../services/settings.js';
+<<<<<<< HEAD
+import { compareNames } from '../utils/collation.js';
 import { hashSha256 } from '../utils/hash.js';
 import { hasServerAccess } from '../utils/serverFiltering.js';
+import { firstIssueMessage } from '../utils/zod.js';
+=======
+import { hashSha256 } from '../utils/hash.js';
+import { hasServerAccess } from '../utils/serverFiltering.js';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { disconnectMobileDevice } from '../websocket/index.js';
 
 // Rate limits for mobile auth endpoints
@@ -63,6 +74,12 @@ function isBetaMode(): boolean {
   return process.env.MOBILE_BETA_MODE === 'true';
 }
 
+<<<<<<< HEAD
+// No instance name setting exists; a media server's name must not stand in for it.
+const INSTANCE_NAME = 'Tracearr';
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 // Limits
 const MAX_PAIRED_DEVICES = 5;
 const MAX_PENDING_TOKENS = 3;
@@ -89,24 +106,48 @@ const MOBILE_ACCESS_EXPIRY = '24h';
 const MOBILE_BLACKLIST_TTL = 24 * 60 * 60; // 24 hours in seconds
 
 // Schemas
+<<<<<<< HEAD
+const DEVICE_SECRET_LENGTH_MESSAGE = 'must be 32 to 64 characters';
+
+// Base64-encoded device secret for push encryption
+const deviceSecretSchema = z
+  .string()
+  .min(32, DEVICE_SECRET_LENGTH_MESSAGE)
+  .max(64, DEVICE_SECRET_LENGTH_MESSAGE);
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 const mobilePairSchema = z.object({
   token: z.string().min(1),
   deviceName: z.string().min(1).max(100),
   deviceId: z.string().min(1).max(100),
   platform: z.enum(['ios', 'android']),
+<<<<<<< HEAD
+  deviceSecret: deviceSecretSchema.optional(),
+=======
   deviceSecret: z.string().min(32).max(64).optional(), // Base64-encoded device secret for push encryption
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 });
 
 const mobileRefreshSchema = z.object({
   refreshToken: z.string().min(1),
 });
 
+<<<<<<< HEAD
+// Same check the sender applies, so the route accepts every token it would push to.
+const pushTokenSchema = z.object({
+  expoPushToken: z
+    .string()
+    .refine((token) => Expo.isExpoPushToken(token), 'not an Expo push token'),
+  deviceSecret: deviceSecretSchema.optional(),
+=======
 const pushTokenSchema = z.object({
   expoPushToken: z
     .string()
     .min(1)
     .regex(/^ExponentPushToken\[.+\]$/, 'Invalid Expo push token format'),
   deviceSecret: z.string().min(32).max(64).optional(), // Update device secret for push encryption
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 });
 
 const updateMobileSessionSchema = z.object({
@@ -189,6 +230,24 @@ export async function revokeMobileDeviceSession(
   await revokeBetterAuthSession(session.betterAuthSessionId);
 }
 
+<<<<<<< HEAD
+async function listPairedDevices(): Promise<MobileSession[]> {
+  const rows = await db.select().from(mobileSessions);
+  return rows
+    .sort((a, b) => compareNames(a.deviceName, b.deviceName) || a.id.localeCompare(b.id))
+    .map((s) => ({
+      id: s.id,
+      deviceName: s.deviceName,
+      deviceId: s.deviceId,
+      platform: s.platform,
+      expoPushToken: s.expoPushToken,
+      lastSeenAt: s.lastSeenAt,
+      createdAt: s.createdAt,
+    }));
+}
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 export const mobileRoutes: FastifyPluginAsync = async (app) => {
   // Log beta mode status on startup
   if (isBetaMode()) {
@@ -214,8 +273,12 @@ export const mobileRoutes: FastifyPluginAsync = async (app) => {
     // Get mobile enabled status from settings
     const isEnabled = await getSetting('mobileEnabled');
 
+<<<<<<< HEAD
+    const sessions = await listPairedDevices();
+=======
     // Get mobile sessions
     const sessionsRows = await db.select().from(mobileSessions);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
     // Count pending tokens (unexpired and unused)
     const pendingTokensResult = await db
@@ -224,6 +287,12 @@ export const mobileRoutes: FastifyPluginAsync = async (app) => {
       .where(and(gt(mobileTokens.expiresAt, new Date()), isNull(mobileTokens.usedAt)));
     const pendingTokens = pendingTokensResult[0]?.count ?? 0;
 
+<<<<<<< HEAD
+    const config: MobileConfig = {
+      isEnabled,
+      sessions,
+      serverName: INSTANCE_NAME,
+=======
     // Get server name
     const serverRow = await db.select({ name: servers.name }).from(servers).limit(1);
     const serverName = serverRow[0]?.name || 'Tracearr';
@@ -242,6 +311,7 @@ export const mobileRoutes: FastifyPluginAsync = async (app) => {
       isEnabled,
       sessions,
       serverName,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       pendingTokens,
       maxDevices: MAX_PAIRED_DEVICES,
     };
@@ -263,6 +333,9 @@ export const mobileRoutes: FastifyPluginAsync = async (app) => {
     await setSetting('mobileEnabled', true);
 
     // Get current state for response
+<<<<<<< HEAD
+    const sessions = await listPairedDevices();
+=======
     const sessionsRows = await db.select().from(mobileSessions);
     const serverRow = await db.select({ name: servers.name }).from(servers).limit(1);
     const serverName = serverRow[0]?.name || 'Tracearr';
@@ -276,11 +349,16 @@ export const mobileRoutes: FastifyPluginAsync = async (app) => {
       lastSeenAt: s.lastSeenAt,
       createdAt: s.createdAt,
     }));
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
     const config: MobileConfig = {
       isEnabled: true,
       sessions,
+<<<<<<< HEAD
+      serverName: INSTANCE_NAME,
+=======
       serverName,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       pendingTokens: 0,
       maxDevices: MAX_PAIRED_DEVICES,
     };
@@ -637,7 +715,11 @@ export const mobileRoutes: FastifyPluginAsync = async (app) => {
       owner: { id: string; username: string };
       serverName: string;
       serverId: string;
+<<<<<<< HEAD
+      serverType: 'plex' | 'jellyfin' | 'emby';
+=======
       serverType: 'plex' | 'jellyfin' | 'emby' | 'navidrome';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       serverIds: string[];
       oldRefreshTokenHash?: string; // Track old hash for cleanup outside transaction
       oldBetterAuthSessionId?: string | null; // Previous BA session to revoke on re-pair
@@ -686,14 +768,21 @@ export const mobileRoutes: FastifyPluginAsync = async (app) => {
         const owner = ownerRow[0]!;
 
         // Get all server IDs for the JWT
+<<<<<<< HEAD
+        const allServers = await tx.select({ id: servers.id, type: servers.type }).from(servers);
+=======
         const allServers = await tx
           .select({ id: servers.id, name: servers.name, type: servers.type })
           .from(servers);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         const serverIds = allServers.map((s) => s.id);
 
         // Get primary server info for the response (first server)
         const primaryServer = allServers[0];
+<<<<<<< HEAD
+=======
         const serverName = primaryServer?.name || 'Tracearr';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         const serverId = primaryServer?.id || '';
         const serverType = primaryServer?.type || 'plex';
 
@@ -753,7 +842,11 @@ export const mobileRoutes: FastifyPluginAsync = async (app) => {
           accessToken: baSession.token,
           refreshToken: baSession.token,
           owner: { id: owner.id, username: owner.username },
+<<<<<<< HEAD
+          serverName: INSTANCE_NAME,
+=======
           serverName,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           serverId,
           serverType,
           serverIds,
@@ -1056,7 +1149,11 @@ export const mobileRoutes: FastifyPluginAsync = async (app) => {
   app.post('/push-token', { preHandler: [app.requireMobile] }, async (request, reply) => {
     const body = pushTokenSchema.safeParse(request.body);
     if (!body.success) {
+<<<<<<< HEAD
+      return reply.badRequest(`Invalid push token: ${firstIssueMessage(body.error)}`);
+=======
       return reply.badRequest('Invalid push token format. Expected ExponentPushToken[...]');
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     }
 
     const { expoPushToken, deviceSecret } = body.data;

@@ -4,7 +4,11 @@ import { useTranslation } from 'react-i18next';
 import { toast } from 'sonner';
 import { format, formatDistanceToNow, parseISO } from 'date-fns';
 import { Clock, Crown, Merge, RotateCcw, User as UserIcon } from 'lucide-react';
+<<<<<<< HEAD
+import type { ServerUserWithIdentity, UserSortField } from '@tracearr/shared';
+=======
 import type { MergeSuggestion, ServerUserWithIdentity, UserSortField } from '@tracearr/shared';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import {
   MERGE_SAME_SERVER_CONFIRMATION_REQUIRED,
   USER_SORT_FIELDS,
@@ -33,15 +37,27 @@ import {
 } from '@/components/ui/filters';
 import { ErrorState } from '@/components/library/ErrorState';
 import { ServerColumnCell } from '@/components/server';
+<<<<<<< HEAD
+import { MergeSuggestionsCallout } from '@/components/users/MergeSuggestionsCallout';
+import { MergeUsersDialog } from '@/components/users/MergeUsersDialog';
+=======
 import { MergeSuggestionsBanner } from '@/components/users/MergeSuggestionsBanner';
 import { MergeUsersDialog, type MergeCandidate } from '@/components/users/MergeUsersDialog';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { RemovedBadge } from '@/components/users/RemovedBadge';
 import { TrustScoreBadge } from '@/components/users/TrustScoreBadge';
 import { UserCell } from '@/components/users/UserCell';
 import { getIdentityServers } from '@/components/users/identityServerPills';
 import {
   deriveMergeActionState,
+<<<<<<< HEAD
+  mergeRequestFromRows,
+  mergeRequestFromSuggestion,
+  withSameServerCombine,
+  type MergeRequest,
+=======
   findOverlappingServerName,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 } from '@/components/users/mergeSelection';
 import { useBulkResetTrust, useMergeUsers, useUsers } from '@/hooks/queries';
 import { useAuth } from '@/hooks/useAuth';
@@ -96,12 +112,16 @@ export function Users() {
   const [sorting, setSorting] = useState<SortingState>([{ id: 'username', desc: false }]);
   const [resetTrustConfirmOpen, setResetTrustConfirmOpen] = useState(false);
   const [mergeDialogOpen, setMergeDialogOpen] = useState(false);
+<<<<<<< HEAD
+  const [mergeRequest, setMergeRequest] = useState<MergeRequest | null>(null);
+=======
   const [mergeCandidates, setMergeCandidates] = useState<[MergeCandidate, MergeCandidate] | null>(
     null
   );
   const [mergeRequiredTarget, setMergeRequiredTarget] = useState<string | null>(null);
   const [mergeSameServerWarning, setMergeSameServerWarning] = useState(false);
   const [mergeSameServerName, setMergeSameServerName] = useState<string | null>(null);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
   const serverOptions = useMemo(
     () => servers.map((server) => ({ value: server.id, label: server.name })),
@@ -365,6 +385,8 @@ export function Users() {
     });
   };
 
+<<<<<<< HEAD
+=======
   const toMergeCandidate = (row: ServerUserWithIdentity): MergeCandidate => ({
     userId: row.userId,
     displayName: `${row.identityName ?? row.username} (${row.serverName})`,
@@ -387,6 +409,7 @@ export function Users() {
     })),
   });
 
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   const mergeSelectionState = deriveMergeActionState(selectedRows, selectAllMode);
   const mergeActionTitle = mergeSelectionState.reasonKey
     ? t(mergeSelectionState.reasonKey)
@@ -406,12 +429,20 @@ export function Users() {
         // Sentinel from a same-server combine the client didn't predict - escalate
         // to the destructive confirmation instead of a toast.
         if (error.message === MERGE_SAME_SERVER_CONFIRMATION_REQUIRED) {
+<<<<<<< HEAD
+          setMergeRequest((current) => current && withSameServerCombine(current));
+=======
           setMergeSameServerWarning(true);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         }
       },
     });
   };
 
+<<<<<<< HEAD
+  const openMergeDialog = (request: MergeRequest) => {
+    setMergeRequest(request);
+=======
   const handleReviewSuggestion = (suggestion: MergeSuggestion) => {
     const [firstUser, secondUser] = suggestion.users;
     const toCandidate = (identity: MergeSuggestion['users'][number]): MergeCandidate => ({
@@ -434,6 +465,7 @@ export function Users() {
     setMergeRequiredTarget(suggestion.requiredTargetUserId);
     setMergeSameServerWarning(suggestion.wouldCombineSameServer);
     setMergeSameServerName(overlappingServerName);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     setMergeDialogOpen(true);
   };
 
@@ -469,6 +501,9 @@ export function Users() {
                 toast.error(t('pages:users.mergeSameIdentity'));
                 return;
               }
+<<<<<<< HEAD
+              openMergeDialog(mergeRequestFromRows(first, second));
+=======
               const a = toMergeCandidate(first);
               const b = toMergeCandidate(second);
               const sameServer = first.serverId === second.serverId;
@@ -477,6 +512,7 @@ export function Users() {
               setMergeSameServerWarning(sameServer);
               setMergeSameServerName(sameServer ? first.serverName : null);
               setMergeDialogOpen(true);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
             },
             isLoading: mergeUsersMutation.isPending,
           },
@@ -491,7 +527,15 @@ export function Users() {
         <p className="text-muted-foreground text-sm">{t('common:count.user', { count: total })}</p>
       </div>
 
+<<<<<<< HEAD
+      {isOwner && (
+        <MergeSuggestionsCallout
+          onReview={(suggestion) => openMergeDialog(mergeRequestFromSuggestion(suggestion))}
+        />
+      )}
+=======
       {isOwner && <MergeSuggestionsBanner onReview={handleReviewSuggestion} />}
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
       <Card>
         <CardContent className="space-y-4">
@@ -545,12 +589,20 @@ export function Users() {
                   />
                 </DataTableViewport>
                 <DataTablePager
+<<<<<<< HEAD
+                  variant="footer"
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                   {...pager}
                   labels={{
                     navigation: t('common:table.pagination'),
                     status: t('common:table.pageOf', { page: pager.page, total: pager.pageCount }),
                     previous: t('common:actions.previous'),
                     next: t('common:actions.next'),
+<<<<<<< HEAD
+                    goToPage: t('common:table.goToPage'),
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                   }}
                 />
               </DataTableRoot>
@@ -577,6 +629,17 @@ export function Users() {
         isLoading={bulkResetTrust.isPending}
       />
 
+<<<<<<< HEAD
+      {mergeRequest && (
+        <MergeUsersDialog
+          {...mergeRequest}
+          open={mergeDialogOpen}
+          onOpenChange={setMergeDialogOpen}
+          isLoading={mergeUsersMutation.isPending}
+          onConfirm={handleMergeConfirm}
+        />
+      )}
+=======
       {mergeCandidates &&
         (mergeSameServerWarning ? (
           <MergeUsersDialog
@@ -600,6 +663,7 @@ export function Users() {
             onConfirm={handleMergeConfirm}
           />
         ))}
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     </div>
   );
 }

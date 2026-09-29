@@ -29,9 +29,12 @@ vi.mock('../../../services/mediaServer/index.js', () => ({
 vi.mock('../../../services/sync.js', () => ({
   syncServer: vi.fn().mockResolvedValue({ usersAdded: 0, librariesSynced: 0 }),
 }));
+<<<<<<< HEAD
+=======
 vi.mock('../utils.js', () => ({
   generateTokens: vi.fn().mockResolvedValue({ accessToken: 'access', refreshToken: 'refresh' }),
 }));
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 import { db } from '../../../db/client.js';
 import { EmbyClient, JellyfinClient } from '../../../services/mediaServer/index.js';
@@ -95,6 +98,10 @@ describe('connect-api-key public address', () => {
       },
     });
     expect(res.statusCode).toBe(200);
+<<<<<<< HEAD
+    expect(res.json()).toEqual({ serverId: 'srv-1' });
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     expect(insert.values).toHaveBeenCalledWith({
       name: 'Attic',
       type: 'jellyfin',

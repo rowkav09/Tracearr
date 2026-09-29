@@ -7,7 +7,12 @@ import './map.css';
 import { useTranslation } from 'react-i18next';
 import { recordClientError } from '@/lib/clientErrors';
 import { useTheme } from '@/components/theme-provider';
+<<<<<<< HEAD
+import { autoFitBounds, type FitPoint } from './autoFitBounds';
+import { checkBasemap, isWebglSupported, mapMaxZoom } from './maplibre';
+=======
 import { checkBasemap, isWebglSupported } from './maplibre';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 export function useResolvedDark(): boolean {
   const { theme } = useTheme();
@@ -67,7 +72,11 @@ export function useMapLibre(
       center,
       zoom,
       minZoom,
+<<<<<<< HEAD
+      maxZoom: mapMaxZoom(),
+=======
       maxZoom: 14,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       interactive,
       attributionControl: false,
       fadeDuration: 200,
@@ -144,7 +153,11 @@ interface AutoFitOptions {
 
 export function useAutoFit(
   map: MLMap | null,
+<<<<<<< HEAD
+  points: FitPoint[],
+=======
   points: [number, number][],
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   { maxZoom, filterKey, isLoading, suspend }: AutoFitOptions
 ): void {
   const prevKeyRef = useRef('');
@@ -181,6 +194,11 @@ export function useAutoFit(
     prevKeyRef.current = key;
     if (suspend && !isInitial) return;
     if (isInitial || !userMovedRef.current) {
+<<<<<<< HEAD
+      const bounds = autoFitBounds(points);
+      if (!bounds) return;
+      map.fitBounds(bounds, { padding: 50, maxZoom, duration: 600 });
+=======
       let [minLon, minLat] = points[0]!;
       let [maxLon, maxLat] = points[0]!;
       for (const [lon, lat] of points) {
@@ -196,6 +214,7 @@ export function useAutoFit(
         ],
         { padding: 50, maxZoom, duration: 600 }
       );
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     }
   }, [map, points, isLoading, maxZoom, suspend]);
 }

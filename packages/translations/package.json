@@ -25,9 +25,13 @@
   },
   "files": [
     "dist",
+<<<<<<< HEAD
+    "src"
+=======
     "src",
     "!src/locales/_template",
     "!dist/locales/_template"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   ],
   "publishConfig": {
     "access": "public"

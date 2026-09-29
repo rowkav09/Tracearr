@@ -166,6 +166,17 @@ describe('configSchemaForFields', () => {
     { key: 'from', label: 'from', input: 'email', required: true, secret: false },
     { key: 'cc', label: 'cc', input: 'email', required: false, secret: false },
     { key: 'to', label: 'to', input: 'emails', required: true, secret: false },
+<<<<<<< HEAD
+    {
+      key: 'verify',
+      label: 'verify',
+      input: 'toggle',
+      required: false,
+      secret: false,
+      default: 'true',
+    },
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   ];
   const schema = configSchemaForFields(fields);
 
@@ -173,10 +184,25 @@ describe('configSchemaForFields', () => {
     const parsed = schema.safeParse({ from: 'a@example.com', to: 'b@example.com, c@example.org' });
     expect(parsed.success).toBe(true);
     if (!parsed.success) return;
+<<<<<<< HEAD
+    expect(parsed.data).toMatchObject({ mode: 'a', port: '587', verify: 'true' });
+    expect(parsed.data.port).toBe('587');
+  });
+
+  it('keeps a toggle as the string true or false', () => {
+    const parse = (verify: string) =>
+      schema.safeParse({ from: 'a@example.com', to: 'b@example.com', verify });
+    expect(parse('false').data?.verify).toBe('false');
+    expect(parse('true').success).toBe(true);
+    expect(parse('yes').success).toBe(false);
+  });
+
+=======
     expect(parsed.data).toMatchObject({ mode: 'a', port: '587' });
     expect(parsed.data.port).toBe('587');
   });
 
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   it.each([
     ['port', '0'],
     ['port', '70000'],
@@ -262,6 +288,10 @@ describe('email destination', () => {
     expect(parsed.data).toMatchObject({
       port: '587',
       security: 'starttls',
+<<<<<<< HEAD
+      verifyCertificate: 'true',
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       fromName: 'Tracearr',
       preset: 'custom',
       messagesPerSecond: '2',
@@ -324,6 +354,10 @@ describe('email destination', () => {
       ['host', 'connection'],
       ['port', 'connection'],
       ['security', 'connection'],
+<<<<<<< HEAD
+      ['verifyCertificate', 'connection'],
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       ['username', 'connection'],
       ['password', 'connection'],
       ['messagesPerSecond', 'connection'],

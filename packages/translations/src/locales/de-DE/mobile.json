@@ -70,7 +70,15 @@
   },
   "resources": {
     "cpu": "",
+<<<<<<< HEAD
+    "ram": "",
+    "item": "",
+    "noData": "",
+    "system": "",
+    "waiting": ""
+=======
     "ram": ""
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "notifications": {
     "testSent": "Test gesendet",
@@ -98,11 +106,27 @@
     "criticalOverrideDescription": "Schwere Verstöße auch während der Ruhezeit benachrichtigen",
     "rateLimitDescription": "Grenzwerte verhindern Benachrichtigungs-Spam. Aktuelle Limits:\n{{perMinute}}/min, {{perHour}}/Stunde.",
     "sendTestNotification": "Testbenachrichtigung senden",
+<<<<<<< HEAD
+    "testDescription": "Überprüfe ob Push-Benachrichtigungen korrekt funktionieren",
+    "pushNotifications": "",
+    "ruleTypes": {
+      "accountInactivity": "",
+      "deviceVelocity": "",
+      "geoRestriction": "",
+      "impossibleTravel": "",
+      "simultaneousLocations": ""
+    },
+    "severityAll": "",
+    "severityHighOnly": "",
+    "severityWarningUp": "",
+    "violationTypes": ""
+=======
     "testDescription": "Überprüfe ob Push-Benachrichtigungen korrekt funktionieren"
   },
   "dashboard": {
     "today": "HEUTE",
     "hrs": "Std."
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "session": {
     "streamTerminated": "Stream beendet",
@@ -117,6 +141,44 @@
     "moreDevices": "+{{count}} weitere Geräte",
     "noViolations": "Keine Verstöße",
     "noTerminations": "Keine Stream-Terminierungen",
+<<<<<<< HEAD
+    "lastSeen": "",
+    "terminatedBy": "",
+    "trustScoreConfirm": "",
+    "trustScoreRange": ""
+  },
+  "violation": {
+    "violationNotFoundDesc": "Dieser Verstoß wurde möglicherweise abgewiesen oder ist nicht mehr verfügbar.",
+    "ips": "IP-Adressen"
+  },
+  "alerts": {
+    "clearFilters": "Filter zurücksetzen",
+    "acknowledgeAll": "",
+    "acknowledgeAllBody": "",
+    "acknowledgeAllBodySeverity": "",
+    "acknowledgeAllTitle_one": "",
+    "acknowledgeAllTitle_other": "",
+    "all": "",
+    "allClear": "",
+    "allServers": "",
+    "noAlertsRecorded": "",
+    "noMatches": "",
+    "pendingCount": ""
+  },
+  "history": {
+    "adjustFilters": "Versuche die Filter anzupassen",
+    "historyWillAppear": "Sitzungsverlauf wird hier angezeigt, sobald Benutzer mit dem Streaming beginnen",
+    "filters": {
+      "clearCount": "",
+      "countries": "",
+      "filterBy": "",
+      "mediaType": "",
+      "noCountries": "",
+      "noPlatforms": "",
+      "noUsers": "",
+      "sectionSelected": ""
+    }
+=======
     "trustLow": "Niedrig",
     "trustMedium": "Mittel",
     "trustHigh": "Hoch"
@@ -135,12 +197,20 @@
     "noHistoryFound": "Verlauf nicht gefunden",
     "adjustFilters": "Versuche die Filter anzupassen",
     "historyWillAppear": "Sitzungsverlauf wird hier angezeigt, sobald Benutzer mit dem Streaming beginnen"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "users": {
     "owner": "Besitzer",
     "noUsers": "Keine Benutzer",
     "usersWillAppear": "Benutzer werden hier nach der Synchronisierung mit Ihrem Medienserver angezeigt",
+<<<<<<< HEAD
+    "noUsersMatch": "Keine Benutzer gefunden zu \"{{query}}\"",
+    "joinedRelative": "",
+    "sortActive": "",
+    "sortTrust": ""
+=======
     "noUsersMatch": "Keine Benutzer gefunden zu \"{{query}}\""
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "activity": {
     "playsOverTime": "Wiedergaben im Zeitverlauf",
@@ -160,7 +230,10 @@
     "allServers": ""
   },
   "reconnected": "Wiederverbunden",
+<<<<<<< HEAD
+=======
   "actionsExecuted": "Ausgeführte Aktionen",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   "serverScope": {
     "single": ""
   },
@@ -169,10 +242,77 @@
     "alerts": "",
     "alertsCount": "",
     "settings": "",
+<<<<<<< HEAD
+    "trustScore": "",
+    "decreaseTrustScore": "",
+    "filtersActive": "",
+    "increaseTrustScore": "",
+    "sortAscending": "",
+    "sortDescending": ""
+=======
     "trustScore": ""
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "map": {
     "noData": "",
     "unavailable": ""
+<<<<<<< HEAD
+  },
+  "automations": {
+    "conditions_one": "",
+    "conditions_other": "",
+    "editOnWeb": "",
+    "emptyDescription": "",
+    "kind": {
+      "notification": "",
+      "policy": ""
+    },
+    "lastRun": "",
+    "truncated": "",
+    "turnOffFailed": "",
+    "turnOnFailed": "",
+    "unsupportedDescription": "",
+    "unsupportedTitle": "",
+    "versionCheckFailed": ""
+  },
+  "charts": {
+    "weekOf": ""
+  },
+  "push": {
+    "violationTitle": ""
+  },
+  "streamDetails": {
+    "bitrate": "",
+    "channels": "",
+    "codec": "",
+    "color": "",
+    "container": "",
+    "forced": "",
+    "format": "",
+    "framerate": "",
+    "hwDecode": "",
+    "hwEncode": "",
+    "mono": "",
+    "noDetails": "",
+    "notAvailable": "",
+    "profile": "",
+    "sampleRate": "",
+    "source": "",
+    "speed": "",
+    "stereo": "",
+    "stream": "",
+    "subtitles": "",
+    "throttled": "",
+    "transcodeDetails": ""
+  },
+  "widget": {
+    "asOf": "",
+    "serversDown_one": "",
+    "serversDown_other": "",
+    "signedOut": "",
+    "transcodes_one": "",
+    "transcodes_other": ""
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   }
 }

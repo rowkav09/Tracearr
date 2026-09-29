@@ -56,7 +56,11 @@ function fakeActiveSession(overrides: {
   id: string;
   serverId: string;
   serverName: string;
+<<<<<<< HEAD
+  serverType: 'plex' | 'jellyfin' | 'emby';
+=======
   serverType: 'plex' | 'jellyfin' | 'emby' | 'navidrome';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   serverUserId: string;
   username: string;
   ratingKey?: string | null;

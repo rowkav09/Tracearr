@@ -1,10 +1,14 @@
 /**
  * Library Quality Evolution Route
  *
+<<<<<<< HEAD
+ * GET /quality - Quality distribution over time from library_stats_daily
+=======
  * GET /quality - Quality distribution over time from library_items
  *
  * Uses library_items.video_resolution and created_at for accurate quality tracking
  * based on when items were actually added to the media server.
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
  *
  * Supports filtering by media type:
  * - 'all': All video content (movies + TV)
@@ -20,8 +24,15 @@ import {
   TIME_MS,
   libraryQualityQuerySchema,
   type LibraryQualityQueryInput,
+<<<<<<< HEAD
+  type QualityDataPoint,
 } from '@tracearr/shared';
 import { db } from '../../db/client.js';
+import { perResolutionBucket, readResolutionCounts } from '../../utils/resolutionBuckets.js';
+=======
+} from '@tracearr/shared';
+import { db } from '../../db/client.js';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import {
   validateServerAccess,
   resolveServerIds,
@@ -29,6 +40,8 @@ import {
 } from '../../utils/serverFiltering.js';
 import { buildLibraryCacheKey } from './utils.js';
 
+<<<<<<< HEAD
+=======
 /** Single data point in quality timeline */
 interface QualityDataPoint {
   day: string;
@@ -49,6 +62,7 @@ interface QualityDataPoint {
   av1Count: number;
 }
 
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 /** Library quality evolution response */
 interface LibraryQualityResponse {
   period: string;
@@ -189,10 +203,14 @@ export const libraryQualityRoute: FastifyPluginAsync = async (app) => {
           SELECT
             lsd.day,
             lsd.total_items,
+<<<<<<< HEAD
+            ${perResolutionBucket((bucket) => `lsd.count_${bucket}`)}
+=======
             lsd.count_4k,
             lsd.count_1080p,
             lsd.count_720p,
             lsd.count_sd
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           FROM library_stats_daily lsd
           WHERE lsd.day >= ${effectiveStartDate.toISOString()}::date
             AND lsd.day <= ${endDate.toISOString()}::date
@@ -204,10 +222,14 @@ export const libraryQualityRoute: FastifyPluginAsync = async (app) => {
           SELECT
             fl.day::date AS day,
             COALESCE(SUM(fl.total_items), 0)::int AS total_items,
+<<<<<<< HEAD
+            ${perResolutionBucket((bucket) => `COALESCE(SUM(fl.count_${bucket}), 0)::int AS count_${bucket}`)}
+=======
             COALESCE(SUM(fl.count_4k), 0)::int AS count_4k,
             COALESCE(SUM(fl.count_1080p), 0)::int AS count_1080p,
             COALESCE(SUM(fl.count_720p), 0)::int AS count_720p,
             COALESCE(SUM(fl.count_sd), 0)::int AS count_sd
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           FROM filtered_libraries fl
           GROUP BY fl.day::date
         ),
@@ -220,6 +242,14 @@ export const libraryQualityRoute: FastifyPluginAsync = async (app) => {
               SELECT total_items FROM daily_stats dst2
               WHERE dst2.day < ds.day ORDER BY dst2.day DESC LIMIT 1
             ), 0)::int AS total_items,
+<<<<<<< HEAD
+            ${perResolutionBucket(
+              (bucket) => `COALESCE(dst.count_${bucket}, (
+              SELECT count_${bucket} FROM daily_stats dst2
+              WHERE dst2.day < ds.day ORDER BY dst2.day DESC LIMIT 1
+            ), 0)::int AS count_${bucket}`
+            )}
+=======
             COALESCE(dst.count_4k, (
               SELECT count_4k FROM daily_stats dst2
               WHERE dst2.day < ds.day ORDER BY dst2.day DESC LIMIT 1
@@ -236,20 +266,34 @@ export const libraryQualityRoute: FastifyPluginAsync = async (app) => {
               SELECT count_sd FROM daily_stats dst2
               WHERE dst2.day < ds.day ORDER BY dst2.day DESC LIMIT 1
             ), 0)::int AS count_sd
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           FROM date_series ds
           LEFT JOIN daily_stats dst ON dst.day = ds.day
         )
         SELECT
           fd.day::text,
           fd.total_items,
+<<<<<<< HEAD
+          ${perResolutionBucket((bucket) => `fd.count_${bucket}`)}
+=======
           fd.count_4k,
           fd.count_1080p,
           fd.count_720p,
           fd.count_sd
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         FROM filled_data fd
         ORDER BY fd.day ASC
       `);
 
+<<<<<<< HEAD
+      // Buckets are overlapping (a 4K+1080p title counts in both), so a day's
+      // title count is total_items, never the bucket sum
+      const data: QualityDataPoint[] = (result.rows as Array<Record<string, unknown>>).map(
+        (row) => ({
+          day: String(row.day),
+          totalItems: Number(row.total_items),
+          counts: readResolutionCounts(row),
+=======
       const rows = result.rows as Array<{
         day: string;
         total_items: number;
@@ -279,13 +323,19 @@ export const libraryQualityRoute: FastifyPluginAsync = async (app) => {
           pct1080p: Math.round((row.count_1080p / total) * 10000) / 100,
           pct720p: Math.round((row.count_720p / total) * 10000) / 100,
           pctSd: Math.round((row.count_sd / total) * 10000) / 100,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           // Codec counts not available per-library (set to 0)
           // Codec distribution is shown separately in CodecDistributionSection
           hevcCount: 0,
           h264Count: 0,
           av1Count: 0,
+<<<<<<< HEAD
+        })
+      );
+=======
         };
       });
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
       const response: LibraryQualityResponse = {
         period,

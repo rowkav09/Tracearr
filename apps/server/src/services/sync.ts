@@ -195,7 +195,11 @@ async function syncPlexUsers(
  */
 async function syncMediaServerUsers(
   serverId: string,
+<<<<<<< HEAD
+  serverType: 'jellyfin' | 'emby',
+=======
   serverType: 'jellyfin' | 'emby' | 'navidrome',
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   serverUrl: string,
   token: string
 ): Promise<{
@@ -271,11 +275,15 @@ export async function syncServer(
       result.usersRemoved = userResult.removed;
       result.usersRestored = userResult.restored;
       result.errors.push(...userResult.errors);
+<<<<<<< HEAD
+    } else if (server.type === 'jellyfin' || server.type === 'emby') {
+=======
     } else if (
       server.type === 'jellyfin' ||
       server.type === 'emby' ||
       server.type === 'navidrome'
     ) {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       const userResult = await syncMediaServerUsers(serverId, server.type, serverUrl, server.token);
       result.usersAdded = userResult.added;
       result.usersUpdated = userResult.updated;

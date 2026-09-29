@@ -1,6 +1,13 @@
 import { useMemo } from 'react';
+<<<<<<< HEAD
+import { useTranslation } from 'react-i18next';
 import Highcharts from 'highcharts';
 import { HighchartsReact } from 'highcharts-react-official';
+import { PLAYBACK_DECISION_LABEL_KEYS } from '@tracearr/shared';
+=======
+import Highcharts from 'highcharts';
+import { HighchartsReact } from 'highcharts-react-official';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { ChartSkeleton } from '@/components/ui/skeleton';
 import { ChartEmpty } from './ChartEmpty';
 
@@ -27,6 +34,10 @@ const COLORS = {
 };
 
 export function QualityChart({ data, isLoading, height = 250 }: QualityChartProps) {
+<<<<<<< HEAD
+  const { t } = useTranslation();
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   const options = useMemo<Highcharts.Options>(() => {
     if (!data || data.total === 0) {
       return {};
@@ -83,17 +94,29 @@ export function QualityChart({ data, isLoading, height = 250 }: QualityChartProp
           name: 'Quality',
           data: [
             {
+<<<<<<< HEAD
+              name: t(PLAYBACK_DECISION_LABEL_KEYS.directplay),
+=======
               name: 'Direct Play',
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
               y: data.directPlay,
               color: COLORS.directPlay,
             },
             {
+<<<<<<< HEAD
+              name: t(PLAYBACK_DECISION_LABEL_KEYS.copy),
+=======
               name: 'Direct Stream',
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
               y: data.directStream,
               color: COLORS.directStream,
             },
             {
+<<<<<<< HEAD
+              name: t(PLAYBACK_DECISION_LABEL_KEYS.transcode),
+=======
               name: 'Transcode',
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
               y: data.transcode,
               color: COLORS.transcode,
             },
@@ -120,7 +143,11 @@ export function QualityChart({ data, isLoading, height = 250 }: QualityChartProp
         ],
       },
     };
+<<<<<<< HEAD
+  }, [data, height, t]);
+=======
   }, [data, height]);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
   if (isLoading) {
     return <ChartSkeleton height={height} />;

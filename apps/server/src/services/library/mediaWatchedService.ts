@@ -18,6 +18,19 @@ export interface WatchedProbeArgs {
   lensUserId: string | null;
   /** showId -> known episode count, supplied by the caller. */
   episodeCounts: Map<string, number>;
+<<<<<<< HEAD
+  /**
+   * Season numbers to restrict shows to; undefined or empty means every season.
+   * episodeCounts must be built with the same restriction.
+   */
+  seasons?: number[];
+}
+
+function seasonFragment(seasons: number[] | undefined): SQL {
+  if (!seasons || seasons.length === 0) return sql``;
+  return sql`AND li.parent_index = ANY(${sql.param(seasons)}::int[])`;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 interface MovieWatchedRow {
@@ -114,7 +127,11 @@ async function fetchMovieWatchedRows(
   const serverFragment = buildMultiServerFragment(serverIds, 'p.server_id');
   // A direct JOIN from alias_map to the cagg (a materialized_only=false view)
   // makes the planner seq-scan the whole cagg instead of probing
+<<<<<<< HEAD
+  // idx_user_media_plays_media_user_chain per alias row. CROSS JOIN LATERAL with
+=======
   // idx_user_media_plays_media_user per alias row. CROSS JOIN LATERAL with
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   // OFFSET 0 blocks the planner from flattening the subquery back into that
   // same join, which is what actually forces the index scan (bare JOIN and
   // LATERAL without OFFSET 0 both flatten to the same seq-scanning plan).
@@ -122,10 +139,17 @@ async function fetchMovieWatchedRows(
     ${aliasCte}
     SELECT a.canonical_id,
            BOOL_OR(p.any_watched) AS watched,
+<<<<<<< HEAD
+           BOOL_OR(p.counted) AS has_plays
+    FROM alias_map a
+    CROSS JOIN LATERAL (
+      SELECT p2.any_watched, p2.counted, p2.server_user_id, p2.server_id
+=======
            COALESCE(SUM(p.plays), 0) > 0 AS has_plays
     FROM alias_map a
     CROSS JOIN LATERAL (
       SELECT p2.any_watched, p2.plays, p2.server_user_id, p2.server_id
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       FROM user_media_plays_daily p2
       WHERE p2.media_id = a.any_id
       OFFSET 0
@@ -140,11 +164,30 @@ async function fetchMovieWatchedRows(
 async function fetchShowWatchedRows(
   showIds: string[],
   serverIds: string[] | undefined,
+<<<<<<< HEAD
+  lensUserId: string | null,
+  seasons: number[] | undefined
+=======
   lensUserId: string | null
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 ): Promise<ShowWatchedRow[]> {
   const aliasCte = buildAliasMapCte(showIds);
   const serverFragment = buildMultiServerFragment(serverIds, 'p.server_id');
   const serverFragmentLi = buildMultiServerFragment(serverIds, 'li.server_id');
+<<<<<<< HEAD
+  const seasonFilter = seasonFragment(seasons);
+  // Unfiltered, BOOL_OR(counted) spans the whole show and a watched season 1 reads as
+  // a partial season 2.
+  const playsFilter =
+    !seasons || seasons.length === 0
+      ? sql``
+      : sql`FILTER (WHERE EXISTS (
+          SELECT 1 FROM library_items li
+          WHERE li.media_id = p.media_id AND li.removed_at IS NULL
+            ${serverFragmentLi} ${seasonFilter}
+        ))`;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   // Same LATERAL/OFFSET 0 shape as the movie probe, keyed on show_media_id.
   // eps_watched stays a single COUNT(DISTINCT) over every alias row's plays
   // rather than a per-any_id count summed afterward, since a per-any_id sum
@@ -157,6 +200,16 @@ async function fetchShowWatchedRows(
              WHERE p.any_watched
                AND EXISTS (
                  SELECT 1 FROM library_items li
+<<<<<<< HEAD
+                 WHERE li.media_id = p.media_id AND li.removed_at IS NULL
+                   ${serverFragmentLi} ${seasonFilter}
+               )
+           )::int AS eps_watched,
+           COALESCE(BOOL_OR(p.counted) ${playsFilter}, false) AS has_plays
+    FROM alias_map a
+    CROSS JOIN LATERAL (
+      SELECT p2.media_id, p2.any_watched, p2.counted, p2.server_user_id, p2.server_id
+=======
                  WHERE li.media_id = p.media_id AND li.removed_at IS NULL ${serverFragmentLi}
                )
            )::int AS eps_watched,
@@ -164,6 +217,7 @@ async function fetchShowWatchedRows(
     FROM alias_map a
     CROSS JOIN LATERAL (
       SELECT p2.media_id, p2.any_watched, p2.plays, p2.server_user_id, p2.server_id
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       FROM user_media_plays_daily p2
       WHERE p2.show_media_id = a.any_id
       OFFSET 0
@@ -175,6 +229,33 @@ async function fetchShowWatchedRows(
   return result.rows as unknown as ShowWatchedRow[];
 }
 
+<<<<<<< HEAD
+/** showId -> count of episodes currently in the library, the denominator every show watched probe uses. */
+export async function fetchEpisodeCounts(
+  showIds: string[],
+  serverIds: string[] | undefined,
+  seasons?: number[]
+): Promise<Map<string, number>> {
+  const result = new Map<string, number>();
+  if (showIds.length === 0) return result;
+  const serverFragmentLi = buildMultiServerFragment(serverIds, 'li.server_id');
+  const seasonFilter = seasonFragment(seasons);
+  const rows = await db.execute(sql`
+    SELECT m.show_media_id AS show_id, COUNT(*) FILTER (WHERE m.media_type = 'episode')::int AS episode_count
+    FROM media m
+    WHERE m.show_media_id = ANY(${uuidArraySql(showIds)})
+      AND m.media_type = 'episode'
+      AND EXISTS (SELECT 1 FROM library_items li WHERE li.media_id = m.id AND li.removed_at IS NULL ${serverFragmentLi} ${seasonFilter})
+    GROUP BY m.show_media_id
+  `);
+  for (const row of rows.rows as unknown as { show_id: string; episode_count: number }[]) {
+    result.set(row.show_id, row.episode_count);
+  }
+  return result;
+}
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 /**
  * Resolves per-media watched state for a page of movies and shows, alias-aware
  * (merged duplicates share state) and scoped to a server set and/or a single
@@ -185,7 +266,11 @@ async function fetchShowWatchedRows(
 export async function resolveWatchedStates(
   args: WatchedProbeArgs
 ): Promise<Map<string, WatchedState>> {
+<<<<<<< HEAD
+  const { movieIds, showIds, serverIds, lensUserId, episodeCounts, seasons } = args;
+=======
   const { movieIds, showIds, serverIds, lensUserId, episodeCounts } = args;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   const result = new Map<string, WatchedState>();
 
   if (movieIds.length > 0) {
@@ -196,7 +281,11 @@ export async function resolveWatchedStates(
   }
 
   if (showIds.length > 0) {
+<<<<<<< HEAD
+    const rows = await fetchShowWatchedRows(showIds, serverIds, lensUserId, seasons);
+=======
     const rows = await fetchShowWatchedRows(showIds, serverIds, lensUserId);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     for (const [id, state] of mapShowWatchedRows(showIds, rows, episodeCounts)) {
       result.set(id, state);
     }
@@ -327,8 +416,13 @@ export function buildMovieCandidateQuery(args: ListWatchedMediaArgs): SQL {
     WITH counted AS (
       SELECT COALESCE(am.merged_into_id, p.media_id) AS canonical_id,
              BOOL_OR(p.any_watched) AS watched_any,
+<<<<<<< HEAD
+             BOOL_OR(p.counted) AS has_plays_any,
+             COUNT(DISTINCT p.chain_id) FILTER (WHERE p.counted)::bigint AS plays,
+=======
              COALESCE(SUM(p.plays), 0) > 0 AS has_plays_any,
              COALESCE(SUM(p.plays), 0)::bigint AS plays,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
              MAX(p.day) AS last_day
       FROM user_media_plays_daily p
       JOIN media am ON am.id = p.media_id
@@ -380,8 +474,13 @@ export function buildShowCandidateQuery(args: ListWatchedMediaArgs): SQL {
              COUNT(DISTINCT p.media_id) FILTER (
                WHERE p.any_watched AND ae.media_id IS NOT NULL
              )::int AS eps_watched_any,
+<<<<<<< HEAD
+             BOOL_OR(p.counted) AS has_plays_any,
+             COUNT(DISTINCT p.chain_id) FILTER (WHERE p.counted)::bigint AS plays,
+=======
              COALESCE(SUM(p.plays), 0) > 0 AS has_plays_any,
              COALESCE(SUM(p.plays), 0)::bigint AS plays,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
              MAX(p.day) AS last_day
       FROM user_media_plays_daily p
       JOIN media am ON am.id = p.show_media_id

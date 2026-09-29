@@ -1,6 +1,10 @@
 /**
  * Version Check Queue Tests
  *
+<<<<<<< HEAD
+ * Tests findBestUpdateForPrerelease, collectUpgradeWarnings, fetchGitHubReleases
+ * rate-limit handling, and processVersionCheck's cooldown guard.
+=======
  * Tests the version comparison and parsing functions:
  * - parseVersion: Parse semantic version strings with prerelease support
  * - isPrerelease: Detect if a version is a prerelease
@@ -9,21 +13,29 @@
  * - isNewerVersion: Check if one version is newer than another
  * - fetchGitHubReleases: Rate-limit error handling
  * - processVersionCheck: Cooldown guard and rate-limit recovery
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
+<<<<<<< HEAD
+=======
   parseVersion,
   isPrerelease,
   getBaseVersion,
   compareVersions,
   isNewerVersion,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   findBestUpdateForPrerelease,
   fetchGitHubReleases,
   GitHubRateLimitError,
   processVersionCheck,
   initVersionCheckQueue,
   scheduleVersionChecks,
+<<<<<<< HEAD
+  collectUpgradeWarnings,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   type GitHubRelease,
 } from '../versionCheckQueue.js';
 
@@ -70,6 +82,8 @@ vi.mock('../../utils/buildInfo.js', () => ({
   getBuildDate: vi.fn(),
 }));
 
+<<<<<<< HEAD
+=======
 describe('parseVersion', () => {
   describe('stable versions', () => {
     it('should parse simple version', () => {
@@ -343,6 +357,7 @@ describe('isNewerVersion', () => {
   });
 });
 
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 // Helper to create mock GitHub releases
 function mockRelease(tag: string, prerelease: boolean, draft = false): GitHubRelease {
   return {
@@ -679,3 +694,120 @@ describe('scheduleVersionChecks', () => {
     expect(queue.removeJobScheduler).toHaveBeenCalledWith('version-check-repeatable');
   });
 });
+<<<<<<< HEAD
+
+describe('collectUpgradeWarnings', () => {
+  const release = (tag: string, withAsset: boolean, prerelease = false): GitHubRelease => ({
+    tag_name: tag,
+    html_url: `https://github.com/test/releases/tag/${tag}`,
+    published_at: '2026-01-01T00:00:00Z',
+    name: tag,
+    body: null,
+    prerelease,
+    draft: false,
+    assets: withAsset
+      ? [
+          {
+            name: 'release-notes.json',
+            browser_download_url: `https://example.test/${tag}/release-notes.json`,
+          },
+        ]
+      : [],
+  });
+
+  const notes = (version: string, upgradeWarning?: string) => ({
+    ok: true,
+    status: 200,
+    json: vi.fn().mockResolvedValue({
+      version,
+      date: '2026-01-01',
+      ...(version.endsWith('.0') && !version.includes('-') ? { headline: 'Headline' } : {}),
+      ...(upgradeWarning ? { upgradeWarning } : {}),
+      changes: [{ type: 'fix', text: 'a fix' }],
+    }),
+  });
+
+  beforeEach(() => {
+    mockFetch.mockReset();
+  });
+
+  it('collects warnings between current and target, newest first', async () => {
+    mockFetch.mockImplementation((url: string) =>
+      Promise.resolve(
+        url.includes('/v2.3.0/')
+          ? notes('2.3.0', 'back up first')
+          : notes('2.2.0', 'update the plugin')
+      )
+    );
+
+    const warnings = await collectUpgradeWarnings('2.1.0', '2.3.0', [
+      release('v2.1.0', true),
+      release('v2.2.0', true),
+      release('v2.3.0', true),
+      release('v2.4.0', true),
+    ]);
+
+    expect(warnings).toEqual([
+      { version: '2.3.0', text: 'back up first' },
+      { version: '2.2.0', text: 'update the plugin' },
+    ]);
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('skips releases without the asset and prereleases when the target is stable', async () => {
+    mockFetch.mockResolvedValue(notes('2.3.0', 'back up first'));
+
+    const warnings = await collectUpgradeWarnings('2.2.3', '2.3.0', [
+      release('v2.3.0-beta.1', true, true),
+      release('v2.2.4', false),
+      release('v2.3.0', true),
+    ]);
+
+    expect(warnings).toEqual([{ version: '2.3.0', text: 'back up first' }]);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps going when one download fails', async () => {
+    mockFetch
+      .mockRejectedValueOnce(new Error('socket hang up'))
+      .mockResolvedValueOnce(notes('2.2.0', 'update the plugin'));
+
+    const warnings = await collectUpgradeWarnings('2.1.0', '2.3.0', [
+      release('v2.3.0', true),
+      release('v2.2.0', true),
+    ]);
+
+    expect(warnings).toEqual([{ version: '2.2.0', text: 'update the plugin' }]);
+  });
+
+  it('fetches a shared beta asset once and skips older betas with the same base version', async () => {
+    mockFetch.mockResolvedValue(notes('2.3.0', 'back up first'));
+
+    const warnings = await collectUpgradeWarnings('2.2.3', '2.3.0-beta.6', [
+      release('v2.3.0-beta.6', true, true),
+      release('v2.3.0-beta.5', true, true),
+      release('v2.3.0-beta.4', true, true),
+    ]);
+
+    expect(warnings).toEqual([{ version: '2.3.0', text: 'back up first' }]);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps checking older betas of the same base version until a warning is found', async () => {
+    mockFetch
+      .mockResolvedValueOnce(notes('2.3.0'))
+      .mockResolvedValueOnce(notes('2.3.0', 'back up first'))
+      .mockResolvedValueOnce(notes('2.3.0', 'older text'));
+
+    const warnings = await collectUpgradeWarnings('2.2.3', '2.3.0-beta.6', [
+      release('v2.3.0-beta.6', true, true),
+      release('v2.3.0-beta.5', true, true),
+      release('v2.3.0-beta.4', true, true),
+    ]);
+
+    expect(warnings).toEqual([{ version: '2.3.0', text: 'back up first' }]);
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+});
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)

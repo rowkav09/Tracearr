@@ -21,7 +21,12 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import type { UserDevice } from '@tracearr/shared';
+<<<<<<< HEAD
+import { formatLocationCompact, getDeviceDisplayName } from '@/lib/utils';
+import { LocalBadge } from '@/components/sessions/LocalBadge';
+=======
 import { formatLocationCompact } from '@/lib/utils';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 interface UserDevicesCardProps {
   devices: UserDevice[];
@@ -90,6 +95,8 @@ function getDeviceIcon(device: UserDevice) {
   return HardDrive;
 }
 
+<<<<<<< HEAD
+=======
 function getDeviceDisplayName(device: UserDevice): string {
   // Prefer playerName if available
   if (device.playerName) {
@@ -113,6 +120,7 @@ function getDeviceDisplayName(device: UserDevice): string {
   return device.platform ?? 'Unknown Device';
 }
 
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 function formatLocationShort(loc: {
   city: string | null;
   region: string | null;
@@ -193,7 +201,11 @@ export function UserDevicesCard({ devices, isLoading, totalSessions = 0 }: UserD
               const percentage =
                 totalSessions > 0 ? Math.round((device.sessionCount / totalSessions) * 100) : 0;
               const DeviceIcon = getDeviceIcon(device);
+<<<<<<< HEAD
+              const displayName = getDeviceDisplayName(device) ?? 'Unknown Device';
+=======
               const displayName = getDeviceDisplayName(device);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
               const locations = device.locations ?? [];
               const hasMultipleLocations = locations.length > 1;
               const primaryLocation = locations[0];
@@ -242,7 +254,14 @@ export function UserDevicesCard({ devices, isLoading, totalSessions = 0 }: UserD
                                       key={locIndex}
                                       className="flex items-center justify-between gap-4 text-xs"
                                     >
+<<<<<<< HEAD
+                                      <span className="flex items-center gap-1">
+                                        {formatLocationShort(loc)}
+                                        <LocalBadge isLocal={loc.isLocal} country={loc.country} />
+                                      </span>
+=======
                                       <span>{formatLocationShort(loc)}</span>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                                       <span className="text-muted-foreground tabular-nums">
                                         {loc.sessionCount}
                                       </span>
@@ -255,6 +274,13 @@ export function UserDevicesCard({ devices, isLoading, totalSessions = 0 }: UserD
                             <span className="flex items-center gap-1">
                               <MapPin className="h-3 w-3 shrink-0" />
                               {formatLocationShort(primaryLocation)}
+<<<<<<< HEAD
+                              <LocalBadge
+                                isLocal={primaryLocation.isLocal}
+                                country={primaryLocation.country}
+                              />
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                             </span>
                           )}
                         </>

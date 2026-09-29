@@ -37,8 +37,13 @@ export interface AddServerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   isOwner: boolean;
+<<<<<<< HEAD
+  serverType: 'plex' | 'jellyfin' | 'emby';
+  onServerTypeChange: (type: 'plex' | 'jellyfin' | 'emby') => void;
+=======
   serverType: 'plex' | 'jellyfin' | 'emby' | 'navidrome';
   onServerTypeChange: (type: 'plex' | 'jellyfin' | 'emby' | 'navidrome') => void;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   serverUrl: string;
   onServerUrlChange: (value: string) => void;
   publicUrl: string;
@@ -143,9 +148,13 @@ export function AddServerDialog({
             <FieldLabel htmlFor="server-type">{t('servers.serverType')}</FieldLabel>
             <Select
               value={serverType}
+<<<<<<< HEAD
+              onValueChange={(v) => onServerTypeChange(v as 'plex' | 'jellyfin' | 'emby')}
+=======
               onValueChange={(v) =>
                 onServerTypeChange(v as 'plex' | 'jellyfin' | 'emby' | 'navidrome')
               }
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
             >
               <SelectTrigger id="server-type" className="w-full">
                 <SelectValue />
@@ -154,7 +163,10 @@ export function AddServerDialog({
                 {isOwner && <SelectItem value="plex">Plex</SelectItem>}
                 <SelectItem value="jellyfin">Jellyfin</SelectItem>
                 <SelectItem value="emby">Emby</SelectItem>
+<<<<<<< HEAD
+=======
                 {isOwner && <SelectItem value="navidrome">Navidrome</SelectItem>}
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
               </SelectContent>
             </Select>
           </Field>
@@ -250,11 +262,17 @@ export function AddServerDialog({
                   onChange={(e) => onServerUrlChange(e.target.value)}
                 />
                 <FieldDescription>
+<<<<<<< HEAD
+                  {serverType === 'jellyfin'
+                    ? t('servers.serverUrlHelpJellyfin')
+                    : t('servers.serverUrlHelpEmby')}
+=======
                   {serverType === 'navidrome'
                     ? 'Navidrome URL reachable from Tracearr.'
                     : serverType === 'jellyfin'
                       ? t('servers.serverUrlHelpJellyfin')
                       : t('servers.serverUrlHelpEmby')}
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                 </FieldDescription>
               </Field>
 
@@ -280,6 +298,13 @@ export function AddServerDialog({
               </Field>
 
               <Field>
+<<<<<<< HEAD
+                <FieldLabel htmlFor="apiKey">{t('common:labels.apiKey')}</FieldLabel>
+                <Input
+                  id="apiKey"
+                  type="password"
+                  placeholder={t('servers.apiKeyPlaceholder')}
+=======
                 <FieldLabel htmlFor="apiKey">
                   {serverType === 'navidrome' ? 'Credentials (JSON)' : t('common:labels.apiKey')}
                 </FieldLabel>
@@ -291,15 +316,22 @@ export function AddServerDialog({
                       ? '{"username":"admin","password":"..."}'
                       : t('servers.apiKeyPlaceholder')
                   }
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                   value={apiKey}
                   onChange={(e) => onApiKeyChange(e.target.value)}
                 />
                 <FieldDescription>
+<<<<<<< HEAD
+                  {serverType === 'jellyfin'
+                    ? t('servers.apiKeyHelpJellyfin')
+                    : t('servers.apiKeyHelpEmby')}
+=======
                   {serverType === 'navidrome'
                     ? 'JSON containing a Navidrome administrator username and password.'
                     : serverType === 'jellyfin'
                       ? t('servers.apiKeyHelpJellyfin')
                       : t('servers.apiKeyHelpEmby')}
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                 </FieldDescription>
               </Field>
 

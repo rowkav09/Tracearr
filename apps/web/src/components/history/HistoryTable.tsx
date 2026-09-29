@@ -4,6 +4,10 @@
  */
 
 import { forwardRef, useRef, useEffect, memo } from 'react';
+<<<<<<< HEAD
+import { useTranslation } from 'react-i18next';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Link } from 'react-router';
 import {
@@ -30,10 +34,31 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Skeleton } from '@/components/ui/skeleton';
+<<<<<<< HEAD
+import {
+  cn,
+  formatLocationCompact,
+  getCountryName,
+  getMediaDisplay,
+  getSessionProgress,
+} from '@/lib/utils';
+import { formatDuration } from '@/lib/formatters';
+import { getAvatarUrl } from '@/components/users/utils';
+import { LocalBadge } from '@/components/sessions/LocalBadge';
+import {
+  PLAYBACK_DECISION_LABEL_KEYS,
+  playbackDecision,
+  type SessionWithDetails,
+  type SessionState,
+  type MediaType,
+  type EngagementTier,
+} from '@tracearr/shared';
+=======
 import { cn, formatLocationCompact, getCountryName, getMediaDisplay } from '@/lib/utils';
 import { formatDuration } from '@/lib/formatters';
 import { getAvatarUrl } from '@/components/users/utils';
 import type { SessionWithDetails, SessionState, MediaType, EngagementTier } from '@tracearr/shared';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import type { ColumnVisibility } from './HistoryFilters';
 import { ServerColumnCell } from '@/components/server';
 import { useServerColorMap } from '@/hooks/useServerColorMap';
@@ -83,8 +108,13 @@ const ENGAGEMENT_TIER_CONFIG: Record<
   },
 };
 
+<<<<<<< HEAD
+function getEngagementTier(progress: number | null): EngagementTier {
+  if (progress === null) return 'unknown';
+=======
 function getEngagementTier(progress: number, hasDuration: boolean): EngagementTier {
   if (!hasDuration) return 'unknown';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   if (progress >= 200) return 'rewatched';
   if (progress >= 85) return 'watched';
   if (progress >= 50) return 'engaged';
@@ -95,6 +125,13 @@ function getEngagementTier(progress: number, hasDuration: boolean): EngagementTi
 function EngagementTierBadge({
   progress,
   state,
+<<<<<<< HEAD
+}: {
+  progress: number | null;
+  state: SessionState;
+}) {
+  const tier = getEngagementTier(progress);
+=======
   hasDuration,
 }: {
   progress: number;
@@ -102,6 +139,7 @@ function EngagementTierBadge({
   hasDuration: boolean;
 }) {
   const tier = getEngagementTier(progress, hasDuration);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   if (tier === 'unknown' || state !== 'stopped') return null;
 
   const config = ENGAGEMENT_TIER_CONFIG[tier];
@@ -185,6 +223,8 @@ function MediaTypeIcon({ type }: { type: MediaType }) {
   );
 }
 
+<<<<<<< HEAD
+=======
 // Calculate progress percentage (playback position)
 // Uses progressMs (where in the video) not durationMs (how long watched)
 function getProgress(session: SessionWithDetails): number {
@@ -193,6 +233,7 @@ function getProgress(session: SessionWithDetails): number {
   return Math.min(100, Math.round((progress / session.totalDurationMs) * 100));
 }
 
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 interface HistoryTableRowProps {
   session: SessionWithDetails;
   onClick?: () => void;
@@ -210,8 +251,14 @@ export const HistoryTableRow = memo(
       ref
     ) => {
       const { title: primary, subtitle: secondary } = getMediaDisplay(session);
+<<<<<<< HEAD
+      const progress = getSessionProgress(session);
+      const colorMap = useServerColorMap();
+      const { t } = useTranslation();
+=======
       const progress = getProgress(session);
       const colorMap = useServerColorMap();
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       const serverColor = isMultiServer ? (colorMap.get(session.serverId) ?? null) : null;
       const accentStyle = serverColor
         ? { ...style, boxShadow: `inset 3px 0 0 0 ${serverColor}` }
@@ -282,11 +329,15 @@ export const HistoryTableRow = memo(
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="truncate font-medium">{primary}</span>
+<<<<<<< HEAD
+                    <EngagementTierBadge progress={progress} state={session.state} />
+=======
                     <EngagementTierBadge
                       progress={progress}
                       state={session.state}
                       hasDuration={!!session.totalDurationMs}
                     />
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                   </div>
                   {secondary && (
                     <div className="text-muted-foreground truncate text-xs">{secondary}</div>
@@ -344,6 +395,10 @@ export const HistoryTableRow = memo(
                           session.geoCountry
                         )}
                       </span>
+<<<<<<< HEAD
+                      <LocalBadge isLocal={session.isLocal} country={session.geoCountry} />
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>
@@ -384,7 +439,11 @@ export const HistoryTableRow = memo(
                   return (
                     <Badge variant="warning" className="gap-1 text-xs">
                       {isHwTranscode ? <Cpu className="h-3 w-3" /> : <Zap className="h-3 w-3" />}
+<<<<<<< HEAD
+                      {t(PLAYBACK_DECISION_LABEL_KEYS.transcode)}
+=======
                       Transcode
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                     </Badge>
                   );
                 }
@@ -392,9 +451,13 @@ export const HistoryTableRow = memo(
                 return (
                   <Badge variant="success" className="gap-1 text-xs">
                     <MonitorPlay className="h-3 w-3" />
+<<<<<<< HEAD
+                    {t(PLAYBACK_DECISION_LABEL_KEYS[playbackDecision(session)])}
+=======
                     {session.videoDecision === 'copy' || session.audioDecision === 'copy'
                       ? 'Direct Stream'
                       : 'Direct Play'}
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                   </Badge>
                 );
               })()}
@@ -441,6 +504,22 @@ export const HistoryTableRow = memo(
           {/* Progress */}
           {columnVisibility.progress && (
             <TableCell className={COLUMN_WIDTHS.progress}>
+<<<<<<< HEAD
+              {progress !== null && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-2">
+                      <Progress value={progress} className="h-1.5 w-12" />
+                      <span className="text-muted-foreground text-xs">{progress}%</span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {progress}% complete
+                    {session.watched && ' (watched)'}
+                  </TooltipContent>
+                </Tooltip>
+              )}
+=======
               <Tooltip>
                 <TooltipTrigger asChild>
                   <div className="flex items-center gap-2">
@@ -453,6 +532,7 @@ export const HistoryTableRow = memo(
                   {session.watched && ' (watched)'}
                 </TooltipContent>
               </Tooltip>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
             </TableCell>
           )}
         </TableRow>

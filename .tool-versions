@@ -1,1 +1,5 @@
+<<<<<<< HEAD
+nodejs 24.21.0
+=======
 nodejs 24.19.0
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)

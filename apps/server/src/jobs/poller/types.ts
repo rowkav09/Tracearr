@@ -16,6 +16,10 @@ import type { sessions } from '../../db/schema.js';
 import type { SessionIdentity as MediaItemIdentity } from './database.js';
 import type { CacheService, PubSubService } from '../../services/cache.js';
 import type { GeoLocation } from '../../services/geoip.js';
+<<<<<<< HEAD
+import type { SessionGeo } from '../../services/serverLocations.js';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import type { SessionStopReason } from '../../services/automations/events/types.js';
 import type { ViolationInsertResult } from './violations.js';
 
@@ -73,7 +77,11 @@ export interface CompositeSessionIdentity {
 
 /** Input for building a session cache/tracking key. */
 export interface BuildCompositeKeyInput {
+<<<<<<< HEAD
+  serverType: 'plex' | 'jellyfin' | 'emby';
+=======
   serverType: 'plex' | 'jellyfin' | 'emby' | 'navidrome';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   serverId: string;
   externalUserId: string;
   deviceId: string | null;
@@ -284,7 +292,11 @@ export interface PendingSessionData {
   /** Processed session data from media server */
   processed: ProcessedSession;
   /** Server info */
+<<<<<<< HEAD
+  server: { id: string; name: string; type: 'plex' | 'jellyfin' | 'emby' };
+=======
   server: { id: string; name: string; type: 'plex' | 'jellyfin' | 'emby' | 'navidrome' };
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   /** Server user info (matches SessionCreationInput.serverUser) */
   serverUser: {
     id: string;
@@ -299,8 +311,13 @@ export interface PendingSessionData {
     /** All server_user ids belonging to the same identity, for cross-server rule aggregation */
     identityServerUserIds: string[];
   };
+<<<<<<< HEAD
+  /** isLocal is absent on entries written before the flag existed */
+  geo: GeoLocation & { isLocal?: boolean };
+=======
   /** GeoIP location data */
   geo: GeoLocation;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   /** Timestamp when session started (ms since epoch) */
   startedAt: number;
   /** Last update timestamp (ms since epoch) */
@@ -350,7 +367,11 @@ export interface SessionCreationInput {
   /** Processed session data from media server */
   processed: ProcessedSession;
   /** Server info */
+<<<<<<< HEAD
+  server: { id: string; name: string; type: 'plex' | 'jellyfin' | 'emby' };
+=======
   server: { id: string; name: string; type: 'plex' | 'jellyfin' | 'emby' | 'navidrome' };
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   /** Server user info */
   serverUser: {
     id: string;
@@ -366,7 +387,11 @@ export interface SessionCreationInput {
     identityServerUserIds: string[];
   };
   /** GeoIP location data */
+<<<<<<< HEAD
+  geo: SessionGeo;
+=======
   geo: GeoLocation;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   /** Active V2 rules to evaluate */
   activeAutomations: EngineAutomation[];
   /** Active sessions for rule context (e.g., concurrent streams) */
@@ -430,7 +455,11 @@ export interface ResolvePendingSessionInput {
   cacheService: CacheService;
   pubSubService: PubSubService | null;
   /** Server info */
+<<<<<<< HEAD
+  server: { id: string; name: string; type: 'plex' | 'jellyfin' | 'emby' };
+=======
   server: { id: string; name: string; type: 'plex' | 'jellyfin' | 'emby' | 'navidrome' };
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   /** Redis key for the pending session lookup (sessionKey for Plex, composite key otherwise) */
   pendingKey: string;
   /** Processed session data from media server */
@@ -498,7 +527,11 @@ export interface MediaChangeInput {
   /** New media data from the poll */
   processed: ProcessedSession;
   /** Server info */
+<<<<<<< HEAD
+  server: { id: string; name: string; type: 'plex' | 'jellyfin' | 'emby' };
+=======
   server: { id: string; name: string; type: 'plex' | 'jellyfin' | 'emby' | 'navidrome' };
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   /** Server user info */
   serverUser: {
     id: string;
@@ -514,7 +547,11 @@ export interface MediaChangeInput {
     identityServerUserIds: string[];
   };
   /** GeoIP location data */
+<<<<<<< HEAD
+  geo: SessionGeo;
+=======
   geo: GeoLocation;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   /** Active V2 rules to evaluate */
   activeAutomations: EngineAutomation[];
   /** Active sessions for rule context (e.g., concurrent streams) */

@@ -7,6 +7,12 @@ export type {
   // Server
   ServerType,
   Server,
+<<<<<<< HEAD
+  ServerLocationEntry,
+  ServerLocationsResponse,
+  UpdateServerLocationsResponse,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   // User
   User,
   ServerUser,
@@ -23,6 +29,10 @@ export type {
   ServerUserSplitResult,
   MergeSuggestionIdentity,
   MergeSuggestion,
+<<<<<<< HEAD
+  DismissedMergeSuggestion,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   // Session
   SessionState,
   MediaType,
@@ -216,6 +226,11 @@ export type {
   DuplicateGroup,
   DuplicatesSummary,
   DuplicatesResponse,
+<<<<<<< HEAD
+  DuplicateFileStatus,
+  DuplicateFilesResponse,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   StaleCategory,
   StaleItem,
   StaleSummary,
@@ -239,6 +254,10 @@ export type {
   CatalogLettersResponse,
   ShelfRow,
   RecentlyAddedShelfRow,
+<<<<<<< HEAD
+  RecentlyUpdatedShelfRow,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   MostPopularShelfRow,
   DeadWeightRow,
   ShelvesKpiWatchedInPeriod,
@@ -284,7 +303,11 @@ export type {
   CodecEntry,
   CodecBreakdown,
   LibraryCodecsResponse,
+<<<<<<< HEAD
+  ResolutionCounts,
+=======
   ResolutionEntry,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   ResolutionBreakdown,
   LibraryResolutionResponse,
   LibraryOption,
@@ -407,6 +430,10 @@ export {
   TEMPLATE_GROUPS,
   TEMPLATE_SCHEMA_VERSION,
   TEMPLATE_MIN_SERVER_VERSION,
+<<<<<<< HEAD
+  templateMinServerVersion,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   templateEnvelopeSchema,
   materializeTemplate,
   slotValueFor,
@@ -439,6 +466,11 @@ export {
   serverIdParamSchema,
   reorderServersSchema,
   updateServerSchema,
+<<<<<<< HEAD
+  serverLocationEntrySchema,
+  serverLocationsSchema,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   // User
   updateUserSchema,
   updateUserIdentitySchema,
@@ -447,6 +479,11 @@ export {
   identityScopedPaginationSchema,
   mergeUsersBodySchema,
   mergeUserParamSchema,
+<<<<<<< HEAD
+  mergeSuggestionDismissalSchema,
+  mergeSuggestionPairParamSchema,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   splitServerUserParamSchema,
   USER_SORT_FIELDS,
   userRosterFilterSchema,
@@ -505,6 +542,12 @@ export {
   jellystatTranscodingInfoSchema,
   jellystatPlaybackActivitySchema,
   jellystatBackupSchema,
+<<<<<<< HEAD
+  jellystatLibraryItemSchema,
+  jellystatLibraryEpisodeSchema,
+  jellystatPluginRowSchema,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   jellystatImportBodySchema,
   importJobStatusSchema,
   // Playback Reporting import
@@ -522,6 +565,10 @@ export {
   libraryQualityQuerySchema,
   libraryStorageQuerySchema,
   libraryDuplicatesQuerySchema,
+<<<<<<< HEAD
+  libraryDuplicateFilesQuerySchema,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   libraryStaleQuerySchema,
   libraryWatchQuerySchema,
   libraryRoiQuerySchema,
@@ -580,6 +627,10 @@ export {
   updateNewsletterSchema,
   newsletterTestSendSchema,
   newsletterPreviewDraftSchema,
+<<<<<<< HEAD
+  newsletterRecipientsDraftSchema,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   emailSuppressionCreateSchema,
   newsletterSendsQuerySchema,
   newsletterCron,
@@ -626,6 +677,10 @@ export type {
   EmailSuppression,
   NewsletterPreview,
   NewsletterPreviewDraftInput,
+<<<<<<< HEAD
+  NewsletterRecipientsDraftInput,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   NewsletterPreviewVariant,
   NewsletterVariantsView,
   NewsletterSectionCounts,
@@ -634,6 +689,16 @@ export type {
   NewsletterSendHtml,
 } from './newsletters.js';
 
+<<<<<<< HEAD
+// User merge
+export { rankMergeTarget, type MergeRankInput } from './merge.js';
+
+export { LOCAL_NETWORK_COUNTRY, isPlacedLocal } from './localNetwork.js';
+
+export { isEmailAddress, usernameAsEmail } from './emailAddress.js';
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 // Rich text for newsletter intro and outro
 export {
   EMAIL_RICH_TEXT_MAX_CHARS,
@@ -689,6 +754,12 @@ export type {
   JellystatTranscodingInfo,
   JellystatPlaybackActivity,
   JellystatBackup,
+<<<<<<< HEAD
+  JellystatLibraryItem,
+  JellystatLibraryEpisode,
+  JellystatPluginRow,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   JellystatImportBody,
   ImportJobStatus,
   // Engagement tracking
@@ -701,6 +772,10 @@ export type {
   LibraryQualityQueryInput,
   LibraryStorageQueryInput,
   LibraryDuplicatesQueryInput,
+<<<<<<< HEAD
+  LibraryDuplicateFilesQueryInput,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   LibraryStaleQueryInput,
   LibraryWatchQueryInput,
   LibraryRoiQueryInput,
@@ -817,6 +892,11 @@ export type { ListMeta, ListResponse } from './listQuery.js';
 // Resolution classification
 export {
   RESOLUTION_TIERS,
+<<<<<<< HEAD
+  RESOLUTION_LABELS,
+  RESOLUTION_BUCKETS,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   classifyByDimensions,
   normalizeResolutionLabel,
   resolutionTierRank,
@@ -837,6 +917,25 @@ export {
   type DynamicRangeToken,
 } from './dynamicRange.js';
 
+<<<<<<< HEAD
+// Playback decision (Direct Play, Direct Stream, Transcode)
+export {
+  PLAYBACK_DECISION_LABEL_KEYS,
+  playbackDecision,
+  type PlaybackDecision,
+  type PlaybackDecisionInput,
+} from './playbackDecision.js';
+
+// Trust score levels
+export {
+  TRUST_LEVEL_THRESHOLDS,
+  TRUST_LEVEL_LABEL_KEYS,
+  trustLevel,
+  type TrustLevel,
+} from './trustLevel.js';
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 // Server-scope selection (cache-key and query-param builders)
 export {
   ALL_SERVERS,
@@ -852,3 +951,79 @@ export {
   memberFacingUrl,
   type MediaServerItemLinkInput,
 } from './mediaServerLinks.js';
+<<<<<<< HEAD
+
+// Request tracking (Seerr)
+export {
+  REQUEST_SERVICE_TYPES,
+  MEDIA_REQUEST_STATUSES,
+  testRequestServiceSchema,
+  createRequestServiceSchema,
+  updateRequestServiceSchema,
+  userRequestsQuerySchema,
+  requestsAnalyticsQuerySchema,
+  requestsUnplayedQuerySchema,
+  requestersQuerySchema,
+  REQUEST_UNPLAYED_SORTS,
+  REQUESTER_SORTS,
+  type RequestServiceType,
+  type MediaRequestStatus,
+  type MediaRequestMediaType,
+  type RequestSeason,
+  type RequestCounts,
+  type RequestService,
+  type RequestServiceProbeResult,
+  type RequestRequester,
+  type MediaRequestEntry,
+  type UserRequestEntry,
+  type UserRequestsSummary,
+  type UserRequestsResponse,
+  type TestRequestServiceInput,
+  type CreateRequestServiceInput,
+  type UpdateRequestServiceInput,
+  type UserRequestsQuery,
+  type RequestOutcomeRow,
+  type RequestUnplayedSort,
+  type RequesterSort,
+  type RequesterFollowThrough,
+  type RequestsUnplayedResponse,
+  type RequestersResponse,
+  type RequestsUnplayedQuery,
+  type RequestersQuery,
+  type RequestsFunnel,
+  type RequestsAnalyticsResponse,
+  type RequestsStatus,
+  type RequestsAnalyticsQuery,
+} from './requests.js';
+
+// Release versions
+export {
+  normalizeVersion,
+  parseVersion,
+  isPrerelease,
+  getBaseVersion,
+  compareVersions,
+  isNewerVersion,
+  type ParsedVersion,
+} from './releaseVersion.js';
+
+// Release notes
+export {
+  RELEASE_CHANGE_TYPES,
+  WHATS_NEW_LEGACY,
+  releaseChangeSchema,
+  releaseHighlightSchema,
+  releaseNotesFileSchema,
+  releaseLinkLabel,
+  isMinorRelease,
+  releaseTagIssues,
+  renderReleaseNotesMarkdown,
+  type ReleaseChangeType,
+  type ReleaseChange,
+  type ReleaseHighlight,
+  type ReleaseNotesFile,
+  type WhatsNewState,
+  type UpgradeWarning,
+} from './releaseNotes.js';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)

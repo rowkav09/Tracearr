@@ -1,10 +1,22 @@
+<<<<<<< HEAD
+=======
 import type { ReactNode } from 'react';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
+<<<<<<< HEAD
+import type {
+  Destination,
+  NewsletterRecipientsView,
+  NewsletterResolvedRecipient,
+  Settings,
+} from '@tracearr/shared';
+=======
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { Destination, NewsletterRecipientsView, Settings } from '@tracearr/shared';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { defaultFormState } from './newsletterForm';
 import { ReadinessList, readinessChecks } from './ReadinessList';
 import { RecipientsPanel } from './RecipientsPanel';
@@ -23,7 +35,10 @@ vi.mock('@/hooks/queries', () => ({
   useServers: vi.fn(),
   useNewsletterVariants: vi.fn(),
   useUpdateUserIdentity: () => ({ mutate: vi.fn(), isPending: false }),
+<<<<<<< HEAD
+=======
   newsletterKeys: { recipients: (id: string) => ['newsletters', id, 'recipients'] },
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }));
 import {
   useDestinations,
@@ -33,6 +48,8 @@ import {
   useSettings,
 } from '@/hooks/queries';
 
+<<<<<<< HEAD
+=======
 let queryClient: QueryClient;
 
 /** RecipientsPanel reads the query cache directly, so anything that can render it needs a real client. */
@@ -44,6 +61,7 @@ function Providers({ children }: { children: ReactNode }) {
   );
 }
 
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 const email = {
   id: 'd-1',
   name: 'Postmark',
@@ -52,13 +70,42 @@ const email = {
   config: { fromAddress: 'news@example.com', username: 'apikey@example.com' },
 } as unknown as Destination;
 
+<<<<<<< HEAD
+const member = (userId: string, suppressed = false): NewsletterResolvedRecipient => ({
+  address: `${userId}@x.com`,
+  userId,
+  serverUserId: `su-${userId}`,
+  name: userId,
+  suppressed,
+  username: userId,
+  serverId: 's1',
+  serverName: 'Home Plex',
+  serverIds: ['s1'],
+  thumbUrl: null,
+  newSinceLastSend: false,
+  addressFromUsername: false,
+});
+
+const listed = (count: number): NewsletterRecipientsView => ({
+  recipients: Array.from({ length: count }, (_, i) => member(`u${i}`)),
+  missing: [],
+  excluded: [],
+});
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 const twoExtras = {
   members: false as const,
   extraAddresses: [{ address: 'a@x.com' }, { address: 'b@x.com' }],
   excludeUserIds: [],
 };
 const noExtras = { members: false as const, extraAddresses: [], excludeUserIds: [] };
+<<<<<<< HEAD
+
+const resolvedTwo = { empty: false, view: listed(2) };
+=======
 const membersUnresolved = { members: true as const, extraAddresses: [], excludeUserIds: [] };
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 const settled = {
   variants: undefined,
@@ -70,19 +117,41 @@ const settled = {
   servers: [],
 };
 
+<<<<<<< HEAD
+function mockRecipients(
+  data: NewsletterRecipientsView | undefined,
+  over: Record<string, unknown> = {}
+) {
+  vi.mocked(useNewsletterRecipients).mockReturnValue({
+    data,
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+    ...over,
+  } as unknown as ReturnType<typeof useNewsletterRecipients>);
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+=======
 beforeEach(() => {
   vi.clearAllMocks();
   queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   vi.mocked(useDestinations).mockReturnValue({ data: [email] } as unknown as ReturnType<
     typeof useDestinations
   >);
   vi.mocked(useSettings).mockReturnValue({
     data: { externalUrl: 'https://tracearr.example.com' } as Settings,
   } as unknown as ReturnType<typeof useSettings>);
+<<<<<<< HEAD
+  mockRecipients(listed(2));
+=======
   vi.mocked(useNewsletterRecipients).mockReturnValue({
     data: undefined,
     isLoading: false,
   } as unknown as ReturnType<typeof useNewsletterRecipients>);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   vi.mocked(useServers).mockReturnValue({ data: [] } as unknown as ReturnType<typeof useServers>);
   vi.mocked(useNewsletterVariants).mockReturnValue({
     data: undefined,
@@ -92,7 +161,11 @@ beforeEach(() => {
 
 describe('readinessChecks', () => {
   it('evaluates every check, puts failures first, then warnings, then unknowns', () => {
+<<<<<<< HEAD
+    const good = readinessChecks({ ...settled, recipients: resolvedTwo });
+=======
     const good = readinessChecks({ ...settled, recipients: { form: twoExtras, view: undefined } });
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     expect(good.map((c) => [c.id, c.status])).toEqual([
       ['destination', 'pass'],
       ['externalUrl', 'pass'],
@@ -108,7 +181,11 @@ describe('readinessChecks', () => {
         ...email,
         config: { fromAddress: 'news@example.com', username: 'bot@other.com' },
       } as unknown as Destination,
+<<<<<<< HEAD
+      recipients: { empty: false, view: undefined },
+=======
       recipients: { form: membersUnresolved, view: undefined },
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     });
     expect(bad.map((c) => [c.id, c.status])).toEqual([
       ['externalUrl', 'fail'],
@@ -125,7 +202,11 @@ describe('readinessChecks', () => {
         ...email,
         config: { fromAddress: 'news@example.com', username: 'apikey' },
       } as unknown as Destination,
+<<<<<<< HEAD
+      recipients: { empty: true, view: undefined },
+=======
       recipients: { form: noExtras, view: undefined },
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       servers: [
         { name: 'Attic', type: 'jellyfin', url: 'http://192.168.1.20:8096', publicUrl: null },
         { name: 'Basement', type: 'plex', url: 'http://192.168.1.10:32400', publicUrl: null },
@@ -149,13 +230,21 @@ describe('readinessChecks', () => {
       ...settled,
       destinationId: null,
       destination: null,
+<<<<<<< HEAD
+      recipients: resolvedTwo,
+=======
       recipients: { form: twoExtras, view: undefined },
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     });
     expect(none[0]).toEqual({ id: 'destination', status: 'fail', name: null });
     const loading = readinessChecks({
       ...settled,
       destination: null,
+<<<<<<< HEAD
+      recipients: resolvedTwo,
+=======
       recipients: { form: twoExtras, view: undefined },
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     });
     expect(loading.find((c) => c.id === 'destination')).toEqual({
       id: 'destination',
@@ -165,6 +254,28 @@ describe('readinessChecks', () => {
     expect(loading.find((c) => c.id === 'fromDomain')?.status).toBe('unknown');
   });
 
+<<<<<<< HEAD
+  it('counts only who is mailed: nobody for a form that reaches nobody, and never the suppressed', () => {
+    const recipientsCheck = (recipients: Parameters<typeof readinessChecks>[0]['recipients']) =>
+      readinessChecks({ ...settled, recipients }).find((c) => c.id === 'recipients');
+
+    expect(recipientsCheck({ empty: true, view: listed(2) })).toEqual({
+      id: 'recipients',
+      status: 'fail',
+      count: 0,
+    });
+    expect(
+      recipientsCheck({
+        empty: false,
+        view: { recipients: [member('u1'), member('u2', true)], missing: [], excluded: [] },
+      })
+    ).toEqual({ id: 'recipients', status: 'pass', count: 1 });
+    expect(
+      recipientsCheck({
+        empty: false,
+        view: { recipients: [member('u2', true)], missing: [], excluded: [] },
+      })
+=======
   it('agrees with the panel: members off with no extras resolves to zero, and an unsaved exclusion drops the count', () => {
     const recipientsCheck = (checks: ReturnType<typeof readinessChecks>) =>
       checks.find((c) => c.id === 'recipients');
@@ -209,13 +320,18 @@ describe('readinessChecks', () => {
           recipients: { form: { members: true, extraAddresses: [], excludeUserIds: ['u1'] }, view },
         })
       )
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     ).toEqual({ id: 'recipients', status: 'fail', count: 0 });
   });
 
   it('names the reason a Jellyfin or Emby server has no member link and skips the ones that do', () => {
     const rows = readinessChecks({
       ...settled,
+<<<<<<< HEAD
+      recipients: resolvedTwo,
+=======
       recipients: { form: twoExtras, view: undefined },
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       servers: [
         { name: 'Attic', type: 'jellyfin', url: 'http://192.168.1.20:8096', publicUrl: null },
         {
@@ -262,17 +378,25 @@ describe('readinessChecks', () => {
         },
       ],
     };
+<<<<<<< HEAD
+    const rows = readinessChecks({ ...settled, recipients: resolvedTwo, variants: view });
+=======
     const rows = readinessChecks({
       ...settled,
       recipients: { form: twoExtras, view: undefined },
       variants: view,
     });
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     expect(rows.filter((c) => c.id === 'emptyVariant')).toEqual([
       { id: 'emptyVariant', status: 'warn', servers: ['Attic'] },
     ]);
     const single = readinessChecks({
       ...settled,
+<<<<<<< HEAD
+      recipients: resolvedTwo,
+=======
       recipients: { form: twoExtras, view: undefined },
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       variants: { ...view, variants: [{ ...view.variants[1]! }] },
     });
     expect(single.some((c) => c.id === 'emptyVariant')).toBe(false);
@@ -282,6 +406,14 @@ describe('readinessChecks', () => {
 describe('ReadinessList', () => {
   it('renders one row per check, names the destination, counts the recipients, and links the docs', () => {
     render(
+<<<<<<< HEAD
+      <MemoryRouter>
+        <ReadinessList
+          state={{ ...defaultFormState(), destinationId: 'd-1', recipients: twoExtras }}
+          newsletterId={null}
+        />
+      </MemoryRouter>
+=======
       <Providers>
         <ReadinessList
           state={{ ...defaultFormState(), destinationId: 'd-1', recipients: twoExtras }}
@@ -289,6 +421,7 @@ describe('ReadinessList', () => {
           savedServerIds={null}
         />
       </Providers>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     );
     const rows = screen.getAllByRole('listitem').map((li) => li.textContent);
     expect(rows).toEqual([
@@ -306,14 +439,23 @@ describe('ReadinessList', () => {
 
   it('puts a missing destination first with a button that focuses the select', async () => {
     render(
+<<<<<<< HEAD
+      <MemoryRouter>
+=======
       <Providers>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         <input id="newsletter-destination" aria-label="destination" />
         <ReadinessList
           state={{ ...defaultFormState(), recipients: twoExtras }}
           newsletterId={null}
+<<<<<<< HEAD
+        />
+      </MemoryRouter>
+=======
           savedServerIds={null}
         />
       </Providers>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     );
     const first = screen.getAllByRole('listitem')[0];
     expect(first).toHaveTextContent('newsletters.editor.readiness.destinationFail');
@@ -325,14 +467,23 @@ describe('ReadinessList', () => {
 
   it('scrolls the delivery card into view when there is no destination select to focus', async () => {
     render(
+<<<<<<< HEAD
+      <MemoryRouter>
+=======
       <Providers>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         <section id="newsletter-delivery" />
         <ReadinessList
           state={{ ...defaultFormState(), recipients: twoExtras }}
           newsletterId={null}
+<<<<<<< HEAD
+        />
+      </MemoryRouter>
+=======
           savedServerIds={null}
         />
       </Providers>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     );
     const card = document.getElementById('newsletter-delivery')!;
     const scroll = vi.spyOn(card, 'scrollIntoView');
@@ -348,6 +499,14 @@ describe('ReadinessList', () => {
       isError: true,
     } as unknown as ReturnType<typeof useDestinations>);
     render(
+<<<<<<< HEAD
+      <MemoryRouter>
+        <ReadinessList
+          state={{ ...defaultFormState(), destinationId: 'd-1', recipients: twoExtras }}
+          newsletterId={null}
+        />
+      </MemoryRouter>
+=======
       <Providers>
         <ReadinessList
           state={{ ...defaultFormState(), destinationId: 'd-1', recipients: twoExtras }}
@@ -355,6 +514,7 @@ describe('ReadinessList', () => {
           savedServerIds={null}
         />
       </Providers>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     );
     const first = screen.getAllByRole('listitem')[0];
     expect(first).toHaveTextContent('newsletters.editor.readiness.destinationError');
@@ -363,6 +523,28 @@ describe('ReadinessList', () => {
     ).not.toBeInTheDocument();
   });
 
+<<<<<<< HEAD
+  it('counts the same people the recipients card says will receive', () => {
+    mockRecipients({ recipients: [member('u1'), member('u2', true)], missing: [], excluded: [] });
+    const state = { ...defaultFormState(), destinationId: 'd-1' };
+    render(
+      <MemoryRouter>
+        <ReadinessList state={state} newsletterId="n-1" />
+        <RecipientsPanel
+          form={state}
+          newsletterId="n-1"
+          savedExcludeUserIds={[]}
+          servers={[{ id: 's1', name: 'Home Plex' }]}
+          onExclude={vi.fn()}
+          onInclude={vi.fn()}
+        />
+      </MemoryRouter>
+    );
+    const rows = screen.getAllByRole('listitem').map((li) => li.textContent);
+    expect(rows).toContain('newsletters.editor.readiness.recipients:{"count":1}');
+    expect(
+      screen.getByText(/newsletters\.editor\.recipients\.willReceive:\{"count":1\}/)
+=======
   it('counts a person included after save the same way the recipients card heads its list', () => {
     const view: NewsletterRecipientsView = {
       recipients: [
@@ -423,6 +605,7 @@ describe('ReadinessList', () => {
     expect(rows).toContain('newsletters.editor.readiness.recipients:{"count":2}');
     expect(
       screen.getByText('newsletters.editor.recipients.willReceive:{"count":2}')
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     ).toBeInTheDocument();
   });
 
@@ -431,14 +614,23 @@ describe('ReadinessList', () => {
       data: { externalUrl: null } as Settings,
     } as unknown as ReturnType<typeof useSettings>);
     render(
+<<<<<<< HEAD
+      <MemoryRouter>
+=======
       <Providers>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         <section id="newsletter-recipients" />
         <ReadinessList
           state={{ ...defaultFormState(), destinationId: 'd-1', recipients: noExtras }}
           newsletterId={null}
+<<<<<<< HEAD
+        />
+      </MemoryRouter>
+=======
           savedServerIds={null}
         />
       </Providers>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     );
     const card = document.getElementById('newsletter-recipients')!;
     const scroll = vi.spyOn(card, 'scrollIntoView');
@@ -472,7 +664,11 @@ describe('ReadinessList', () => {
       ],
     } as unknown as ReturnType<typeof useServers>);
     render(
+<<<<<<< HEAD
+      <MemoryRouter>
+=======
       <Providers>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         <ReadinessList
           state={{
             ...defaultFormState(),
@@ -480,9 +676,14 @@ describe('ReadinessList', () => {
             scope: { serverIds: ['s-2'], libraries: [] },
           }}
           newsletterId={null}
+<<<<<<< HEAD
+        />
+      </MemoryRouter>
+=======
           savedServerIds={null}
         />
       </Providers>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     );
     const rows = screen.getAllByRole('listitem').map((li) => li.textContent);
     expect(rows).toContain(
@@ -494,6 +695,29 @@ describe('ReadinessList', () => {
     ).toHaveAttribute('href', '/settings/servers/connections');
   });
 
+<<<<<<< HEAD
+  it('says it is checking the recipients of an unsaved form, and that they failed to load', () => {
+    mockRecipients(undefined, { isLoading: true });
+    const { unmount } = render(
+      <MemoryRouter>
+        <ReadinessList
+          state={{ ...defaultFormState(), destinationId: 'd-1' }}
+          newsletterId={null}
+        />
+      </MemoryRouter>
+    );
+    expect(screen.getByText('newsletters.editor.readiness.recipientsChecking')).toBeInTheDocument();
+    unmount();
+
+    mockRecipients(undefined, { isError: true });
+    render(
+      <MemoryRouter>
+        <ReadinessList
+          state={{ ...defaultFormState(), destinationId: 'd-1' }}
+          newsletterId={null}
+        />
+      </MemoryRouter>
+=======
   it('says recipients are unknown until saved, and failed to load in edit mode', () => {
     const { unmount } = render(
       <Providers>
@@ -520,12 +744,17 @@ describe('ReadinessList', () => {
           savedServerIds={[]}
         />
       </Providers>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     );
     expect(
       screen.getByText('newsletters.editor.readiness.recipientsLoadFailed')
     ).toBeInTheDocument();
     expect(
+<<<<<<< HEAD
+      screen.queryByText('newsletters.editor.readiness.recipientsChecking')
+=======
       screen.queryByText('newsletters.editor.readiness.recipientsUnknown')
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     ).not.toBeInTheDocument();
   });
 
@@ -535,6 +764,11 @@ describe('ReadinessList', () => {
       isError: true,
     } as unknown as ReturnType<typeof useNewsletterVariants>);
     render(
+<<<<<<< HEAD
+      <MemoryRouter>
+        <ReadinessList state={{ ...defaultFormState(), destinationId: 'd-1' }} newsletterId="n-1" />
+      </MemoryRouter>
+=======
       <Providers>
         <ReadinessList
           state={{ ...defaultFormState(), destinationId: 'd-1' }}
@@ -542,10 +776,23 @@ describe('ReadinessList', () => {
           savedServerIds={[]}
         />
       </Providers>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     );
     expect(screen.getByText('newsletters.editor.readiness.variantsLoadFailed')).toBeInTheDocument();
   });
 
+<<<<<<< HEAD
+  it('never asks the server for recipients when nobody could receive, and fails readiness', () => {
+    render(
+      <MemoryRouter>
+        <ReadinessList
+          state={{ ...defaultFormState(), destinationId: 'd-1', recipients: noExtras }}
+          newsletterId="n-1"
+        />
+      </MemoryRouter>
+    );
+    expect(useNewsletterRecipients).toHaveBeenCalledWith(null);
+=======
   it('never asks the server for recipients when Members is off, and fails readiness with nothing typed', () => {
     render(
       <Providers>
@@ -557,6 +804,7 @@ describe('ReadinessList', () => {
       </Providers>
     );
     expect(useNewsletterRecipients).toHaveBeenCalledWith(undefined);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     expect(screen.getByText('newsletters.editor.readiness.recipientsFail')).toBeInTheDocument();
   });
 
@@ -585,6 +833,11 @@ describe('ReadinessList', () => {
       },
     } as unknown as ReturnType<typeof useNewsletterVariants>);
     render(
+<<<<<<< HEAD
+      <MemoryRouter>
+        <ReadinessList state={{ ...defaultFormState(), destinationId: 'd-1' }} newsletterId="n-1" />
+      </MemoryRouter>
+=======
       <Providers>
         <ReadinessList
           state={{ ...defaultFormState(), destinationId: 'd-1' }}
@@ -592,12 +845,15 @@ describe('ReadinessList', () => {
           savedServerIds={[]}
         />
       </Providers>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     );
     expect(useNewsletterVariants).toHaveBeenCalledWith('n-1');
     expect(
       screen.getByText('newsletters.editor.readiness.emptyVariant:{"servers":"Basement"}')
     ).toBeInTheDocument();
   });
+<<<<<<< HEAD
+=======
 
   it('says the rows reflect the saved servers once the scope moves', () => {
     const { rerender } = render(
@@ -629,4 +885,5 @@ describe('ReadinessList', () => {
     );
     expect(screen.queryByText('newsletters.editor.readiness.staleScope')).not.toBeInTheDocument();
   });
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 });

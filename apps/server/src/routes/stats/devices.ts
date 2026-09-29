@@ -12,6 +12,10 @@ import { db } from '../../db/client.js';
 import '../../db/schema.js';
 import { resolveDateRange } from './utils.js';
 import { resolveServerIds, buildMultiServerFragment } from '../../utils/serverFiltering.js';
+<<<<<<< HEAD
+import { compareNames } from '../../utils/collation.js';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 // Extended schema with minSessions filter
 const deviceCompatibilitySchema = statsQuerySchema.safeExtend({
@@ -33,16 +37,32 @@ function buildDeviceMatrix(rows: MatrixDeviceRow[], codecs: string[]): DeviceCom
   >();
 
   for (const row of rows) {
+<<<<<<< HEAD
+    let entry = deviceMap.get(row.device_type);
+    if (!entry) {
+      entry = { device: row.device_type, codecs: {} };
+      deviceMap.set(row.device_type, entry);
+    }
+    entry.codecs[row.video_codec] = {
+=======
     if (!deviceMap.has(row.device_type)) {
       deviceMap.set(row.device_type, { device: row.device_type, codecs: {} });
     }
     deviceMap.get(row.device_type)!.codecs[row.video_codec] = {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       sessions: row.session_count,
       directPct: row.direct_pct,
     };
   }
 
+<<<<<<< HEAD
+  return {
+    codecs: [...codecs].sort(compareNames),
+    devices: Array.from(deviceMap.values()).sort((a, b) => compareNames(a.device, b.device)),
+  };
+=======
   return { codecs, devices: Array.from(deviceMap.values()) };
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 export const devicesRoutes: FastifyPluginAsync = async (app) => {

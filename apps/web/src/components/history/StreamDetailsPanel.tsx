@@ -2,6 +2,11 @@
  * Stream Details Panel - displays source vs stream codec information
  */
 
+<<<<<<< HEAD
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { ArrowRight, Video, AudioLines, Subtitles, Cpu, ChevronDown, Info } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -9,6 +14,10 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import {
+<<<<<<< HEAD
+  PLAYBACK_DECISION_LABEL_KEYS,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   formatBitrate,
   formatMediaTech,
   formatResolutionDisplay,
@@ -20,7 +29,10 @@ import {
   type SubtitleInfo,
   type ServerType,
 } from '@tracearr/shared';
+<<<<<<< HEAD
+=======
 import { useState } from 'react';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 interface StreamDetailsPanelProps {
   // Scalar codec fields
@@ -83,6 +95,27 @@ function formatFramerate(framerate: string | number | null | undefined): string 
   return numeric % 1 === 0 ? numeric.toFixed(0) : numeric.toFixed(1);
 }
 
+<<<<<<< HEAD
+type DecisionLabelKey =
+  | (typeof PLAYBACK_DECISION_LABEL_KEYS)[keyof typeof PLAYBACK_DECISION_LABEL_KEYS]
+  | 'playback.burnIn';
+
+function getDecisionBadge(decision: string | null): {
+  variant: 'success' | 'warning' | 'secondary';
+  labelKey: DecisionLabelKey | null;
+} {
+  switch (decision) {
+    case 'directplay':
+      return { variant: 'success', labelKey: PLAYBACK_DECISION_LABEL_KEYS.directplay };
+    case 'copy':
+      return { variant: 'success', labelKey: PLAYBACK_DECISION_LABEL_KEYS.copy };
+    case 'transcode':
+      return { variant: 'warning', labelKey: PLAYBACK_DECISION_LABEL_KEYS.transcode };
+    case 'burn':
+      return { variant: 'warning', labelKey: 'playback.burnIn' };
+    default:
+      return { variant: 'secondary', labelKey: null };
+=======
 // Get decision badge variant and label
 function getDecisionBadge(decision: string | null): {
   variant: 'success' | 'warning' | 'secondary';
@@ -99,6 +132,7 @@ function getDecisionBadge(decision: string | null): {
       return { variant: 'warning', label: 'Burn-in' };
     default:
       return { variant: 'secondary', label: '—' };
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   }
 }
 
@@ -234,7 +268,16 @@ export function StreamDetailsPanel({
   bitrate,
   serverType,
 }: StreamDetailsPanelProps) {
+<<<<<<< HEAD
+  const { t } = useTranslation();
   const [transcodeOpen, setTranscodeOpen] = useState(false);
+  const decisionBadge = (decision: string | null) => {
+    const { variant, labelKey } = getDecisionBadge(decision);
+    return { variant, label: labelKey ? t(labelKey) : '—' };
+  };
+=======
+  const [transcodeOpen, setTranscodeOpen] = useState(false);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
   // Check if we have any stream details to show
   const hasVideoDetails = sourceVideoCodec || streamVideoCodec || sourceVideoWidth;
@@ -252,8 +295,13 @@ export function StreamDetailsPanel({
     );
   }
 
+<<<<<<< HEAD
+  const videoBadge = decisionBadge(videoDecision);
+  const audioBadge = decisionBadge(audioDecision);
+=======
   const videoBadge = getDecisionBadge(videoDecision);
   const audioBadge = getDecisionBadge(audioDecision);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   const transcodeReasons = transcodeInfo?.reasons ?? [];
   const videoTranscodeReasons = filterTranscodeReasons(transcodeReasons, 'video');
   const audioTranscodeReasons = filterTranscodeReasons(transcodeReasons, 'audio');
@@ -445,11 +493,16 @@ export function StreamDetailsPanel({
             title="Subtitles"
             badge={
               subtitleInfo?.decision ? (
+<<<<<<< HEAD
+                <Badge variant={decisionBadge(subtitleInfo.decision).variant} className="text-xs">
+                  {decisionBadge(subtitleInfo.decision).label}
+=======
                 <Badge
                   variant={getDecisionBadge(subtitleInfo.decision).variant}
                   className="text-xs"
                 >
                   {getDecisionBadge(subtitleInfo.decision).label}
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                 </Badge>
               ) : undefined
             }

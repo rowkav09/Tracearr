@@ -1,4 +1,8 @@
+<<<<<<< HEAD
+import { useEffect, useState } from 'react';
+=======
 import { useEffect, useRef, useState } from 'react';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Info, Loader2, Save } from 'lucide-react';
@@ -11,14 +15,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { RichTextChange } from '@/components/ui/rich-text-normalize';
 import { SettingsSection } from '@/components/settings/shell/SettingsSection';
+<<<<<<< HEAD
+import { useNewsletter, useServers } from '@/hooks/queries';
+=======
 import { useNewsletter, useNewsletterRecipients, useServers } from '@/hooks/queries';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { useAuth } from '@/hooks/useAuth';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { ContentFields } from './ContentFields';
 import { DeliveryFields } from './DeliveryFields';
 import { IdentityFields } from './IdentityFields';
 import { MessageFields } from './MessageFields';
+<<<<<<< HEAD
+import { NewsletterActions } from './NewsletterActions';
+=======
 import { NewsletterActions, type NewsletterActionsHandle } from './NewsletterActions';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { NEWSLETTERS_PATH } from '../Newsletters';
 import { scheduleSummary, type Translate } from '../newsletterFormat';
 import { ReadinessList, recipientsState } from './ReadinessList';
@@ -26,6 +38,10 @@ import { RecipientsFields } from './RecipientsFields';
 import { ScheduleFields } from './ScheduleFields';
 import { SendHistory } from './SendHistory';
 import { useNewsletterSave } from './useNewsletterSave';
+<<<<<<< HEAD
+import { useRecipientsView } from './useRecipientsView';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import {
   deepEqual,
   defaultFormState,
@@ -35,7 +51,10 @@ import {
   scopedServers,
   seedFromNewsletter,
   validateForm,
+<<<<<<< HEAD
+=======
   recipientsQueryId,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   visibleErrors,
   type NewsletterFormState,
   type RichTextErrors,
@@ -65,7 +84,10 @@ function EditorForm({ seed: initialSeed, newsletter }: EditorFormProps) {
   const [touched, setTouched] = useState<TouchedFields>({});
   const [submitted, setSubmitted] = useState(false);
   const [redirectTo, setRedirectTo] = useState<string | null>(null);
+<<<<<<< HEAD
+=======
   const actionsRef = useRef<NewsletterActionsHandle>(null);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   const mode = newsletter ? 'edit' : 'create';
   const { data: servers } = useServers();
   const scopedServerCount = scopedServers(state.scope, servers ?? []).length;
@@ -101,10 +123,15 @@ function EditorForm({ seed: initialSeed, newsletter }: EditorFormProps) {
     },
   });
   const blocker = useUnsavedChanges(dirty);
+<<<<<<< HEAD
+  const recipientsView = useRecipientsView(state, newsletter?.id ?? null);
+  const resolvable = recipientsState(recipientsView.empty, recipientsView.query.data);
+=======
   const { data: recipientsView } = useNewsletterRecipients(
     recipientsQueryId(state.recipients, newsletter?.id ?? null)
   );
   const resolvable = recipientsState(state.recipients, recipientsView);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   const schedule = scheduleSummary(state.schedule, state.timezone, translate, i18n.language);
   const summary = resolvable.known
     ? translate('newsletters.editor.headerSummary', {
@@ -217,8 +244,12 @@ function EditorForm({ seed: initialSeed, newsletter }: EditorFormProps) {
         touch={touch}
         touched={touched}
         newsletterId={newsletter?.id ?? null}
+<<<<<<< HEAD
+        savedExcludeUserIds={seed.recipients.excludeUserIds}
+=======
         savedServerIds={newsletter ? seed.scope.serverIds : null}
         onPreview={() => actionsRef.current?.openPreview()}
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       />
       <DeliveryFields
         state={state}
@@ -236,11 +267,15 @@ function EditorForm({ seed: initialSeed, newsletter }: EditorFormProps) {
       <div className="grid items-start gap-6 @4xl/editor:grid-cols-[minmax(0,1fr)_18rem]">
         {cards}
         <aside className="@4xl/editor:sticky @4xl/editor:top-6">
+<<<<<<< HEAD
+          <ReadinessList state={state} newsletterId={newsletter?.id ?? null} />
+=======
           <ReadinessList
             state={state}
             newsletterId={newsletter?.id ?? null}
             savedServerIds={newsletter ? seed.scope.serverIds : null}
           />
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         </aside>
       </div>
       <BindingDoors
@@ -271,6 +306,9 @@ function EditorForm({ seed: initialSeed, newsletter }: EditorFormProps) {
       title={newsletter ? newsletter.name : t('newsletters.editor.newTitle')}
       description={summary}
       actions={
+<<<<<<< HEAD
+        <NewsletterActions newsletter={newsletter} state={state} dirty={dirty} valid={valid} />
+=======
         <NewsletterActions
           ref={actionsRef}
           newsletter={newsletter}
@@ -279,6 +317,7 @@ function EditorForm({ seed: initialSeed, newsletter }: EditorFormProps) {
           valid={valid}
           onRefuse={refuse}
         />
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       }
     >
       <Tabs value={newsletter ? activeTab : 'edit'} onValueChange={onTabChange} className="gap-6">

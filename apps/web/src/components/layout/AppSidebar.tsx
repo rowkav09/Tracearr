@@ -2,6 +2,10 @@ import { useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { ArrowUpCircle } from 'lucide-react';
+<<<<<<< HEAD
+import { normalizeVersion } from '@tracearr/shared';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import {
   Sidebar,
   SidebarContent,
@@ -24,8 +28,15 @@ import { NavRunningTasks } from './NavRunningTasks';
 import { NavUser } from './NavUser';
 import { navigation, isNavItemActive, type NavItem } from './nav-data';
 import { UpdateDialog } from './UpdateDialog';
+<<<<<<< HEAD
+import { WhatsNewDialog } from '@/components/whats-new/WhatsNewDialog';
+import { useRequestsConfigured, useVersion } from '@/hooks/queries';
+import { useSocket } from '@/hooks/useSocket';
+import { RELEASE_NOTES, selectReopen, type WhatsNewSections } from '@/lib/releaseNotes';
+=======
 import { useVersion } from '@/hooks/queries';
 import { useSocket } from '@/hooks/useSocket';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 function NavMenuItem({ item }: { item: NavItem }) {
   const { setOpenMobile } = useSidebar();
@@ -48,11 +59,21 @@ function NavMenuItem({ item }: { item: NavItem }) {
 
 function VersionDisplay() {
   const [dialogOpen, setDialogOpen] = useState(false);
+<<<<<<< HEAD
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [reopenSections, setReopenSections] = useState<WhatsNewSections | null>(null);
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   const { t } = useTranslation(['common', 'settings']);
   const { data: version, isLoading } = useVersion();
   const { serverConnectionStatuses } = useSocket();
   const navigate = useNavigate();
 
+<<<<<<< HEAD
+  const runningVersion = version ? normalizeVersion(version.current.version) : null;
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   const pluginUpdateAvailable = [...serverConnectionStatuses.values()].some(
     (s) => s.pluginUpdateAvailable
   );
@@ -77,12 +98,29 @@ function VersionDisplay() {
   return (
     <>
       <div className="flex items-center justify-center gap-2 group-data-[collapsible=icon]:hidden">
+<<<<<<< HEAD
+        <button
+          type="button"
+          onClick={() => {
+            if (runningVersion) setReopenSections(selectReopen(RELEASE_NOTES, runningVersion));
+            setNotesOpen(true);
+          }}
+          title={t('settings:whatsNew.openNotes')}
+          aria-label={`${t('settings:whatsNew.openNotes')}: ${displayVersion}`}
+          className="ring-sidebar-ring text-muted-foreground hover:text-foreground cursor-pointer text-xs outline-hidden transition-colors focus-visible:ring-2"
+        >
+=======
         <span className="text-muted-foreground text-xs">
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           {displayVersion}
           {version.current.isPrerelease && (
             <span className="text-muted-foreground/60 ml-1">({t('common:beta')})</span>
           )}
+<<<<<<< HEAD
+        </button>
+=======
         </span>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         {version.updateAvailable && version.latest && (
           <Badge
             variant="secondary"
@@ -109,6 +147,21 @@ function VersionDisplay() {
       {version.updateAvailable && version.latest && (
         <UpdateDialog open={dialogOpen} onOpenChange={setDialogOpen} version={version} />
       )}
+<<<<<<< HEAD
+
+      {reopenSections && runningVersion && (
+        <WhatsNewDialog
+          open={notesOpen}
+          onOpenChange={setNotesOpen}
+          mode="reopen"
+          sections={reopenSections}
+          runningVersion={runningVersion}
+          sinceVersion={null}
+          latestVersion={version.latest?.version ?? null}
+        />
+      )}
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     </>
   );
 }
@@ -116,6 +169,10 @@ function VersionDisplay() {
 export function AppSidebar() {
   const { t } = useTranslation('nav');
   const { state, isMobile } = useSidebar();
+<<<<<<< HEAD
+  const seerrConfigured = useRequestsConfigured().data?.configured ?? false;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   // The mobile sheet is always full width, so `state` (which tracks the desktop
   // panel) would hide the wordmark inside an open sheet.
   const expanded = isMobile || state === 'expanded';
@@ -141,9 +198,17 @@ export function AppSidebar() {
             <SidebarGroupLabel>{t(section.labelKey)}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
+<<<<<<< HEAD
+                {section.items
+                  .filter((item) => seerrConfigured || item.requiresSeerr === undefined)
+                  .map((item) => (
+                    <NavMenuItem key={item.href} item={item} />
+                  ))}
+=======
                 {section.items.map((item) => (
                   <NavMenuItem key={item.href} item={item} />
                 ))}
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>

@@ -42,6 +42,10 @@ export async function resolveEmailBranding(): Promise<ResolvedEmailBranding> {
   return {
     branding: {
       accentColor: stored.accentColor,
+<<<<<<< HEAD
+      systemTitle: stored.systemTitle,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       footerText: stored.footerText,
       postalAddress: stored.postalAddress,
     },

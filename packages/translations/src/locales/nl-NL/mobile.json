@@ -70,7 +70,15 @@
   },
   "resources": {
     "cpu": "",
+<<<<<<< HEAD
+    "ram": "",
+    "item": "",
+    "noData": "",
+    "system": "",
+    "waiting": ""
+=======
     "ram": ""
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "notifications": {
     "testSent": "Test verzonden",
@@ -98,11 +106,27 @@
     "criticalOverrideDescription": "Ernstige overtredingen worden ook tijdens rustige uren nog gemeld",
     "rateLimitDescription": "Snelheidslimieten voorkomen spam met meldingen. Huidige limieten: {{perMinute}}/min, {{perHour}}/uur.",
     "sendTestNotification": "Stuur Test Notificatie",
+<<<<<<< HEAD
+    "testDescription": "Controleer of pushmeldingen correct werken",
+    "pushNotifications": "",
+    "ruleTypes": {
+      "accountInactivity": "",
+      "deviceVelocity": "",
+      "geoRestriction": "",
+      "impossibleTravel": "",
+      "simultaneousLocations": ""
+    },
+    "severityAll": "",
+    "severityHighOnly": "",
+    "severityWarningUp": "",
+    "violationTypes": ""
+=======
     "testDescription": "Controleer of pushmeldingen correct werken"
   },
   "dashboard": {
     "today": "VANDAAG",
     "hrs": "uren"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "session": {
     "streamTerminated": "Stream Beëindigd",
@@ -117,6 +141,44 @@
     "moreDevices": "+{{count}} meer apparaten",
     "noViolations": "Geen overtredingen",
     "noTerminations": "Geen stream stops",
+<<<<<<< HEAD
+    "lastSeen": "",
+    "terminatedBy": "",
+    "trustScoreConfirm": "",
+    "trustScoreRange": ""
+  },
+  "violation": {
+    "violationNotFoundDesc": "Deze overtreding is mogelijk afgewezen of niet langer beschikbaar.",
+    "ips": ""
+  },
+  "alerts": {
+    "clearFilters": "Filters opschonen",
+    "acknowledgeAll": "",
+    "acknowledgeAllBody": "",
+    "acknowledgeAllBodySeverity": "",
+    "acknowledgeAllTitle_one": "",
+    "acknowledgeAllTitle_other": "",
+    "all": "",
+    "allClear": "",
+    "allServers": "",
+    "noAlertsRecorded": "",
+    "noMatches": "",
+    "pendingCount": ""
+  },
+  "history": {
+    "adjustFilters": "Probeer je filters aan te passen",
+    "historyWillAppear": "De sessiegeschiedenis verschijnt hier zodra gebruikers beginnen met streamen",
+    "filters": {
+      "clearCount": "",
+      "countries": "",
+      "filterBy": "",
+      "mediaType": "",
+      "noCountries": "",
+      "noPlatforms": "",
+      "noUsers": "",
+      "sectionSelected": ""
+    }
+=======
     "trustLow": "Laag",
     "trustMedium": "",
     "trustHigh": "Hoog"
@@ -135,12 +197,20 @@
     "noHistoryFound": "Geen historie gevonden",
     "adjustFilters": "Probeer je filters aan te passen",
     "historyWillAppear": "De sessiegeschiedenis verschijnt hier zodra gebruikers beginnen met streamen"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "users": {
     "owner": "Eigenaar",
     "noUsers": "Geen Gebruikers",
     "usersWillAppear": "Gebruikers verschijnen hier nadat de synchronisatie met uw mediaserver is voltooid",
+<<<<<<< HEAD
+    "noUsersMatch": "Geen gebruikers overeengekomen met \"{{query}}\"",
+    "joinedRelative": "",
+    "sortActive": "",
+    "sortTrust": ""
+=======
     "noUsersMatch": "Geen gebruikers overeengekomen met \"{{query}}\""
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "activity": {
     "playsOverTime": "Weergaven over tijd",
@@ -160,7 +230,10 @@
     "allServers": "Alle servers"
   },
   "reconnected": "Opnieuw verbonden",
+<<<<<<< HEAD
+=======
   "actionsExecuted": "Acties uitgevoerd",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   "serverScope": {
     "single": "Alleen {{name}} weergeven"
   },
@@ -169,10 +242,77 @@
     "alerts": "Waarschuwingen",
     "alertsCount": "Waarschuwingen, {{count}} ongelezen",
     "settings": "Instellingen",
+<<<<<<< HEAD
+    "trustScore": "",
+    "decreaseTrustScore": "",
+    "filtersActive": "",
+    "increaseTrustScore": "",
+    "sortAscending": "",
+    "sortDescending": ""
+=======
     "trustScore": ""
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "map": {
     "noData": "Geen locatiegegevens beschikbaar",
     "unavailable": "Kaart niet beschikbaar"
+<<<<<<< HEAD
+  },
+  "automations": {
+    "conditions_one": "",
+    "conditions_other": "",
+    "editOnWeb": "",
+    "emptyDescription": "",
+    "kind": {
+      "notification": "",
+      "policy": ""
+    },
+    "lastRun": "",
+    "truncated": "",
+    "turnOffFailed": "",
+    "turnOnFailed": "",
+    "unsupportedDescription": "",
+    "unsupportedTitle": "",
+    "versionCheckFailed": ""
+  },
+  "charts": {
+    "weekOf": ""
+  },
+  "push": {
+    "violationTitle": ""
+  },
+  "streamDetails": {
+    "bitrate": "",
+    "channels": "",
+    "codec": "",
+    "color": "",
+    "container": "",
+    "forced": "",
+    "format": "",
+    "framerate": "",
+    "hwDecode": "",
+    "hwEncode": "",
+    "mono": "",
+    "noDetails": "",
+    "notAvailable": "",
+    "profile": "",
+    "sampleRate": "",
+    "source": "",
+    "speed": "",
+    "stereo": "",
+    "stream": "",
+    "subtitles": "",
+    "throttled": "",
+    "transcodeDetails": ""
+  },
+  "widget": {
+    "asOf": "",
+    "serversDown_one": "",
+    "serversDown_other": "",
+    "signedOut": "",
+    "transcodes_one": "",
+    "transcodes_other": ""
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   }
 }

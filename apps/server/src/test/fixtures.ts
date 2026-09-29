@@ -70,6 +70,10 @@ export function createMockSession(overrides: Partial<Session> = {}): Session {
     geoLon: -74.006,
     geoAsnNumber: 7922,
     geoAsnOrganization: 'Comcast Cable Communications, LLC',
+<<<<<<< HEAD
+    isLocal: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     playerName: 'Test Player',
     deviceId: `device_${id.slice(0, 8)}`,
     product: 'Plex Web',
@@ -146,6 +150,10 @@ export function createMockActiveSession(overrides: Partial<ActiveSession> = {}):
     geoLon: overrides.geoLon ?? -74.006,
     geoAsnNumber: overrides.geoAsnNumber ?? 7922,
     geoAsnOrganization: overrides.geoAsnOrganization ?? 'Comcast Cable Communications, LLC',
+<<<<<<< HEAD
+    isLocal: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     playerName: overrides.playerName ?? 'Chrome',
     deviceId: overrides.deviceId ?? `device_${id.slice(0, 8)}`,
     product: overrides.product ?? 'Plex Web',

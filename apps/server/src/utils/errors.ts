@@ -39,7 +39,10 @@ export const ErrorCodes = {
   JELLYFIN_ERROR: 'EXT_002',
   GEOIP_ERROR: 'EXT_003',
   EMBY_ERROR: 'EXT_004',
+<<<<<<< HEAD
+=======
   NAVIDROME_ERROR: 'EXT_005',
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 } as const;
 
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
@@ -201,12 +204,19 @@ export class ServiceUnavailableError extends AppError {
  * External service error (Plex, Jellyfin, Emby, etc.)
  */
 export class ExternalServiceError extends AppError {
+<<<<<<< HEAD
+  constructor(service: 'plex' | 'jellyfin' | 'emby' | 'geoip', message: string) {
+=======
   constructor(service: 'plex' | 'jellyfin' | 'emby' | 'navidrome' | 'geoip', message: string) {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     const codeMap: Record<typeof service, ErrorCode> = {
       plex: ErrorCodes.PLEX_ERROR,
       jellyfin: ErrorCodes.JELLYFIN_ERROR,
       emby: ErrorCodes.EMBY_ERROR,
+<<<<<<< HEAD
+=======
       navidrome: ErrorCodes.NAVIDROME_ERROR,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       geoip: ErrorCodes.GEOIP_ERROR,
     };
     const code = codeMap[service];

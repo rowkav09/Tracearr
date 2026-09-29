@@ -2,7 +2,11 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import {
+<<<<<<< HEAD
+  formatMediaTech,
+=======
   normalizeResolutionLabel,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   resolutionTierRank,
   POSTER_IMAGE_SIZE,
   type WatchedState,
@@ -86,11 +90,14 @@ function distinctResolutions(servers: { videoResolution?: string | null }[]): st
   return [...known].sort((a, b) => (resolutionTierRank(b) ?? 0) - (resolutionTierRank(a) ?? 0));
 }
 
+<<<<<<< HEAD
+=======
 /** Display casing for a stored resolution label (e.g. '4k' -> '4K', '1080p' unchanged) - matches the Resolution filter's own option labels. */
 export function formatResolutionLabel(resolution: string): string {
   return normalizeResolutionLabel(resolution) ?? resolution;
 }
 
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 interface PosterCardProps {
   mediaId: string;
   title: string;
@@ -174,7 +181,11 @@ export function PosterCard({
     fileCount > dedupeServersById(servers).length || versionsResolutions.length === 2;
   const versionsChipLabel =
     versionsResolutions.length === 2
+<<<<<<< HEAD
+      ? versionsResolutions.map(formatMediaTech).join(' · ')
+=======
       ? versionsResolutions.map(formatResolutionLabel).join(' · ')
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       : t('media.posterCard.versionsChip', { count: fileCount });
   const versionsSuffix = showVersionsChip
     ? `, ${t('media.posterCard.versions', { count: fileCount })}`

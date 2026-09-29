@@ -55,6 +55,21 @@ vi.mock('../../jobs/maintenanceQueue.js', () => ({
   maybeEnqueueMaintenanceJob: vi.fn().mockResolvedValue(null),
 }));
 
+<<<<<<< HEAD
+vi.mock('../settings.js', () => ({
+  getImportedHistoryLinkState: vi.fn(),
+  getSettings: vi.fn(),
+  setImportedHistoryLinkState: vi.fn(),
+}));
+
+vi.mock('../../jobs/importedHistoryLinking.js', () => ({
+  listPlexServers: vi.fn(),
+  MAX_AUTO_LINK_ATTEMPTS: 5,
+  AUTO_LINK_WINDOW_MS: 14 * 24 * 60 * 60 * 1000,
+}));
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 // Only the compression-horizon probe is stubbed; the aggregate refresh paths stay
 // real so the db.execute assertions below still measure refresh behavior rather
 // than this one extra catalog read at the tail of every sync.
@@ -74,12 +89,29 @@ import {
   hasStampableSessionsBefore,
 } from '../../jobs/sessionIdentityBackfill.js';
 import { maybeEnqueueMaintenanceJob } from '../../jobs/maintenanceQueue.js';
+<<<<<<< HEAD
+import { listPlexServers } from '../../jobs/importedHistoryLinking.js';
+import { getSessionsCompressionHorizon } from '../../db/timescale.js';
+import {
+  getImportedHistoryLinkState,
+  getSettings,
+  setImportedHistoryLinkState,
+} from '../settings.js';
+import {
+  LibrarySyncService,
+  initLibrarySyncRedis,
+  _resetAutoBackfillThrottleForTests,
+  _resetImportedHistoryLinkThrottleForTests,
+  _resetReconcileThrottleForTests,
+  maybeEnqueueImportedHistoryLink,
+=======
 import { getSessionsCompressionHorizon } from '../../db/timescale.js';
 import {
   LibrarySyncService,
   initLibrarySyncRedis,
   _resetAutoBackfillThrottleForTests,
   _resetReconcileThrottleForTests,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 } from '../librarySync.js';
 import { MEDIA_BUFFER_CAP, flushMediaAnnounceRun } from '../library/mediaAnnounce.js';
 import type { MediaLibraryItem } from '../mediaServer/types.js';
@@ -90,6 +122,13 @@ import type { Redis } from 'ioredis';
 // Test Data Factories
 // ============================================================================
 
+<<<<<<< HEAD
+const LINK_DONE = { state: 'done', providerPassDoneServers: [], autoAttempts: 0, generation: 0 };
+const NO_TAUTULLI = { tautulliUrl: null, tautulliApiKey: null };
+const TAUTULLI = { tautulliUrl: 'http://tautulli.local:8181', tautulliApiKey: 'key' };
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 function createMockServer(overrides: Record<string, unknown> = {}) {
   return {
     id: randomUUID(),
@@ -342,6 +381,12 @@ function mockMediaServerClient(options: {
           libraryId: string,
           opts?: { offset?: number; limit?: number }
         ) => Promise<{ items: MediaLibraryItem[]; totalCount: number; rawCount?: number }>),
+<<<<<<< HEAD
+    findExistingRatingKeys: undefined as
+      | undefined
+      | ((ratingKeys: string[], library: { id: string; type: string }) => Promise<Set<string>>),
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     serverType: 'plex' as const,
     getSessions: vi.fn(),
     getUsers: vi.fn(),
@@ -360,6 +405,20 @@ function createMockRedis(overrides: Partial<Record<string, unknown>> = {}): Redi
   } as unknown as Redis;
 }
 
+<<<<<<< HEAD
+/** Prior sync state, read in getSyncState order: last synced, item count, full scan, shortfall, scan version. */
+function syncStateReads(lastSyncedAt: string, lastItemCount: string) {
+  return vi
+    .fn()
+    .mockResolvedValueOnce(lastSyncedAt)
+    .mockResolvedValueOnce(lastItemCount)
+    .mockResolvedValueOnce(null)
+    .mockResolvedValueOnce(null)
+    .mockResolvedValueOnce('2');
+}
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 /**
  * Helper to set up a standard select chain for incremental sync tests.
  * Returns server on first call, empty on subsequent calls.
@@ -403,7 +462,15 @@ beforeEach(() => {
   // enqueues would otherwise gate the next one for hours. Reset keeps the
   // order-dependence out of it.
   _resetAutoBackfillThrottleForTests();
+<<<<<<< HEAD
+  _resetImportedHistoryLinkThrottleForTests();
   _resetReconcileThrottleForTests();
+  vi.mocked(getImportedHistoryLinkState).mockResolvedValue(LINK_DONE as never);
+  vi.mocked(getSettings).mockResolvedValue(NO_TAUTULLI as never);
+  vi.mocked(listPlexServers).mockResolvedValue([]);
+=======
+  _resetReconcileThrottleForTests();
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 });
 
 // clearAllMocks only clears call history, not implementations - restore db.execute so a test's override can't leak into the next.
@@ -729,6 +796,204 @@ describe('LibrarySyncService', () => {
       expect(maybeEnqueueMaintenanceJob).not.toHaveBeenCalled();
     });
 
+<<<<<<< HEAD
+    describe('imported history link hand-off', () => {
+      const noPendingSync = async () => false;
+
+      async function runPlexSync(
+        service: LibrarySyncService,
+        server: ReturnType<typeof createMockServer>
+      ) {
+        setupSelectForIncrementalTest(server);
+        mockSelectDistinctChain([[], []]);
+        mockInsertChain([{ id: randomUUID() }]);
+        mockDeleteChain();
+        mockTransaction();
+        mockMediaServerClient({
+          libraries: [createMockLibrary({ id: '1', name: 'Movies' })],
+          items: [createMockLibraryItem({ ratingKey: 'item-1' })],
+          totalCount: 1,
+        });
+        await service.syncServer(server.id);
+      }
+
+      afterEach(() => {
+        vi.mocked(getSessionsCompressionHorizon).mockResolvedValue(null);
+        vi.mocked(hasStampableSessionsBefore).mockResolvedValue(false);
+        vi.mocked(maybeEnqueueMaintenanceJob).mockResolvedValue(null);
+      });
+
+      it('never enqueues the link job once it is done or out of automatic attempts', async () => {
+        vi.mocked(getSettings).mockResolvedValue(TAUTULLI as never);
+
+        await maybeEnqueueImportedHistoryLink(true, noPendingSync);
+        vi.mocked(getImportedHistoryLinkState).mockResolvedValue({
+          state: 'pending',
+          providerPassDoneServers: [],
+          autoAttempts: 5,
+          generation: 0,
+        } as never);
+        await maybeEnqueueImportedHistoryLink(true, noPendingSync);
+
+        expect(maybeEnqueueMaintenanceJob).not.toHaveBeenCalled();
+        expect(setImportedHistoryLinkState).not.toHaveBeenCalled();
+      });
+
+      it('marks linking done without enqueueing when Tautulli is not configured and every Plex server finished the provider pass', async () => {
+        const armedAt = new Date().toISOString();
+        vi.mocked(getImportedHistoryLinkState).mockResolvedValue({
+          state: 'pending',
+          providerPassDoneServers: ['plex-a', 'plex-b'],
+          autoAttempts: 2,
+          generation: 4,
+          armedAt,
+        } as never);
+        vi.mocked(listPlexServers).mockResolvedValue([
+          { id: 'plex-a', name: 'Home', machineIdentifier: null },
+          { id: 'plex-b', name: 'Office', machineIdentifier: null },
+        ]);
+
+        await maybeEnqueueImportedHistoryLink(false, noPendingSync);
+
+        expect(setImportedHistoryLinkState).toHaveBeenCalledWith(4, {
+          state: 'done',
+          providerPassDoneServers: ['plex-a', 'plex-b'],
+          autoAttempts: 0,
+          generation: 4,
+          armedAt,
+        });
+        expect(maybeEnqueueMaintenanceJob).not.toHaveBeenCalled();
+      });
+
+      it('marks linking done for a Tautulli-less install even after the 14-day window has passed', async () => {
+        vi.mocked(getImportedHistoryLinkState).mockResolvedValue({
+          state: 'pending',
+          providerPassDoneServers: ['plex-a'],
+          autoAttempts: 0,
+          generation: 1,
+          armedAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
+        } as never);
+        vi.mocked(listPlexServers).mockResolvedValue([
+          { id: 'plex-a', name: 'Home', machineIdentifier: null },
+        ]);
+
+        await maybeEnqueueImportedHistoryLink(false, noPendingSync);
+
+        expect(setImportedHistoryLinkState).toHaveBeenCalledWith(
+          1,
+          expect.objectContaining({ state: 'done' })
+        );
+        expect(maybeEnqueueMaintenanceJob).not.toHaveBeenCalled();
+      });
+
+      it('waits without stamping its throttle while any Plex server has a library sync pending', async () => {
+        vi.mocked(getSettings).mockResolvedValue(TAUTULLI as never);
+        vi.mocked(getImportedHistoryLinkState).mockResolvedValue({
+          state: 'pending',
+          providerPassDoneServers: [],
+          autoAttempts: 0,
+          generation: 0,
+          armedAt: new Date().toISOString(),
+        } as never);
+        vi.mocked(listPlexServers).mockResolvedValue([
+          { id: 'plex-a', name: 'Home', machineIdentifier: null },
+          { id: 'plex-b', name: 'Office', machineIdentifier: null },
+        ]);
+        vi.mocked(maybeEnqueueMaintenanceJob).mockResolvedValue('maintenance-job-1');
+
+        await maybeEnqueueImportedHistoryLink(true, async (serverId) => serverId === 'plex-b');
+        expect(maybeEnqueueMaintenanceJob).not.toHaveBeenCalled();
+
+        await maybeEnqueueImportedHistoryLink(false, noPendingSync);
+        expect(maybeEnqueueMaintenanceJob).toHaveBeenCalledWith('link_imported_history', 'system', {
+          trigger: 'auto',
+        });
+      });
+
+      it('stops enqueueing 14 days after the last re-arm', async () => {
+        vi.mocked(getSettings).mockResolvedValue(TAUTULLI as never);
+        vi.mocked(maybeEnqueueMaintenanceJob).mockResolvedValue('maintenance-job-1');
+        const armed = (days: number) =>
+          ({
+            state: 'pending',
+            providerPassDoneServers: [],
+            autoAttempts: 0,
+            generation: 0,
+            armedAt: new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString(),
+          }) as never;
+
+        vi.mocked(getImportedHistoryLinkState).mockResolvedValue(armed(14.5));
+        await maybeEnqueueImportedHistoryLink(true, noPendingSync);
+        expect(maybeEnqueueMaintenanceJob).not.toHaveBeenCalled();
+
+        vi.mocked(getImportedHistoryLinkState).mockResolvedValue(armed(13.5));
+        await maybeEnqueueImportedHistoryLink(true, noPendingSync);
+        expect(maybeEnqueueMaintenanceJob).toHaveBeenCalledTimes(1);
+      });
+
+      it('leaves its throttle unstamped when the maintenance queue refuses the job', async () => {
+        vi.mocked(getSettings).mockResolvedValue(TAUTULLI as never);
+        vi.mocked(getImportedHistoryLinkState).mockResolvedValue({
+          state: 'pending',
+          providerPassDoneServers: [],
+          autoAttempts: 0,
+          generation: 0,
+          armedAt: new Date().toISOString(),
+        } as never);
+        vi.mocked(listPlexServers).mockResolvedValue([
+          { id: 'plex-a', name: 'Home', machineIdentifier: null },
+        ]);
+        vi.mocked(maybeEnqueueMaintenanceJob).mockResolvedValueOnce(null);
+
+        await maybeEnqueueImportedHistoryLink(true, noPendingSync);
+        vi.mocked(maybeEnqueueMaintenanceJob).mockResolvedValueOnce('maintenance-job-1');
+        await maybeEnqueueImportedHistoryLink(false, noPendingSync);
+
+        expect(maybeEnqueueMaintenanceJob).toHaveBeenCalledTimes(2);
+      });
+
+      it('enqueues the link job on its own throttle, leaving the identity backfill free to enqueue, and never from the sync tail', async () => {
+        const service = new LibrarySyncService();
+        const server = createMockServer();
+        vi.mocked(getSettings).mockResolvedValue(TAUTULLI as never);
+        vi.mocked(getImportedHistoryLinkState).mockResolvedValue({
+          state: 'pending',
+          providerPassDoneServers: [],
+          autoAttempts: 0,
+          generation: 0,
+          armedAt: new Date().toISOString(),
+        } as never);
+        vi.mocked(getSessionsCompressionHorizon).mockResolvedValue(
+          new Date('2026-07-01T00:00:00.000Z')
+        );
+        vi.mocked(maybeEnqueueMaintenanceJob).mockResolvedValue('maintenance-job-1');
+
+        await maybeEnqueueImportedHistoryLink(true, noPendingSync);
+        expect(maybeEnqueueMaintenanceJob).toHaveBeenCalledWith('link_imported_history', 'system', {
+          trigger: 'auto',
+        });
+
+        await maybeEnqueueImportedHistoryLink(true, noPendingSync);
+        const linkEnqueues = () =>
+          vi
+            .mocked(maybeEnqueueMaintenanceJob)
+            .mock.calls.filter((c) => c[0] === 'link_imported_history');
+        expect(linkEnqueues()).toHaveLength(1);
+
+        _resetImportedHistoryLinkThrottleForTests();
+        vi.mocked(hasStampableSessionsBefore).mockResolvedValue(true);
+        await runPlexSync(service, server);
+
+        expect(maybeEnqueueMaintenanceJob).toHaveBeenCalledWith(
+          'backfill_session_identity',
+          'system'
+        );
+        expect(linkEnqueues()).toHaveLength(1);
+      });
+    });
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     it('does not truncate a full scan when a page is all extras', async () => {
       const service = new LibrarySyncService();
       const mockServer = createMockServer();
@@ -975,6 +1240,34 @@ describe('LibrarySyncService', () => {
       expect(conflictArgs.set).not.toHaveProperty('dominantColor');
     });
 
+<<<<<<< HEAD
+    it('writes plexGuid on insert and guards the conflict update with a plex_guid change', async () => {
+      const service = new LibrarySyncService();
+      const serverId = randomUUID();
+      const libraryId = '1';
+      const item = createMockLibraryItem({
+        ratingKey: 'guid-key',
+        plexGuid: 'plex://movie/5d776b59ad5437001f79c6f8',
+      });
+
+      const { insertChain } = mockTransaction();
+
+      await service.upsertItems(serverId, libraryId, [item]);
+
+      expect(insertChain.values).toHaveBeenCalledWith([
+        expect.objectContaining({ plexGuid: 'plex://movie/5d776b59ad5437001f79c6f8' }),
+      ]);
+
+      const conflictArgs = insertChain.onConflictDoUpdate.mock.calls[0]![0] as {
+        set: Record<string, unknown>;
+        setWhere: SQL;
+      };
+      expect(conflictArgs.set).toHaveProperty('plexGuid');
+      expect(renderSql(conflictArgs.setWhere).sql).toContain('plex_guid');
+    });
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     it('should collapse duplicate ratingKeys, keeping the last occurrence', async () => {
       const service = new LibrarySyncService();
       const serverId = randomUUID();
@@ -1348,6 +1641,86 @@ describe('LibrarySyncService', () => {
     });
   });
 
+<<<<<<< HEAD
+  describe('removal confirmation', () => {
+    // item-2 is tracked but absent from the listing
+    function setupMissingItemScan(mockServer: ReturnType<typeof createMockServer>) {
+      const existingItems = [
+        createMockDbItem({ ratingKey: 'item-1' }),
+        createMockDbItem({ ratingKey: 'item-2' }),
+      ];
+      let selectCallCount = 0;
+      vi.mocked(db.select).mockImplementation(() => {
+        selectCallCount++;
+        const rows = () =>
+          selectCallCount === 1 ? Promise.resolve([mockServer]) : Promise.resolve(existingItems);
+        const chain = {
+          from: vi.fn().mockReturnThis(),
+          innerJoin: vi.fn().mockReturnThis(),
+          where: vi.fn().mockImplementation(() => {
+            const whereResult = Promise.resolve(existingItems);
+            (whereResult as typeof whereResult & { limit: typeof vi.fn }).limit = vi
+              .fn()
+              .mockImplementation(rows);
+            return whereResult;
+          }),
+          limit: vi.fn().mockImplementation(rows),
+          returning: vi.fn().mockResolvedValue([]),
+        };
+        return chain as never;
+      });
+      mockInsertChain([{ id: randomUUID() }]);
+      mockDeleteChain();
+      mockUpdateChain();
+      mockTransaction();
+      return mockMediaServerClient({
+        libraries: [createMockLibrary()],
+        items: [createMockLibraryItem({ ratingKey: 'item-1' })],
+        totalCount: 1,
+      });
+    }
+
+    it('keeps a missing item the server still has', async () => {
+      const service = new LibrarySyncService();
+      const mockServer = createMockServer();
+      const client = setupMissingItemScan(mockServer);
+      client.findExistingRatingKeys = vi.fn().mockResolvedValue(new Set(['item-2']));
+
+      const results = await service.syncServer(mockServer.id);
+
+      expect(client.findExistingRatingKeys).toHaveBeenCalledWith(['item-2'], {
+        id: '1',
+        name: 'Movies',
+        type: 'movie',
+      });
+      expect(results[0]!.itemsRemoved).toBe(0);
+    });
+
+    it('tombstones a missing item the server no longer has', async () => {
+      const service = new LibrarySyncService();
+      const mockServer = createMockServer();
+      const client = setupMissingItemScan(mockServer);
+      client.findExistingRatingKeys = vi.fn().mockResolvedValue(new Set());
+
+      const results = await service.syncServer(mockServer.id);
+
+      expect(results[0]!.itemsRemoved).toBe(1);
+    });
+
+    it('keeps every missing item when the existence check fails', async () => {
+      const service = new LibrarySyncService();
+      const mockServer = createMockServer();
+      const client = setupMissingItemScan(mockServer);
+      client.findExistingRatingKeys = vi.fn().mockRejectedValue(new Error('server went away'));
+
+      const results = await service.syncServer(mockServer.id);
+
+      expect(results[0]!.itemsRemoved).toBe(0);
+    });
+  });
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   describe('incremental sync', () => {
     const serverId = randomUUID();
 
@@ -1379,7 +1752,15 @@ describe('LibrarySyncService', () => {
       await service.syncServer(serverId);
 
       // Full scan uses getLibraryItems (not getLibraryItemsSince) for the batch loop
+<<<<<<< HEAD
+      expect(client.getLibraryItems).toHaveBeenCalledWith('1', {
+        offset: 0,
+        limit: 200,
+        libraryType: 'movie',
+      });
+=======
       expect(client.getLibraryItems).toHaveBeenCalledWith('1', { offset: 0, limit: 200 });
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       expect(client.getLibraryItemsSince).not.toHaveBeenCalled();
     });
 
@@ -1388,10 +1769,14 @@ describe('LibrarySyncService', () => {
       const mockItems = [createMockLibraryItem({ ratingKey: 'item-1' })];
       // Redis says we had 100 items, but server now reports 90 — items were removed
       const mockRedis = createMockRedis({
+<<<<<<< HEAD
+        get: syncStateReads(new Date(Date.now() - 60_000).toISOString(), '100'),
+=======
         get: vi
           .fn()
           .mockResolvedValueOnce(new Date(Date.now() - 60_000).toISOString()) // lastSyncedAt
           .mockResolvedValueOnce('100'), // lastItemCount
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       });
       initLibrarySyncRedis(mockRedis);
 
@@ -1409,7 +1794,15 @@ describe('LibrarySyncService', () => {
       const service = new LibrarySyncService();
       await service.syncServer(serverId);
 
+<<<<<<< HEAD
+      expect(client.getLibraryItems).toHaveBeenCalledWith('1', {
+        offset: 0,
+        limit: 200,
+        libraryType: 'movie',
+      });
+=======
       expect(client.getLibraryItems).toHaveBeenCalledWith('1', { offset: 0, limit: 200 });
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       expect(client.getLibraryItemsSince).not.toHaveBeenCalled();
     });
 
@@ -1417,11 +1810,16 @@ describe('LibrarySyncService', () => {
       const mockServer = createMockServer({ id: serverId });
       const mockItems = [createMockLibraryItem({ ratingKey: 'item-1' })];
       const mockRedis = createMockRedis({
+<<<<<<< HEAD
+        // 20 min ago: outside COUNT_CHECK_MIN_INTERVAL_MS so the drift check runs
+        get: syncStateReads(new Date(Date.now() - 20 * 60_000).toISOString(), '10'),
+=======
         get: vi
           .fn()
           // 20 min ago: outside COUNT_CHECK_MIN_INTERVAL_MS so the drift check runs
           .mockResolvedValueOnce(new Date(Date.now() - 20 * 60_000).toISOString()) // lastSyncedAt
           .mockResolvedValueOnce('10'), // lastItemCount
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       });
       initLibrarySyncRedis(mockRedis);
 
@@ -1442,7 +1840,15 @@ describe('LibrarySyncService', () => {
       const service = new LibrarySyncService();
       await service.syncServer(serverId);
 
+<<<<<<< HEAD
+      expect(client.getLibraryItems).toHaveBeenCalledWith('1', {
+        offset: 0,
+        limit: 200,
+        libraryType: 'movie',
+      });
+=======
       expect(client.getLibraryItems).toHaveBeenCalledWith('1', { offset: 0, limit: 200 });
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       expect(client.getLibraryItemsSince).not.toHaveBeenCalled();
     });
 
@@ -1450,11 +1856,16 @@ describe('LibrarySyncService', () => {
       const mockServer = createMockServer({ id: serverId });
       const mockItems = [createMockLibraryItem({ ratingKey: 'item-1' })];
       const mockRedis = createMockRedis({
+<<<<<<< HEAD
+        // 20 min ago: outside COUNT_CHECK_MIN_INTERVAL_MS so the drift check runs
+        get: syncStateReads(new Date(Date.now() - 20 * 60_000).toISOString(), '20'),
+=======
         get: vi
           .fn()
           // 20 min ago: outside COUNT_CHECK_MIN_INTERVAL_MS so the drift check runs
           .mockResolvedValueOnce(new Date(Date.now() - 20 * 60_000).toISOString()) // lastSyncedAt
           .mockResolvedValueOnce('20'), // lastItemCount
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       });
       initLibrarySyncRedis(mockRedis);
 
@@ -1475,19 +1886,36 @@ describe('LibrarySyncService', () => {
       await service.syncServer(serverId);
 
       // Incremental is attempted first, since the undercount alone doesn't block it.
+<<<<<<< HEAD
+      expect(client.getLibraryItemsSince).toHaveBeenCalledWith('1', expect.any(Date), {
+        libraryType: 'movie',
+      });
+      // The still-short post-sync count escalates to a full scan in the same run.
+      expect(client.getLibraryItems).toHaveBeenCalledWith('1', {
+        offset: 0,
+        limit: 200,
+        libraryType: 'movie',
+      });
+=======
       expect(client.getLibraryItemsSince).toHaveBeenCalledWith('1', expect.any(Date));
       // The still-short post-sync count escalates to a full scan in the same run.
       expect(client.getLibraryItems).toHaveBeenCalledWith('1', { offset: 0, limit: 200 });
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     });
 
     it('never escalates a music library, even with a local active count far below the server total', async () => {
       const mockServer = createMockServer({ id: serverId });
       const mockRedis = createMockRedis({
+<<<<<<< HEAD
+        // 20 min ago: the drift check window is open, yet music must still not escalate
+        get: syncStateReads(new Date(Date.now() - 20 * 60_000).toISOString(), '20'),
+=======
         get: vi
           .fn()
           // 20 min ago: the drift check window is open, yet music must still not escalate
           .mockResolvedValueOnce(new Date(Date.now() - 20 * 60_000).toISOString()) // lastSyncedAt
           .mockResolvedValueOnce('20'), // lastItemCount
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       });
       initLibrarySyncRedis(mockRedis);
 
@@ -1507,8 +1935,19 @@ describe('LibrarySyncService', () => {
       await service.syncServer(serverId);
 
       // Stays on the incremental "no changes" fast path - never escalates.
+<<<<<<< HEAD
+      expect(client.getLibraryItemsSince).toHaveBeenCalledWith('1', expect.any(Date), {
+        libraryType: 'artist',
+      });
+      expect(client.getLibraryItems).not.toHaveBeenCalledWith('1', {
+        offset: 0,
+        limit: 200,
+        libraryType: 'movie',
+      });
+=======
       expect(client.getLibraryItemsSince).toHaveBeenCalledWith('1', expect.any(Date));
       expect(client.getLibraryItems).not.toHaveBeenCalledWith('1', { offset: 0, limit: 200 });
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     });
 
     it('counts only top-level items for the mismatch check, never episodes or tracks', async () => {
@@ -1541,11 +1980,16 @@ describe('LibrarySyncService', () => {
       const mockServer = createMockServer({ id: serverId });
       const newItem = createMockLibraryItem({ ratingKey: 'new-item' });
       const mockRedis = createMockRedis({
+<<<<<<< HEAD
+        // 20 min ago: outside COUNT_CHECK_MIN_INTERVAL_MS so both count probes run
+        get: syncStateReads(new Date(Date.now() - 20 * 60_000).toISOString(), '5'),
+=======
         get: vi
           .fn()
           // 20 min ago: outside COUNT_CHECK_MIN_INTERVAL_MS so both count probes run
           .mockResolvedValueOnce(new Date(Date.now() - 20 * 60_000).toISOString())
           .mockResolvedValueOnce('5'),
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       });
       initLibrarySyncRedis(mockRedis);
 
@@ -1592,18 +2036,33 @@ describe('LibrarySyncService', () => {
       const service = new LibrarySyncService();
       await service.syncServer(serverId);
 
+<<<<<<< HEAD
+      expect(client.getLibraryItemsSince).toHaveBeenCalledWith('1', expect.any(Date), {
+        libraryType: 'movie',
+      });
+      expect(client.getLibraryItems).not.toHaveBeenCalledWith('1', {
+        offset: 0,
+        limit: 200,
+        libraryType: 'movie',
+      });
+=======
       expect(client.getLibraryItemsSince).toHaveBeenCalledWith('1', expect.any(Date));
       expect(client.getLibraryItems).not.toHaveBeenCalledWith('1', { offset: 0, limit: 200 });
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     });
 
     it('does not run the count-mismatch check on a manual trigger', async () => {
       const mockServer = createMockServer({ id: serverId });
       const mockItems = [createMockLibraryItem({ ratingKey: 'item-1' })];
       const mockRedis = createMockRedis({
+<<<<<<< HEAD
+        get: syncStateReads(new Date(Date.now() - 60_000).toISOString(), '1'),
+=======
         get: vi
           .fn()
           .mockResolvedValueOnce(new Date(Date.now() - 60_000).toISOString())
           .mockResolvedValueOnce('1'),
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       });
       initLibrarySyncRedis(mockRedis);
 
@@ -1634,10 +2093,14 @@ describe('LibrarySyncService', () => {
       const mockItems = [createMockLibraryItem({ ratingKey: 'item-1' })];
       // Redis has valid sync state — but it's a manual trigger
       const mockRedis = createMockRedis({
+<<<<<<< HEAD
+        get: syncStateReads(new Date(Date.now() - 60_000).toISOString(), '1'),
+=======
         get: vi
           .fn()
           .mockResolvedValueOnce(new Date(Date.now() - 60_000).toISOString()) // lastSyncedAt
           .mockResolvedValueOnce('1'), // lastItemCount matches
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       });
       initLibrarySyncRedis(mockRedis);
 
@@ -1655,7 +2118,15 @@ describe('LibrarySyncService', () => {
       const service = new LibrarySyncService();
       await service.syncServer(serverId, undefined, 'manual');
 
+<<<<<<< HEAD
+      expect(client.getLibraryItems).toHaveBeenCalledWith('1', {
+        offset: 0,
+        limit: 200,
+        libraryType: 'movie',
+      });
+=======
       expect(client.getLibraryItems).toHaveBeenCalledWith('1', { offset: 0, limit: 200 });
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       expect(client.getLibraryItemsSince).not.toHaveBeenCalled();
     });
 
@@ -1665,10 +2136,14 @@ describe('LibrarySyncService', () => {
       const snapshotId = randomUUID();
       const lastSyncedAt = new Date(Date.now() - 60_000);
       const mockRedis = createMockRedis({
+<<<<<<< HEAD
+        get: syncStateReads(lastSyncedAt.toISOString(), '5'),
+=======
         get: vi
           .fn()
           .mockResolvedValueOnce(lastSyncedAt.toISOString()) // lastSyncedAt
           .mockResolvedValueOnce('5'), // lastItemCount = 5, totalCount = 6
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       });
       initLibrarySyncRedis(mockRedis);
 
@@ -1759,8 +2234,16 @@ describe('LibrarySyncService', () => {
       const service = new LibrarySyncService();
       const results = await service.syncServer(serverId);
 
+<<<<<<< HEAD
+      expect(client.getLibraryItemsSince).toHaveBeenCalledWith('1', expect.any(Date), {
+        libraryType: 'movie',
+      });
+      // A movie section's leaves are its items, so asking for both would upsert each twice
+      expect(client.getLibraryLeavesSince).not.toHaveBeenCalled();
+=======
       expect(client.getLibraryItemsSince).toHaveBeenCalledWith('1', expect.any(Date));
       expect(client.getLibraryLeavesSince).toHaveBeenCalled();
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       expect(results[0]!.itemsAdded).toBe(1);
       expect(results[0]!.itemsRemoved).toBe(0);
       expect(results[0]!.snapshotId).toBe(snapshotId);
@@ -1770,10 +2253,14 @@ describe('LibrarySyncService', () => {
       const mockServer = createMockServer({ id: serverId });
       const lastSyncedAt = new Date(Date.now() - 60_000);
       const mockRedis = createMockRedis({
+<<<<<<< HEAD
+        get: syncStateReads(lastSyncedAt.toISOString(), '5'),
+=======
         get: vi
           .fn()
           .mockResolvedValueOnce(lastSyncedAt.toISOString()) // lastSyncedAt
           .mockResolvedValueOnce('5'), // lastItemCount = 5, totalCount = 5 (unchanged)
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       });
       initLibrarySyncRedis(mockRedis);
 
@@ -1801,7 +2288,11 @@ describe('LibrarySyncService', () => {
       expect(results[0]!.snapshotId).toBeNull();
       expect(db.transaction).not.toHaveBeenCalled();
       expect(client.getLibraryItemsSince).toHaveBeenCalledTimes(1);
+<<<<<<< HEAD
+      expect(client.getLibraryLeavesSince).not.toHaveBeenCalled();
+=======
       expect(client.getLibraryLeavesSince).toHaveBeenCalledTimes(1);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       expect(mockRedis.set).toHaveBeenCalled();
     });
 
@@ -1810,10 +2301,14 @@ describe('LibrarySyncService', () => {
       const lastSyncedAt = new Date(Date.now() - 60_000);
       const newEpisode = createMockLibraryItem({ ratingKey: 'new-ep-1', mediaType: 'episode' });
       const mockRedis = createMockRedis({
+<<<<<<< HEAD
+        get: syncStateReads(lastSyncedAt.toISOString(), '5'),
+=======
         get: vi
           .fn()
           .mockResolvedValueOnce(lastSyncedAt.toISOString()) // lastSyncedAt
           .mockResolvedValueOnce('5'), // lastItemCount = 5, totalCount = 5
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       });
       initLibrarySyncRedis(mockRedis);
 
@@ -1825,7 +2320,11 @@ describe('LibrarySyncService', () => {
       mockTransaction();
 
       const client = mockMediaServerClient({
+<<<<<<< HEAD
+        libraries: [createMockLibrary({ name: 'TV Shows', type: 'show' })],
+=======
         libraries: [createMockLibrary()],
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         items: [],
         totalCount: 5, // same as lastItemCount — no new shows
         itemsSince: [], // no new top-level items
@@ -1848,7 +2347,11 @@ describe('LibrarySyncService', () => {
       const mockItems = [createMockLibraryItem({ ratingKey: 'item-1' })];
       const lastSyncedAt = new Date(Date.now() - 60_000);
       const mockRedis = createMockRedis({
+<<<<<<< HEAD
+        get: syncStateReads(lastSyncedAt.toISOString(), '1'),
+=======
         get: vi.fn().mockResolvedValueOnce(lastSyncedAt.toISOString()).mockResolvedValueOnce('1'),
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       });
       initLibrarySyncRedis(mockRedis);
 
@@ -1869,7 +2372,15 @@ describe('LibrarySyncService', () => {
       const results = await service.syncServer(serverId);
 
       // Should fall back to full scan
+<<<<<<< HEAD
+      expect(client.getLibraryItems).toHaveBeenCalledWith('1', {
+        offset: 0,
+        limit: 200,
+        libraryType: 'movie',
+      });
+=======
       expect(client.getLibraryItems).toHaveBeenCalledWith('1', { offset: 0, limit: 200 });
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       expect(results[0]!.itemsProcessed).toBe(1);
     });
 

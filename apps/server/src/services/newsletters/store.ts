@@ -20,6 +20,11 @@ import {
   servers,
   type PosterRef,
 } from '../../db/schema.js';
+<<<<<<< HEAD
+import { compareNames } from '../../utils/collation.js';
+import { serverOrderBy } from '../../utils/serverOrder.js';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 export type NewsletterRow = typeof newsletters.$inferSelect;
 export type SendRow = typeof newsletterSends.$inferSelect;
@@ -50,7 +55,13 @@ export class OpenSendConflict extends Error {
 }
 
 export async function listNewsletters(): Promise<NewsletterRow[]> {
+<<<<<<< HEAD
+  return (await db.select().from(newsletters)).sort(
+    (a, b) => compareNames(a.name, b.name) || a.id.localeCompare(b.id)
+  );
+=======
   return db.select().from(newsletters).orderBy(newsletters.name);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 export async function getNewsletter(id: string): Promise<NewsletterRow | null> {
@@ -153,6 +164,32 @@ export async function lastWatermark(newsletterId: string): Promise<Date | null> 
   return row?.end ? new Date(row.end) : null;
 }
 
+<<<<<<< HEAD
+/** The members the latest send the watermark counts was addressed to; null before one exists or when it holds no recipient rows. */
+export async function lastDeliveredUserIds(newsletterId: string): Promise<Set<string> | null> {
+  const [send] = await db
+    .select({ id: newsletterSends.id })
+    .from(newsletterSends)
+    .where(
+      and(
+        eq(newsletterSends.newsletterId, newsletterId),
+        inArray(newsletterSends.trigger, COUNTED),
+        inArray(newsletterSends.outcome, WATERMARK)
+      )
+    )
+    .orderBy(desc(newsletterSends.startedAt))
+    .limit(1);
+  if (!send) return null;
+  const rows = await db
+    .select({ userId: newsletterSendRecipients.userId })
+    .from(newsletterSendRecipients)
+    .where(eq(newsletterSendRecipients.sendId, send.id));
+  if (rows.length === 0) return null;
+  return new Set(rows.flatMap((r) => (r.userId ? [r.userId] : [])));
+}
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 export async function lastSend(newsletterId: string): Promise<SendView | null> {
   const [row] = await db
     .select(sendColumns)
@@ -452,8 +489,13 @@ export async function loadServerLinks(serverIds: string[]): Promise<ServerLink[]
     })
     .from(servers);
   return serverIds.length === 0
+<<<<<<< HEAD
+    ? base.orderBy(...serverOrderBy())
+    : base.where(inArray(servers.id, serverIds)).orderBy(...serverOrderBy());
+=======
     ? base.orderBy(servers.name)
     : base.where(inArray(servers.id, serverIds)).orderBy(servers.name);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 export function toSendSummary(row: SendView): NewsletterSendSummary {

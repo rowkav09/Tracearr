@@ -1,4 +1,8 @@
 import { useState } from 'react';
+<<<<<<< HEAD
+import { useTranslation } from 'react-i18next';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import {
   Monitor,
   MonitorPlay,
@@ -17,7 +21,11 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+<<<<<<< HEAD
+import { cn, formatLocationCompact, getDeviceDisplayName, getMediaDisplay } from '@/lib/utils';
+=======
 import { cn, formatLocationCompact, getMediaDisplay } from '@/lib/utils';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { imageProxyUrl } from '@/lib/api';
 import { formatDuration } from '@/lib/formatters';
 import { useEstimatedProgress } from '@/hooks/useEstimatedProgress';
@@ -25,7 +33,17 @@ import { useAuth } from '@/hooks/useAuth';
 import { useServer } from '@/hooks/useServer';
 import { ServerColorAccent } from '@/components/server';
 import { TerminateSessionDialog } from './TerminateSessionDialog';
+<<<<<<< HEAD
+import { LocalBadge } from './LocalBadge';
+import {
+  PLAYBACK_DECISION_LABEL_KEYS,
+  POSTER_IMAGE_SIZE,
+  playbackDecision,
+  type ActiveSession,
+} from '@tracearr/shared';
+=======
 import { POSTER_IMAGE_SIZE, type ActiveSession } from '@tracearr/shared';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 interface NowPlayingCardProps {
   session: ActiveSession;
@@ -62,6 +80,10 @@ function DeviceIcon({ session, className }: { session: ActiveSession; className?
 export function NowPlayingCard({ session, onClick }: NowPlayingCardProps) {
   const { title, subtitle } = getMediaDisplay(session);
   const { user } = useAuth();
+<<<<<<< HEAD
+  const { t } = useTranslation();
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   const { isMultiServer } = useServer();
   const [showTerminateDialog, setShowTerminateDialog] = useState(false);
 
@@ -91,6 +113,10 @@ export function NowPlayingCard({ session, onClick }: NowPlayingCardProps) {
   // User avatar URL (proxied for Jellyfin/Emby)
   const avatarUrl = getAvatarUrl(session.serverId, session.user.thumbUrl, 28) ?? undefined;
 
+<<<<<<< HEAD
+  const deviceName = getDeviceDisplayName(session);
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   const isPaused = session.state === 'paused';
   const isSquareArt = session.mediaType === 'track' || session.mediaType === 'live';
 
@@ -170,6 +196,11 @@ export function NowPlayingCard({ session, onClick }: NowPlayingCardProps) {
                     session.isTranscode &&
                     !!(session.transcodeInfo?.hwEncoding || session.transcodeInfo?.hwDecoding);
 
+<<<<<<< HEAD
+                  const label = isHwTranscode
+                    ? t('playback.hwTranscode')
+                    : t(PLAYBACK_DECISION_LABEL_KEYS[playbackDecision(session)]);
+=======
                   const label = session.isTranscode
                     ? isHwTranscode
                       ? 'HW Transcode'
@@ -177,6 +208,7 @@ export function NowPlayingCard({ session, onClick }: NowPlayingCardProps) {
                     : session.videoDecision === 'copy' || session.audioDecision === 'copy'
                       ? 'Direct Stream'
                       : 'Direct Play';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
                   const icon = session.isTranscode ? (
                     isHwTranscode ? (
@@ -199,8 +231,17 @@ export function NowPlayingCard({ session, onClick }: NowPlayingCardProps) {
                   );
                 })()}
 
+<<<<<<< HEAD
+                {/* Device icon - names the client on hover, like the quality badge */}
+                <div
+                  className="bg-muted flex h-6 w-6 items-center justify-center rounded-md"
+                  title={deviceName ?? undefined}
+                  data-testid="device-icon"
+                >
+=======
                 {/* Device icon */}
                 <div className="bg-muted flex h-6 w-6 items-center justify-center rounded-md">
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                   <DeviceIcon session={session} className="text-muted-foreground h-3.5 w-3.5" />
                 </div>
 
@@ -262,6 +303,10 @@ export function NowPlayingCard({ session, onClick }: NowPlayingCardProps) {
               {formatLocationCompact(session.geoCity, session.geoRegion, session.geoCountry) ??
                 'Unknown location'}
             </span>
+<<<<<<< HEAD
+            <LocalBadge isLocal={session.isLocal} country={session.geoCountry} />
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           </span>
           <span className="flex-shrink-0">{session.quality ?? 'Unknown quality'}</span>
         </div>

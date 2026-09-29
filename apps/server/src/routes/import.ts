@@ -13,6 +13,14 @@ import {
 } from '@tracearr/shared';
 import { TautulliService } from '../services/tautulli.js';
 import { importJellystatBackup } from '../services/jellystat.js';
+<<<<<<< HEAD
+import {
+  readJellystatUpload,
+  removeJellystatUpload,
+  saveJellystatUpload,
+} from '../services/import/jellystatUpload.js';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { importPlaybackReporting } from '../services/playbackReporting.js';
 import { getPubSubService } from '../services/cache.js';
 import { syncServer } from '../services/sync.js';
@@ -101,7 +109,10 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
       // Start import in background (non-blocking)
       TautulliService.importHistory(serverId, pubSubService ?? undefined, undefined, {
         overwriteFriendlyNames,
+<<<<<<< HEAD
+=======
         skipRefresh: includeStreamDetails, // Skip refresh if enrichment will follow
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       })
         .then(async (result) => {
           console.log(`[Import] Tautulli import completed:`, result);
@@ -325,12 +336,20 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
       return reply.badRequest('Jellystat import only supports Jellyfin/Emby servers');
     }
 
+<<<<<<< HEAD
+    const backupPath = await saveJellystatUpload(data.file);
+    if (data.file.truncated) {
+      await removeJellystatUpload(backupPath);
+      return reply.payloadTooLarge('Backup file is larger than 500 MB');
+    }
+=======
     // Read file contents
     const chunks: Buffer[] = [];
     for await (const chunk of data.file) {
       chunks.push(chunk);
     }
     const backupJson = Buffer.concat(chunks).toString('utf-8');
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
     // Sync server users first
     try {
@@ -338,6 +357,10 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
       await syncServer(parsed.data.serverId, { syncUsers: true, syncLibraries: false });
       app.log.info({ serverId }, 'Server sync completed');
     } catch (error) {
+<<<<<<< HEAD
+      await removeJellystatUpload(backupPath);
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       app.log.error({ err: error, serverId }, 'Failed to sync server before import');
       return reply.internalServerError('Failed to sync server users before import');
     }
@@ -347,7 +370,11 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
       const jobId = await enqueueJellystatImport(
         parsed.data.serverId,
         authUser.userId,
+<<<<<<< HEAD
+        backupPath,
+=======
         backupJson,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         parsed.data.enrichMedia,
         parsed.data.updateStreamDetails
       );
@@ -360,6 +387,10 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
       };
     } catch (error) {
       if (error instanceof Error && error.message.includes('already in progress')) {
+<<<<<<< HEAD
+        await removeJellystatUpload(backupPath);
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         return reply.conflict(error.message);
       }
 
@@ -369,6 +400,18 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
       const pubSubService = getPubSubService();
 
       // Start import in background (non-blocking)
+<<<<<<< HEAD
+      readJellystatUpload(backupPath)
+        .then((backupJson) =>
+          importJellystatBackup(
+            parsed.data.serverId,
+            backupJson,
+            enrichMedia,
+            pubSubService ?? undefined,
+            { updateStreamDetails: parsed.data.updateStreamDetails }
+          )
+        )
+=======
       importJellystatBackup(
         parsed.data.serverId,
         backupJson,
@@ -376,11 +419,18 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
         pubSubService ?? undefined,
         { updateStreamDetails: parsed.data.updateStreamDetails }
       )
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         .then((result) => {
           console.log(`[Import] Jellystat import completed:`, result);
         })
         .catch((err: unknown) => {
           console.error(`[Import] Jellystat import failed:`, err);
+<<<<<<< HEAD
+        })
+        .finally(() => {
+          void removeJellystatUpload(backupPath);
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         });
 
       return {

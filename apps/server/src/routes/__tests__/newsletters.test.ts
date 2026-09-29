@@ -249,7 +249,11 @@ describe('newsletter routes', () => {
       ['DELETE', `/newsletters/${ID}`],
       ['POST', `/newsletters/${ID}/preview`],
       ['POST', '/newsletters/preview'],
+<<<<<<< HEAD
+      ['POST', '/newsletters/recipients'],
+=======
       ['GET', `/newsletters/${ID}/recipients`],
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       ['GET', `/newsletters/${ID}/variants`],
       ['POST', `/newsletters/${ID}/test`],
       ['POST', `/newsletters/${ID}/send`],
@@ -436,6 +440,8 @@ describe('newsletter routes', () => {
     expect(store.updateNewsletter).not.toHaveBeenCalled();
   });
 
+<<<<<<< HEAD
+=======
   it('lists who the next send reaches, who has no address, and who is excluded', async () => {
     const app = await build(owner);
     const view = {
@@ -510,6 +516,7 @@ describe('newsletter routes', () => {
     ).toBe(404);
   });
 
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   it('refuses to delete while a send is open, otherwise deletes and drops the scheduler', async () => {
     const app = await build(owner);
     store.deleteNewsletter.mockResolvedValueOnce('open_send');
@@ -714,10 +721,17 @@ describe('newsletter routes', () => {
     });
     mockResolve.mockResolvedValue({ recipients: [], missing: [], excluded: [] });
     const fallback = await app.inject({ method: 'POST', url: `/newsletters/${ID}/preview` });
+<<<<<<< HEAD
+    expect(fallback.json().variants[0].html).toContain('Sent by Tracearr for Basement');
+    store.getNewsletter.mockResolvedValue({ ...row, senderName: 'Family Media' });
+    const named = await app.inject({ method: 'POST', url: `/newsletters/${ID}/preview` });
+    expect(named.json().variants[0].html).toContain('Sent by Tracearr for Family Media');
+=======
     expect(fallback.json().variants[0].html).toContain('Sent by Tracearr for <!-- -->Basement');
     store.getNewsletter.mockResolvedValue({ ...row, senderName: 'Family Media' });
     const named = await app.inject({ method: 'POST', url: `/newsletters/${ID}/preview` });
     expect(named.json().variants[0].html).toContain('Sent by Tracearr for <!-- -->Family Media');
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   });
 
   it('preview trims the way a send would and reports what it removed', async () => {
@@ -778,7 +792,11 @@ describe('newsletter routes', () => {
         }) => [v.key, v.serverNames, v.recipientCount, v.counts.movies]
       )
     ).toEqual([
+<<<<<<< HEAD
+      // The scope names no server, so the union follows loadServerLinks' server order while its key sorts by id.
+=======
       // The scope names no server, so the union follows loadServerLinks' name order while its key sorts by id.
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       // Nobody is on both servers, so the union carries no recipients; bob (Attic-only) lands in the Attic group.
       [`${S1.id},${S2.id}`, ['Attic', 'Basement'], 0, 1],
       [S1.id, ['Basement'], 1, 1],
@@ -923,6 +941,56 @@ describe('newsletter routes', () => {
     expect(store.lastWatermark).not.toHaveBeenCalled();
   });
 
+<<<<<<< HEAD
+  it('recipients from a draft resolve the unsaved scope and recipients, mark new members only for a saved id, and refuse a whole newsletter body', async () => {
+    const view = { recipients: [], missing: [], excluded: [] };
+    mockResolve.mockResolvedValue(view);
+    const app = await build(owner);
+    const scope = { serverIds: [], libraries: [] };
+    const recipients = {
+      members: false,
+      extraAddresses: [{ address: 'kid@x.com' }],
+      excludeUserIds: [],
+    };
+    const fresh = await app.inject({
+      method: 'POST',
+      url: '/newsletters/recipients',
+      payload: { scope, recipients },
+    });
+    expect(fresh.statusCode).toBe(200);
+    expect(fresh.json()).toEqual(view);
+    expect(mockResolve).toHaveBeenLastCalledWith(
+      expect.objectContaining({ recipients }),
+      undefined
+    );
+    expect(store.getNewsletter).not.toHaveBeenCalled();
+
+    const saved = await app.inject({
+      method: 'POST',
+      url: '/newsletters/recipients',
+      payload: { newsletterId: ID, scope, recipients },
+    });
+    expect(saved.statusCode).toBe(200);
+    expect(mockResolve).toHaveBeenLastCalledWith(expect.objectContaining({ recipients }), ID);
+
+    store.getNewsletter.mockResolvedValueOnce(null);
+    const missing = await app.inject({
+      method: 'POST',
+      url: '/newsletters/recipients',
+      payload: { newsletterId: ID, scope, recipients },
+    });
+    expect(missing.statusCode).toBe(404);
+    const wholeNewsletter = await app.inject({
+      method: 'POST',
+      url: '/newsletters/recipients',
+      payload: { newsletter: { ...body, recipients } },
+    });
+    expect(wholeNewsletter.statusCode).toBe(400);
+    expect(mockResolve).toHaveBeenCalledTimes(2);
+  });
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   it('preview from a draft refuses a non-email destination and a bad body the way create does', async () => {
     mockDestination.mockResolvedValue({ id: DEST, type: 'discord', enabled: true });
     const app = await build(owner);

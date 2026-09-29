@@ -1,4 +1,37 @@
 {
+<<<<<<< HEAD
+  "dashboard": "Instrumentbræt",
+  "map": "Kort",
+  "history": "Historik",
+  "stats": "Statistik",
+  "activity": "Aktivitet",
+  "library": "Bibliotek",
+  "users": "Brugere",
+  "automations": "",
+  "violations": "Overtrædelser",
+  "requests": "",
+  "alerts": "Advarsler",
+  "settings": "Indstillinger",
+  "overview": "Oversigt",
+  "quality": "Kvalitet",
+  "storage": "Lagerplads",
+  "watch": "Se",
+  "performance": "Ydeevne",
+  "devices": "Enheder",
+  "bandwidth": "Båndbredde",
+  "jobs": "",
+  "accessControl": "Adgangskontrol",
+  "media": "Medier",
+  "mediaBrowse": "Gennemse",
+  "mediaGenres": "Genrer",
+  "session": "",
+  "user": "",
+  "violation": "",
+  "monitor": "",
+  "manage": "",
+  "userStats": "",
+  "toggleSidebar": ""
+=======
   "accessControl": "Adgangskontrol",
   "activity": "Aktivitet",
   "alerts": "Advarsler",
@@ -29,4 +62,5 @@
   "violation": "",
   "violations": "Overtrædelser",
   "watch": "Se"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }

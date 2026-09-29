@@ -4,6 +4,10 @@ import { Marker, type StyleSpecification } from 'maplibre-gl';
 import { formatEpisodeLabel, type ActiveSession, type LocationStats } from '@tracearr/shared';
 import { cn, formatLocationCompact } from '@/lib/utils';
 import { ActiveSessionBadge } from '@/components/sessions/ActiveSessionBadge';
+<<<<<<< HEAD
+import { LocalBadge } from '@/components/sessions/LocalBadge';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { ServerLegend } from '@/components/server';
 import { User, MapPin } from 'lucide-react';
 import { getAvatarUrl } from '@/components/users/utils';
@@ -252,6 +256,10 @@ function SessionPopupContent({ session }: { session: ActiveSession }) {
             <span className="truncate">
               {formatLocationCompact(session.geoCity, session.geoRegion, session.geoCountry)}
             </span>
+<<<<<<< HEAD
+            <LocalBadge isLocal={session.isLocal} country={session.geoCountry} />
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           </>
         )}
         {(session.product || session.platform) && (

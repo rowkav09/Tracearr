@@ -1,6 +1,17 @@
 import { useQuery } from '@tanstack/react-query';
 import { RefreshCw, Activity, Clock, AlertCircle, CheckCircle2, Cpu } from 'lucide-react';
+<<<<<<< HEAD
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+=======
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -136,6 +147,14 @@ export function TasksTab() {
       {/* BullMQ Queues */}
       <Card>
         <CardHeader>
+<<<<<<< HEAD
+          <CardTitle className="flex items-center gap-2">
+            <Activity className="h-5 w-5" />
+            Job Queues
+          </CardTitle>
+          <CardDescription>BullMQ background job processing queues</CardDescription>
+          <CardAction>
+=======
           <div className="flex items-center justify-between">
             <div className="space-y-1.5">
               <CardTitle className="flex items-center gap-2">
@@ -144,6 +163,7 @@ export function TasksTab() {
               </CardTitle>
               <CardDescription>BullMQ background job processing queues</CardDescription>
             </div>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
             <Button
               variant="outline"
               size="sm"
@@ -152,7 +172,11 @@ export function TasksTab() {
             >
               <RefreshCw className={cn('h-4 w-4', tasks.isFetching && 'animate-spin')} />
             </Button>
+<<<<<<< HEAD
+          </CardAction>
+=======
           </div>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">

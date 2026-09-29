@@ -3,10 +3,20 @@ import {
   DEFAULT_NEWSLETTER_SECTIONS,
   DEFAULT_NEWSLETTER_SUBJECT,
   createNewsletterSchema,
+<<<<<<< HEAD
+  isEmailAddress,
+  needsSenderName,
+  type CreateNewsletterInput,
+  type Newsletter,
+  type NewsletterPreviewDraftInput,
+  type NewsletterRecipients,
+  type NewsletterRecipientsDraftInput,
+=======
   needsSenderName,
   type CreateNewsletterInput,
   type Newsletter,
   type NewsletterRecipients,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   type NewsletterScope,
   type UpdateNewsletterInput,
 } from '@tracearr/shared';
@@ -245,6 +255,51 @@ export function scopedServers<T extends { id: string }>(
   });
 }
 
+<<<<<<< HEAD
+/** What the send reaches from the typed rows: normalized and deduped, the first name winning, a row that isn't an address yet skipped. */
+export function extraRecipients(
+  extraAddresses: readonly { address: string; name?: string }[]
+): { address: string; name: string | null }[] {
+  const seen = new Map<string, { address: string; name: string | null }>();
+  for (const row of extraAddresses) {
+    const typed = row.address.trim();
+    const key = typed.toLowerCase();
+    if (seen.has(key) || !isEmailAddress(key)) continue;
+    seen.set(key, { address: typed, name: row.name ?? null });
+  }
+  return [...seen.values()];
+}
+
+/** The body the preview draft route takes: a whole newsletter, plus the saved row's id when there is one. */
+export function previewDraftBody(
+  newsletter: NewsletterFormState,
+  newsletterId: string | null
+): NewsletterPreviewDraftInput {
+  return { ...(newsletterId ? { newsletterId } : {}), newsletter };
+}
+
+/** Half-typed extra addresses stay out so they never fail the lookup. Null when nobody could receive, which needs no lookup. */
+export function recipientsDraft(
+  scope: NewsletterScope,
+  recipients: NewsletterRecipients,
+  newsletterId: string | null
+): NewsletterRecipientsDraftInput | null {
+  const extras = extraRecipients(recipients.extraAddresses);
+  if (!recipients.members && extras.length === 0) return null;
+  return {
+    ...(newsletterId ? { newsletterId } : {}),
+    scope,
+    recipients: {
+      members: recipients.members,
+      extraAddresses: extras.map((extra) =>
+        extra.name === null
+          ? { address: extra.address }
+          : { address: extra.address, name: extra.name }
+      ),
+      excludeUserIds: recipients.excludeUserIds,
+    },
+  };
+=======
 /** The form's servers no longer match the saved row's, so anything resolved from the saved row answers for the old ones. */
 export function scopeMoved(savedServerIds: string[] | null, serverIds: string[]): boolean {
   return savedServerIds !== null && !deepEqual(savedServerIds, serverIds);
@@ -256,6 +311,7 @@ export function recipientsQueryId(
   newsletterId: string | null
 ): string | undefined {
   return form.members && newsletterId ? newsletterId : undefined;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 export function prefillFromRouterState(state: unknown): Partial<NewsletterFormState> {

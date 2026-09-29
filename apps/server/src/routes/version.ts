@@ -5,15 +5,22 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify';
+<<<<<<< HEAD
+import { isNewerVersion, isPrerelease, type VersionInfo } from '@tracearr/shared';
+=======
 import type { VersionInfo } from '@tracearr/shared';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import {
   getCurrentVersion,
   getCurrentTag,
   getCurrentCommit,
   getBuildDate,
   getCachedLatestVersion,
+<<<<<<< HEAD
+=======
   isNewerVersion,
   isPrerelease,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   forceVersionCheck,
 } from '../jobs/versionCheckQueue.js';
 
@@ -54,6 +61,12 @@ export const versionRoutes: FastifyPluginAsync = async (app) => {
             isPrerelease: latestData.isPrerelease,
             releaseName: latestData.releaseName,
             releaseNotes: latestData.releaseNotes,
+<<<<<<< HEAD
+            upgradeWarnings: latestData.upgradeWarnings.filter((w) =>
+              isNewerVersion(w.version, currentVersion)
+            ),
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           }
         : null,
       updateAvailable,

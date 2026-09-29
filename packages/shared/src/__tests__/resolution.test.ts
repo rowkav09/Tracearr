@@ -8,6 +8,10 @@ import {
   resolutionBucketSpellings,
   resolutionAboveSdSpellings,
   resolutionSpellingRanks,
+<<<<<<< HEAD
+  RESOLUTION_BUCKETS,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   RESOLUTION_TIERS,
 } from '../resolution.js';
 
@@ -59,12 +63,24 @@ describe('normalizeResolutionLabel', () => {
   it('maps known Plex/Tautulli labels to the app vocabulary', () => {
     expect(normalizeResolutionLabel('sd')).toBe('SD');
     expect(normalizeResolutionLabel('480')).toBe('480p');
+<<<<<<< HEAD
+    expect(normalizeResolutionLabel('576')).toBe('480p');
+=======
     expect(normalizeResolutionLabel('576')).toBe('576p');
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     expect(normalizeResolutionLabel('720')).toBe('720p');
     expect(normalizeResolutionLabel('1080')).toBe('1080p');
     expect(normalizeResolutionLabel('4k')).toBe('4K');
     expect(normalizeResolutionLabel('8k')).toBe('8K');
+<<<<<<< HEAD
+    expect(normalizeResolutionLabel('qhd')).toBe('1440p');
+  });
+
+  it('reads 2k as 1080p since Plex applies it to 2048x1080 and 2160x1080', () => {
+    expect(normalizeResolutionLabel('2k')).toBe('1080p');
+=======
     expect(normalizeResolutionLabel('2k')).toBe('1440p');
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   });
 
   it('is case insensitive', () => {
@@ -73,12 +89,24 @@ describe('normalizeResolutionLabel', () => {
     expect(normalizeResolutionLabel('1080P')).toBe('1080p');
   });
 
+<<<<<<< HEAD
+  it('classifies bare line counts by height', () => {
+    expect(normalizeResolutionLabel('540')).toBe('480p');
+    expect(normalizeResolutionLabel('1440')).toBe('1440p');
+    expect(normalizeResolutionLabel('1080i')).toBe('1080p');
+    expect(normalizeResolutionLabel('360')).toBe('SD');
+  });
+
+  it('returns null for labels that name no tier', () => {
+    expect(normalizeResolutionLabel('custom')).toBeNull();
+=======
   it('adds a p suffix to unmapped numeric labels', () => {
     expect(normalizeResolutionLabel('540')).toBe('540p');
   });
 
   it('passes through unrecognized non-numeric labels unchanged', () => {
     expect(normalizeResolutionLabel('custom')).toBe('custom');
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   });
 
   it('returns null for missing/empty labels', () => {
@@ -88,6 +116,14 @@ describe('normalizeResolutionLabel', () => {
   });
 });
 
+<<<<<<< HEAD
+describe('normalizeResolution (pixels-first precedence)', () => {
+  it('classifies by dimensions even when the label disagrees', () => {
+    // Issue #1185: Plex labels 2160x1080 and 2560x1440 alike as "2k"
+    expect(normalizeResolution({ label: '2k', width: 2160, height: 1080 })).toBe('1080p');
+    expect(normalizeResolution({ label: '2k', width: 2560, height: 1440 })).toBe('1440p');
+    expect(normalizeResolution({ label: '720', width: 1916, height: 1036 })).toBe('1080p');
+=======
 describe('normalizeResolution (label-first precedence)', () => {
   it('uses the label when present, even with dimensions available', () => {
     // Issue #798: Plex already says 1080p - trust it instead of recomputing
@@ -97,6 +133,7 @@ describe('normalizeResolution (label-first precedence)', () => {
   it('never lets dimensions downgrade a present label', () => {
     // A label that would round DOWN compared to dimensions should still win
     expect(normalizeResolution({ label: '720', width: 1916, height: 1036 })).toBe('720p');
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   });
 
   it('falls back to dimensions when no label is present', () => {
@@ -122,13 +159,33 @@ describe('resolutionTierRank', () => {
     expect(resolutionTierRank('4k')).toBeGreaterThan(resolutionTierRank('1080p')!);
   });
 
+<<<<<<< HEAD
+  it('ranks line counts by the tier their height falls in', () => {
+    expect(resolutionTierRank('576')).toBe(RESOLUTION_TIERS['480p']);
+  });
+
+  it('returns null for unknown labels', () => {
+    expect(resolutionTierRank('weird')).toBeNull();
+=======
   it('returns null for unknown labels', () => {
     expect(resolutionTierRank('576')).toBeNull();
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     expect(resolutionTierRank(undefined)).toBeNull();
   });
 });
 
 describe('resolutionBucket', () => {
+<<<<<<< HEAD
+  it('gives every tier its own bucket', () => {
+    expect(resolutionBucket('8k')).toBe('8k');
+    expect(resolutionBucket('4k')).toBe('4k');
+    expect(resolutionBucket('2160')).toBe('4k');
+    expect(resolutionBucket('1440p')).toBe('1440p');
+    expect(resolutionBucket('1080p')).toBe('1080p');
+    expect(resolutionBucket('720p')).toBe('720p');
+    expect(resolutionBucket('576')).toBe('480p');
+    expect(resolutionBucket('480p')).toBe('480p');
+=======
   it('folds tiers above 1080p into the 4k bucket', () => {
     expect(resolutionBucket('4k')).toBe('4k');
     expect(resolutionBucket('1440p')).toBe('4k');
@@ -140,11 +197,15 @@ describe('resolutionBucket', () => {
     expect(resolutionBucket('1080p')).toBe('1080p');
     expect(resolutionBucket('720p')).toBe('720p');
     expect(resolutionBucket('480p')).toBe('sd');
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     expect(resolutionBucket('sd')).toBe('sd');
   });
 
   it('counts unknown non-null labels as sd and keeps null as null', () => {
+<<<<<<< HEAD
+=======
     expect(resolutionBucket('576')).toBe('sd');
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     expect(resolutionBucket('weird')).toBe('sd');
     expect(resolutionBucket(null)).toBeNull();
     expect(resolutionBucket(undefined)).toBeNull();
@@ -153,6 +214,17 @@ describe('resolutionBucket', () => {
 
 describe('resolution bucket spellings', () => {
   it('partitions spellings without overlap', () => {
+<<<<<<< HEAD
+    const buckets = RESOLUTION_BUCKETS.filter((bucket) => bucket !== 'sd');
+    const all = buckets.flatMap((bucket) => resolutionBucketSpellings(bucket));
+
+    expect(resolutionBucketSpellings('4k')).not.toContain('1440p');
+    expect(resolutionBucketSpellings('1440p')).toContain('qhd');
+    expect(resolutionBucketSpellings('1080p')).toContain('2k');
+    expect(resolutionBucketSpellings('480p')).toContain('576');
+    expect(new Set(all).size).toBe(all.length);
+    expect(new Set(resolutionAboveSdSpellings())).toEqual(new Set(all));
+=======
     const s4k = resolutionBucketSpellings('4k');
     const s1080 = resolutionBucketSpellings('1080p');
     const s720 = resolutionBucketSpellings('720p');
@@ -163,6 +235,7 @@ describe('resolution bucket spellings', () => {
     expect(s720).toContain('hd');
     expect(new Set([...s4k, ...s1080, ...s720]).size).toBe(s4k.length + s1080.length + s720.length);
     expect(new Set(resolutionAboveSdSpellings())).toEqual(new Set([...s4k, ...s1080, ...s720]));
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   });
 
   it('agrees with resolutionBucket for every known spelling', () => {

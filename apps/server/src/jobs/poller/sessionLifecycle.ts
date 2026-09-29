@@ -6,6 +6,11 @@
  */
 
 import {
+<<<<<<< HEAD
+  isPlacedLocal,
+  LOCAL_NETWORK_COUNTRY,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   SESSION_WRITE_RETRY,
   TIME_MS,
   type ActiveSession,
@@ -16,7 +21,10 @@ import {
 import { and, desc, eq, gte, inArray, isNull, sql } from 'drizzle-orm';
 import { db } from '../../db/client.js';
 import { serverUsers, sessions, users } from '../../db/schema.js';
+<<<<<<< HEAD
+=======
 import type { GeoLocation } from '../../services/geoip.js';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { toRuleSession } from '../../services/automations/events/contextAssembly.js';
 import { dispatch } from '../../services/automations/events/dispatcher.js';
 import { matchesTrigger } from '../../services/automations/events/evaluate.js';
@@ -26,6 +34,15 @@ import {
 } from '../../services/automations/events/producers.js';
 import type { ActionResult } from '../../services/automations/executors/index.js';
 import { getWatchedThreshold } from '../../services/settings.js';
+<<<<<<< HEAD
+import {
+  resolveSessionGeo,
+  type SessionGeo,
+  withLocalFlag,
+} from '../../services/serverLocations.js';
+import { isLocalSession } from '../../utils/localSession.js';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { clearDbWriteTracking } from './dbWriteThrottle.js';
 import { pickStreamDetailFields } from './sessionMapper.js';
 import {
@@ -155,13 +172,21 @@ export interface BuildActiveSessionInput {
   };
 
   /** GeoIP location data */
+<<<<<<< HEAD
+  geo: SessionGeo;
+=======
   geo: GeoLocation;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
   /** Server info */
   server: {
     id: string;
     name: string;
+<<<<<<< HEAD
+    type: 'plex' | 'jellyfin' | 'emby';
+=======
     type: 'plex' | 'jellyfin' | 'emby' | 'navidrome';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   };
 
   /** Optional overrides for update scenarios */
@@ -244,6 +269,10 @@ export function buildActiveSession(input: BuildActiveSessionInput): ActiveSessio
     geoLon: geo.lon,
     geoAsnNumber: geo.asnNumber,
     geoAsnOrganization: geo.asnOrganization,
+<<<<<<< HEAD
+    isLocal: geo.isLocal,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     playerName: processed.playerName,
     deviceId: processed.deviceId || null,
     product: processed.product || null,
@@ -351,6 +380,10 @@ export function buildPendingActiveSession(pendingData: PendingSessionData): Acti
     geoLon: geo.lon,
     geoAsnNumber: geo.asnNumber,
     geoAsnOrganization: geo.asnOrganization,
+<<<<<<< HEAD
+    isLocal: withLocalFlag(geo, processed.ipAddress).isLocal,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     playerName: processed.playerName,
     deviceId: processed.deviceId || null,
     product: processed.product || null,
@@ -584,11 +617,24 @@ export function sessionLocation(session: {
   geoCity: string | null;
   geoRegion: string | null;
   geoCountry: string | null;
+<<<<<<< HEAD
+  geoLat: number | null;
+  isLocal?: boolean | null;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }): string | null {
   const parts = [session.geoCity, session.geoRegion ?? session.geoCountry].filter(
     (part): part is string => part !== null && part !== ''
   );
+<<<<<<< HEAD
+  if (parts.length === 0) return null;
+  const place = parts.join(', ');
+  return isPlacedLocal({ isLocal: isLocalSession(session), country: session.geoCountry })
+    ? `${place} (${LOCAL_NETWORK_COUNTRY})`
+    : place;
+=======
   return parts.length > 0 ? parts.join(', ') : null;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 /**
@@ -861,6 +907,10 @@ export async function createSessionWithRulesAtomic(
               geoLon: geo.lon,
               geoAsnNumber: geo.asnNumber,
               geoAsnOrganization: geo.asnOrganization,
+<<<<<<< HEAD
+              isLocal: geo.isLocal,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
               playerName: processed.playerName,
               deviceId: processed.deviceId || null,
               product: processed.product || null,
@@ -1018,6 +1068,22 @@ export interface ConfirmPendingSessionInput {
  * the startedAt reflects when the session actually started (not when confirmed).
  *
  * @param input - Pending session data and rule context
+<<<<<<< HEAD
+ * @returns Session creation result with any violations, and the geo the row was inserted with
+ */
+export async function confirmAndPersistSession(
+  input: ConfirmPendingSessionInput
+): Promise<SessionCreationResult & { geo: SessionGeo }> {
+  const { pendingData, activeAutomations, activeSessions, recentSessions } = input;
+  const { processed, server, serverUser } = pendingData;
+  const actualStartedAt = new Date(pendingData.startedAt);
+  const seenGeo = withLocalFlag(pendingData.geo, processed.ipAddress);
+  // The pending entry holds the placement from first sight; a location saved while it waited
+  // still applies, as of when the session started. Private IPs never reach Plex GeoIP.
+  const geo = seenGeo.isLocal
+    ? await resolveSessionGeo(processed.ipAddress, server.id, false, actualStartedAt)
+    : seenGeo;
+=======
  * @returns Session creation result with any violations
  */
 export async function confirmAndPersistSession(
@@ -1025,6 +1091,7 @@ export async function confirmAndPersistSession(
 ): Promise<SessionCreationResult> {
   const { pendingData, activeAutomations, activeSessions, recentSessions } = input;
   const { processed, server, serverUser, geo } = pendingData;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
   // Delegate to createSessionWithRulesAtomic for atomic rule evaluation
   // The session will be created with current state from the pending data
@@ -1051,7 +1118,10 @@ export async function confirmAndPersistSession(
   // - startedAt: When the session actually started (not when confirmed)
   // - pausedDurationMs: Accumulated pause time while pending
   // This ensures accurate watch duration calculations
+<<<<<<< HEAD
+=======
   const actualStartedAt = new Date(pendingData.startedAt);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   const timeDriftMs = Date.now() - pendingData.startedAt;
 
   // Only update if there's meaningful drift (> 1 second)
@@ -1086,7 +1156,11 @@ export async function confirmAndPersistSession(
     );
   }
 
+<<<<<<< HEAD
+  return { ...result, geo };
+=======
   return result;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 // ============================================================================

@@ -52,7 +52,11 @@ export interface SessionContext {
 export interface ServerContext {
   type: 'server_down' | 'server_up';
   serverName: string;
+<<<<<<< HEAD
+  serverType?: 'plex' | 'jellyfin' | 'emby';
+=======
   serverType?: 'plex' | 'jellyfin' | 'emby' | 'navidrome';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 /**
@@ -213,7 +217,11 @@ export const PayloadBuilders = {
 
   fromServerDown(
     serverName: string,
+<<<<<<< HEAD
+    serverType?: 'plex' | 'jellyfin' | 'emby'
+=======
     serverType?: 'plex' | 'jellyfin' | 'emby' | 'navidrome'
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   ): NotificationPayload {
     return {
       event: 'server_down',
@@ -225,7 +233,11 @@ export const PayloadBuilders = {
     };
   },
 
+<<<<<<< HEAD
+  fromServerUp(serverName: string, serverType?: 'plex' | 'jellyfin' | 'emby'): NotificationPayload {
+=======
   fromServerUp(serverName: string, serverType?: 'plex' | 'jellyfin' | 'emby' | 'navidrome'): NotificationPayload {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     return {
       event: 'server_up',
       title: 'Server Online',
@@ -421,6 +433,13 @@ function variablesOf(event: NotificationEvent): Record<string, string> {
         'user.identityName': v.user.identityName ?? v.user.username,
         'session.mediaTitle': scalar(data.mediaTitle),
         'session.mediaType': scalar(data.mediaType),
+<<<<<<< HEAD
+        'session.sourceDynamicRange': scalar(data.sourceDynamicRange),
+        'session.sourceVideoCodec': scalar(data.sourceVideoCodec),
+        'session.seasonNumber': scalar(data.seasonNumber),
+        'session.episodeNumber': scalar(data.episodeNumber),
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         'server.name': v.server?.name ?? scalar(data.serverName),
         'server.type': v.server?.type ?? '',
         durationMinutes: scalar(data.durationMinutes),
@@ -436,6 +455,13 @@ function variablesOf(event: NotificationEvent): Record<string, string> {
         'user.identityName': s.user.identityName ?? s.user.username,
         'session.mediaTitle': s.mediaTitle,
         'session.mediaType': s.mediaType,
+<<<<<<< HEAD
+        'session.sourceDynamicRange': s.sourceVideoDetails?.dynamicRange ?? '',
+        'session.sourceVideoCodec': s.sourceVideoCodec ?? '',
+        'session.seasonNumber': scalar(s.seasonNumber),
+        'session.episodeNumber': scalar(s.episodeNumber),
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         'server.name': s.server.name,
         'server.type': s.server.type,
         durationMinutes: s.durationMs === null ? '' : String(Math.round(s.durationMs / 60_000)),

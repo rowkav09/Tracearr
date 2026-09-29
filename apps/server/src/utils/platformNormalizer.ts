@@ -39,7 +39,11 @@ export interface NormalizedClient {
 export function normalizeClient(
   client: string,
   deviceType?: string,
+<<<<<<< HEAD
+  _serverType?: 'plex' | 'jellyfin' | 'emby'
+=======
   _serverType?: 'plex' | 'jellyfin' | 'emby' | 'navidrome'
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 ): NormalizedClient {
   // If deviceType is provided and meaningful, use it as device but still normalize platform
   const hasValidDeviceType = deviceType && deviceType.length > 0 && deviceType !== 'Unknown';
