@@ -118,7 +118,11 @@ const isWatchedAggregate = (text: string) =>
 const isMeta = (text: string) => text.includes("COUNT(*) FILTER (WHERE m.media_type = 'movie')");
 const isEpisodeCounts = (text: string) => text.includes('episode_count');
 const isMovieWatchedProbe = (text: string) =>
+<<<<<<< HEAD
+  text.includes('alias_map') && text.includes('p2.media_id = a.any_id');
+=======
   text.includes('alias_map') && text.includes('BOOL_OR');
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 const isShowWatchedProbe = (text: string) => text.includes('eps_watched');
 
 describe('GET /library/shelves', () => {
@@ -146,6 +150,10 @@ describe('GET /library/shelves', () => {
       period: 'month',
       recentlyAddedMovies: [],
       recentlyAddedShows: [],
+<<<<<<< HEAD
+      recentlyUpdated: [],
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       mostPopularMovies: [],
       mostPopularShows: [],
       deadWeight: [],
@@ -157,7 +165,11 @@ describe('GET /library/shelves', () => {
       },
       meta: { movies: 0, shows: 0, totalFileSize: 0 },
     });
+<<<<<<< HEAD
+    expect(dbExecute).toHaveBeenCalledTimes(11);
+=======
     expect(dbExecute).toHaveBeenCalledTimes(10);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   });
 
   it('includeDeadWeight=false skips the dead-weight compute and omits it from the response', async () => {
@@ -174,7 +186,11 @@ describe('GET /library/shelves', () => {
     expect(body.deadWeight).toBeUndefined();
     expect(body.kpis.deadWeight).toBeUndefined();
     // Two fewer queries than the default (movie + show dead-weight candidates skipped).
+<<<<<<< HEAD
+    expect(dbExecute).toHaveBeenCalledTimes(9);
+=======
     expect(dbExecute).toHaveBeenCalledTimes(8);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   });
 
   it('includeDeadWeight=false does not reuse (or pollute) the default request cache entry', async () => {
@@ -183,7 +199,11 @@ describe('GET /library/shelves', () => {
     mockEmptyCompute();
 
     await app.inject({ method: 'GET', url: '/library/shelves' });
+<<<<<<< HEAD
+    expect(dbExecute).toHaveBeenCalledTimes(11);
+=======
     expect(dbExecute).toHaveBeenCalledTimes(10);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
     dbExecute.mockClear();
     const withoutDeadWeight = await app.inject({
@@ -192,7 +212,11 @@ describe('GET /library/shelves', () => {
     });
     expect(withoutDeadWeight.statusCode).toBe(200);
     // Distinct cache key -> full recompute, not a hit off the default entry.
+<<<<<<< HEAD
+    expect(dbExecute).toHaveBeenCalledTimes(9);
+=======
     expect(dbExecute).toHaveBeenCalledTimes(8);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     expect(redis.setex).toHaveBeenCalledTimes(2);
   });
 
@@ -312,6 +336,38 @@ describe('GET /library/shelves', () => {
     expect(body.meta).toEqual({ movies: 5, shows: 2, totalFileSize: 1000 });
   });
 
+<<<<<<< HEAD
+  it('numbers popular ranks after dropping candidates with no active copy', async () => {
+    const redis = createSpyRedis();
+    app = await buildTestApp(createOwnerUser(), redis);
+    const goneId = randomUUID();
+    const movieId = randomUUID();
+
+    dbExecute.mockImplementation(((query: unknown) => {
+      const { text } = renderQuery(query);
+      if (isMostPopularCandidates(text) && isMovieGuard(text)) {
+        return Promise.resolve({
+          rows: [
+            { canonical_id: goneId, plays: '9', viewers: '3' },
+            { canonical_id: movieId, plays: '5', viewers: '2' },
+          ],
+        });
+      }
+      if (isDetailQuery(text) && text.includes(movieId)) {
+        return Promise.resolve({ rows: [rawShelfRow({ id: movieId, media_type: 'movie' })] });
+      }
+      return Promise.resolve({ rows: [] });
+    }) as never);
+
+    const response = await app.inject({ method: 'GET', url: '/library/shelves' });
+    expect(response.statusCode).toBe(200);
+    const body: ShelvesResponse = response.json();
+
+    expect(body.mostPopularMovies.map((row) => [row.mediaId, row.rank])).toEqual([[movieId, 1]]);
+  });
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   it('caches the computed response per (scope, period) and serves it back verbatim on a hit', async () => {
     const redis = createSpyRedis();
     const owner = createOwnerUser();
@@ -320,7 +376,11 @@ describe('GET /library/shelves', () => {
 
     const first = await app.inject({ method: 'GET', url: '/library/shelves?period=week' });
     expect(first.statusCode).toBe(200);
+<<<<<<< HEAD
+    expect(dbExecute).toHaveBeenCalledTimes(11);
+=======
     expect(dbExecute).toHaveBeenCalledTimes(10);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     expect(redis.setex).toHaveBeenCalledTimes(1);
 
     dbExecute.mockClear();
@@ -337,13 +397,21 @@ describe('GET /library/shelves', () => {
     app = await buildTestApp(createOwnerUser(), redis);
     mockEmptyCompute();
     await app.inject({ method: 'GET', url: '/library/shelves?period=week' });
+<<<<<<< HEAD
+    expect(dbExecute).toHaveBeenCalledTimes(11);
+=======
     expect(dbExecute).toHaveBeenCalledTimes(10);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
     dbExecute.mockClear();
     const response = await app.inject({ method: 'GET', url: '/library/shelves?period=year' });
     expect(response.statusCode).toBe(200);
     // Different cache key -> full recompute, not a hit off the week entry.
+<<<<<<< HEAD
+    expect(dbExecute).toHaveBeenCalledTimes(11);
+=======
     expect(dbExecute).toHaveBeenCalledTimes(10);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     expect(redis.setex).toHaveBeenCalledTimes(2);
   });
 
@@ -365,7 +433,11 @@ describe('GET /library/shelves', () => {
     expect(body.kpis).toBeDefined();
     expect(body.period).toBe('month');
     // A full recompute happened - the v1 entry under the old key was never touched.
+<<<<<<< HEAD
+    expect(dbExecute).toHaveBeenCalledTimes(11);
+=======
     expect(dbExecute).toHaveBeenCalledTimes(10);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   });
 
   it('reads the poster preference once per request and folds it into the cache key', async () => {
@@ -389,7 +461,11 @@ describe('GET /library/shelves', () => {
     getSettingMock.mockResolvedValueOnce(null);
     mockEmptyCompute();
     await app.inject({ method: 'GET', url: '/library/shelves?period=week' });
+<<<<<<< HEAD
+    expect(dbExecute).toHaveBeenCalledTimes(11);
+=======
     expect(dbExecute).toHaveBeenCalledTimes(10);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     expect(redis.setex).toHaveBeenCalledTimes(2);
   });
 
@@ -452,7 +528,11 @@ describe('GET /library/shelves', () => {
       const response = await app.inject({ method: 'GET', url: '/library/shelves' });
       expect(response.statusCode).toBe(200);
       // Fail-open: computed directly instead of blocking on the broken lock.
+<<<<<<< HEAD
+      expect(dbExecute).toHaveBeenCalledTimes(11);
+=======
       expect(dbExecute).toHaveBeenCalledTimes(10);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       expect(redis.setex).toHaveBeenCalledTimes(1);
     });
 
@@ -470,7 +550,11 @@ describe('GET /library/shelves', () => {
       const response = await pending;
 
       expect(response.statusCode).toBe(200);
+<<<<<<< HEAD
+      expect(dbExecute).toHaveBeenCalledTimes(11);
+=======
       expect(dbExecute).toHaveBeenCalledTimes(10);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     });
   });
 });

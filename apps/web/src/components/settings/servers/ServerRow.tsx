@@ -14,7 +14,11 @@ import {
 } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+<<<<<<< HEAD
+import type { RequestService, Server, ServerConnectionStatus } from '@tracearr/shared';
+=======
 import type { Server, ServerConnectionStatus } from '@tracearr/shared';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { Button } from '@/components/ui/button';
 import {
   Item,
@@ -28,6 +32,10 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { MediaServerIcon } from '@/components/icons/MediaServerIcon';
 import { ServerVersionLine } from '@/components/settings/servers/ServerVersionLine';
 import { RealtimeSetupDialog } from '@/components/settings/servers/RealtimeSetupDialog';
+<<<<<<< HEAD
+import { RequestServiceLine } from '@/components/settings/request-services';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { TooltipIconButton } from '@/components/settings/shared/TooltipIconButton';
 import { cn } from '@/lib/utils';
 
@@ -41,6 +49,10 @@ export function ServerRow({
   onEdit,
   isSyncing,
   isDraggable,
+<<<<<<< HEAD
+  requestService,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }: {
   server: Server;
   connectionStatus?: ServerConnectionStatus;
@@ -49,6 +61,10 @@ export function ServerRow({
   onEdit: () => void;
   isSyncing?: boolean;
   isDraggable?: boolean;
+<<<<<<< HEAD
+  requestService?: { service: RequestService | undefined } | undefined;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }) {
   const { t } = useTranslation(['settings', 'common']);
   const [realtimeDialog, setRealtimeDialog] = useState<'setup' | 'update' | null>(null);
@@ -117,6 +133,12 @@ export function ServerRow({
               {t('servers.added', { date: format(new Date(server.createdAt), 'MMM d, yyyy') })}
             </p>
             <ServerVersionLine server={server} />
+<<<<<<< HEAD
+            {requestService && (
+              <RequestServiceLine server={server} service={requestService.service} />
+            )}
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
             {server.type !== 'plex' && (
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">

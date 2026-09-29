@@ -1,4 +1,37 @@
 {
+<<<<<<< HEAD
+  "dashboard": "Panou",
+  "map": "Hartă",
+  "history": "Istoric",
+  "stats": "Statistici",
+  "activity": "Activitate",
+  "library": "Bibliotecă",
+  "users": "Utilizatori",
+  "automations": "",
+  "violations": "Incalcari",
+  "requests": "",
+  "alerts": "Alerte",
+  "settings": "Setări",
+  "overview": "Prezentare generală",
+  "quality": "Calitate",
+  "storage": "Depozitare",
+  "watch": "Vizionează",
+  "performance": "Performanță",
+  "devices": "Dispozitive",
+  "bandwidth": "Lățimea benzii",
+  "jobs": "Joburi",
+  "accessControl": "Control Acces",
+  "media": "",
+  "mediaBrowse": "Răsfoiește",
+  "mediaGenres": "Genuri",
+  "session": "",
+  "user": "",
+  "violation": "",
+  "monitor": "",
+  "manage": "",
+  "userStats": "",
+  "toggleSidebar": ""
+=======
   "accessControl": "Control Acces",
   "activity": "Activitate",
   "alerts": "Alerte",
@@ -29,4 +62,5 @@
   "violation": "",
   "violations": "Incalcari",
   "watch": "Vizionează"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }

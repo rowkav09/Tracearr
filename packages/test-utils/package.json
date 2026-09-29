@@ -40,7 +40,11 @@
   ],
   "scripts": {
     "build": "tsc",
+<<<<<<< HEAD
+    "dev": "tsc --watch --tsBuildInfoFile dev.tsbuildinfo",
+=======
     "dev": "tsc --watch",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist .turbo"
   },

@@ -7,11 +7,18 @@
 import { createHash } from 'node:crypto';
 import { describe, it, expect } from 'vitest';
 import {
+<<<<<<< HEAD
+=======
   TEMPLATE_MIN_SERVER_VERSION,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   createAutomationSchema,
   fingerprintOf,
   materializeTemplate,
   templateEnvelopeSchema,
+<<<<<<< HEAD
+  templateMinServerVersion,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   type TemplateEnvelope,
   type TemplateInput,
 } from '@tracearr/shared';
@@ -83,7 +90,11 @@ describe('builtin template envelopes', () => {
       expect(templateEnvelopeSchema.safeParse(envelope).success).toBe(true);
       expect(envelope.fingerprint).toBe(fingerprintOf(envelope, sha256Hex));
       expect(envelope.schemaVersion).toBe(1);
+<<<<<<< HEAD
+      expect(envelope.minServerVersion).toBe(templateMinServerVersion(envelope));
+=======
       expect(envelope.minServerVersion).toBe(TEMPLATE_MIN_SERVER_VERSION);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     }
   });
 

@@ -8,8 +8,15 @@ import { z } from 'zod';
 import {
   ShareCodeError,
   assertShareDepth,
+<<<<<<< HEAD
+  compareVersions,
   createAutomationSchema,
   fingerprintOf,
+  getBaseVersion,
+=======
+  createAutomationSchema,
+  fingerprintOf,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   templateEnvelopeSchema,
   uuidSchema,
   type ShareCodeReason,
@@ -41,7 +48,10 @@ import {
 } from '../services/automations/templates/store.js';
 import { unknownDestinationIds } from '../services/notifications/destinationRefs.js';
 import { getCurrentVersion } from '../utils/buildInfo.js';
+<<<<<<< HEAD
+=======
 import { compareVersions, getBaseVersion } from '../jobs/versionCheckQueue.js';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { firstIssueMessage } from '../utils/zod.js';
 
 const idParamSchema = z.object({ id: uuidSchema });

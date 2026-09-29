@@ -1,4 +1,423 @@
 {
+<<<<<<< HEAD
+  "login": {
+    "title": "",
+    "tagline": "Tracearr - Διαχείριση πρόσβασης ροής",
+    "createAccountHeading": "Δημιουργήστε το λογαριασμό σας για να ξεκινήσετε",
+    "signInHeading": "Συνδεθείτε στο λογαριασμό σας",
+    "createAccountDescription": "Δημιουργήστε ένα λογαριασμό για να διαχειριστείτε τους διακομιστές πολυμέσων σας",
+    "signInDescription": "Συνδεθείτε για να αποκτήσετε πρόσβαση στον πίνακα ελέγχου σας",
+    "selectPlexServer": "Επιλέξτε τον Plex server σας",
+    "waitingForPlex": "Αναμονή για έγκριση Plex...",
+    "completeInPopup": "Ολοκλήρωση σύνδεσης στο αναδυόμενο παράθυρο",
+    "reopenPlexLogin": "Άνοιγμα Σύνδεσης Plex",
+    "continueWith": "",
+    "usernameOrEmail": "",
+    "identifierPlaceholder": "",
+    "username": "",
+    "usernamePlaceholder": "",
+    "emailPlaceholder": "",
+    "displayNamePlaceholder": "Επιλέξτε ένα εμφανισμένο όνομα",
+    "passwordPlaceholder": "Τουλάχιστον 8 χαρακτήρες",
+    "yourPasswordPlaceholder": "Ο κωδικός σας",
+    "setupNote": "Μετά τη δημιουργία του λογαριασμού σας, θα προσθέσετε τους Plex ή Jellyfin διακομιστές σας από τις Ρυθμίσεις.",
+    "localDisabledHint": "",
+    "oidcError": "",
+    "accountCreated": "Ο λογαριασμός δημιουργήθηκε επιτυχώς!",
+    "connectedTo": "",
+    "plexAuthFailed": "Αποτυχία ταυτοποίησης Plex",
+    "plexStartFailed": "Αποτυχία έναρξης σύνδεσης στο Plex",
+    "serverConnectFailed": "Αποτυχία σύνδεσης με το διακομιστή",
+    "signupFailed": "Η εγγραφή απέτυχε",
+    "createAccountFailed": "Αποτυχία δημιουργίας λογαριασμού",
+    "loginFailed": "Αποτυχία σύνδεσης",
+    "invalidCredentials": "Μη έγκυρο email ή κωδικός πρόσβασης",
+    "claimCodeRequired": "Η πρώτη ρύθμιση απαιτεί έναν κωδικό απαίτησης",
+    "enterClaimCode": "Εισάγετε Κωδικό Διεκδίκησης",
+    "claimCodeDescription": "Ελέγξτε τα αρχεία καταγραφής του διακομιστή σας για να προχωρήσει η ρύθμιση",
+    "claimCodeLabel": "Διεκδίκηση Κώδικα",
+    "claimCodeHint": "Ο κωδικός απαίτησης εκτυπώνεται στα αρχεία καταγραφής του διακομιστή όταν ξεκινά το δοχείο",
+    "validateClaimCode": "",
+    "claimCodeSecurityNote": "Αυτό το μέτρο ασφαλείας εξασφαλίζει ότι μόνο εξουσιοδοτημένοι χρήστες μπορούν να ολοκληρώσουν την πρώτη ρύθμιση"
+  },
+  "dashboard": {
+    "alerts": "Ειδοποιήσεις",
+    "plays": "Παίζει",
+    "watchTime": "Ώρα Παρακολούθησης",
+    "activeUsers": "Ενεργοί Χρήστες",
+    "nowPlaying": "Παίζει Τώρα",
+    "streamLocations": "Τοποθεσίες Ροής",
+    "serverResources": "Πόροι Διακομιστή",
+    "bandwidth": "Εύρος Ζώνης",
+    "noActiveStreams": "Δεν υπάρχουν ενεργές ροές",
+    "streamsAppearHere": "Οι ενεργές ροές θα εμφανιστούν εδώ όταν οι χρήστες αρχίσουν να παρακολουθούν"
+  },
+  "users": {
+    "title": "Χρήστες",
+    "showRemoved": "",
+    "noUsersFound": "Δεν βρέθηκαν χρήστες.",
+    "searchPlaceholder": "Αναζήτηση χρηστη...",
+    "selectAllUsers": "Επιλογή όλων των {{count}} χρηστών",
+    "serversColumn": "",
+    "resetTrustScore": "Επαναφορά Βαθμού Εμπιστοσύνης",
+    "resetTrustScoreTitle_one": "",
+    "resetTrustScoreTitle_other": "Επαναφορά Αποτέλεσμα Εμπιστοσύνης για {{count}} Χρήστες",
+    "resetTrustScoreConfirm": "Είστε βέβαιοι ότι θέλετε να επαναφέρετε το σκορ εμπιστοσύνης στο 100? Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.",
+    "mergeUsers": "",
+    "mergeTitleSuggestion": "",
+    "mergeTitleBulk": "",
+    "mergeReasonEmail": "",
+    "mergeReasonEmailUsername": "",
+    "mergeReasonUsername": "",
+    "mergeKeep": "",
+    "mergeFoldIn": "",
+    "mergeSwap": "",
+    "mergeRequired": "",
+    "mergeLastActive": "",
+    "mergeNeverActive": "",
+    "mergeSessions_one": "",
+    "mergeSessions_other": "",
+    "mergeMoreServers": "",
+    "mergeWhatHappens": "",
+    "mergeMoves_one": "",
+    "mergeMoves_other": "",
+    "mergeMovesNoCount": "",
+    "mergeCarriesOver": "",
+    "mergeDeleted": "",
+    "mergeRulesKept": "",
+    "mergeIrreversibleTitle": "",
+    "mergeIrreversibleBody": "",
+    "mergeServerLabel": "",
+    "mergeServerUnknown": "",
+    "mergeIrreversibleAcknowledge": "",
+    "mergeServerAccountRemoved": "",
+    "mergeConfirmInto": "",
+    "mergeSelectTwo": "",
+    "mergeSameIdentity": "",
+    "mergeSelectAllActive": "",
+    "suggestionsTitle": "",
+    "suggestionsCount_one": "",
+    "suggestionsCount_other": "",
+    "suggestionsPairEmail": "",
+    "suggestionsPairEmailMore_one": "",
+    "suggestionsPairEmailMore_other": "",
+    "suggestionsPairEmailUsername": "",
+    "suggestionsPairEmailUsernameMore_one": "",
+    "suggestionsPairEmailUsernameMore_other": "",
+    "suggestionsPairUsername": "",
+    "suggestionsPairUsernameMore_one": "",
+    "suggestionsPairUsernameMore_other": "",
+    "suggestionsSheetDescription": "",
+    "suggestionsReview": "",
+    "suggestionsNotSame": "",
+    "suggestionsMatchEmail": "",
+    "suggestionsMatchEmailUsername": "",
+    "suggestionsMatchUsername": "",
+    "suggestionsEmpty": "",
+    "suggestionsDismissed": "",
+    "suggestionsDismissedPair": "",
+    "suggestionsDismissedAt": "",
+    "suggestionsRestore": "",
+    "suggestionsError": "",
+    "filterHasAccessTo": "",
+    "filterHasAccessToPlaceholder": "",
+    "filterHasAccessToHint": ""
+  },
+  "userDetail": {
+    "backToUsers": "Πίσω στους χρήστες",
+    "userNotFound": "Ο χρήστης δεν βρέθηκε",
+    "userInfo": "Πληροφορίες Χρήστη",
+    "statistics": "Στατιστικά",
+    "sessions": "Συνεδρίες",
+    "violations": "Παραβάσεις",
+    "terminationHistory": "Ιστορικό Τερματισμού",
+    "noViolationsFound": "Δεν υπάρχουν παραβιάσεις για αυτόν τον χρήστη.",
+    "noTerminationsFound": "Δεν υπάρχουν τερματισμοί ροής για αυτόν το χρήστη.",
+    "byRule": "Από / Κανόνα",
+    "manual": "Χειροκίνητα",
+    "unknownRule": "Άγνωστος κανόνας",
+    "adjustTrustScore": "Προσαρμογή Βαθμολογίας Εμπιστοσύνης",
+    "linkedAccounts": "",
+    "splitAccount": "",
+    "splitConfirmTitle": "",
+    "splitConfirmDescription": "",
+    "splitConfirmLoading": "",
+    "acrossAllServers": "",
+    "overallTrust": "",
+    "serverScope": "",
+    "allServers": "",
+    "title": "",
+    "editIdentity": "",
+    "editIdentityDescription": "",
+    "displayName": "",
+    "contactEmail": "",
+    "contactEmailHelp": "",
+    "contactEmailLabel": "",
+    "contactEmailNone": "",
+    "contactEmailNoLogin": "",
+    "locations": "Τοποθεσίες"
+  },
+  "history": {
+    "title": "Ιστορικό",
+    "description": "",
+    "loadingMore": "Φόρτωση περισσότερων...",
+    "scrollForMore": "Κύλιση για περισσότερα",
+    "showingAllResults": "",
+    "deleteSession_one": "",
+    "deleteSession_other": "",
+    "deleteSessionsConfirm": "Είστε βέβαιοι ότι θέλετε να διαγράψετε? Αυτή η ενέργεια δεν μπορεί να αναιρεθεί.",
+    "totalPlays": "",
+    "uniqueTitles": "",
+    "uniqueUsers": ""
+  },
+  "library": {
+    "title": "Βιβλιοθήκη",
+    "description": "",
+    "topMovies": "Κορυφαίες Ταινίες",
+    "topShows": "Κορυφαίες Τηλεοπτικές Δείξεις",
+    "noMoviePlays": "Δεν παίζει ταινία σε αυτή την περίοδο",
+    "noShowPlays": "Καμία τηλεοπτική εκπομπή δεν παίζει σε αυτή την περίοδο",
+    "overview": {
+      "description": "",
+      "lastUpdated": "Τελευταία ενημέρωση:",
+      "totalItems": "Σύνολο Αντικειμένων",
+      "shows": "παραστάσεις",
+      "added": "Προστέθηκε",
+      "libraryGrowth": "Ανάπτυξη Βιβλιοθήκης",
+      "failedToLoad": "Αποτυχία φόρτωσης στατιστικών βιβλιοθήκης",
+      "failedToLoadDesc": "Δεν ήταν δυνατή η λήψη δεδομένων βιβλιοθήκης. Παρακαλώ προσπαθήστε ξανά.",
+      "thisPeriod": "αυτή την περίοδο",
+      "thisWeek": "αυτή την εβδομάδα",
+      "thisMonth": "αυτό το μήνα",
+      "thisYear": "αυτό το έτος",
+      "serversNeedSync": ""
+    },
+    "quality": {
+      "title": "Ποιότητα",
+      "description": "",
+      "qualityEvolution": "Ποιοτική Εξέλιξη",
+      "all": "Όλα",
+      "failedToLoad": "Αποτυχία φόρτωσης ποιοτικών δεδομένων",
+      "failedToLoadDesc": "Δεν ήταν δυνατή η λήψη δεδομένων ποιότητας. Παρακαλώ προσπαθήστε ξανά."
+    },
+    "storage": {
+      "title": "Αποθήκευση",
+      "description": "",
+      "totalStorage": "Συνολικός Χώρος Αποθήκευσης",
+      "growthRate": "Ρυθμός Ανάπτυξης",
+      "duplicates": "Διπλότυπα",
+      "groups": "ομάδες",
+      "recoverable": "ανακτήσιμο",
+      "staleContent": "Αρχικό Περιεχόμενο",
+      "staleContentDesc": "",
+      "items": "αντικείμενα",
+      "unused": "αχρησιμοποίητο",
+      "storageTrend": "Τάση Αποθήκευσης",
+      "confidence": "Εμπιστοσύνη",
+      "confidenceHigh": "Υψηλή",
+      "confidenceMedium": "Μεσαίο",
+      "confidenceLow": "Χαμηλή",
+      "zeroGrowth": "0 GB/μήνα",
+      "predictions": "Προβλέψεις",
+      "contentROI": "",
+      "contentROIDesc": "",
+      "avgHoursPerGB": "μέσες ώρες/GB",
+      "insufficientData": "Ανεπαρκή δεδομένα",
+      "of": "από",
+      "days": "ημέρες",
+      "failedToLoad": "Αποτυχία φόρτωσης δεδομένων αποθήκευσης",
+      "failedToLoadDesc": "Δεν ήταν δυνατή η λήψη δεδομένων αποθήκευσης. Παρακαλώ προσπαθήστε ξανά.",
+      "duplicatesTitle": "",
+      "duplicatesSubtitle": "",
+      "growthPreChangeover": "",
+      "loadingDuplicates": "",
+      "duplicatesFailed": "",
+      "noDuplicatesTitle": "",
+      "noDuplicatesDesc": "",
+      "colTitle": "",
+      "colType": "",
+      "colMatchType": "",
+      "colCopies": "",
+      "colRecoverable": "",
+      "sameServer": "",
+      "mirror": "",
+      "missingOnServer": "",
+      "missingOnServerHint": "",
+      "copyPath": ""
+    },
+    "watch": {
+      "title": "Παρακολούθηση Αναλυτικών",
+      "description": "",
+      "watched": "Παρακολουθήθηκε",
+      "percentWatched": "% παρακολούθησαν",
+      "totalWatchTime": "Συνολικός Χρόνος Παρακολούθησης",
+      "avgPerItem": "avg ανά αντικείμενο",
+      "completed": "Ολοκληρώθηκε",
+      "peakHour": "Ώρα Κορυφής",
+      "viewingHours": "Προβολή Ωρών",
+      "peak": "Κορυφή:",
+      "monthlyTrends": "Μηνιαίες Τάσεις",
+      "busiest": "Αγοράστε:",
+      "quietest": "Δυσπιστεί:",
+      "bingeHighlights": "Στιγμιότυπα Binge",
+      "bingeHighlightsDesc": "",
+      "bingeSessions": "συνεδρίες binge",
+      "noData": "Δεν υπάρχουν δεδομένα παρακολούθησης ακόμα",
+      "noDataDesc": "Τα αναλυτικά στοιχεία παρακολούθησης θα εμφανιστούν εδώ μόλις εμφανιστεί το περιεχόμενο. Ελέγξτε πίσω μετά από κάποια δραστηριότητα προβολής.",
+      "failedToLoad": "Αποτυχία φόρτωσης ανάλυσης ρολογιού",
+      "failedToLoadDesc": "Αδύνατη η ανάκτηση δεδομένων παρακολούθησης."
+    },
+    "emptyState": {
+      "checkingStatus": "",
+      "backfillAvailable": {
+        "title": "",
+        "bodyWithDays": "",
+        "bodyGeneric": "",
+        "syncRunningTitle": "",
+        "syncRunningBody": ""
+      },
+      "generateHistory": "",
+      "starting": "",
+      "syncInProgress": {
+        "title": "",
+        "body": ""
+      },
+      "notSynced": {
+        "title": "",
+        "body": ""
+      },
+      "noMedia": {
+        "title": "",
+        "body": ""
+      },
+      "syncNow": "",
+      "syncing": "",
+      "notSyncedShort": "",
+      "backfillRunning": {
+        "title": "",
+        "fallbackBody": "",
+        "progress": "",
+        "snapshotsSuffix": ""
+      },
+      "multiServer": {
+        "title": "",
+        "body": "",
+        "needsBackfillIntro": ""
+      },
+      "toast": {
+        "noServerSelected": "",
+        "syncStartedTitle": "",
+        "syncStartedDesc": "",
+        "syncFailedTitle": "",
+        "genericRetry": "",
+        "backfillStartedTitle": "",
+        "backfillStartedDesc": "",
+        "backfillFailedTitle": "",
+        "backfillCompleteTitle": "",
+        "backfillErrorTitle": ""
+      }
+    },
+    "versionsBackfill": {
+      "banner": "",
+      "action": "",
+      "syncFailed": "",
+      "syncStarted": ""
+    }
+  },
+  "activity": {
+    "title": "Δραστηριότητα",
+    "description": "",
+    "playsOverTime": "Παίζει Με Χρόνο",
+    "concurrentStreams": "Ταυτόχρονες Ροές",
+    "engagementBreakdown": "Ανάλυση Δέσμευσης",
+    "howUsersEngage": "Πώς οι χρήστες εμπλέκονται με το περιεχόμενο",
+    "playsVsSessions": "Παίζει vs συνεδρίες",
+    "playsVsSessionsDesc": "Πλήρης ολοκλήρωση μόνο — μετράει ένα παιχνίδι όταν ο συνολικός χρόνος παρακολούθησης καλύπτει ολόκληρο το χρόνο εκτέλεσης ενός περιεχομένου",
+    "activityByDayOfWeek": "Δραστηριότητα ανά Ημέρα της Εβδομάδας",
+    "activityByHourOfDay": "Δραστηριότητα ανά Ώρα της Ημέρας",
+    "platforms": "Πλατφόρμες",
+    "streamQuality": "Ποιότητα Ροής"
+  },
+  "violations": {
+    "title": "Παραβάσεις",
+    "tryAdjustingFilters": "Δοκιμάστε να προσαρμόσετε τα φίλτρα σας",
+    "selectAllViolations": "Επιλογή όλων των φίλτρων {{count}} για παραβιάσεις",
+    "dismissViolation": "Παράβλεψη Παραβίασης",
+    "dismissViolationConfirm": "Είστε βέβαιοι ότι θέλετε να απορρίψετε αυτή την παραβίαση? Αυτό θα το αφαιρέσει από το αρχείο καταγραφής παραβίασης μόνιμα.",
+    "dismissViolation_one": "",
+    "dismissViolation_other": "",
+    "dismissViolationsConfirm": "Είστε βέβαιοι ότι θέλετε να απορρίψετε? Αυτό θα τους αφαιρέσει από το αρχείο καταγραφής παραβίασης μόνιμα και θα αποκαταστήσει τις σχετικές βαθμολογίες εμπιστοσύνης.",
+    "noViolationsFound": "Δεν βρέθηκαν παραβιάσεις",
+    "noViolationsRecorded": "Καμία παραβίαση δεν έχει καταγραφεί ακόμα.",
+    "allSeverities": "Όλες Οι Σοβαρότητες",
+    "allStatuses": "Όλες Οι Καταστάσεις",
+    "allRules": "",
+    "filterPeople": "",
+    "allPeople": "",
+    "peopleSelectedCount": "",
+    "personFilterPlaceholder": "",
+    "personFilterEmpty": "",
+    "personFilterError": "",
+    "filterByPerson": "",
+    "detail": {
+      "notFound": "Δεν βρέθηκε παραβίαση",
+      "violationDetails": "Λεπτομέρειες Παραβίασης",
+      "userInfo": "Χρήστης",
+      "sessions": "Συνεδρίες",
+      "noSessions": "Καμία συνεδρία που σχετίζεται με αυτήν την παραβίαση",
+      "trigger": "Ενεργοποίηση",
+      "map": "Τοποθεσίες Συνεδρίας",
+      "actions": "Ληφθείσες Ενέργειες",
+      "timestamps": "Χρονοσφραγίδες",
+      "created": "Δημιουργήθηκε",
+      "acknowledged": "Αναγνωρισμένο",
+      "detected": "Εντοπίστηκε",
+      "inactivity": "Λεπτομέρειες Αδράνειας",
+      "daysInactive": "Ημέρες Ανενεργές",
+      "threshold": "Όριο",
+      "lastActivity": "Τελευταία Δραστηριότητα",
+      "neverActive": "Ποτέ ενεργό",
+      "conditionEvidence": "Στοιχεία Κατάστασης",
+      "conditionGroup": "",
+      "matched": "{{matched}}/{{total}} ταιριάζουν",
+      "actual": "Πραγματικό",
+      "relatedSessions": "",
+      "relatedSessions_one": "",
+      "relatedSessions_other": ""
+    }
+  },
+  "automations": {
+    "actions": {
+      "send": {
+        "label": "",
+        "description": "",
+        "fields": {
+          "cooldown_minutes": {
+            "description": ""
+          }
+        },
+        "ran": ""
+      },
+      "trust": {
+        "label": "",
+        "description": "",
+        "fields": {
+          "mode": {
+            "label": ""
+          },
+          "amount": {
+            "label": "",
+            "description": ""
+          },
+          "value": {
+            "label": ""
+          }
+        },
+        "ran": ""
+      },
+      "kill_stream": {
+        "label": "",
+=======
   "activity": {
     "activityByDayOfWeek": "Δραστηριότητα ανά Ημέρα της Εβδομάδας",
     "activityByHourOfDay": "Δραστηριότητα ανά Ώρα της Ημέρας",
@@ -25,12 +444,39 @@
   "automations": {
     "actions": {
       "kill_stream": {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         "description": "",
         "fields": {
           "cooldown_minutes": {
             "description": ""
           },
           "delay_seconds": {
+<<<<<<< HEAD
+            "label": "",
+            "description": ""
+          },
+          "target": {
+            "description": ""
+          },
+          "message": {
+            "placeholder": ""
+          }
+        },
+        "ran": ""
+      },
+      "message_client": {
+        "label": "",
+        "description": "",
+        "hint": "",
+        "fields": {
+          "target": {
+            "description": ""
+          },
+          "message": {
+            "placeholder": ""
+          }
+        },
+=======
             "description": "",
             "label": ""
           },
@@ -83,10 +529,150 @@
           }
         },
         "label": "",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         "ran": ""
       }
     },
     "activity": {
+<<<<<<< HEAD
+      "title": "",
+      "description": "",
+      "outcome": "",
+      "who": "",
+      "where": "",
+      "playing": "",
+      "from": "",
+      "summary": "",
+      "started": "",
+      "finished": "",
+      "noSummary": "",
+      "outcomes": {
+        "completed": "",
+        "stopped_by_condition": "",
+        "error": ""
+      },
+      "empty": "",
+      "emptyDescription": "",
+      "runTitle": "",
+      "runLoading": "",
+      "triggeredBy": "",
+      "unknownStep": "",
+      "tabs": {
+        "all": "",
+        "completed": "",
+        "stopped_by_condition": "",
+        "error": ""
+      },
+      "group": "",
+      "branch": {
+        "then": "",
+        "else": ""
+      },
+      "whyBranch": "",
+      "openInEditor": "",
+      "tabsLabel": "",
+      "emptyRan": "",
+      "emptyRanDescription_one": "",
+      "emptyRanDescription_other": "",
+      "item": "",
+      "recordedViolation": ""
+    },
+    "allKinds": "",
+    "allStatuses": "",
+    "allSeverities": "",
+    "bind": {
+      "nameHelper": "",
+      "namePlaceholder": "",
+      "activeLabel": "",
+      "back": "",
+      "submit": "",
+      "submitting": "",
+      "customize": "",
+      "doors": {
+        "helper": ""
+      },
+      "anyServer": "",
+      "serverHelper": "",
+      "serverLabel": "",
+      "accountLabel": "",
+      "personLabel": "",
+      "destinationsLabel": "",
+      "required": "",
+      "needs": {
+        "title": ""
+      },
+      "helper": {
+        "killMessage": "",
+        "clientMessage": ""
+      },
+      "noInputs": "",
+      "failed": "",
+      "created": "",
+      "createdOff": ""
+    },
+    "builder": {
+      "destinationDisabled": "",
+      "noAlertRecipientsTooltip": "",
+      "noDestinations": "",
+      "newDestination": "",
+      "errors": {
+        "sendNeedsDestination": "",
+        "nameRequired": "",
+        "scopeIncomplete": "",
+        "triggerRequired": "",
+        "policyNeedsSubject": "",
+        "fieldUnavailable": "",
+        "operatorInvalid": "",
+        "valueInvalid": "",
+        "actionUnavailable": "",
+        "variableUnavailable": "",
+        "minutesRange": "",
+        "daysRange": "",
+        "measureInvalid": "",
+        "fieldNotAvailableFor": "",
+        "trustAmountRange": "",
+        "trustValueRange": "",
+        "messageRequired": "",
+        "tooLong": ""
+      },
+      "recordAs": {
+        "label": "",
+        "policy": "",
+        "policyDescription": "",
+        "notification": "",
+        "notificationDescription": ""
+      },
+      "severityLabel": "",
+      "activeLabel": "",
+      "saving": "",
+      "selectPlaceholder": "",
+      "searchPlaceholder": "",
+      "noMatches": "",
+      "clearSelection": "",
+      "selectedCount": "",
+      "scope": {
+        "label": "",
+        "global": "",
+        "server": "",
+        "account": "",
+        "person": "",
+        "serverLabel": "",
+        "serverPlaceholder": "",
+        "accountLabel": "",
+        "accountPlaceholder": "",
+        "personLabel": "",
+        "personPlaceholder": "",
+        "personHelper": "",
+        "noServers": "",
+        "enforceAcrossServers": "",
+        "enforceAcrossServersDescription": ""
+      },
+      "conditions": {
+        "addGroup": "",
+        "fieldPlaceholder": "",
+        "windowPrefix": "",
+        "windowUnit": "",
+=======
       "branch": {
         "else": "",
         "then": ""
@@ -214,10 +800,104 @@
         "recentlySeen": "",
         "removeGroup": "",
         "sectionTitle": "",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         "uniqueDevices": "",
         "uniqueDevicesHint": "",
         "uniqueIps": "",
         "uniqueIpsHint": "",
+<<<<<<< HEAD
+        "allDeviceTypes": "",
+        "deviceTypesHint": "",
+        "yes": "",
+        "no": "",
+        "recentlySeen": "",
+        "allCountries": "",
+        "sectionTitle": "",
+        "optional": "",
+        "helper": "",
+        "emptyLine": "",
+        "all": "",
+        "any": "",
+        "allHint": "",
+        "anyHint": "",
+        "matchLabel": "",
+        "fieldLabel": "",
+        "operatorLabel": "",
+        "valueLabel": "",
+        "canNeverPass": "",
+        "noFields": "",
+        "groupSeparator": "",
+        "addAnother": "",
+        "addFirst": "",
+        "removeGroup": ""
+      },
+      "actions": {
+        "add": "",
+        "sectionTitle": "",
+        "ifTitle": "",
+        "helper": "",
+        "emptyTitle": "",
+        "emptyDescription": "",
+        "emptyAction": "",
+        "moveUp": "",
+        "moveDown": "",
+        "menu": "",
+        "branchName": "",
+        "confirmRemoveTitle": "",
+        "confirmRemoveDescription": "",
+        "policyNote": "",
+        "branchThen": "",
+        "branchElse": "",
+        "branchElseEmpty": "",
+        "ifNothing": "",
+        "ifAddCheck": "",
+        "addBranch": "",
+        "expandBranch": "",
+        "collapseBranch": ""
+      },
+      "when": {
+        "title": "",
+        "helper": "",
+        "emptyTitle": "",
+        "emptyDescription": "",
+        "emptyAction": "",
+        "add": "",
+        "or": ""
+      },
+      "heldFor": {
+        "prefix": "",
+        "minutesLabel": "",
+        "unit": "",
+        "measureLabel": "",
+        "current": "",
+        "total": ""
+      },
+      "inactiveFor": {
+        "prefix": "",
+        "daysLabel": "",
+        "unit": ""
+      },
+      "rows": {
+        "toggle": "",
+        "remove": "",
+        "skipped": "",
+        "toggleHint": "",
+        "removeHint": "",
+        "expandHint": "",
+        "moveHint": ""
+      },
+      "picker": {
+        "searchPlaceholder": "",
+        "empty": "",
+        "navigate": "",
+        "select": "",
+        "close": ""
+      },
+      "sentence": {
+        "label": "",
+        "placeholderTrigger": "",
+        "placeholderAction": ""
+=======
         "valueLabel": "",
         "windowPrefix": "",
         "windowUnit": "",
@@ -243,10 +923,831 @@
         "trustValueRange": "",
         "valueInvalid": "",
         "variableUnavailable": ""
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       },
       "footer": {
         "problems_one": "",
         "problems_other": "",
+<<<<<<< HEAD
+        "remaining_one": "",
+        "remaining_other": "",
+        "ready": "",
+        "search": ""
+      },
+      "leave": {
+        "title": "",
+        "confirm": ""
+      },
+      "liveCheck": {
+        "title": "",
+        "checking": "",
+        "empty": "",
+        "failed": "",
+        "footnote": "",
+        "expand": "",
+        "passed": "",
+        "notPassed": "",
+        "actual": "",
+        "unfinished": "",
+        "paused": "",
+        "sampleTitle": "",
+        "sampleGone": "",
+        "backToLive": ""
+      }
+    },
+    "categories": {
+      "session_behavior": "",
+      "stream_quality": "",
+      "user_attributes": "",
+      "device_client": "",
+      "network_location": "",
+      "scope": "",
+      "media": ""
+    },
+    "createAutomation": "",
+    "customAutomation": "",
+    "deleteAutomationConfirm": "",
+    "deleteAutomation_one": "",
+    "deleteAutomation_other": "",
+    "deleteAutomationsConfirm": "",
+    "describe": {
+      "more_one": "",
+      "more_other": "",
+      "noValues": "",
+      "includesSameDevice": "",
+      "uniqueIps": "",
+      "deviceTypesOnly": "",
+      "when": "",
+      "or": "",
+      "nothing": "",
+      "onlyWhen": "",
+      "andAlso": "",
+      "allOf": "",
+      "anyOf": "",
+      "joinAll": "",
+      "joinAny": "",
+      "then": "",
+      "otherwise": "",
+      "appliesTo": "",
+      "duration": {
+        "minutes_one": "",
+        "minutes_other": "",
+        "days_one": "",
+        "days_other": ""
+      },
+      "triggers": {
+        "sessionStarted": "",
+        "sessionFirstSeen": "",
+        "sessionStopped": "",
+        "sessionTranscodeChanged": "",
+        "sessionPaused": "",
+        "sessionHeldFor": "",
+        "sessionHeldForTotal": "",
+        "accountInactiveFor": "",
+        "accountNewDevice": "",
+        "accountTrustChanged": "",
+        "mediaAdded": "",
+        "mediaUpgraded": "",
+        "serverDown": "",
+        "serverUp": "",
+        "pluginUpdateAvailable": "",
+        "serverUpdateAvailable": "",
+        "tracearrUpdateAvailable": "",
+        "newsletterSent": "",
+        "newsletterFailed": ""
+      },
+      "operators": {
+        "eq": "",
+        "neq": "",
+        "gt": "",
+        "gte": "",
+        "lt": "",
+        "lte": "",
+        "in": "",
+        "not_in": "",
+        "contains": "",
+        "not_contains": ""
+      },
+      "fields": {
+        "concurrent_streams": "",
+        "active_session_distance_km": "",
+        "travel_speed_kmh": "",
+        "unique_ips_in_window": "",
+        "unique_devices_in_window": "",
+        "inactive_days": "",
+        "current_pause_minutes": "",
+        "total_pause_minutes": "",
+        "source_resolution": "",
+        "output_resolution": "",
+        "source_dynamic_range": "",
+        "source_video_codec": "",
+        "is_transcoding": "",
+        "is_transcode_downgrade": "",
+        "source_bitrate_mbps": "",
+        "user_id": "",
+        "trust_score": "",
+        "account_age_days": "",
+        "device_type": "",
+        "client_name": "",
+        "platform": "",
+        "is_local_network": "",
+        "country": "",
+        "ip_in_range": "",
+        "server_id": "",
+        "media_type": "",
+        "season_number": "",
+        "episode_number": "",
+        "library_item_type": "",
+        "library_name": "",
+        "resolution_after": "",
+        "dynamic_range_after": "",
+        "video_codec_after": "",
+        "audio_channels_after": "",
+        "file_size_after": ""
+      },
+      "states": {
+        "is_local_network": {
+          "yes": "",
+          "no": ""
+        },
+        "is_transcode_downgrade": {
+          "yes": "",
+          "no": ""
+        },
+        "is_transcoding": {
+          "video": {
+            "yes": "",
+            "no": ""
+          },
+          "audio": {
+            "yes": "",
+            "no": ""
+          },
+          "video_or_audio": {
+            "yes": "",
+            "no": ""
+          },
+          "neither": {
+            "yes": "",
+            "no": ""
+          }
+        }
+      },
+      "actions": {
+        "if": "",
+        "flagIt": "",
+        "doNothing": "",
+        "send": "",
+        "sendAnywhere": "",
+        "kill_stream": "",
+        "message_client": "",
+        "trustUp": "",
+        "trustDown": "",
+        "trustAdjust": "",
+        "trustSet": "",
+        "trustReset": ""
+      },
+      "scope": {
+        "server": "",
+        "account": "",
+        "person": ""
+      },
+      "sameDeviceInput": "",
+      "uniqueIpsInput": "",
+      "unbound": {
+        "server": "",
+        "account": "",
+        "person": "",
+        "destinations": "",
+        "field_value": "",
+        "select": "",
+        "number": "",
+        "duration": "",
+        "text": "",
+        "boolean": "",
+        "listed": ""
+      }
+    },
+    "description": "",
+    "detail": {
+      "notFound": "",
+      "title": "",
+      "unsaved": "",
+      "runsLine_one": "",
+      "runsLine_other": "",
+      "noRuns": ""
+    },
+    "disable": "",
+    "editAutomation": "",
+    "effects": {
+      "title": "",
+      "kill": "",
+      "trust": "",
+      "message": "",
+      "violation": "",
+      "tellsOnly": "",
+      "allServers": "",
+      "everyServer": "",
+      "oneServer": ""
+    },
+    "emptyTitle": "",
+    "emptyDescription": "",
+    "emptySeeAll": "",
+    "emptySeeAllLoading": "",
+    "enable": "",
+    "evaluations": {
+      "disclosure": "",
+      "reasons": {
+        "cooldown_active": "",
+        "edge_replayed": "",
+        "gate_blocked": "",
+        "trigger_filter_failed": ""
+      }
+    },
+    "export": {
+      "title": "",
+      "description": "",
+      "carries": "",
+      "copyCode": "",
+      "copyJson": "",
+      "authorLabel": "",
+      "authorPlaceholder": "",
+      "authorHelper": "",
+      "save": "",
+      "saved": "",
+      "saveFailed": "",
+      "failed": "",
+      "saveHelper": "",
+      "authorInCode": "",
+      "groupLabel": "",
+      "groupHelper": "",
+      "gallery": {
+        "trigger": "",
+        "body": ""
+      },
+      "openRepository": ""
+    },
+    "fields": {
+      "concurrent_streams": {
+        "label": "",
+        "description": ""
+      },
+      "active_session_distance_km": {
+        "label": "",
+        "description": ""
+      },
+      "travel_speed_kmh": {
+        "label": "",
+        "description": ""
+      },
+      "unique_ips_in_window": {
+        "label": "",
+        "description": ""
+      },
+      "unique_devices_in_window": {
+        "label": "",
+        "description": ""
+      },
+      "inactive_days": {
+        "label": "",
+        "description": ""
+      },
+      "current_pause_minutes": {
+        "label": "",
+        "description": ""
+      },
+      "total_pause_minutes": {
+        "label": "",
+        "description": ""
+      },
+      "source_resolution": {
+        "label": "",
+        "description": ""
+      },
+      "output_resolution": {
+        "label": "",
+        "description": ""
+      },
+      "source_dynamic_range": {
+        "label": "",
+        "description": ""
+      },
+      "source_video_codec": {
+        "label": "",
+        "description": ""
+      },
+      "is_transcoding": {
+        "label": "",
+        "description": ""
+      },
+      "is_transcode_downgrade": {
+        "label": "",
+        "description": ""
+      },
+      "source_bitrate_mbps": {
+        "label": "",
+        "description": ""
+      },
+      "user_id": {
+        "label": "",
+        "description": "",
+        "placeholder": ""
+      },
+      "trust_score": {
+        "label": "",
+        "description": ""
+      },
+      "account_age_days": {
+        "label": "",
+        "description": ""
+      },
+      "device_type": {
+        "label": "",
+        "description": ""
+      },
+      "client_name": {
+        "label": "",
+        "description": "",
+        "placeholder": ""
+      },
+      "platform": {
+        "label": "",
+        "description": ""
+      },
+      "is_local_network": {
+        "label": "",
+        "description": ""
+      },
+      "country": {
+        "label": "",
+        "description": "",
+        "placeholder": ""
+      },
+      "ip_in_range": {
+        "label": "",
+        "description": "",
+        "placeholder": ""
+      },
+      "server_id": {
+        "label": "",
+        "description": "",
+        "placeholder": ""
+      },
+      "media_type": {
+        "label": "",
+        "description": ""
+      },
+      "season_number": {
+        "label": "",
+        "description": ""
+      },
+      "episode_number": {
+        "label": "",
+        "description": ""
+      },
+      "library_item_type": {
+        "label": "",
+        "description": ""
+      },
+      "library_name": {
+        "label": "",
+        "description": "",
+        "placeholder": ""
+      },
+      "resolution_after": {
+        "label": "",
+        "description": ""
+      },
+      "dynamic_range_after": {
+        "label": "",
+        "description": ""
+      },
+      "video_codec_after": {
+        "label": "",
+        "description": ""
+      },
+      "audio_channels_after": {
+        "label": "",
+        "description": ""
+      },
+      "file_size_after": {
+        "label": "",
+        "description": ""
+      }
+    },
+    "gallery": {
+      "title": "",
+      "description": "",
+      "searchPlaceholder": "",
+      "noMatches": "",
+      "noMatchesHint": "",
+      "group": {
+        "notifications": "",
+        "server_health": "",
+        "policies": "",
+        "housekeeping": "",
+        "other": ""
+      },
+      "builtin": "",
+      "kind": {
+        "policy": "",
+        "notification": ""
+      },
+      "paste": {
+        "title": "",
+        "description": ""
+      },
+      "scratch": {
+        "title": "",
+        "description": ""
+      },
+      "failed": "",
+      "retry": "",
+      "missing": "",
+      "hint": {
+        "move": "",
+        "use": "",
+        "close": ""
+      },
+      "loading": ""
+    },
+    "import": {
+      "title": "",
+      "description": "",
+      "reviewDescription": "",
+      "placeholder": "",
+      "formatHint": "",
+      "check": "",
+      "checking": "",
+      "valid": "",
+      "madeBy": "",
+      "codeShort": "",
+      "paused": {
+        "label": "",
+        "helper": ""
+      },
+      "submit": "",
+      "adding": "",
+      "existing": "",
+      "existingUse": "",
+      "collision": {
+        "title": "",
+        "add": "",
+        "replace": ""
+      },
+      "raw": "",
+      "errors": {
+        "notACode": "",
+        "notACodeHint": "",
+        "tooBig": "",
+        "tooBigHint": "",
+        "truncated": "",
+        "truncatedHint": "",
+        "tooNew": "",
+        "tooNewHint": "",
+        "tooMany": "",
+        "tooManyHint": "",
+        "rejected": "",
+        "rejectedHint": ""
+      },
+      "source": "",
+      "validCaveat": "",
+      "builtinMatch": ""
+    },
+    "kind": {
+      "policy": "",
+      "notification": ""
+    },
+    "kindColumn": "",
+    "name": "",
+    "newAutomation": "",
+    "namePlaceholder": "",
+    "nameInvalid": "",
+    "descriptionLabel": "",
+    "descriptionPlaceholder": "",
+    "thisAutomation": "",
+    "cooldownLabel": "",
+    "cooldownInvalid": "",
+    "retentionLabel": "",
+    "retentionPlaceholder": "",
+    "retentionInvalid": "",
+    "noAutomationsFound": "",
+    "operators": {
+      "eq": "",
+      "neq": "",
+      "gt": "",
+      "gte": "",
+      "lt": "",
+      "lte": "",
+      "in": "",
+      "not_in": "",
+      "contains": "",
+      "not_contains": ""
+    },
+    "options": {
+      "4K": "",
+      "1080p": "",
+      "720p": "",
+      "480p": "",
+      "SD": "",
+      "unknown": "",
+      "mobile": "",
+      "tablet": "",
+      "tv": "",
+      "desktop": "",
+      "browser": "",
+      "ios": "",
+      "android": "",
+      "windows": "",
+      "macos": "",
+      "linux": "",
+      "tvos": "",
+      "androidtv": "",
+      "roku": "",
+      "webos": "",
+      "tizen": "",
+      "movie": "",
+      "episode": "",
+      "track": "",
+      "photo": "",
+      "live": "",
+      "trailer": "",
+      "video": "",
+      "audio": "",
+      "video_or_audio": "",
+      "neither": "",
+      "8K": "",
+      "1440p": "",
+      "sdr": "",
+      "hdr": "",
+      "hdr10": "",
+      "hdr10+": "",
+      "hlg": "",
+      "dolby vision": "",
+      "libraryItemType": {
+        "movie": "",
+        "show": "",
+        "season": "",
+        "episode": "",
+        "artist": "",
+        "album": "",
+        "track": "",
+        "photo": ""
+      }
+    },
+    "provenance": {
+      "builtin": "",
+      "imported": "",
+      "importedBy": "",
+      "saved": "",
+      "customized": "",
+      "customizedFromRemoved": ""
+    },
+    "recordsOnly": "",
+    "scope": {
+      "global": "",
+      "person": "",
+      "account": "",
+      "crossServer": ""
+    },
+    "searchPlaceholder": "",
+    "sessionTargets": {
+      "triggering": {
+        "label": "",
+        "tooltip": ""
+      },
+      "oldest": {
+        "label": "",
+        "tooltip": ""
+      },
+      "newest": {
+        "label": "",
+        "tooltip": ""
+      },
+      "all_except_one": {
+        "label": "",
+        "tooltip": ""
+      },
+      "all_user": {
+        "label": "",
+        "tooltip": ""
+      }
+    },
+    "configFields": {
+      "cooldown_minutes": {
+        "label": ""
+      },
+      "target": {
+        "label": ""
+      },
+      "message": {
+        "label": ""
+      }
+    },
+    "trustModes": {
+      "adjust": {
+        "label": ""
+      },
+      "set": {
+        "label": ""
+      },
+      "reset": {
+        "label": ""
+      }
+    },
+    "severity": {
+      "low": "",
+      "warning": "",
+      "high": ""
+    },
+    "template": {
+      "version": "",
+      "updateAvailable": "",
+      "updatedTitle": "",
+      "updatedBody": "",
+      "before": "",
+      "after": "",
+      "review": "",
+      "save": "",
+      "customize": "",
+      "customizeTitle": "",
+      "customizeConfirm": "",
+      "customizeConfirmAction": "",
+      "customizeFirst": "",
+      "customizeFailed": "",
+      "upgradeFailed": "",
+      "gone": "",
+      "doorsHelper": ""
+    },
+    "templates": {
+      "account-inactivity": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "concurrent-streams": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "device-velocity": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "geo-restriction": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "impossible-travel": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "kill-paused-streams": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "media-added": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "media-upgraded": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "new-device": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "newsletter-failed": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "no-4k-transcodes": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "paused-too-long": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "plugin-update": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "server-down": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "server-up": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "server-update": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "simultaneous-locations": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "stream-ended": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "stream-started": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "tracearr-update": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "transcode-started": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      },
+      "trust-score-changed": {
+        "name": "",
+        "description": "",
+        "keywords": ""
+      }
+    },
+    "title": "",
+    "toggleAutomation": "",
+    "tryAdjustingFilters": "",
+    "units": {
+      "km": "",
+      "kmh": "",
+      "mbps": "",
+      "days": "",
+      "minutes": "",
+      "hours": "",
+      "gb": "",
+      "seconds": ""
+    },
+    "updateAutomation": "",
+    "catalog": {
+      "groups": {
+        "sessions": "",
+        "accounts": "",
+        "library": "",
+        "servers": "",
+        "updates": "",
+        "notifications": "",
+        "notify": "",
+        "policy": "",
+        "control": ""
+      },
+      "suggested": "",
+      "triggers": {
+        "sessionStarted": {
+          "description": "",
+          "synonyms": ""
+        },
+        "sessionFirstSeen": {
+          "description": "",
+          "synonyms": ""
+        },
+        "sessionStopped": {
+          "description": "",
+          "synonyms": ""
+        },
+        "sessionTranscodeChanged": {
+          "description": "",
+          "synonyms": ""
+        },
+        "sessionPaused": {
+          "description": "",
+          "synonyms": ""
+        },
+        "sessionHeldFor": {
+          "label": "",
+          "description": "",
+          "synonyms": ""
+        },
+        "accountInactiveFor": {
+          "label": "",
+          "description": "",
+=======
         "ready": "",
         "remaining_one": "",
         "remaining_other": "",
@@ -385,6 +1886,7 @@
         "accountInactiveFor": {
           "description": "",
           "label": "",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           "synonyms": ""
         },
         "accountNewDevice": {
@@ -403,6 +1905,8 @@
           "description": "",
           "synonyms": ""
         },
+<<<<<<< HEAD
+=======
         "newsletterFailed": {
           "description": "",
           "synonyms": ""
@@ -415,6 +1919,7 @@
           "description": "",
           "synonyms": ""
         },
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         "serverDown": {
           "description": "",
           "synonyms": ""
@@ -423,6 +1928,13 @@
           "description": "",
           "synonyms": ""
         },
+<<<<<<< HEAD
+        "pluginUpdateAvailable": {
+          "description": "",
+          "synonyms": ""
+        },
+        "serverUpdateAvailable": {
+=======
         "serverUpdateAvailable": {
           "description": "",
           "synonyms": ""
@@ -449,12 +1961,48 @@
           "synonyms": ""
         },
         "sessionTranscodeChanged": {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           "description": "",
           "synonyms": ""
         },
         "tracearrUpdateAvailable": {
           "description": "",
           "synonyms": ""
+<<<<<<< HEAD
+        },
+        "newsletterSent": {
+          "description": "",
+          "synonyms": ""
+        },
+        "newsletterFailed": {
+          "description": "",
+          "synonyms": ""
+        }
+      },
+      "actions": {
+        "send": {
+          "synonyms": ""
+        },
+        "trust": {
+          "synonyms": ""
+        },
+        "kill_stream": {
+          "synonyms": ""
+        },
+        "message_client": {
+          "synonyms": ""
+        },
+        "if": {
+          "label": "",
+          "description": "",
+          "synonyms": ""
+        }
+      }
+    },
+    "filters": {
+      "source": "",
+      "allSources": "",
+=======
         }
       }
     },
@@ -837,12 +2385,77 @@
       "allSources": "",
       "allTriggers": "",
       "source": "",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       "sources": {
         "builtin": "",
         "import": "",
         "local": "",
         "own": ""
       },
+<<<<<<< HEAD
+      "trigger": "",
+      "allTriggers": ""
+    },
+    "openGallery": ""
+  },
+  "terminateStream": {
+    "title": "Τερματισμός Ροής",
+    "stopMedia": "",
+    "messageLabel": "Μήνυμα προς το χρήστη (προαιρετικό)",
+    "messagePlaceholder": "π.χ., Παρακαλώ μην κοινοποιήσετε το λογαριασμό σας",
+    "messageHint": "Αυτό το μήνυμα θα εμφανιστεί σε αυτούς κατά την αναπαραγωγή",
+    "terminating": "Τερματισμός...",
+    "killStream": "Τερματισμός Ροής"
+  },
+  "notFound": {
+    "title": "",
+    "heading": "Η Σελίδα Δεν Βρέθηκε",
+    "description": "Η σελίδα που ψάχνετε δεν υπάρχει ή έχει μετακινηθεί."
+  },
+  "settings": {
+    "plex": {
+      "noServersFound": "Δεν βρέθηκαν διακομιστές Plex",
+      "noServersFoundHint": "Βεβαιωθείτε ότι έχετε στην κατοχή σας τουλάχιστον έναν διακομιστή Plex",
+      "noReachableConnections": "Δεν υπάρχουν προσβάσιμες συνδέσεις",
+      "local": "Τοπικό",
+      "remote": "Απομακρυσμένο",
+      "custom": "",
+      "secure": "Ασφαλές",
+      "mayNotConnect": "Δεν μπορεί να συνδεθεί",
+      "recommended": "Προτεινόμενο",
+      "customUrl": "Προσαρμοσμένο URL",
+      "connectionError": {
+        "timeout": "",
+        "dns": "",
+        "refused": "",
+        "unreachable": "",
+        "reset": "",
+        "tls": "",
+        "http": "",
+        "unknown": ""
+      },
+      "connectionsReachable": "{{reachable}} {{total}} συνδέσεις προσβάσιμες",
+      "connectionsAvailable": "Διαθέσιμες συνδέσεις {{count}}",
+      "hideFiltered": "Απόκρυψη φιλτραρισμένων",
+      "showAll": "Εμφάνιση όλων",
+      "moreConnections": "",
+      "connectingTo": "",
+      "ownerOnly": "",
+      "noAccountsLinked": "Κανένας Λογαριασμός Plex Συνδεδεμένος",
+      "noAccountsLinkedHint": "Συνδέστε έναν λογαριασμό Plex για να προσθέσετε διακομιστές Plex στο Tracearr.",
+      "linkPlexAccount": "Σύνδεση Λογαριασμού Plex",
+      "linkAnotherAccount": "Σύνδεση Άλλου Λογαριασμού Plex",
+      "linking": "Σύνδεση...",
+      "loginEnabled": "Ενεργοποίηση Σύνδεσης",
+      "serversConnected_one": "",
+      "serversConnected_other": "",
+      "unlinkAccount": "Αποσύνδεση αυτού του λογαριασμού Plex",
+      "reauthorizeAccount": "",
+      "deleteServersFirst": "Διαγραφή συνδεδεμένων διακομιστών πρώτα για αποσύνδεση αυτού του λογαριασμού",
+      "unlinkPlexAccount": "Αποσύνδεση Λογαριασμού Plex",
+      "unlinkConfirm": "Είστε βέβαιοι ότι θέλετε να αποσυνδέσετε αυτό το λογαριασμό Plex? Δεν θα είστε σε θέση να προσθέσετε διακομιστές από αυτό το λογαριασμό μέχρι να τον συνδέσετε ξανά."
+    },
+=======
       "trigger": ""
     },
     "gallery": {
@@ -1835,6 +3448,7 @@
     "windowWillClose": "Αυτό το παράθυρο θα κλείσει αυτόματα..."
   },
   "settings": {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "destinations": {
       "add": "",
       "alertsGoTo": "",
@@ -1847,6 +3461,75 @@
       "emailDescription": "",
       "empty": "",
       "fields": {
+<<<<<<< HEAD
+        "webhookUrl": "",
+        "url": "",
+        "serverUrl": "",
+        "apiUrl": "",
+        "topic": "",
+        "authToken": "",
+        "userKey": "",
+        "apiToken": "",
+        "preset": "",
+        "host": "",
+        "port": "",
+        "security": "",
+        "verifyCertificate": "",
+        "username": "",
+        "password": "",
+        "fromName": "",
+        "fromAddress": "",
+        "to": "Recipients",
+        "replyTo": "",
+        "messagesPerSecond": "",
+        "messageStream": ""
+      },
+      "groups": {
+        "connection": "",
+        "sender": "",
+        "alerts": ""
+      },
+      "hints": {
+        "authTokenOptional": "",
+        "smtpPreset": "Fills the host, port and security for common providers",
+        "smtpVerifyCertificate": "",
+        "smtpUsernameOptional": "",
+        "smtpTo": "",
+        "smtpRate": "",
+        "smtpMessageStream": "",
+        "smtpGmailUsername": "",
+        "smtpGmailPassword": "",
+        "smtpResendUsername": "",
+        "smtpResendPassword": "",
+        "smtpSendgridUsername": "",
+        "smtpSendgridPassword": "",
+        "smtpMailgunUsername": "",
+        "smtpMailgunPassword": "",
+        "smtpBrevoUsername": "",
+        "smtpBrevoPassword": "",
+        "smtpSesUsername": "",
+        "smtpSesPassword": "",
+        "smtpPostmarkUsername": "",
+        "smtpPostmarkPassword": ""
+      },
+      "newsletterAlertsNote": "",
+      "newsletterDescription": "",
+      "newsletterTitle": "",
+      "newslettersOnly": "",
+      "noAlertRecipients": "",
+      "options": {
+        "securityStarttls": "",
+        "securityTls": "",
+        "securityNone": "",
+        "presetCustom": "",
+        "presetPostmark": "",
+        "presetResend": "",
+        "presetSes": "",
+        "presetMailgun": "",
+        "presetSendgrid": "",
+        "presetBrevo": "",
+        "presetGmail": ""
+=======
         "apiToken": "",
         "apiUrl": "",
         "authToken": "",
@@ -1909,6 +3592,7 @@
         "securityNone": "None (plain text, port 25)",
         "securityStarttls": "STARTTLS (usually port 587)",
         "securityTls": "TLS (usually port 465)"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       },
       "ownerOnly": "",
       "pushNote": "",
@@ -1922,6 +3606,22 @@
       "testHint": "",
       "testNeedsForm": "",
       "types": {
+<<<<<<< HEAD
+        "discord": "",
+        "jsonWebhook": "",
+        "ntfy": "",
+        "gotify": "",
+        "apprise": "",
+        "pushover": "",
+        "email": "",
+        "push": "",
+        "webToast": ""
+      },
+      "usedBy": "",
+      "usedBy_other": "",
+      "usedByNewsletters": "",
+      "usedByNewsletters_other": "",
+=======
         "apprise": "",
         "discord": "",
         "email": "Email",
@@ -1936,11 +3636,589 @@
       "usedByNewsletters": "",
       "usedByNewsletters_other": "",
       "usedBy_other": "",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       "violationsOff": "",
       "violationsOn": "",
       "webToastNote": ""
     },
     "jobs": {
+<<<<<<< HEAD
+      "runNow": "Εκτέλεση Τώρα",
+      "running": "Εκτέλεση...",
+      "lastRun": "Τελευταία εκτέλεση",
+      "nextRun": "Επόμενη εκτέλεση",
+      "schedule": "Χρονοδιάγραμμα"
+    },
+    "mobile": {
+      "editDisplayName": "Επεξεργασία Εμφάνισης Ονόματος",
+      "editDisplayNameDesc": "Αλλάξτε τον τρόπο εμφάνισης αυτής της συσκευής στη λίστα συσκευών σας",
+      "displayName": "Εμφανιζόμενο Όνομα",
+      "displayNamePlaceholder": "π.χ., Το iPhone μου",
+      "updating": "Ενημέρωση..."
+    }
+  },
+  "maintenance": {
+    "startingTitle": "Το Tracearr ξεκινάει...",
+    "interruptionTitle": "Διακοπή υπηρεσίας",
+    "startingDescription": "Ο διακομιστής περιμένει να γίνουν διαθέσιμες οι υπηρεσίες του συστήματος διαχείρισης. Αυτή η σελίδα θα ανανεωθεί αυτόματα όταν όλα είναι έτοιμα.",
+    "interruptionDescription": "Μία ή περισσότερες υπηρεσίες παρασκηνίου δεν είναι διαθέσιμες. Αυτή η σελίδα θα ανανεωθεί αυτόματα όταν αποκατασταθεί η συνδεσιμότητα.",
+    "unreachable": "",
+    "restoreTitle": "Επαναφορά από αντίγραφο ασφαλείας...",
+    "restoreFailed": "Η επαναφορά απέτυχε",
+    "restorePhase": {
+      "validating": "Επικύρωση αντιγράφου ασφαλείας",
+      "creating_restore_point": "Δημιουργία σημείου επαναφοράς",
+      "shutting_down": "Υπηρεσίες τερματισμού λειτουργίας",
+      "restoring_database": "Επαναφορά βάσης δεδομένων",
+      "running_migrations": "Εκτέλεση μεταναστεύσεων",
+      "rebuilding_aggregates": "Αναδημιουργία συγκεντρωτικών στοιχείων",
+      "restarting": "Υπηρεσίες επανεκκίνησης",
+      "complete": ""
+    },
+    "initStep": {
+      "migrations": "",
+      "timescale": "",
+      "services": ""
+    },
+    "doNotRestart": ""
+  },
+  "map": {
+    "allUsers": "Όλοι οι χρήστες",
+    "allTypes": "Όλοι οι τύποι",
+    "heatmap": "Χάρτης Θερμότητας",
+    "circles": "Κύκλοι",
+    "streams": "ροές",
+    "locations": "τοποθεσίες",
+    "allActivity": "Όλη η δραστηριότητα",
+    "basemapMissing": "",
+    "webglUnavailable": "",
+    "webglHint": "",
+    "basemapShadowed": "",
+    "badMounts": ""
+  },
+  "devices": {
+    "title": "Συμβατότητα Συσκευής",
+    "description": "",
+    "analyzedSessions": "",
+    "analyzedSessionsTooltip": "",
+    "directPlayRate": "Άμεσος Ρυθμός Παιχνιδιού",
+    "videoAndAudio": "",
+    "uniqueDevices": "Μοναδικές Συσκευές",
+    "uniqueCodecs": "Μοναδικοί Κωδικοποιητές",
+    "deviceHealth": "Υγεία Συσκευής",
+    "deviceHealthDesc": "",
+    "transcodeHotspots": "Μετατροπή Κωδικού Hotspots",
+    "transcodeHotspotsDesc": "",
+    "deviceAndCodec": "Συσκευή + Κωδικοποιητής",
+    "transcodes": "Μετατροπή",
+    "pctOfTotal": "% επί συνόλου",
+    "noTranscodeHotspots": "Δεν υπάρχει transcode hotspots",
+    "compatibilityMatrix": "Πίνακας Συμβατότητας",
+    "compatibilityMatrixDesc": "Απευθείας αναπαραγωγή τιμών ανά συσκευή και κωδικοποιητή βίντεο. Ταξινόμηση ανά ένταση συνεδρίας.",
+    "noDeviceDataPeriod": "Δεν υπάρχουν δεδομένα συσκευής σε αυτήν την περίοδο",
+    "legend": "Υπόμνημα:",
+    "directPlayHigh": "≥80% Άμεση",
+    "directPlayMid": "",
+    "directPlayLow": "",
+    "topTranscodingUsers": "Κορυφαίοι Χρήστες Transcoding",
+    "topTranscodingUsersDesc": "",
+    "noTranscodingUsers": "Δεν βρέθηκαν χρήστες transcoding"
+  },
+  "statsBandwidth": {
+    "title": "Εύρος Ζώνης",
+    "description": "",
+    "dataTransferred": "Μεταφέρθηκαν Δεδομένα",
+    "avgBitrate": "Μέσος Ρυθμός Bit",
+    "avgBitrateMbps": "Μέσος Ρυθμός Bit (Mbps)",
+    "peakBitrate": "Κορυφή: {{value}} Mbps",
+    "totalWatchTime": "Συνολικός Χρόνος Παρακολούθησης",
+    "uniqueUsers": "Μοναδικοί Χρήστες",
+    "dailyUsage": "Καθημερινή Χρήση Εύρους Ζώνης",
+    "dailyUsageDesc": "",
+    "topUsers": "Κορυφαίοι Χρήστες Εύρους Ζώνης",
+    "topUsersDesc": "",
+    "noData": "Δεν υπάρχουν διαθέσιμα δεδομένα εύρους ζώνης"
+  },
+  "statsUsers": {
+    "noActivity": "Καμία δραστηριότητα ακόμα",
+    "noActivityDesc": "Ξεκινήστε να κάνετε streaming για να δείτε τους κορυφαίους χρήστες σας εδώ",
+    "top3": "Κορυφή 3",
+    "runnersUp": "Επάνω Δρομείς"
+  },
+  "plexCallback": {
+    "authComplete": "Η πιστοποίηση ολοκληρώθηκε",
+    "windowWillClose": "Αυτό το παράθυρο θα κλείσει αυτόματα..."
+  },
+  "apiDocs": {
+    "backToSettings": "Πίσω στις Ρυθμίσεις",
+    "apiKeyAutoLoaded": "Αυτόματη φόρτωση κλειδιού API",
+    "noApiKey": "Δεν δημιουργήθηκε κλειδί API - δημιουργήστε ένα στις Ρυθμίσεις για να δοκιμάσετε τα τελικά σημεία",
+    "versionSwitcherLabel": "",
+    "versionV1": "",
+    "versionV2": "",
+    "specLoadError": ""
+  },
+  "debug": {
+    "title": "Εργαλεία Αποσφαλμάτωσης",
+    "description": "",
+    "overview": "Επισκόπηση",
+    "librarySnapshots": "Στιγμιότυπα Βιβλιοθήκης",
+    "tasks": "Εργασίες",
+    "logs": "Καταγραφή",
+    "plexAccounts": "Λογαριασμοί Plex",
+    "terminations": "Καταγγελίες",
+    "libraryItems": "Στοιχεία Βιβλιοθήκης",
+    "environment": "Περιβάλλον",
+    "systemInformation": "Πληροφορίες Συστήματος",
+    "cpu": "Επεξεργαστής",
+    "memory": "Μνήμη",
+    "uptime": "Χρόνος",
+    "database": "Βάση Δεδομένων",
+    "databaseDesc": "",
+    "totalSize": "Συνολικό Μέγεθος",
+    "maintenance": "Συντήρηση",
+    "destructiveActions": "Καταστροφικές Δράσεις",
+    "refreshAggregates": "Ανανέωση Συγκεντρωτικών",
+    "clearStuckJobs": "Καθαρισμός Εργασιών Κολλημένων",
+    "obliterateAllJobs": "Obliterate Όλες Οι Εργασίες",
+    "clearQueryCache": "Εκκαθάριση Μνήμης Ερωτήματος",
+    "clearMobileDevices": "Εκκαθάριση Κινητών Συσκευών",
+    "clearViolations": "Εκκαθάριση Παραβιάσεων",
+    "clearAutomations": "",
+    "clearAutomationsConfirm": "",
+    "clearTerminationLogs": "Εκκαθάριση Καταγραφών Τερματισμού",
+    "clearLibraryCache": "Εκκαθάριση Προσωρινής Αποθήκευσης Βιβλιοθήκης",
+    "clearSessions": "Εκκαθάριση Συνεδριών",
+    "clearUsers": "Εκκαθάριση Χρηστών",
+    "clearServers": "Εκκαθάριση Διακομιστών",
+    "factoryReset": "Επαναφορά Εργοστασιακών Ρυθμίσεων",
+    "manageSnapshots": "Διαχειριστείτε στιγμιότυπα βιβλιοθήκης που χρησιμοποιούνται για την αποθήκευση Trend και την ποιότητα των χαρτών εξέλιξης",
+    "suspiciousOnly": "Ύποπτο μόνο",
+    "load": "Φόρτωση",
+    "noSuspiciousSnapshots": "Δεν βρέθηκαν ύποπτα στιγμιότυπα",
+    "clickLoadToView": "Κάντε κλικ στο κουμπί \"Φόρτωση\" για να δείτε στιγμιότυπα",
+    "deleteSelected": "Διαγραφή Επιλεγμένων",
+    "deleteAllSuspicious": "Διαγραφή Όλων Των Ύποπτων",
+    "suspicious": "Ύποπτο",
+    "ok": "Εντάξει",
+    "selected": "επιλεγμένα",
+    "snapshots": "",
+    "of": "από",
+    "logExplorerUnavailable": "Ο περιηγητής καταγραφής είναι διαθέσιμος μόνο σε περιβάλλοντα Docker"
+  },
+  "media": {
+    "landing": {
+      "title": "Πολυμέσα",
+      "lens": {
+        "label": "Προβολή ως",
+        "allUsers": "Όλοι οι χρήστες"
+      },
+      "shelves": {
+        "recentlyAddedMovies": "",
+        "recentlyAddedShows": "",
+        "recentlyUpdated": "",
+        "mostPopularMovies": "",
+        "mostPopularShows": "",
+        "emptyRecentlyAdded": "",
+        "emptyRecentlyUpdated": "",
+        "emptyMostPopular": "",
+        "captionRecentlyAdded": "",
+        "captionRecentlyUpdated": "",
+        "captionMostPopular": {
+          "day": "",
+          "week": "",
+          "month": "",
+          "year": "",
+          "all": "",
+          "custom": ""
+        }
+      },
+      "card": {
+        "newEpisodes_one": "{{count}} νέο επεισόδιο",
+        "newEpisodes_other": "{{count}} νέα επεισόδια",
+        "replacedEpisodes_one": "",
+        "replacedEpisodes_other": "",
+        "addedAgo": "προστέθηκε {{date}}",
+        "addedCompactAgo": "",
+        "newEpisodesChip": ""
+      },
+      "deadWeight": {
+        "title": "",
+        "summary": "",
+        "empty": "",
+        "columns": {
+          "poster": "",
+          "title": "",
+          "size": "",
+          "added": "",
+          "servers": ""
+        },
+        "viewAll": "",
+        "viewAllTooltip": ""
+      },
+      "loadError": ""
+    },
+    "movies": {
+      "title": "Ταινίες"
+    },
+    "shows": {
+      "title": "Σειρές"
+    },
+    "genres": {
+      "title": "Είδη",
+      "subtitle": "",
+      "chart": {
+        "title": "",
+        "valueLabel": "",
+        "itemCount_one": "",
+        "itemCount_other": "",
+        "ariaLabel": ""
+      },
+      "table": {
+        "title": "",
+        "columns": {
+          "genre": "",
+          "items": "",
+          "plays": "",
+          "watchTime": ""
+        },
+        "browseMovies": "",
+        "browseShows": ""
+      },
+      "empty": {
+        "title": "",
+        "description": ""
+      },
+      "loadError": ""
+    },
+    "detail": {
+      "title": "Λεπτομέρειες Πολυμέσων",
+      "breadcrumb": {
+        "ariaLabel": ""
+      },
+      "notFound": {
+        "title": "",
+        "message": "",
+        "backLink": ""
+      },
+      "hero": {
+        "loadError": "",
+        "meta": {
+          "seasons_one": "",
+          "seasons_other": "",
+          "episodes_one": "",
+          "episodes_other": ""
+        },
+        "availability": {
+          "added": "",
+          "addedRemoved": "",
+          "replaced": ""
+        },
+        "removedEverywhere": {
+          "caption": ""
+        },
+        "actions": {
+          "fullHistory": "",
+          "openOnServer": ""
+        }
+      },
+      "kpis": {
+        "ariaLabel": "",
+        "loadError": "",
+        "completionLoadError": "",
+        "plays": {
+          "label": "",
+          "caption": ""
+        },
+        "watchTime": {
+          "label": "",
+          "detail": ""
+        },
+        "viewers": {
+          "label": "",
+          "detail": ""
+        },
+        "completion": {
+          "label": "",
+          "detail": "",
+          "detailMovie": ""
+        }
+      },
+      "watchers": {
+        "title": "",
+        "loadError": "",
+        "empty": "",
+        "lastWatchedAgo": "",
+        "completionLabel": "",
+        "columns": {
+          "user": "",
+          "plays": "",
+          "episodes": "",
+          "completion": "",
+          "lastWatched": ""
+        }
+      },
+      "seasons": {
+        "title": "",
+        "loadError": "",
+        "empty": "",
+        "episodeCount_one": "",
+        "episodeCount_other": "",
+        "watchedPct": "",
+        "stripSummary": "",
+        "episodeLabel": {
+          "watched": "",
+          "partial": "",
+          "unwatched": ""
+        }
+      },
+      "platforms": {
+        "title": "",
+        "loadError": "",
+        "empty": "",
+        "unknown": "",
+        "columns": {
+          "platform": "",
+          "plays": "",
+          "watchTime": ""
+        }
+      },
+      "history": {
+        "title": "",
+        "loadError": "",
+        "empty": "",
+        "watched": "",
+        "notWatched": "",
+        "columns": {
+          "date": "",
+          "user": "",
+          "content": "",
+          "server": "",
+          "duration": ""
+        }
+      },
+      "copies": {
+        "title": "",
+        "loadError": "",
+        "unknownLibrary": "",
+        "columns": {
+          "server": "",
+          "library": "",
+          "quality": "",
+          "episodes": "",
+          "size": "",
+          "added": ""
+        },
+        "versionLabel": ""
+      }
+    },
+    "posterCard": {
+      "rankSuffix": ", θέση {{rank}}",
+      "onServers": "Στο {{servers}}",
+      "addedLabel": "Προστέθηκε {{date}}",
+      "plays_one": "{{count}} αναπαραγωγή",
+      "plays_other": "{{count}} αναπαραγωγές",
+      "viewers_one": "{{count}} θεατής",
+      "viewers_other": "{{count}} θεατές",
+      "watchedState": {
+        "watched": "Παρακολουθήθηκε",
+        "partial": "Μερικώς παρακολουθημένο",
+        "watchedByOthers": "",
+        "watchedByYou": ""
+      },
+      "tileLabel": {
+        "added": "προστέθηκε",
+        "plays": "αναπαραγωγές",
+        "viewers": "θεατές",
+        "resolution": ""
+      },
+      "rankChip": "",
+      "playsCompact_one": "",
+      "playsCompact_other": "",
+      "versionsChip": "",
+      "versions_one": "",
+      "versions_other": "",
+      "moreServers": ""
+    },
+    "grid": {
+      "toolbar": {
+        "ariaLabel": "",
+        "typeLabel": "",
+        "moviesToggle": "",
+        "showsToggle": "",
+        "searchPlaceholder": "",
+        "searchLabel": "",
+        "removeFilter": "",
+        "filtersLabel": "",
+        "filtersSheetTitle": "",
+        "done": "",
+        "watchedLabel": "",
+        "watched": {
+          "all": "",
+          "watched": "",
+          "partial": "",
+          "unwatched": ""
+        },
+        "unwatchedByLens": "",
+        "resolutionLabel": "",
+        "resolutionAll": "",
+        "hdrLabel": "",
+        "hdrAll": "",
+        "hdrOnly": "",
+        "hdrChip": "",
+        "genreLabel": "",
+        "genreAll": "",
+        "serverLabel": "",
+        "serverAll": "",
+        "libraryLabel": "",
+        "libraryAll": "",
+        "yearFromLabel": "",
+        "yearToLabel": "",
+        "sizeGbMinLabel": "",
+        "sizeGbMaxLabel": "",
+        "sizeChipAtLeast": "",
+        "sizeChipAtMost": "",
+        "sizeChipRange": "",
+        "sortLabel": "",
+        "sort": {
+          "title": "",
+          "added": "",
+          "year": "",
+          "plays": "",
+          "watch_time": "",
+          "viewers": ""
+        },
+        "count": "",
+        "countTotal_one": "",
+        "countTotal_other": ""
+      },
+      "scrubber": {
+        "label": "",
+        "current": ""
+      },
+      "loaderError": "",
+      "retry": "",
+      "clearJumpAction": "",
+      "showingFrom": "",
+      "showAll": "",
+      "emptyFilter": "",
+      "emptySearch": "",
+      "emptyAnchored": "",
+      "loadError": ""
+    }
+  },
+  "requests": {
+    "status": {
+      "pending": "",
+      "approved": "",
+      "declined": "",
+      "failed": "",
+      "completed": "",
+      "deleted": ""
+    },
+    "columns": {
+      "requester": "",
+      "title": "",
+      "status": "",
+      "requested": "",
+      "wait": "",
+      "seasons": "",
+      "watched": ""
+    },
+    "wait": {
+      "pending": "",
+      "declined": ""
+    },
+    "seasons": {
+      "all": "",
+      "item": ""
+    },
+    "flags": {
+      "fourK": "",
+      "auto": ""
+    },
+    "hero": {
+      "line": "",
+      "landed": "",
+      "waiting": ""
+    },
+    "mediaPanel": {
+      "title": "",
+      "loadError": "",
+      "empty": ""
+    },
+    "userCard": {
+      "title": "",
+      "loadError": "",
+      "viewAll": "",
+      "showLess": "",
+      "summary": {
+        "requests": "",
+        "medianWait": "",
+        "approvalRate": "",
+        "neverWatched": ""
+      },
+      "empty": ""
+    },
+    "unattributed": "",
+    "watched": {
+      "byRequester": "",
+      "byOthers": ""
+    },
+    "page": {
+      "title": "",
+      "description": "",
+      "failedToLoad": "",
+      "notConfigured": "",
+      "notConfiguredDescription": "",
+      "linkSeerr": "",
+      "kpi": {
+        "requested": "",
+        "landedOf": "",
+        "watched": "",
+        "neverPlayed": "",
+        "ofLanded": "",
+        "onDisk": ""
+      }
+    },
+    "funnel": {
+      "title": "",
+      "description": "",
+      "requested": "",
+      "landed": "",
+      "watched": "",
+      "share": "",
+      "empty": ""
+    },
+    "unplayed": {
+      "title": "",
+      "description": "",
+      "emptyTitle": "",
+      "emptyDescription": ""
+    },
+    "outcomes": {
+      "title": "",
+      "requester": "",
+      "wait": "",
+      "requested": "",
+      "onDisk": "",
+      "untitled": "",
+      "failedToLoad": ""
+    },
+    "followThrough": {
+      "title": "",
+      "description": "",
+      "person": "",
+      "asked": "",
+      "landed": "",
+      "watched": "",
+      "watchedByOthers": "",
+      "medianWait": "",
+      "emptyTitle": "",
+      "emptyDescription": "",
+      "failedToLoad": ""
+    }
+=======
       "lastRun": "Τελευταία εκτέλεση",
       "nextRun": "Επόμενη εκτέλεση",
       "runNow": "Εκτέλεση Τώρα",
@@ -2144,5 +4422,6 @@
     "selectAllViolations": "Επιλογή όλων των φίλτρων {{count}} για παραβιάσεις",
     "title": "Παραβάσεις",
     "tryAdjustingFilters": "Δοκιμάστε να προσαρμόσετε τα φίλτρα σας"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   }
 }

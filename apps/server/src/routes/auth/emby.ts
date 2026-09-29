@@ -11,8 +11,11 @@ import { db } from '../../db/client.js';
 import { servers } from '../../db/schema.js';
 import { invalidateServersCache } from '../../jobs/poller/database.js';
 import { EmbyClient } from '../../services/mediaServer/index.js';
+<<<<<<< HEAD
+=======
 // Token encryption removed - tokens now stored in plain text (DB is localhost-only)
 import { generateTokens } from './utils.js';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { syncServer } from '../../services/sync.js';
 
 export const embyRoutes: FastifyPluginAsync = async (app) => {
@@ -42,7 +45,11 @@ export const embyRoutes: FastifyPluginAsync = async (app) => {
           return reply.serviceUnavailable(adminCheck.message);
         }
         if (adminCheck.code === EmbyClient.AdminVerifyError.INVALID_KEY) {
+<<<<<<< HEAD
+          return reply.badRequest(adminCheck.message);
+=======
           return reply.unauthorized(adminCheck.message);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         }
         return reply.forbidden(adminCheck.message);
       }
@@ -96,8 +103,12 @@ export const embyRoutes: FastifyPluginAsync = async (app) => {
           app.log.error({ err: error, serverId }, 'Auto-sync failed for Emby server');
         });
 
+<<<<<<< HEAD
+      return { serverId };
+=======
       // Return updated tokens with new server access
       return generateTokens(app, authUser.userId, authUser.username, authUser.role);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     } catch (error) {
       app.log.error({ err: error }, 'Emby connect-api-key failed');
       return reply.internalServerError('Failed to connect Emby server');

@@ -10,6 +10,10 @@ import { libraryGrowthRoute } from './growth.js';
 import { libraryQualityRoute } from './quality.js';
 import { libraryStorageRoute } from './storage.js';
 import { libraryDuplicatesRoute } from './duplicates.js';
+<<<<<<< HEAD
+import { libraryDuplicateFilesRoute } from './duplicatesFiles.js';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { libraryStaleRoute } from './stale.js';
 import { libraryWatchRoute } from './watch.js';
 import { libraryRoiRoute } from './roi.js';
@@ -38,6 +42,10 @@ export const libraryStatsRoutes: FastifyPluginAsync = async (app) => {
   await app.register(libraryQualityRoute);
   await app.register(libraryStorageRoute);
   await app.register(libraryDuplicatesRoute);
+<<<<<<< HEAD
+  await app.register(libraryDuplicateFilesRoute);
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   await app.register(libraryStaleRoute);
   await app.register(libraryWatchRoute);
   await app.register(libraryRoiRoute);

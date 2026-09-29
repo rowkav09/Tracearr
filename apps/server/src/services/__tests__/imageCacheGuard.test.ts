@@ -4,6 +4,10 @@ vi.mock('node:fs/promises', () => ({ statfs: vi.fn() }));
 
 import { statfs } from 'node:fs/promises';
 import {
+<<<<<<< HEAD
+  ESTIMATED_POSTER_BYTES,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   cacheWriteAllowed,
   noteCacheWrite,
   setCacheTallyBytes,
@@ -100,7 +104,11 @@ describe('imageCacheGuard', () => {
     await writeDiskLimited(redis, 3, new Date('2026-08-23T10:00:00Z'));
     expect(await readDiskLimited(redis)).toEqual({
       since: '2026-08-23T10:00:00.000Z',
+<<<<<<< HEAD
+      shortfallBytes: 3 * ESTIMATED_POSTER_BYTES,
+=======
       shortfallBytes: 3 * 18 * 1024,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     });
     await writeDiskLimited(redis, 5, new Date('2026-08-23T11:00:00Z'));
     expect((await readDiskLimited(redis))?.since).toBe('2026-08-23T10:00:00.000Z');

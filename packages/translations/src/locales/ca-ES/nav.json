@@ -1,4 +1,37 @@
 {
+<<<<<<< HEAD
+  "dashboard": "Tauler de control",
+  "map": "Mapa",
+  "history": "Històric",
+  "stats": "Estadístiques",
+  "activity": "Activitat",
+  "library": "Llibreries",
+  "users": "Usuaris",
+  "automations": "Automatitzacions",
+  "violations": "Incompliments",
+  "requests": "Sol·licituds",
+  "alerts": "Alertes",
+  "settings": "Configuració",
+  "overview": "Visió general",
+  "quality": "Qualitat",
+  "storage": "Emmagatzematge",
+  "watch": "Reproduccions",
+  "performance": "Rendiment",
+  "devices": "Dispositius",
+  "bandwidth": "Amplada de banda",
+  "jobs": "Tasques",
+  "accessControl": "Control d'accés",
+  "media": "Mèdia",
+  "mediaBrowse": "Explora",
+  "mediaGenres": "Gèneres",
+  "session": "Sessió",
+  "user": "Usuari",
+  "violation": "Incompliment",
+  "monitor": "Supervisió",
+  "manage": "Gestió",
+  "userStats": "Per usuari",
+  "toggleSidebar": "Commuta la navegació"
+=======
   "accessControl": "Control d'accés",
   "activity": "Activitat",
   "alerts": "Alertes",
@@ -29,4 +62,5 @@
   "violation": "",
   "violations": "Incompliments",
   "watch": "Reproduccions"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }

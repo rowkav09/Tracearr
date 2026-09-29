@@ -2,8 +2,13 @@ apiVersion: v2
 name: tracearr
 description: Media server monitoring for Plex, Jellyfin, and Emby
 type: application
+<<<<<<< HEAD
+version: 2.5.1
+appVersion: "2.5.1"
+=======
 version: 2.2.3
 appVersion: "2.2.3"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 home: https://github.com/connorgallopo/Tracearr
 sources:
   - https://github.com/connorgallopo/Tracearr

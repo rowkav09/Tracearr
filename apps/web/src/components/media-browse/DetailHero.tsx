@@ -3,8 +3,13 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { format } from 'date-fns';
 import { ChevronDown, ExternalLink } from 'lucide-react';
+<<<<<<< HEAD
+import { buildMediaServerItemUrl, formatMediaTech } from '@tracearr/shared';
+import type { MediaAvailabilityEntry, MediaRequestEntry, ServerType } from '@tracearr/shared';
+=======
 import { buildMediaServerItemUrl } from '@tracearr/shared';
 import type { MediaAvailabilityEntry, ServerType } from '@tracearr/shared';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import type { MediaDetailData, MediaDetailStub } from '@/hooks/queries';
 import { buildPosterSrc } from './PosterCard';
 import {
@@ -24,6 +29,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { InlineErrorState } from '@/components/library/ErrorState';
 import { Skeleton } from '@/components/ui/skeleton';
+<<<<<<< HEAD
+import { heroRequestLine, type Translate } from '@/components/requests/format';
+import { BASE_URL } from '@/lib/basePath';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { cn } from '@/lib/utils';
 import { formatBytes } from '@/lib/formatters';
 
@@ -43,6 +53,16 @@ interface DetailHeroProps {
   onRetry: () => void;
   serverById: Map<string, HeroServerLookupEntry>;
   onFullHistoryClick: () => void;
+<<<<<<< HEAD
+  request?: MediaRequestEntry | null;
+}
+
+function heroRequestText(request: MediaRequestEntry, t: Translate): string {
+  const { identityName, username } = request.requester;
+  const name = identityName ?? username ?? t('requests.unattributed');
+  return heroRequestLine(request, name, t, 'MMM d, yyyy');
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 /** Two-letter glyph, mirroring PosterCard's fallback treatment at hero scale. */
@@ -229,6 +249,10 @@ export function DetailHero({
   onRetry,
   serverById,
   onFullHistoryClick,
+<<<<<<< HEAD
+  request,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }: DetailHeroProps) {
   const { t } = useTranslation('pages');
 
@@ -366,21 +390,35 @@ export function DetailHero({
                             t('media.detail.hero.availability.added', {
                               date: format(new Date(entry.replaces.addedAt), 'MMM d, yyyy'),
                             }),
+<<<<<<< HEAD
+                            entry.replaces.videoResolution
+                              ? formatMediaTech(entry.replaces.videoResolution)
+                              : null,
+=======
                             entry.replaces.videoResolution,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                             entry.replaces.fileSize != null
                               ? formatBytes(entry.replaces.fileSize, 1, { minUnit: 'GB' })
                               : null,
                             t('media.detail.hero.availability.replaced', {
                               date: format(new Date(entry.replaces.removedAt), 'MMM d, yyyy'),
                             }),
+<<<<<<< HEAD
+                            entry.videoResolution ? formatMediaTech(entry.videoResolution) : null,
+=======
                             entry.videoResolution,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                             entry.fileSize != null
                               ? formatBytes(entry.fileSize, 1, { minUnit: 'GB' })
                               : null,
                           ])
                         : joinMeta([
                             dateText,
+<<<<<<< HEAD
+                            entry.videoResolution ? formatMediaTech(entry.videoResolution) : null,
+=======
                             entry.videoResolution,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                             entry.fileSize != null
                               ? formatBytes(entry.fileSize, 1, { minUnit: 'GB' })
                               : null,
@@ -418,6 +456,21 @@ export function DetailHero({
                 </div>
               )}
 
+<<<<<<< HEAD
+              {request && (
+                <p className="text-muted-foreground mt-2 flex items-center gap-2 text-[12.5px]">
+                  <img
+                    src={`${BASE_URL}images/services/seerr.svg`}
+                    alt=""
+                    aria-hidden="true"
+                    className="h-3.5 w-3.5"
+                  />
+                  <span>{heroRequestText(request, t as Translate)}</span>
+                </p>
+              )}
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
               <div className="mt-4 flex flex-wrap gap-2">
                 <Button onClick={onFullHistoryClick}>
                   {t('media.detail.hero.actions.fullHistory')}

@@ -21,7 +21,10 @@ import {
   type AutomationScope,
   type AutomationScopeMode,
 } from '@/lib/automations/scope';
+<<<<<<< HEAD
+=======
 import { SELECTED_TOGGLE } from './selection';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { StepFooterField } from './StepFooterField';
 
 interface ScopeFieldProps {
@@ -89,7 +92,11 @@ export function ScopeField({
           className="flex-wrap"
         >
           {modes.map((mode) => (
+<<<<<<< HEAD
+            <ToggleGroupItem key={mode} value={mode}>
+=======
             <ToggleGroupItem key={mode} value={mode} className={SELECTED_TOGGLE}>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
               {t(`automations.builder.scope.${mode}`)}
             </ToggleGroupItem>
           ))}

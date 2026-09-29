@@ -10,10 +10,17 @@
 import { describe, it, expect, vi } from 'vitest';
 import { DEFAULT_STREAM_DETAILS } from '@tracearr/shared';
 import type { ActionResult } from '../../../services/automations/executors/index.js';
+<<<<<<< HEAD
+import type { SessionGeo } from '../../../services/serverLocations.js';
+import type { BuildActiveSessionInput } from '../sessionLifecycle.js';
+
+const NULL_GEO: SessionGeo = {
+=======
 import type { GeoLocation } from '../../../services/geoip.js';
 import type { BuildActiveSessionInput } from '../sessionLifecycle.js';
 
 const NULL_GEO: GeoLocation = {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   city: null,
   region: null,
   country: null,
@@ -24,6 +31,10 @@ const NULL_GEO: GeoLocation = {
   lon: null,
   asnNumber: null,
   asnOrganization: null,
+<<<<<<< HEAD
+  isLocal: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 };
 
 function createMockBuildActiveSessionInput(
@@ -781,6 +792,66 @@ describe('sessionLocation', () => {
     const { sessionLocation } = await import('../sessionLifecycle.js');
 
     expect(
+<<<<<<< HEAD
+      sessionLocation({
+        geoCity: 'Boston',
+        geoRegion: 'Massachusetts',
+        geoCountry: 'US',
+        geoLat: null,
+      })
+    ).toBe('Boston, Massachusetts');
+    expect(
+      sessionLocation({ geoCity: 'Boston', geoRegion: null, geoCountry: null, geoLat: null })
+    ).toBe('Boston');
+    expect(
+      sessionLocation({ geoCity: null, geoRegion: null, geoCountry: 'US', geoLat: null })
+    ).toBe('US');
+    expect(
+      sessionLocation({ geoCity: 'Boston', geoRegion: null, geoCountry: 'US', geoLat: null })
+    ).toBe('Boston, US');
+    expect(
+      sessionLocation({ geoCity: null, geoRegion: null, geoCountry: null, geoLat: null })
+    ).toBeNull();
+  });
+
+  it('suffixes a local session placed at its server', async () => {
+    const { sessionLocation } = await import('../sessionLifecycle.js');
+    expect(
+      sessionLocation({
+        geoCity: 'Chicago',
+        geoRegion: 'Illinois',
+        geoCountry: 'US',
+        geoLat: 41.88,
+        isLocal: true,
+      })
+    ).toBe('Chicago, Illinois (Local Network)');
+  });
+
+  it('keeps an unplaced local session reading Local Network', async () => {
+    const { sessionLocation } = await import('../sessionLifecycle.js');
+    expect(
+      sessionLocation({
+        geoCity: null,
+        geoRegion: null,
+        geoCountry: 'Local Network',
+        geoLat: null,
+        isLocal: true,
+      })
+    ).toBe('Local Network');
+  });
+
+  it('leaves a remote session unchanged', async () => {
+    const { sessionLocation } = await import('../sessionLifecycle.js');
+    expect(
+      sessionLocation({
+        geoCity: 'Boston',
+        geoRegion: 'Massachusetts',
+        geoCountry: 'US',
+        geoLat: 42.36,
+        isLocal: false,
+      })
+    ).toBe('Boston, Massachusetts');
+=======
       sessionLocation({ geoCity: 'Boston', geoRegion: 'Massachusetts', geoCountry: 'US' })
     ).toBe('Boston, Massachusetts');
     expect(sessionLocation({ geoCity: 'Boston', geoRegion: null, geoCountry: null })).toBe(
@@ -791,6 +862,7 @@ describe('sessionLocation', () => {
       'Boston, US'
     );
     expect(sessionLocation({ geoCity: null, geoRegion: null, geoCountry: null })).toBeNull();
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   });
 });
 
@@ -807,6 +879,10 @@ describe('buildActiveSession identity passthrough', () => {
         tvdbId: 222,
         parentRatingKey: 'parent-1',
         grandparentRatingKey: 'grandparent-1',
+<<<<<<< HEAD
+        itemMediaType: 'episode',
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       },
     });
 

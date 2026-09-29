@@ -256,12 +256,27 @@ export function stopImageCacheSweep(): void {
 
 export async function getImageCacheStatus(): Promise<ImageCacheStatus> {
   const redis = getRedis();
+<<<<<<< HEAD
+  const [tallyRaw, notPersisting, limited, space, countRow] = await Promise.all([
+    redis.get(REDIS_KEYS.IMAGE_CACHE_TALLY),
+    redis.get(REDIS_KEYS.IMAGE_CACHE_NOT_PERSISTING).catch(() => null),
+    readDiskLimited(redis),
+    readDiskSpace(IMAGE_CACHE_DIR).catch(() => ({ freeBytes: 0, totalBytes: 0 })),
+    // One file per (server, path), not per row: a track row carries its album's
+    // cover, so a music library counts the same poster hundreds of times.
+    // Removed rows stay in, matching the sweep's rule that they keep their poster.
+    db
+      .select({
+        n: sql<number>`count(distinct (${libraryItems.serverId}, ${libraryItems.thumbPath}))::int`,
+      })
+=======
   const [tallyRaw, limited, space, countRow] = await Promise.all([
     redis.get(REDIS_KEYS.IMAGE_CACHE_TALLY),
     readDiskLimited(redis),
     readDiskSpace(IMAGE_CACHE_DIR).catch(() => ({ freeBytes: 0, totalBytes: 0 })),
     db
       .select({ n: sql<number>`count(*)::int` })
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       .from(libraryItems)
       .where(isNotNull(libraryItems.thumbPath)),
   ]);
@@ -290,6 +305,10 @@ export async function getImageCacheStatus(): Promise<ImageCacheStatus> {
     sweptAt: tally?.sweptAt ?? null,
     freedBytesLastSweep: tally?.freedBytes ?? 0,
     deletedFilesLastSweep: tally?.deletedFiles ?? 0,
+<<<<<<< HEAD
+    notPersisting: notPersisting !== null,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     postersWithThumb,
     estimatedNeedBytes: postersWithThumb * ESTIMATED_POSTER_BYTES,
     freeBytes: space.freeBytes,

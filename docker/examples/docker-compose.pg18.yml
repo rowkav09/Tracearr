@@ -48,6 +48,10 @@ services:
         condition: service_healthy
     volumes:
       - tracearr_backups:/data/backup
+<<<<<<< HEAD
+      - tracearr_images:/data/tracearr/image-cache
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     restart: unless-stopped
     networks:
       - tracearr-network
@@ -103,5 +107,9 @@ networks:
 
 volumes:
   tracearr_backups:
+<<<<<<< HEAD
+  tracearr_images:
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   timescale_data:
   redis_data:

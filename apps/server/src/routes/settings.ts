@@ -10,7 +10,11 @@ import { db } from '../db/client.js';
 import { users, sessions } from '../db/schema.js';
 import { geoipService } from '../services/geoip.js';
 import { getImageCacheStatus } from '../services/imageCacheSweep.js';
+<<<<<<< HEAD
+import { getAllSettings, rearmImportedHistoryLink, setSettings } from '../services/settings.js';
+=======
 import { getAllSettings, setSettings } from '../services/settings.js';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 // Re-export service getters so existing import paths still work
 export {
@@ -74,6 +78,12 @@ export const settingsRoutes: FastifyPluginAsync = async (app) => {
     }
 
     await setSettings(updates);
+<<<<<<< HEAD
+    if (updates.tautulliUrl !== undefined || updates.tautulliApiKey !== undefined) {
+      await rearmImportedHistoryLink({ keepProviderPass: true });
+    }
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
     // Return updated settings with masks
     return getAllSettings();

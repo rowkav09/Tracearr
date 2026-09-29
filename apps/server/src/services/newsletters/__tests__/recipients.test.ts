@@ -24,6 +24,10 @@ const c = (over: Partial<RecipientCandidate>): RecipientCandidate => ({
   contactEmail: null,
   identityEmail: null,
   accountEmails: [],
+<<<<<<< HEAD
+  accountEmailsFromUsernames: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   blocked: null,
   ...over,
 });
@@ -73,6 +77,11 @@ describe('mergeRecipients', () => {
         serverName: 'Server One',
         serverIds: ['s1'],
         thumbUrl: null,
+<<<<<<< HEAD
+        newSinceLastSend: false,
+        addressFromUsername: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       },
     ]);
     expect(missing).toEqual([
@@ -113,6 +122,11 @@ describe('mergeRecipients', () => {
         serverName: 'Server One',
         serverIds: ['s1'],
         thumbUrl: null,
+<<<<<<< HEAD
+        newSinceLastSend: false,
+        addressFromUsername: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       },
     ]);
     expect(missing).toEqual([]);
@@ -219,6 +233,11 @@ describe('mergeRecipients', () => {
         serverName: 'Server One',
         serverIds: ['s1'],
         thumbUrl: null,
+<<<<<<< HEAD
+        newSinceLastSend: false,
+        addressFromUsername: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       },
       {
         address: 'extra@x.com',
@@ -231,6 +250,11 @@ describe('mergeRecipients', () => {
         serverName: null,
         serverIds: [],
         thumbUrl: null,
+<<<<<<< HEAD
+        newSinceLastSend: false,
+        addressFromUsername: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       },
     ]);
   });
@@ -253,6 +277,11 @@ describe('mergeRecipients', () => {
         serverName: null,
         serverIds: [],
         thumbUrl: null,
+<<<<<<< HEAD
+        newSinceLastSend: false,
+        addressFromUsername: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       },
     ]);
     expect(missing).toEqual([]);
@@ -270,6 +299,44 @@ describe('mergeRecipients', () => {
       ['extra@x.com', []],
     ]);
   });
+<<<<<<< HEAD
+
+  it('gives the identity kept for a shared address the servers of the one dropped', () => {
+    const { recipients } = mergeRecipients(
+      [
+        c({ userId: 'u1', accountEmails: ['same@x.com'], serverIds: ['s1'] }),
+        c({ userId: 'u2', accountEmails: ['same@x.com'], serverIds: ['s2', 's1'] }),
+      ],
+      [],
+      new Set()
+    );
+    expect(recipients.map((r) => [r.userId, r.serverIds])).toEqual([['u1', ['s1', 's2']]]);
+  });
+
+  it('marks an address as a username only when no contact, identity or Plex email came first', () => {
+    const { recipients } = mergeRecipients(
+      [
+        c({ userId: 'u1', accountEmails: ['jf@x.com'], accountEmailsFromUsernames: true }),
+        c({
+          userId: 'u2',
+          contactEmail: 'c@x.com',
+          accountEmails: ['jf2@x.com'],
+          accountEmailsFromUsernames: true,
+        }),
+        c({ userId: 'u3', accountEmails: ['plex@x.com'] }),
+      ],
+      [{ address: 'extra@x.com' }],
+      new Set()
+    );
+    expect(recipients.map((r) => [r.address, r.addressFromUsername])).toEqual([
+      ['jf@x.com', true],
+      ['c@x.com', false],
+      ['plex@x.com', false],
+      ['extra@x.com', false],
+    ]);
+  });
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 });
 
 describe('resolveRecipients', () => {
@@ -302,6 +369,11 @@ describe('resolveRecipients', () => {
           serverName: null,
           serverIds: [],
           thumbUrl: null,
+<<<<<<< HEAD
+          newSinceLastSend: false,
+          addressFromUsername: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         },
         {
           address: 'new@x.com',
@@ -314,6 +386,11 @@ describe('resolveRecipients', () => {
           serverName: null,
           serverIds: [],
           thumbUrl: null,
+<<<<<<< HEAD
+          newSinceLastSend: false,
+          addressFromUsername: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         },
       ],
       missing: [],
@@ -431,6 +508,20 @@ describe('resolveRecipients', () => {
     expect(out.recipients.map((r) => r.address)).toEqual(['one@x.com']);
     expect(out.excluded).toEqual([
       {
+<<<<<<< HEAD
+        userId: 'u3',
+        serverUserId: 'su-u3',
+        name: 'Three',
+        username: 'three',
+        serverId: 's1',
+        serverName: 'Server',
+        serverIds: ['s1'],
+        thumbUrl: null,
+        reason: 'banned',
+      },
+      {
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         userId: 'u2',
         serverUserId: 'su-u2',
         name: 'Two',
@@ -441,6 +532,51 @@ describe('resolveRecipients', () => {
         thumbUrl: null,
         reason: 'excluded',
       },
+<<<<<<< HEAD
+    ]);
+  });
+
+  it('lists identities, extras and missing by name while a shared address keeps the oldest identity', async () => {
+    const row = (userId: string, name: string, email: string | null, serverId: string) => ({
+      user_id: userId,
+      server_user_id: `su-${userId}`,
+      name,
+      contact_email: email,
+      identity_email: null,
+      account_emails: null,
+      usernames: [userId],
+      server_ids: [serverId],
+      server_names: ['Server'],
+      thumb_urls: [null],
+    });
+    mockExecute.mockResolvedValue({
+      rows: [
+        row('u-zed', 'Zed', 'same@x.com', 's1'),
+        row('u-alice', 'alice', 'same@x.com', 's2'),
+        row('u-bob', 'Bob', 'bob@x.com', 's1'),
+        row('u-zoe', 'Zoe', null, 's1'),
+        row('u-eve', 'eve', null, 's1'),
+      ],
+    });
+    const out = await resolveRecipients({
+      scope: { serverIds: [], libraries: [] },
+      recipients: {
+        members: true,
+        extraAddresses: [
+          { address: 'mo@x.com', name: 'Mo' },
+          { address: 'al@x.com', name: 'Al' },
+        ],
+        excludeUserIds: [],
+      },
+    });
+    expect(out.recipients.map((r) => [r.address, r.name, r.serverIds])).toEqual([
+      ['bob@x.com', 'Bob', ['s1']],
+      ['same@x.com', 'Zed', ['s1', 's2']],
+      ['al@x.com', 'Al', []],
+      ['mo@x.com', 'Mo', []],
+    ]);
+    expect(out.missing.map((m) => m.name)).toEqual(['eve', 'Zoe']);
+=======
       {
         userId: 'u3',
         serverUserId: 'su-u3',
@@ -453,5 +589,6 @@ describe('resolveRecipients', () => {
         reason: 'banned',
       },
     ]);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   });
 });

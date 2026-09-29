@@ -6,7 +6,11 @@
 
 import { executeRawSql } from '../db/pool.js';
 
+<<<<<<< HEAD
+export type ServerType = 'plex' | 'jellyfin' | 'emby';
+=======
 export type ServerType = 'plex' | 'jellyfin' | 'emby' | 'navidrome';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 export interface ServerData {
   id?: string;

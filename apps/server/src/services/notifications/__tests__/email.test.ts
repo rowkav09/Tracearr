@@ -239,7 +239,11 @@ describe('emailType.render', () => {
     });
     const out = await render(mediaAdded);
     expect(mockBranding).toHaveBeenCalledWith();
+<<<<<<< HEAD
+    expect(out.html).toContain('Sent by Tracearr for Basement.');
+=======
     expect(out.html).toContain('Sent by Tracearr for <!-- -->Basement');
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     expect(out.html).toContain('#123456');
   });
 
@@ -282,7 +286,11 @@ describe('emailType.render', () => {
     });
     expect(out.subject).toBe('Newsletter partly sent');
     expect(out.html).toContain('Weekly reached only part of its 42 recipients');
+<<<<<<< HEAD
+    expect(out.html).toContain('Sent by Tracearr.');
+=======
     expect(out.html).toContain('Sent by Tracearr for <!-- -->Tracearr');
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   });
 });
 
@@ -399,7 +407,11 @@ describe('emailType.test', () => {
     });
     await emailType.test(config, deliverCtx);
     const sent = mockSendMail.mock.calls[0]?.[0] as Record<string, unknown>;
+<<<<<<< HEAD
+    expect(String(sent.html)).toContain('Sent by Tracearr.');
+=======
     expect(String(sent.html)).toContain('Sent by Tracearr for <!-- -->Tracearr');
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     expect(String(sent.html)).toContain('#123456');
     expect(String(sent.html)).not.toContain('cid:logo');
     expect(sent.attachments).toEqual([]);

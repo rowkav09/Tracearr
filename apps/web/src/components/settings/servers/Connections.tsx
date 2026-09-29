@@ -32,13 +32,21 @@ import {
 } from '@/components/settings/servers/AddServerDialog';
 import { EditServerDialog } from '@/components/settings/servers/EditServerDialog';
 import { ServerRow } from '@/components/settings/servers/ServerRow';
+<<<<<<< HEAD
+import { api } from '@/lib/api';
+=======
 import { api, tokenStorage } from '@/lib/api';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import type { PlexDiscoveredServer } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
 import {
   useDeleteServer,
   useReorderServers,
+<<<<<<< HEAD
+  useRequestServices,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   useServers,
   useSyncServer,
   useUpdateServer,
@@ -54,11 +62,22 @@ export function Connections() {
   const queryClient = useQueryClient();
   const { refetch: refetchUser, user } = useAuth();
   const { serverConnectionStatuses } = useSocket();
+<<<<<<< HEAD
+  const isOwner = user?.role === 'owner';
+  const { data: requestServices, isLoading: requestServicesLoading } = useRequestServices({
+    enabled: isOwner,
+  });
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editServer, setEditServer] = useState<Server | null>(null);
+<<<<<<< HEAD
+  const [serverType, setServerType] = useState<'plex' | 'jellyfin' | 'emby'>('plex');
+=======
   const [serverType, setServerType] = useState<'plex' | 'jellyfin' | 'emby' | 'navidrome'>('plex');
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   const [serverUrl, setServerUrl] = useState('');
   const [publicUrl, setPublicUrl] = useState('');
   const [serverName, setServerName] = useState('');
@@ -76,8 +95,11 @@ export function Connections() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+<<<<<<< HEAD
+=======
   const isOwner = user?.role === 'owner';
 
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   useEffect(() => {
     if (user && !isOwner && serverType === 'plex') {
       setServerType('jellyfin');
@@ -192,6 +214,8 @@ export function Connections() {
     setConnectError(null);
 
     try {
+<<<<<<< HEAD
+=======
       if (serverType === 'navidrome') {
         await api.servers.create({
           name: serverName,
@@ -205,21 +229,30 @@ export function Connections() {
         return;
       }
 
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       const connectFn =
         serverType === 'jellyfin'
           ? api.auth.connectJellyfinWithApiKey
           : api.auth.connectEmbyWithApiKey;
+<<<<<<< HEAD
+      await connectFn({
+=======
       const result = await connectFn({
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         serverUrl,
         serverName,
         apiKey,
         ...(publicUrl.trim() ? { publicUrl: publicUrl.trim() } : {}),
       });
+<<<<<<< HEAD
+      await refetchUser();
+=======
 
       if (result.accessToken && result.refreshToken) {
         tokenStorage.setTokens(result.accessToken, result.refreshToken);
         await refetchUser();
       }
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       await refetch();
       setShowAddDialog(false);
       resetAddForm();
@@ -284,8 +317,18 @@ export function Connections() {
                   onSync={() => syncServer.mutate(server.id)}
                   onDelete={() => setDeleteId(server.id)}
                   onEdit={() => setEditServer(server)}
+<<<<<<< HEAD
+                  isSyncing={syncServer.isPending && syncServer.variables === server.id}
+                  isDraggable={isOwner}
+                  requestService={
+                    isOwner && !requestServicesLoading
+                      ? { service: requestServices?.find((s) => s.serverId === server.id) }
+                      : undefined
+                  }
+=======
                   isSyncing={syncServer.isPending}
                   isDraggable={isOwner}
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                 />
               ))}
             </ItemGroup>

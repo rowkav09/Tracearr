@@ -26,7 +26,10 @@
  *   pnpm check:english --locale=de-DE
  *   pnpm check:english --json=report.json
  *   pnpm check:english --show=regression,recoverable,stale
+<<<<<<< HEAD
+=======
  *   pnpm check:english --include-en-us   # en-US is English on purpose
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
  */
 
 import { execFileSync } from 'node:child_process';
@@ -38,7 +41,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PKG_ROOT = path.resolve(__dirname, '..');
 const LOCALES_DIR = path.join(PKG_ROOT, 'src', 'locales');
 const BASE_LANG = 'en';
+<<<<<<< HEAD
+const SKIP_DIRS = new Set([BASE_LANG]);
+=======
 const SKIP_DIRS = new Set(['_template', BASE_LANG]);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 const REPO_ROOT = execFileSync('git', ['rev-parse', '--show-toplevel'], {
   cwd: PKG_ROOT,
@@ -55,7 +62,10 @@ const argValue = (name: string): string | undefined =>
     .join('=');
 const onlyLocale = argValue('locale');
 const jsonOut = argValue('json');
+<<<<<<< HEAD
+=======
 const includeEnUs = args.includes('--include-en-us');
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 const show = new Set((argValue('show') ?? 'regression').split(',').filter(Boolean));
 
 interface TranslationObject {
@@ -305,7 +315,10 @@ const locales = fs
   .filter((d) => d.isDirectory() && !SKIP_DIRS.has(d.name))
   .map((d) => d.name)
   .filter((l) => (onlyLocale ? l === onlyLocale : true))
+<<<<<<< HEAD
+=======
   .filter((l) => (includeEnUs ? true : l !== 'en-US'))
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   .sort();
 
 // ---- English corpus ----

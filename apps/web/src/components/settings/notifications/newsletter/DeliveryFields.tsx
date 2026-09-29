@@ -162,6 +162,10 @@ export function DeliveryFields({ state, onChange, errors, mode, touch, touched }
           onOpenChange={setAddOpen}
           mode="create"
           initialKind="email"
+<<<<<<< HEAD
+          purpose="newsletter"
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           onCreated={(created) => onChange({ destinationId: created.id })}
         />
       )}

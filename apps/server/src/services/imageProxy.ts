@@ -23,9 +23,18 @@ import { cacheWriteAllowed, noteCacheWrite } from './imageCacheGuard.js';
 sharp.concurrency(1);
 // Token encryption removed - tokens now stored in plain text (DB is localhost-only)
 
+<<<<<<< HEAD
+// Cache directory, sharded by the first two hex chars of the cache key so no
+// single directory holds every cached file. The Docker images set
+// IMAGE_CACHE_DIR to a mounted volume; without it the cache lives on the
+// container's writable layer and is lost on recreate.
+export const IMAGE_CACHE_DIR =
+  process.env.IMAGE_CACHE_DIR ?? join(process.cwd(), 'data', 'image-cache');
+=======
 // Cache directory (in project root/data/image-cache), sharded by the first two
 // hex chars of the cache key so no single directory holds every cached file.
 export const IMAGE_CACHE_DIR = join(process.cwd(), 'data', 'image-cache');
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 const CACHE_TTL_MS = TIME_MS.DAY;
 
 // Ensure cache directory exists
@@ -72,6 +81,13 @@ interface ProxyOptions {
   version?: string;
   /** Web grid only: race the miss against the LQIP placeholder after 2 s. Everything else waits for the real image. */
   lqip?: boolean;
+<<<<<<< HEAD
+  /** Background warms: skip the original-size retry. A struggling transcoder
+   *  must not be answered with a larger request; the next pass re-warms
+   *  whatever this one missed. */
+  resizedOnly?: boolean;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 interface ProxyResult {
@@ -80,6 +96,12 @@ interface ProxyResult {
   cached: boolean;
   /** Overrides the caller's default Cache-Control (used for the LQIP degraded response). */
   cacheControl?: string;
+<<<<<<< HEAD
+  /** The upstream fetch failed and this is a placeholder. Background warms
+   *  turn it into an error; live requests render it. */
+  degraded?: boolean;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 /**
@@ -395,6 +417,10 @@ interface MissPipelineArgs {
   fallback: FallbackType;
   cachePath: string;
   shardDir: string;
+<<<<<<< HEAD
+  resizedOnly: boolean;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 /**
@@ -422,7 +448,11 @@ async function getServerRow(serverId: string): Promise<typeof servers.$inferSele
 }
 
 async function runMissPipeline(args: MissPipelineArgs): Promise<ProxyResult> {
+<<<<<<< HEAD
+  const { serverId, imagePath, width, height, fallback, cachePath, shardDir, resizedOnly } = args;
+=======
   const { serverId, imagePath, width, height, fallback, cachePath, shardDir } = args;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
   const server = await getServerRow(serverId);
   if (!server) {
@@ -442,10 +472,19 @@ async function runMissPipeline(args: MissPipelineArgs): Promise<ProxyResult> {
   try {
     // Inside the try so a blocked path degrades to the fallback image like any
     // other upstream failure, instead of escaping as a 500.
+<<<<<<< HEAD
+    const candidates = resizedOnly
+      ? [buildUpstreamRequest(server, imagePath, { width, height })]
+      : [
+          buildUpstreamRequest(server, imagePath, { width, height }),
+          buildUpstreamRequest(server, imagePath),
+        ];
+=======
     const candidates = [
       buildUpstreamRequest(server, imagePath, { width, height }),
       buildUpstreamRequest(server, imagePath),
     ];
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     let imageBuffer: Buffer | null = null;
     let lastError: unknown = null;
     for (const { imageUrl, headers } of candidates) {
@@ -480,7 +519,13 @@ async function runMissPipeline(args: MissPipelineArgs): Promise<ProxyResult> {
         : new Error(String(lastError ?? 'upstream fetch failed'));
     }
 
+<<<<<<< HEAD
+    // Phone photos store their rotation as an EXIF tag, and the webp output
+    // drops EXIF, so the tag has to be applied to the pixels first
+    const resized = await sharp(imageBuffer, { autoOrient: true })
+=======
     const resized = await sharp(imageBuffer)
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       .resize(width, height, {
         fit: 'cover',
         position: 'center',
@@ -497,7 +542,15 @@ async function runMissPipeline(args: MissPipelineArgs): Promise<ProxyResult> {
   } catch {
     // Return fallback on any error, capped at a short cache lifetime so an
     // upstream blip (e.g. a Plex restart) can't pin "No Image" for a year.
+<<<<<<< HEAD
+    // Flagged degraded so a background warm can tell a dead transcoder from a
+    // real image; the pipeline itself must not reject, because live requests
+    // coalesce onto this same promise and would get a 500 instead.
     return {
+      degraded: true,
+=======
+    return {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       data: getFallbackImage(fallback, width, height),
       contentType: 'image/svg+xml',
       cached: false,
@@ -569,6 +622,10 @@ export async function proxyImage(options: ProxyOptions): Promise<ProxyResult> {
     fallback = 'poster',
     version,
     lqip = false,
+<<<<<<< HEAD
+    resizedOnly = false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   } = options;
 
   // A 360x540 poster is always the one versioned entry, whether or not the URL
@@ -604,6 +661,10 @@ export async function proxyImage(options: ProxyOptions): Promise<ProxyResult> {
       fallback,
       cachePath,
       shardDir,
+<<<<<<< HEAD
+      resizedOnly,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     }).finally(() => {
       inFlightMisses.delete(fileName);
     });

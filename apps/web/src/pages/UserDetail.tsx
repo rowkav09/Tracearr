@@ -19,6 +19,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+<<<<<<< HEAD
+import { UserRequestsCard } from '@/components/requests/UserRequestsCard';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { TrustScoreBadge } from '@/components/users/TrustScoreBadge';
 import { UserLocationsCard } from '@/components/users/UserLocationsCard';
 import { UserDevicesCard } from '@/components/users/UserDevicesCard';
@@ -207,6 +211,10 @@ export function UserDetail() {
         violationColumn.accessor((violation) => violation.rule.name, {
           id: 'rule.name',
           header: t('common:labels.rule'),
+<<<<<<< HEAD
+          enableSorting: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           cell: ({ row }) => (
             <div>
               <p className="font-medium">{row.original.rule.name}</p>
@@ -230,12 +238,20 @@ export function UserDetail() {
           : []),
         violationColumn.accessor('severity', {
           header: t('common:labels.severity'),
+<<<<<<< HEAD
+          enableSorting: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           cell: ({ row }) => (
             <SeverityBadge severity={row.original.severity as 'low' | 'warning' | 'high'} />
           ),
         }),
         violationColumn.accessor('createdAt', {
           header: t('common:labels.when'),
+<<<<<<< HEAD
+          enableSorting: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           cell: ({ row }) => (
             <span className="text-muted-foreground text-sm">
               {formatDistanceToNow(new Date(row.original.createdAt), { addSuffix: true })}
@@ -244,6 +260,10 @@ export function UserDetail() {
         }),
         violationColumn.accessor('acknowledgedAt', {
           header: t('common:labels.status'),
+<<<<<<< HEAD
+          enableSorting: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           cell: ({ row }) => (
             <span
               className={
@@ -267,6 +287,10 @@ export function UserDetail() {
       terminationColumn.columns([
         terminationColumn.accessor('trigger', {
           header: t('common:labels.type'),
+<<<<<<< HEAD
+          enableSorting: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           cell: ({ row }) => (
             <Badge variant={row.original.trigger === 'manual' ? 'default' : 'secondary'}>
               {row.original.trigger === 'manual' ? (
@@ -285,6 +309,10 @@ export function UserDetail() {
         }),
         terminationColumn.accessor('mediaTitle', {
           header: t('common:labels.media'),
+<<<<<<< HEAD
+          enableSorting: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           cell: ({ row }) => {
             const { title, subtitle } = getMediaDisplay(row.original);
             return (
@@ -317,6 +345,10 @@ export function UserDetail() {
           : []),
         terminationColumn.accessor('createdAt', {
           header: t('common:labels.when'),
+<<<<<<< HEAD
+          enableSorting: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           cell: ({ row }) => (
             <span className="text-muted-foreground text-sm">
               {formatDistanceToNow(new Date(row.original.createdAt), { addSuffix: true })}
@@ -325,6 +357,10 @@ export function UserDetail() {
         }),
         terminationColumn.accessor('triggeredByUsername', {
           header: t('pages:userDetail.byRule'),
+<<<<<<< HEAD
+          enableSorting: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           cell: ({ row }) => {
             const log = row.original;
             if (log.trigger === 'manual') {
@@ -343,6 +379,10 @@ export function UserDetail() {
         }),
         terminationColumn.accessor('reason', {
           header: t('common:labels.reason'),
+<<<<<<< HEAD
+          enableSorting: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           cell: ({ row }) => (
             <span className="text-muted-foreground block max-w-[150px] truncate text-sm">
               {row.original.reason ?? '—'}
@@ -351,6 +391,10 @@ export function UserDetail() {
         }),
         terminationColumn.accessor('success', {
           header: t('common:labels.status'),
+<<<<<<< HEAD
+          enableSorting: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           cell: ({ row }) => (
             <span className={row.original.success ? 'text-green-500' : 'font-medium text-red-500'}>
               {row.original.success ? t('common:states.success') : t('common:states.failed')}
@@ -775,6 +819,11 @@ export function UserDetail() {
         </Card>
       )}
 
+<<<<<<< HEAD
+      <UserRequestsCard serverUserId={effectiveId!} scope={identityScope} />
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       {/* Locations and Devices */}
       <div className="grid gap-6 lg:grid-cols-2">
         <UserLocationsCard
@@ -845,6 +894,10 @@ export function UserDetail() {
               />
             </DataTableViewport>
             <DataTablePager
+<<<<<<< HEAD
+              variant="footer"
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
               {...violationsPager}
               labels={{
                 navigation: t('common:table.pagination'),
@@ -885,6 +938,10 @@ export function UserDetail() {
               />
             </DataTableViewport>
             <DataTablePager
+<<<<<<< HEAD
+              variant="footer"
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
               {...terminationsPager}
               labels={{
                 navigation: t('common:table.pagination'),

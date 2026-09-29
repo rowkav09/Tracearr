@@ -1,5 +1,8 @@
+<<<<<<< HEAD
+=======
 import { NavidromeClient } from './navidrome/client.js';
 export { NavidromeClient } from './navidrome/client.js';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 /**
  * Media Server Client Module
  *
@@ -59,8 +62,11 @@ export function createMediaServerClient(options: CreateClientOptions): IMediaSer
   };
 
   switch (options.type) {
+<<<<<<< HEAD
+=======
     case 'navidrome':
       return new NavidromeClient(config);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     case 'plex':
       return new PlexClient(config);
     case 'jellyfin':

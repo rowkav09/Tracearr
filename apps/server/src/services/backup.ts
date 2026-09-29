@@ -27,17 +27,30 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 import { ZipArchive } from 'archiver';
 import { Open } from 'unzipper';
+<<<<<<< HEAD
+import {
+  compareVersions,
+  type BackupListItem,
+  type BackupMetadata,
+  type BackupType,
+} from '@tracearr/shared';
+=======
 import type { BackupListItem, BackupMetadata, BackupType } from '@tracearr/shared';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { sql } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { sessions, users, servers, automations, libraryItems } from '../db/schema.js';
 
+<<<<<<< HEAD
+import { getCurrentVersion, getCurrentCommit, getCurrentTag } from '../jobs/versionCheckQueue.js';
+=======
 import {
   getCurrentVersion,
   getCurrentCommit,
   getCurrentTag,
   compareVersions,
 } from '../jobs/versionCheckQueue.js';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 // ---------------------------------------------------------------------------
 // Helpers

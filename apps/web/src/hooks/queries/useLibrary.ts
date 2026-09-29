@@ -17,6 +17,10 @@ import type {
   LibraryQualityResponse,
   LibraryStorageResponse,
   DuplicatesResponse,
+<<<<<<< HEAD
+  DuplicateFilesResponse,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   StaleResponse,
   WatchResponse,
   CompletionResponse,
@@ -143,6 +147,23 @@ export function useLibraryDuplicates(
 }
 
 /**
+<<<<<<< HEAD
+ * Ask the media server whether a duplicate group's files are still there.
+ * Enabled per expanded group, so nothing is probed until someone looks.
+ */
+export function useDuplicateFiles(itemIds: string[], enabled: boolean) {
+  const key = itemIds.slice().sort().join(',');
+  return useQuery<DuplicateFilesResponse>({
+    queryKey: ['library', 'duplicate-files', key],
+    queryFn: () => api.library.duplicateFiles(itemIds),
+    staleTime: 60_000,
+    enabled: enabled && itemIds.length > 0,
+  });
+}
+
+/**
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
  * Fetch stale/unwatched content analysis - combined across all selected servers.
  */
 export function useLibraryStale(

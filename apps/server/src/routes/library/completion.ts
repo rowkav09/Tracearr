@@ -305,11 +305,19 @@ async function executeItemLevel(
 ) {
   // Sort column mapping
   const sortColumnMap: Record<string, ReturnType<typeof sql>> = {
+<<<<<<< HEAD
+    completion_pct: sql`with_completion.completion_pct`,
+    title: sql`with_completion.sort_key`,
+    last_watched: sql`with_completion.last_watched_at`,
+  };
+  const sortColumn = sortColumnMap[sortBy] || sql`with_completion.completion_pct`;
+=======
     completion_pct: sql`completion_pct`,
     title: sql`title`,
     last_watched: sql`last_watched_at`,
   };
   const sortColumn = sortColumnMap[sortBy] || sql`completion_pct`;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   const sortDir = sortOrder === 'asc' ? sql`ASC NULLS LAST` : sql`DESC NULLS FIRST`;
 
   // Main query: join library_items with content_engagement_summary (aggregated across users)
@@ -321,6 +329,10 @@ async function executeItemLevel(
         s.name AS server_name,
         li.title,
         li.media_type,
+<<<<<<< HEAD
+        COALESCE(m.sort_title, lower(li.title)) AS sort_key,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         -- Aggregate engagement across all users for this content
         COALESCE(SUM(ces.cumulative_watched_ms), 0) AS watched_ms,
         COALESCE(MAX(ces.content_duration_ms), 0) AS runtime_ms,
@@ -332,6 +344,10 @@ async function executeItemLevel(
         BOOL_OR(ces.engagement_tier IN ('watched', 'rewatched')) AS has_completion
       FROM library_items li
       JOIN servers s ON li.server_id = s.id
+<<<<<<< HEAD
+      LEFT JOIN media m ON m.id = li.media_id
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       LEFT JOIN content_engagement_summary ces
         ON ces.rating_key = li.rating_key
         AND ces.server_id = li.server_id
@@ -340,7 +356,11 @@ async function executeItemLevel(
         ${serverFilter}
         ${libraryFilter}
         ${mediaTypeFilter}
+<<<<<<< HEAD
+      GROUP BY li.id, li.server_id, s.name, li.title, li.media_type, m.sort_title
+=======
       GROUP BY li.id, li.server_id, s.name, li.title, li.media_type
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     ),
     with_completion AS (
       SELECT
@@ -349,6 +369,10 @@ async function executeItemLevel(
         server_name,
         title,
         media_type,
+<<<<<<< HEAD
+        sort_key,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         watched_ms,
         runtime_ms,
         show_title,
@@ -385,7 +409,11 @@ async function executeItemLevel(
       ${statusFilterSql}
       ${minCompletionFilter}
       ${maxCompletionFilter}
+<<<<<<< HEAD
+    ORDER BY ${sortColumn} ${sortDir}, with_completion.id ASC
+=======
     ORDER BY ${sortColumn} ${sortDir}
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     LIMIT ${pageSize} OFFSET ${offset}
   `);
 
@@ -491,11 +519,19 @@ async function executeSeasonLevel(
 ) {
   // Sort column mapping (different columns for season view)
   const sortColumnMap: Record<string, ReturnType<typeof sql>> = {
+<<<<<<< HEAD
+    completion_pct: sql`with_completion.completion_pct`,
+    title: sql`lower(with_completion.show_title)`,
+    last_watched: sql`lower(with_completion.show_title)`, // No last_watched at season level, fall back to title
+  };
+  const sortColumn = sortColumnMap[sortBy] || sql`with_completion.completion_pct`;
+=======
     completion_pct: sql`completion_pct`,
     title: sql`show_title`,
     last_watched: sql`show_title`, // No last_watched at season level, fall back to title
   };
   const sortColumn = sortColumnMap[sortBy] || sql`completion_pct`;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   const sortDir = sortOrder === 'asc' ? sql`ASC NULLS LAST` : sql`DESC NULLS FIRST`;
 
   const seasonsResult = await db.execute(sql`
@@ -556,7 +592,11 @@ async function executeSeasonLevel(
       ${statusFilterSql}
       ${minCompletionFilter}
       ${maxCompletionFilter}
+<<<<<<< HEAD
+    ORDER BY ${sortColumn} ${sortDir}, with_completion.server_id, with_completion.show_title, with_completion.season_number
+=======
     ORDER BY ${sortColumn} ${sortDir}
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     LIMIT ${pageSize} OFFSET ${offset}
   `);
 
@@ -660,11 +700,19 @@ async function executeSeriesLevel(
 ) {
   // Sort column mapping for series
   const sortColumnMap: Record<string, ReturnType<typeof sql>> = {
+<<<<<<< HEAD
+    completion_pct: sql`with_status.avg_season_completion_pct`,
+    title: sql`lower(with_status.show_title)`,
+    last_watched: sql`lower(with_status.show_title)`, // Fall back to title
+  };
+  const sortColumn = sortColumnMap[sortBy] || sql`with_status.avg_season_completion_pct`;
+=======
     completion_pct: sql`avg_season_completion_pct`,
     title: sql`show_title`,
     last_watched: sql`show_title`, // Fall back to title
   };
   const sortColumn = sortColumnMap[sortBy] || sql`avg_season_completion_pct`;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   const sortDir = sortOrder === 'asc' ? sql`ASC NULLS LAST` : sql`DESC NULLS FIRST`;
 
   const seriesResult = await db.execute(sql`
@@ -744,7 +792,11 @@ async function executeSeriesLevel(
     FROM with_status
     WHERE 1=1
       ${statusFilterSql}
+<<<<<<< HEAD
+    ORDER BY ${sortColumn} ${sortDir}, with_status.server_id, with_status.show_title
+=======
     ORDER BY ${sortColumn} ${sortDir}
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     LIMIT ${pageSize} OFFSET ${offset}
   `);
 

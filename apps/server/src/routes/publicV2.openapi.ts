@@ -82,11 +82,19 @@ registry.registerPath({
 
 const PLAY_SEMANTICS =
   'A play is one resume chain: sessions are grouped by COALESCE(reference_id, id), where ' +
+<<<<<<< HEAD
+  'reference_id IS NULL marks the chain start. A chain counts once when any of its sessions ' +
+  'reaches 2 minutes (COALESCE(duration_ms, 0) >= 120000), including a chain that crosses UTC ' +
+  'midnight. Rating keys the media server never provided are returned as null.';
+
+const ServerTypeEnum = z.enum(['plex', 'jellyfin', 'emby']);
+=======
   'reference_id IS NULL marks the chain start. Chains where no session reaches 2 minutes are ' +
   'excluded (COALESCE(duration_ms, 0) >= 120000). Rating keys the media server never provided ' +
   'are returned as null.';
 
 const ServerTypeEnum = z.enum(['plex', 'jellyfin', 'emby', 'navidrome']);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 // Responses can carry 'trailer' (sessions store it); the history filter
 // deliberately accepts only the six primary types.
 const MediaTypeEnum = z.enum(['movie', 'episode', 'track', 'live', 'photo', 'trailer', 'unknown']);
@@ -511,8 +519,12 @@ const MediaAvailability = z
       .openapi({
         description:
           "The best version's resolution as a lowercase token (8k, 4k, 1440p, 1080p, 720p, " +
+<<<<<<< HEAD
+          '480p, sd). Null on show rows, which carry no file of their own',
+=======
           '480p, sd; unrecognized server labels pass through verbatim). Null on show rows, ' +
           'which carry no file of their own',
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         example: '4k',
       }),
     file_size: z

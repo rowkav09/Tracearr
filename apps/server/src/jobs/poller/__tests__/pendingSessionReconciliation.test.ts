@@ -286,12 +286,20 @@ describe('poller isNew branch defers to a pending session', () => {
       isConfirmed: true,
     });
 
+<<<<<<< HEAD
+    const insertedGeo = { city: 'Chicago', country: 'US', isLocal: true };
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     mockConfirmAndPersistSession.mockResolvedValue({
       insertedSession: { id: 'pending-uuid-123', sessionKey: 'test-session-key' },
       violationResults: [],
       qualityChange: null,
       referenceId: null,
       wasTerminatedByRule: false,
+<<<<<<< HEAD
+      geo: insertedGeo,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     });
 
     mockBuildActiveSession.mockReturnValue({
@@ -315,6 +323,12 @@ describe('poller isNew branch defers to a pending session', () => {
     );
 
     expect(cacheService.deletePendingSession).toHaveBeenCalledWith('server-1', 'test-session-key');
+<<<<<<< HEAD
+    expect(mockBuildActiveSession).toHaveBeenCalledWith(
+      expect.objectContaining({ geo: insertedGeo })
+    );
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
     expect(mockProcessPollResults).toHaveBeenCalledTimes(1);
     const pollCall = mockProcessPollResults.mock.calls[0]?.[0];

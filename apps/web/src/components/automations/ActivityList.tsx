@@ -5,7 +5,10 @@ import { Activity } from 'lucide-react';
 import type { Automation, AutomationRunSummary, RunOutcome } from '@tracearr/shared';
 import { contextOf, contextSupplies, listPageCount } from '@tracearr/shared';
 import { EvaluationsList } from '@/components/automations/EvaluationsList';
+<<<<<<< HEAD
+=======
 import { SELECTED_TOGGLE } from '@/components/automations/builder/selection';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import {
   createDataTableColumnHelper,
   DataTableBody,
@@ -84,6 +87,10 @@ export function ActivityList({ automation, onSelectRun }: ActivityListProps) {
       columnHelper.columns([
         columnHelper.accessor('outcome', {
           header: t('pages:automations.activity.outcome'),
+<<<<<<< HEAD
+          enableSorting: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           cell: ({ row }) => (
             <span className="flex items-center gap-2 whitespace-nowrap">
               <span
@@ -96,6 +103,10 @@ export function ActivityList({ automation, onSelectRun }: ActivityListProps) {
         }),
         columnHelper.accessor('humanSummary', {
           header: t('pages:automations.activity.summary'),
+<<<<<<< HEAD
+          enableSorting: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           cell: ({ row }) => <SummaryCell run={row.original} />,
         }),
         ...(subjectColumn === 'who'
@@ -103,6 +114,10 @@ export function ActivityList({ automation, onSelectRun }: ActivityListProps) {
               columnHelper.accessor('subject', {
                 id: 'who',
                 header: t('pages:automations.activity.who'),
+<<<<<<< HEAD
+                enableSorting: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                 cell: ({ row }) => (
                   <UserCell
                     serverUserId={row.original.serverUserId}
@@ -121,6 +136,10 @@ export function ActivityList({ automation, onSelectRun }: ActivityListProps) {
               columnHelper.accessor('subject', {
                 id: 'item',
                 header: t('pages:automations.activity.item'),
+<<<<<<< HEAD
+                enableSorting: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                 cell: ({ row }) => <Named name={runWho(row.original.subject)} />,
               }),
             ]
@@ -128,12 +147,20 @@ export function ActivityList({ automation, onSelectRun }: ActivityListProps) {
         columnHelper.accessor('subject', {
           id: 'where',
           header: t('pages:automations.activity.where'),
+<<<<<<< HEAD
+          enableSorting: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           cell: ({ row }) => <Named name={runWhere(row.original.subject)} />,
         }),
         ...(kind === 'policy'
           ? [
               columnHelper.accessor('severity', {
                 header: t('common:labels.severity'),
+<<<<<<< HEAD
+                enableSorting: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                 cell: ({ row }) =>
                   row.original.severity ? (
                     <SeverityBadge severity={row.original.severity} />
@@ -145,6 +172,10 @@ export function ActivityList({ automation, onSelectRun }: ActivityListProps) {
           : []),
         columnHelper.accessor('startedAt', {
           header: t('pages:automations.activity.started'),
+<<<<<<< HEAD
+          enableSorting: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           cell: ({ row }) => (
             <span className="text-muted-foreground whitespace-nowrap">
               {formatDistanceToNow(new Date(row.original.startedAt), { addSuffix: true })}
@@ -180,7 +211,11 @@ export function ActivityList({ automation, onSelectRun }: ActivityListProps) {
         }}
       >
         {OUTCOME_TABS.map((value) => (
+<<<<<<< HEAD
+          <ToggleGroupItem key={value} value={value}>
+=======
           <ToggleGroupItem key={value} value={value} className={SELECTED_TOGGLE}>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
             {t(`pages:automations.activity.tabs.${value}`)}
             {counts && (
               <span className="text-muted-foreground text-xs tabular-nums">
@@ -220,6 +255,10 @@ export function ActivityList({ automation, onSelectRun }: ActivityListProps) {
           />
         </DataTableViewport>
         <DataTablePager
+<<<<<<< HEAD
+          variant="footer"
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           {...pager}
           labels={{
             navigation: t('common:table.pagination'),

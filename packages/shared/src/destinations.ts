@@ -1,4 +1,8 @@
 import { z } from 'zod';
+<<<<<<< HEAD
+import { isEmailAddress } from './emailAddress.js';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import type { NotificationEventType, ViolationSeverity } from './types.js';
 
 export const DESTINATION_KINDS = [
@@ -52,7 +56,12 @@ export interface DestinationFieldDescriptor {
   key: string;
   /** i18n key under pages:settings.destinations.fields */
   label: string;
+<<<<<<< HEAD
+  /** toggle stores 'true' or 'false' so the config blob stays all strings; absent reads as the default */
+  input: 'text' | 'url' | 'secret' | 'select' | 'number' | 'email' | 'emails' | 'toggle';
+=======
   input: 'text' | 'url' | 'secret' | 'select' | 'number' | 'email' | 'emails';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   required: boolean;
   /** Masked on read, kept on omit; every url is secret because webhook urls embed credentials */
   secret: boolean;
@@ -249,6 +258,23 @@ const emails = (
   placeholder,
   hint,
 });
+<<<<<<< HEAD
+const toggle = (
+  key: string,
+  label: string,
+  def: 'true' | 'false',
+  hint: string
+): DestinationFieldDescriptor => ({
+  key,
+  label,
+  input: 'toggle',
+  required: false,
+  secret: false,
+  default: def,
+  hint,
+});
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 const grouped = (
   group: string,
   fields: readonly DestinationFieldDescriptor[]
@@ -339,6 +365,10 @@ export const DESTINATION_TYPES = {
         text('host', 'host', true, 'smtp.example.com'),
         number('port', 'port', '587', 1, 65535),
         select('security', 'security', SECURITY_OPTIONS, 'starttls'),
+<<<<<<< HEAD
+        toggle('verifyCertificate', 'verifyCertificate', 'true', 'smtpVerifyCertificate'),
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         { ...text('username', 'username', false), hint: 'smtpUsernameOptional' },
         secret('password', 'password', false),
         number('messagesPerSecond', 'messagesPerSecond', '2', 1, 50, 'smtpRate'),
@@ -354,9 +384,13 @@ export const DESTINATION_TYPES = {
         email('fromAddress', 'fromAddress', true, 'tracearr@example.com'),
         email('replyTo', 'replyTo', false),
       ]),
+<<<<<<< HEAD
+      ...grouped('alerts', [emails('to', 'to', false, 'you@example.com', 'smtpTo')]),
+=======
       ...grouped('alerts', [
         emails('to', 'to', false, 'you@example.com, admin@example.com', 'smtpTo'),
       ]),
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     ],
   },
   push: {
@@ -382,12 +416,15 @@ const httpUrl = z
   .trim()
   .refine((v) => /^https?:\/\/\S+$/i.test(v), 'Must be an http(s) URL');
 
+<<<<<<< HEAD
+=======
 const address = z.email();
 
 function isAddress(value: string): boolean {
   return address.safeParse(value).success;
 }
 
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 export function addressList(value: string): string[] {
   return value
     .split(',')
@@ -403,14 +440,22 @@ function fieldSchema(f: DestinationFieldDescriptor): z.ZodString {
     case 'url':
       return httpUrl;
     case 'email':
+<<<<<<< HEAD
+      return z.string().trim().max(254).refine(blankOk(isEmailAddress), 'Must be an email address');
+=======
       return z.string().trim().max(254).refine(blankOk(isAddress), 'Must be an email address');
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     case 'emails':
       return z
         .string()
         .trim()
         .max(2000)
         .refine(
+<<<<<<< HEAD
+          blankOk((v) => addressList(v).length > 0 && addressList(v).every(isEmailAddress)),
+=======
           blankOk((v) => addressList(v).length > 0 && addressList(v).every(isAddress)),
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           'Must be one or more comma-separated email addresses'
         );
     case 'number': {
@@ -431,6 +476,14 @@ function fieldSchema(f: DestinationFieldDescriptor): z.ZodString {
         'Must be one of the listed options'
       );
     }
+<<<<<<< HEAD
+    case 'toggle':
+      return z.string().refine(
+        blankOk((v) => v === 'true' || v === 'false'),
+        'Must be true or false'
+      );
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     case 'text':
     case 'secret': {
       const { pattern } = f;

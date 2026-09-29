@@ -47,6 +47,16 @@
     "joinCommunity": "Junte-se à comunidade",
     "docs": "",
     "readDocs": "",
+<<<<<<< HEAD
+    "website": "Site",
+    "visitWebsite": "Visita tracearr.com",
+    "github": "Github",
+    "viewSourceCode": "Ver código-fonte",
+    "sponsor": "Patrocinador",
+    "supportDevelopment": "Apoia o desenvolvimento",
+    "account": "conta",
+    "disconnect": "Desconectar",
+=======
     "website": "",
     "visitWebsite": "",
     "github": "",
@@ -55,10 +65,29 @@
     "supportDevelopment": "",
     "account": "conta",
     "disconnect": "",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "disconnectServer": "Desconectar servidor",
     "disconnectConfirm": "Tem certeza que deseja desconectar do \"{{serverName}}\"? Você precisará parear novamente para usar o aplicativo.",
     "disconnectConfirmGeneric": "Tem certeza que deseja desconectar? Você precisará parear novamente para usar o aplicativo.",
     "currentlyConnected": "Conectado atualmente a {{serverName}}",
+<<<<<<< HEAD
+    "version": "Versão {{version}}",
+    "build": "Build {{build}}"
+  },
+  "navigation": {
+    "home": "Início",
+    "selectServer": "Selecionar servidor",
+    "server": "Servidor",
+    "navigation": "Navegação"
+  },
+  "resources": {
+    "cpu": "cpu",
+    "ram": "RAM",
+    "item": "",
+    "noData": "",
+    "system": "Sistema",
+    "waiting": ""
+=======
     "version": "",
     "build": ""
   },
@@ -71,6 +100,7 @@
   "resources": {
     "cpu": "cpu",
     "ram": ""
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "notifications": {
     "testSent": "Teste Enviado",
@@ -98,11 +128,27 @@
     "criticalOverrideDescription": "",
     "rateLimitDescription": "",
     "sendTestNotification": "",
+<<<<<<< HEAD
+    "testDescription": "",
+    "pushNotifications": "",
+    "ruleTypes": {
+      "accountInactivity": "",
+      "deviceVelocity": "",
+      "geoRestriction": "",
+      "impossibleTravel": "",
+      "simultaneousLocations": ""
+    },
+    "severityAll": "",
+    "severityHighOnly": "",
+    "severityWarningUp": "",
+    "violationTypes": ""
+=======
     "testDescription": ""
   },
   "dashboard": {
     "today": "",
     "hrs": ""
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "session": {
     "streamTerminated": "",
@@ -117,6 +163,44 @@
     "moreDevices": "",
     "noViolations": "",
     "noTerminations": "",
+<<<<<<< HEAD
+    "lastSeen": "",
+    "terminatedBy": "",
+    "trustScoreConfirm": "",
+    "trustScoreRange": ""
+  },
+  "violation": {
+    "violationNotFoundDesc": "",
+    "ips": ""
+  },
+  "alerts": {
+    "clearFilters": "",
+    "acknowledgeAll": "",
+    "acknowledgeAllBody": "",
+    "acknowledgeAllBodySeverity": "",
+    "acknowledgeAllTitle_one": "",
+    "acknowledgeAllTitle_other": "",
+    "all": "",
+    "allClear": "",
+    "allServers": "",
+    "noAlertsRecorded": "",
+    "noMatches": "",
+    "pendingCount": ""
+  },
+  "history": {
+    "adjustFilters": "",
+    "historyWillAppear": "",
+    "filters": {
+      "clearCount": "",
+      "countries": "",
+      "filterBy": "",
+      "mediaType": "",
+      "noCountries": "",
+      "noPlatforms": "",
+      "noUsers": "",
+      "sectionSelected": ""
+    }
+=======
     "trustLow": "",
     "trustMedium": "",
     "trustHigh": ""
@@ -135,12 +219,20 @@
     "noHistoryFound": "",
     "adjustFilters": "",
     "historyWillAppear": ""
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "users": {
     "owner": "",
     "noUsers": "",
     "usersWillAppear": "",
+<<<<<<< HEAD
+    "noUsersMatch": "",
+    "joinedRelative": "",
+    "sortActive": "",
+    "sortTrust": ""
+=======
     "noUsersMatch": ""
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "activity": {
     "playsOverTime": "Reproduções ao longo do tempo",
@@ -160,7 +252,10 @@
     "allServers": ""
   },
   "reconnected": "",
+<<<<<<< HEAD
+=======
   "actionsExecuted": "",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   "serverScope": {
     "single": ""
   },
@@ -169,10 +264,77 @@
     "alerts": "",
     "alertsCount": "",
     "settings": "",
+<<<<<<< HEAD
+    "trustScore": "",
+    "decreaseTrustScore": "",
+    "filtersActive": "",
+    "increaseTrustScore": "",
+    "sortAscending": "",
+    "sortDescending": ""
+=======
     "trustScore": ""
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "map": {
     "noData": "",
     "unavailable": ""
+<<<<<<< HEAD
+  },
+  "automations": {
+    "conditions_one": "",
+    "conditions_other": "",
+    "editOnWeb": "",
+    "emptyDescription": "",
+    "kind": {
+      "notification": "",
+      "policy": ""
+    },
+    "lastRun": "",
+    "truncated": "",
+    "turnOffFailed": "",
+    "turnOnFailed": "",
+    "unsupportedDescription": "",
+    "unsupportedTitle": "",
+    "versionCheckFailed": ""
+  },
+  "charts": {
+    "weekOf": ""
+  },
+  "push": {
+    "violationTitle": ""
+  },
+  "streamDetails": {
+    "bitrate": "",
+    "channels": "",
+    "codec": "",
+    "color": "",
+    "container": "",
+    "forced": "",
+    "format": "",
+    "framerate": "",
+    "hwDecode": "",
+    "hwEncode": "",
+    "mono": "",
+    "noDetails": "",
+    "notAvailable": "",
+    "profile": "",
+    "sampleRate": "",
+    "source": "",
+    "speed": "",
+    "stereo": "",
+    "stream": "",
+    "subtitles": "",
+    "throttled": "",
+    "transcodeDetails": ""
+  },
+  "widget": {
+    "asOf": "",
+    "serversDown_one": "",
+    "serversDown_other": "",
+    "signedOut": "",
+    "transcodes_one": "",
+    "transcodes_other": ""
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   }
 }

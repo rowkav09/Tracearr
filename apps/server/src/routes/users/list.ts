@@ -32,6 +32,10 @@ import {
   resolveServerIds,
   buildMultiServerFragment,
 } from '../../utils/serverFiltering.js';
+<<<<<<< HEAD
+import { compareServers } from '../../utils/serverOrder.js';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import {
   buildOrderBy,
   likePattern,
@@ -52,6 +56,10 @@ import {
   recomputeIdentityAggregates,
 } from '../../services/userService.js';
 import { isLoginCapable } from '../../services/mergeService.js';
+<<<<<<< HEAD
+import { parseDateString } from '../../utils/parsing.js';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { representativeAccountOrderSql } from '../../utils/representativeAccount.js';
 import { PLAY_COUNT } from '../../constants/index.js';
 
@@ -64,15 +72,29 @@ const RESET_TRUST_REASON = 'reset by an owner';
 /**
  * Sort keys, all on the identity row so the LIMIT can ride an index on `users`
  * instead of sorting the whole server_users x users product. The directions and
+<<<<<<< HEAD
+ * NULLS placement mirror the users_* roster indexes in schema.ts exactly; see
+ * buildOrderBy.
+=======
  * NULLS placement mirror migration 0089's indexes exactly; see buildOrderBy.
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
  *
  * `username` orders on the identity's display name rather than the
  * representative account's server username. Those differ only when users.name
  * is set or a server-side rename left users.username behind, and the roster
  * renders identityName ?? username, so this sorts by what the row shows.
+<<<<<<< HEAD
+ * lower() because the database collation is byte order on every install family
+ * but the glibc dev image, so capitals would otherwise sort before every
+ * lowercase name.
+ */
+const USER_SORT_KEYS: Record<UserSortField, SortKey> = {
+  username: { key: sql`lower(coalesce(u.name, u.username))`, defaultDir: 'asc', nulls: 'last' },
+=======
  */
 const USER_SORT_KEYS: Record<UserSortField, SortKey> = {
   username: { key: sql`coalesce(u.name, u.username)`, defaultDir: 'asc', nulls: 'last' },
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   trustScore: { key: sql`u.aggregate_trust_score`, defaultDir: 'desc', nulls: 'last' },
   joinedAt: { key: sql`u.first_joined_at`, defaultDir: 'desc', nulls: 'last' },
   lastActivityAt: { key: sql`u.last_activity_at`, defaultDir: 'desc', nulls: 'last' },
@@ -260,6 +282,11 @@ export function buildUserRosterAccountIdQuery(roster: UserRosterSql): SQL {
   `;
 }
 
+<<<<<<< HEAD
+// db.execute skips Drizzle's column mapping, so timestamptz arrives as Postgres text
+// ('2026-09-17 14:29:35.04+00'), not a Date.
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 interface RosterPageRow {
   userId: string;
   identityName: string | null;
@@ -267,8 +294,13 @@ interface RosterPageRow {
   passwordHash: string | null;
   identityPlexAccountId: string | null;
   identityTrustScore: number;
+<<<<<<< HEAD
+  identityJoinedAt: string | null;
+  identityLastActivityAt: string | null;
+=======
   identityJoinedAt: Date | null;
   identityLastActivityAt: Date | null;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   plexAccountCount: number;
   authAccountCount: number;
   id: string;
@@ -280,10 +312,17 @@ interface RosterPageRow {
   thumbUrl: string | null;
   isServerAdmin: boolean;
   trustScore: number;
+<<<<<<< HEAD
+  joinedAt: string | null;
+  lastActivityAt: string | null;
+  removedAt: string | null;
+  updatedAt: string;
+=======
   joinedAt: Date | null;
   lastActivityAt: Date | null;
   removedAt: Date | null;
   updatedAt: Date;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 interface IdentityServer {
@@ -305,6 +344,17 @@ interface UserRosterRow {
   thumbUrl: string | null;
   isServerAdmin: boolean;
   trustScore: number;
+<<<<<<< HEAD
+  joinedAt: string | null;
+  lastActivityAt: string | null;
+  removedAt: string | null;
+  updatedAt: string;
+  identityName: string | null;
+  role: UserRole;
+  identityTrustScore: number;
+  identityJoinedAt: string | null;
+  identityLastActivityAt: string | null;
+=======
   joinedAt: Date | null;
   lastActivityAt: Date | null;
   removedAt: Date | null;
@@ -314,6 +364,7 @@ interface UserRosterRow {
   identityTrustScore: number;
   identityJoinedAt: Date | null;
   identityLastActivityAt: Date | null;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   loginCapable: boolean;
   identityServers: IdentityServer[];
 }
@@ -368,6 +419,10 @@ export const listRoutes: FastifyPluginAsync = async (app) => {
           userId: serverUsers.userId,
           serverId: serverUsers.serverId,
           serverName: servers.name,
+<<<<<<< HEAD
+          serverDisplayOrder: servers.displayOrder,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           serverUserId: serverUsers.id,
           removedAt: serverUsers.removedAt,
         })
@@ -375,6 +430,16 @@ export const listRoutes: FastifyPluginAsync = async (app) => {
         .innerJoin(servers, eq(serverUsers.serverId, servers.id))
         .where(identityWhereClause);
 
+<<<<<<< HEAD
+      identityServerRows.sort(
+        (a, b) =>
+          compareServers(
+            { displayOrder: a.serverDisplayOrder, name: a.serverName, id: a.serverId },
+            { displayOrder: b.serverDisplayOrder, name: b.serverName, id: b.serverId }
+          ) || a.serverUserId.localeCompare(b.serverUserId)
+      );
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       for (const row of identityServerRows) {
         const existing = identityServersByUserId.get(row.userId);
         const entry = {
@@ -402,17 +467,29 @@ export const listRoutes: FastifyPluginAsync = async (app) => {
       thumbUrl: row.thumbUrl,
       isServerAdmin: row.isServerAdmin,
       trustScore: row.trustScore,
+<<<<<<< HEAD
+      joinedAt: parseDateString(row.joinedAt),
+      lastActivityAt: parseDateString(row.lastActivityAt),
+      removedAt: parseDateString(row.removedAt),
+      updatedAt: new Date(row.updatedAt).toISOString(),
+=======
       joinedAt: row.joinedAt,
       lastActivityAt: row.lastActivityAt,
       removedAt: row.removedAt,
       updatedAt: row.updatedAt,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       identityName: row.identityName,
       role: row.role,
       // The person's overall trust across all their server accounts,
       // distinct from `trustScore` (this representative account's own score).
       identityTrustScore: row.identityTrustScore,
+<<<<<<< HEAD
+      identityJoinedAt: parseDateString(row.identityJoinedAt),
+      identityLastActivityAt: parseDateString(row.identityLastActivityAt),
+=======
       identityJoinedAt: row.identityJoinedAt,
       identityLastActivityAt: row.identityLastActivityAt,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       // Wider than canLogin(role); the merge dialog picks its direction from
       // this, and deriving it client-side from role alone picks the wrong one.
       loginCapable: isLoginCapable({
@@ -430,7 +507,11 @@ export const listRoutes: FastifyPluginAsync = async (app) => {
           id: row.serverId,
           name: row.serverName,
           serverUserId: row.id,
+<<<<<<< HEAD
+          removedAt: parseDateString(row.removedAt),
+=======
           removedAt: row.removedAt ? row.removedAt.toISOString() : null,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         },
       ],
     }));

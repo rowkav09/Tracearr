@@ -103,7 +103,13 @@ export const mapRoutes: FastifyPluginAsync = async (app) => {
     }
 
     reply.header('Accept-Ranges', 'bytes');
+<<<<<<< HEAD
+    // The client reads the ETag with the archive header and drops its own
+    // cache when it changes, so repeat range reads can come from the browser.
+    reply.header('Cache-Control', 'private, max-age=86400');
+=======
     reply.header('Cache-Control', 'public, max-age=0, must-revalidate');
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     reply.header('ETag', current.etag);
     reply.type('application/octet-stream');
 

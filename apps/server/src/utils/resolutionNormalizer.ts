@@ -13,7 +13,14 @@
  * - Rules engine (for resolution-based conditions)
  */
 
+<<<<<<< HEAD
+import {
+  normalizeResolution as normalizeResolutionShared,
+  type ResolutionLabel,
+} from '@tracearr/shared';
+=======
 import { normalizeResolution as normalizeResolutionShared } from '@tracearr/shared';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 export interface ResolutionInput {
   /** Resolution string from API (e.g., "1080", "1080p", "4k", "sd") */
@@ -24,6 +31,10 @@ export interface ResolutionInput {
   height?: number;
 }
 
+<<<<<<< HEAD
+/** Dimensions win; the server's label only fills in when a payload carries none. */
+export function normalizeResolution(input: ResolutionInput): ResolutionLabel | null {
+=======
 /**
  * Normalize video resolution to a display-friendly label.
  *
@@ -45,6 +56,7 @@ export interface ResolutionInput {
  * normalizeResolution({ resolution: '1080p' })           // "1080p"
  */
 export function normalizeResolution(input: ResolutionInput): string | null {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   const { resolution, width, height } = input;
   return normalizeResolutionShared({ label: resolution, width, height });
 }

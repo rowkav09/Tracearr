@@ -4,6 +4,10 @@
  */
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
+<<<<<<< HEAD
+import { useTranslation } from 'react-i18next';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import {
   Film,
   Tv,
@@ -16,6 +20,10 @@ import {
   ListFilter,
   User,
   Globe,
+<<<<<<< HEAD
+  Wifi,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   Monitor,
   ChevronDown,
   Columns3,
@@ -39,7 +47,11 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { TimeRangePicker, type TimeRangeValue } from '@/components/ui/time-range-picker';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { HistoryFilters } from '@/hooks/queries/useHistory';
+<<<<<<< HEAD
+import { PLAYBACK_DECISION_LABEL_KEYS, type HistoryFilterOptions } from '@tracearr/shared';
+=======
 import type { HistoryFilterOptions } from '@tracearr/shared';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 // Column definitions for visibility toggle
 export const HISTORY_COLUMNS = [
@@ -163,6 +175,10 @@ export function HistoryFiltersBar({
   onColumnVisibilityChange,
   isMultiServer = false,
 }: Props) {
+<<<<<<< HEAD
+  const { t } = useTranslation();
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   const [searchInput, setSearchInput] = useState(filters.search ?? '');
 
   // Sync search input with filters
@@ -250,12 +266,18 @@ export function HistoryFiltersBar({
       });
     }
     if (filters.transcodeDecisions?.length) {
+<<<<<<< HEAD
+      const decisionLabels = filters.transcodeDecisions.map((d) =>
+        t(PLAYBACK_DECISION_LABEL_KEYS[d])
+      );
+=======
       const labels = {
         directplay: 'Direct Play',
         copy: 'Direct Stream',
         transcode: 'Transcode',
       };
       const decisionLabels = filters.transcodeDecisions.map((d) => labels[d]);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       active.push({
         key: 'transcodeDecisions',
         label: 'Quality',
@@ -266,9 +288,23 @@ export function HistoryFiltersBar({
         icon: filters.transcodeDecisions.includes('transcode') ? Zap : MonitorPlay,
       });
     }
+<<<<<<< HEAD
+    if (filters.network) {
+      active.push({
+        key: 'network',
+        label: 'Network',
+        value: filters.network === 'local' ? 'Local' : 'Remote',
+        icon: filters.network === 'local' ? Wifi : Globe,
+      });
+    }
+
+    return active;
+  }, [filters, filterOptions?.users, t]);
+=======
 
     return active;
   }, [filters, filterOptions?.users]);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
   // Debounced search effect
   useEffect(() => {
@@ -584,9 +620,27 @@ export function HistoryFiltersBar({
               ) : null}
             </DropdownMenuLabel>
             {[
+<<<<<<< HEAD
+              {
+                value: 'directplay' as const,
+                label: t(PLAYBACK_DECISION_LABEL_KEYS.directplay),
+                icon: MonitorPlay,
+              },
+              {
+                value: 'copy' as const,
+                label: t(PLAYBACK_DECISION_LABEL_KEYS.copy),
+                icon: MonitorPlay,
+              },
+              {
+                value: 'transcode' as const,
+                label: t(PLAYBACK_DECISION_LABEL_KEYS.transcode),
+                icon: Zap,
+              },
+=======
               { value: 'directplay' as const, label: 'Direct Play', icon: MonitorPlay },
               { value: 'copy' as const, label: 'Direct Stream', icon: MonitorPlay },
               { value: 'transcode' as const, label: 'Transcode', icon: Zap },
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
             ].map(({ value, label, icon: Icon }) => {
               const isSelected = filters.transcodeDecisions?.includes(value) ?? false;
               return (
@@ -611,6 +665,30 @@ export function HistoryFiltersBar({
               );
             })}
 
+<<<<<<< HEAD
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Network</DropdownMenuLabel>
+            {(['local', 'remote'] as const).map((value) => (
+              <DropdownMenuCheckboxItem
+                key={value}
+                checked={filters.network === value}
+                onCheckedChange={(checked) => {
+                  const { network: _, ...rest } = filters;
+                  onFiltersChange(checked ? { ...rest, network: value } : rest);
+                }}
+                onSelect={(e) => e.preventDefault()}
+              >
+                {value === 'local' ? (
+                  <Wifi className="mr-2 h-4 w-4" />
+                ) : (
+                  <Globe className="mr-2 h-4 w-4" />
+                )}
+                {value === 'local' ? 'Local' : 'Remote'}
+              </DropdownMenuCheckboxItem>
+            ))}
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
             {/* Clear all button */}
             {hasActiveFilters && (
               <>

@@ -109,8 +109,12 @@ src/
 ├── mobile.ts         # Mobile entry
 └── locales/
     ├── en/           # English (source of truth)
+<<<<<<< HEAD
+    └── <locale>/     # Crowdin-managed translations
+=======
     ├── <locale>/     # Crowdin-managed translations
     └── _template/    # Reference layout for a locale folder
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 ```
 
 Licensed under AGPL-3.0-only. Source lives in the [Tracearr monorepo](https://github.com/connorgallopo/Tracearr) under `packages/translations`.

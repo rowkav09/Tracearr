@@ -11,6 +11,10 @@ import {
   POLLER_CONFIG,
   POLLING_INTERVALS,
   SESSION_LIMITS,
+<<<<<<< HEAD
+  usernameAsEmail,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   type ActiveSession,
   type EngineAutomation,
   type Session,
@@ -29,9 +33,15 @@ import { getGeoIPSettings } from '../../routes/settings.js';
 import { isMaintenance } from '../../serverState.js';
 import { isLeader } from '../../services/leaderLease.js';
 import type { CacheService, PubSubService } from '../../services/cache.js';
+<<<<<<< HEAD
+import { geoipService } from '../../services/geoip.js';
+import { createMediaServerClient } from '../../services/mediaServer/index.js';
+import { resolveSessionGeo, type SessionGeo } from '../../services/serverLocations.js';
+=======
 import { type GeoLocation } from '../../services/geoip.js';
 import { createMediaServerClient } from '../../services/mediaServer/index.js';
 import { lookupSessionGeoIP, isTailscaleIP } from '../../services/tailscaleLocation.js';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import {
   fetchRecentSessionsForIdentity,
   setContextAssemblyDeps,
@@ -236,7 +246,11 @@ async function handleFirstMisses(
     if (missedPollTracking.has(cachedKey)) continue; // Already in grace period
 
     const cachedActiveSession = activeSessions.find((s) => {
+<<<<<<< HEAD
+      const sType = (serverTypeMap.get(s.serverId) ?? 'plex') as 'plex' | 'jellyfin' | 'emby';
+=======
       const sType = (serverTypeMap.get(s.serverId) ?? 'plex') as 'plex' | 'jellyfin' | 'emby' | 'navidrome';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       return (
         buildCompositeKey({
           serverType: sType,
@@ -586,7 +600,11 @@ async function resolvePendingSession(
     return { status: 'still-pending', updatedSession: buildPendingActiveSession(updatedData) };
   }
 
+<<<<<<< HEAD
+  const geo = await resolveSessionGeo(processed.ipAddress, server.id, usePlexGeoip);
+=======
   const geo: GeoLocation = await lookupSessionGeoIP(processed.ipAddress, usePlexGeoip, server.type);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   const createResult = await cacheService.withSessionCreateLock(
     server.id,
     processed.sessionKey,
@@ -631,7 +649,17 @@ async function resolvePendingSession(
   }
 
   await cacheService.deletePendingSession(server.id, pendingKey);
+<<<<<<< HEAD
+  const {
+    insertedSession,
+    violationResults,
+    qualityChange,
+    wasTerminatedByRule,
+    geo: insertedGeo,
+  } = createResult;
+=======
   const { insertedSession, violationResults, qualityChange, wasTerminatedByRule } = createResult;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
   if (qualityChange) {
     await handleQualityChangeFallout(qualityChange, cacheService, pubSubService);
@@ -643,7 +671,11 @@ async function resolvePendingSession(
       session: insertedSession,
       processed,
       user: userDetail,
+<<<<<<< HEAD
+      geo: insertedGeo,
+=======
       geo,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       server,
     });
     recordDbWrite(insertedSession.id, Date.now());
@@ -839,6 +871,10 @@ async function processServerSessions(
             .set({
               username: processed.username,
               thumbUrl: processed.userThumb || existingServerUser.thumbUrl,
+<<<<<<< HEAD
+              ...(server.type === 'plex' ? {} : { email: usernameAsEmail(processed.username) }),
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
               updatedAt: new Date(),
             })
             .where(eq(serverUsers.id, existingServerUser.id));
@@ -886,6 +922,10 @@ async function processServerSessions(
               serverId: server.id,
               externalId: u.externalId,
               username: u.username,
+<<<<<<< HEAD
+              email: server.type === 'plex' ? null : usernameAsEmail(u.username),
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
               thumbUrl: u.thumbUrl,
             }))
           )
@@ -1089,7 +1129,11 @@ async function processServerSessions(
           }
 
           // Get GeoIP location (uses Plex API if enabled, falls back to MaxMind)
+<<<<<<< HEAD
+          const geo = await resolveSessionGeo(processed.ipAddress, server.id, usePlexGeoip);
+=======
           const geo: GeoLocation = await lookupSessionGeoIP(processed.ipAddress, usePlexGeoip, server.type);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
           const createResult = await cacheService.withSessionCreateLock<
             | { rediscovered: typeof sessions.$inferSelect }
@@ -1325,8 +1369,13 @@ async function processServerSessions(
             existingRow && existingRow.serverUserId !== userDetail.id ? null : existingRow;
 
           // Skip the GeoIP lookup when the IP matches the existing row - reuse its geo data.
+<<<<<<< HEAD
+          const geo: SessionGeo =
+            existingSession?.ipAddress === processed.ipAddress
+=======
           const geo: GeoLocation =
             existingSession?.ipAddress === processed.ipAddress && !isTailscaleIP(processed.ipAddress)
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
               ? {
                   city: existingSession.geoCity,
                   region: existingSession.geoRegion,
@@ -1338,8 +1387,14 @@ async function processServerSessions(
                   lon: existingSession.geoLon,
                   asnNumber: existingSession.geoAsnNumber,
                   asnOrganization: existingSession.geoAsnOrganization,
+<<<<<<< HEAD
+                  isLocal: existingSession.isLocal ?? geoipService.isPrivateIP(processed.ipAddress),
+                }
+              : await resolveSessionGeo(processed.ipAddress, server.id, usePlexGeoip);
+=======
                 }
               : await lookupSessionGeoIP(processed.ipAddress, usePlexGeoip, server.type);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
           if (!existingSession) {
             // Issue #120: Stale cache entry - session key is in Redis but no active session exists in DB

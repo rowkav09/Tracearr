@@ -4,6 +4,10 @@ import { Cell } from '../components/Cell.js';
 import { Columns } from '../components/Columns.js';
 import { Document } from '../components/Document.js';
 import { RichText } from '../components/RichText.js';
+<<<<<<< HEAD
+import { SentBy, headerName } from '../components/SentBy.js';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { colors, link } from '../styles.js';
 import type {
   DigestArtist,
@@ -461,7 +465,11 @@ export function DigestEmail({ input, branding }: { input: DigestInput; branding:
   return (
     <Document preview={preheader(input, counts)}>
       <Masthead
+<<<<<<< HEAD
+        senderName={headerName(branding)}
+=======
         senderName={branding.senderName}
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         logoRef={input.logoRef}
         viewUrl={input.viewUrl}
         accent={accent}
@@ -554,9 +562,13 @@ export function DigestEmail({ input, branding }: { input: DigestInput; branding:
         </Text>
         {branding.footerText && <Text style={footNote}>{branding.footerText}</Text>}
         {branding.postalAddress && <Text style={footNote}>{branding.postalAddress}</Text>}
+<<<<<<< HEAD
+        <SentBy branding={branding} style={{ ...footNote, marginBottom: 0 }} />
+=======
         <Text style={{ ...footNote, marginBottom: 0 }}>
           Sent by Tracearr for {branding.senderName}.
         </Text>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       </Cell>
     </Document>
   );

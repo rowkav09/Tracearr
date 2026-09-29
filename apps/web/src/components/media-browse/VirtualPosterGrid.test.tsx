@@ -7,8 +7,15 @@ import {
   computeColumnCount,
   computeRowCount,
   computeCardWidth,
+<<<<<<< HEAD
+  computeGridHeight,
   computeRowHeight,
   computeViewportInfo,
+  MIN_GRID_HEIGHT,
+=======
+  computeRowHeight,
+  computeViewportInfo,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   VirtualPosterGrid,
   type VirtualPosterGridHandle,
 } from './VirtualPosterGrid';
@@ -69,6 +76,19 @@ describe('computeCardWidth / computeRowHeight', () => {
   });
 });
 
+<<<<<<< HEAD
+describe('computeGridHeight', () => {
+  it('fills the window below the grid top, less the page bottom padding', () => {
+    expect(computeGridHeight(1080, 169, 24)).toBe(887);
+  });
+
+  it('stops at MIN_GRID_HEIGHT on a short window', () => {
+    expect(computeGridHeight(640, 169, 24)).toBe(MIN_GRID_HEIGHT);
+  });
+});
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 describe('computeRowCount', () => {
   it('is the item count divided across columns, rounded up', () => {
     expect(computeRowCount(23, 5)).toBe(Math.ceil(23 / 5));

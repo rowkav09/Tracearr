@@ -322,13 +322,19 @@ describe('Mobile Routes', () => {
           return {
             from: vi.fn().mockResolvedValue(mockSessions),
           } as never;
+<<<<<<< HEAD
+        } else {
+=======
         } else if (selectCallCount === 2) {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           // Pending tokens count
           return {
             from: vi.fn().mockReturnValue({
               where: vi.fn().mockResolvedValue([{ count: 1 }]),
             }),
           } as never;
+<<<<<<< HEAD
+=======
         } else {
           // Server name query
           return {
@@ -336,6 +342,7 @@ describe('Mobile Routes', () => {
               limit: vi.fn().mockResolvedValue([{ name: 'MyServer' }]),
             }),
           } as never;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         }
       });
 
@@ -348,7 +355,11 @@ describe('Mobile Routes', () => {
       const body = response.json();
       expect(body.isEnabled).toBe(true);
       expect(body.sessions).toHaveLength(2);
+<<<<<<< HEAD
+      expect(body.serverName).toBe('Tracearr');
+=======
       expect(body.serverName).toBe('MyServer');
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       expect(body.pendingTokens).toBe(1);
       expect(body.maxDevices).toBe(5);
     });
@@ -377,18 +388,25 @@ describe('Mobile Routes', () => {
         selectCallCount++;
         if (selectCallCount === 1) {
           return { from: vi.fn().mockResolvedValue([]) } as never;
+<<<<<<< HEAD
+        } else {
+=======
         } else if (selectCallCount === 2) {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           return {
             from: vi.fn().mockReturnValue({
               where: vi.fn().mockResolvedValue([{ count: 0 }]),
             }),
           } as never;
+<<<<<<< HEAD
+=======
         } else {
           return {
             from: vi.fn().mockReturnValue({
               limit: vi.fn().mockResolvedValue([{ name: 'Tracearr' }]),
             }),
           } as never;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         }
       });
 
@@ -410,6 +428,9 @@ describe('Mobile Routes', () => {
 
       vi.mocked(setSetting).mockResolvedValue(undefined);
 
+<<<<<<< HEAD
+      vi.mocked(db.select).mockReturnValue({ from: vi.fn().mockResolvedValue([]) } as never);
+=======
       let selectCallCount = 0;
       vi.mocked(db.select).mockImplementation(() => {
         selectCallCount++;
@@ -423,6 +444,7 @@ describe('Mobile Routes', () => {
           } as never;
         }
       });
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
       const response = await app.inject({
         method: 'POST',
@@ -981,9 +1003,15 @@ describe('Mobile Routes', () => {
             txSelectCallCount++;
             // Call 1: mobileTokens lookup with .where().for().limit()
             // Call 2: users lookup with .where().limit()
+<<<<<<< HEAD
+            // Call 3: servers lookup (id, type) - awaited directly, no .where() or .limit()
+            if (txSelectCallCount === 3) {
+              // tx.select({ id, type }).from(servers) - awaited directly
+=======
             // Call 3: servers lookup (id, name, type) - awaited directly, no .where() or .limit()
             if (txSelectCallCount === 3) {
               // tx.select({ id, name, type }).from(servers) - awaited directly
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
               return {
                 from: vi
                   .fn()
@@ -1028,7 +1056,11 @@ describe('Mobile Routes', () => {
       expect(body.accessToken).toBe('ba-session-token');
       expect(body.refreshToken).toBe('ba-session-token');
       expect(body.server.id).toBe(mockServerId);
+<<<<<<< HEAD
+      expect(body.server.name).toBe('Tracearr');
+=======
       expect(body.server.name).toBe('MyServer');
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       expect(body.server.type).toBe('plex');
       expect(body.user.role).toBe('owner');
     });
@@ -1547,20 +1579,75 @@ describe('Mobile Routes', () => {
       expect(db.update).toHaveBeenCalled();
     });
 
+<<<<<<< HEAD
+    it('accepts the ExpoPushToken prefix', async () => {
+      app = await buildTestApp(mobileUser);
+
+      vi.mocked(db.update).mockReturnValue({
+        set: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            returning: vi.fn().mockResolvedValue([{ id: randomUUID() }]),
+          }),
+        }),
+      } as never);
+
+=======
     it('rejects invalid push token format', async () => {
+      app = await buildTestApp(mobileUser);
+
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
+      const response = await app.inject({
+        method: 'POST',
+        url: '/mobile/push-token',
+        payload: {
+<<<<<<< HEAD
+          expoPushToken: 'ExpoPushToken[abc123]',
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+    });
+
+    it('rejects a raw APNs token and names expoPushToken', async () => {
+      app = await buildTestApp(mobileUser);
+      const apnsToken = 'a1b2c3d4'.repeat(8);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/mobile/push-token',
+        payload: {
+          expoPushToken: apnsToken,
+=======
+          expoPushToken: 'invalid-token-format',
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
+        },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body = response.json();
+<<<<<<< HEAD
+      expect(body.message).toBe('Invalid push token: expoPushToken: not an Expo push token');
+      expect(db.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects a short device secret and names deviceSecret', async () => {
       app = await buildTestApp(mobileUser);
 
       const response = await app.inject({
         method: 'POST',
         url: '/mobile/push-token',
         payload: {
-          expoPushToken: 'invalid-token-format',
+          expoPushToken: 'ExponentPushToken[abc123]',
+          deviceSecret: 'a'.repeat(31),
         },
       });
 
       expect(response.statusCode).toBe(400);
       const body = response.json();
+      expect(body.message).toBe('Invalid push token: deviceSecret: must be 32 to 64 characters');
+=======
       expect(body.message).toContain('Invalid push token format');
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     });
 
     it('rejects when deviceId missing from JWT', async () => {

@@ -1,4 +1,37 @@
 {
+<<<<<<< HEAD
+  "dashboard": "",
+  "map": "",
+  "history": "",
+  "stats": "",
+  "activity": "",
+  "library": "",
+  "users": "",
+  "automations": "",
+  "violations": "",
+  "requests": "",
+  "alerts": "",
+  "settings": "",
+  "overview": "",
+  "quality": "",
+  "storage": "",
+  "watch": "",
+  "performance": "",
+  "devices": "",
+  "bandwidth": "",
+  "jobs": "",
+  "accessControl": "",
+  "media": "",
+  "mediaBrowse": "",
+  "mediaGenres": "",
+  "session": "",
+  "user": "",
+  "violation": "",
+  "monitor": "",
+  "manage": "",
+  "userStats": "",
+  "toggleSidebar": ""
+=======
   "accessControl": "",
   "activity": "",
   "alerts": "",
@@ -29,4 +62,5 @@
   "violation": "",
   "violations": "",
   "watch": ""
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }

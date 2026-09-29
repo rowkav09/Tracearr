@@ -298,6 +298,42 @@ describe('proxyImage cache-miss pipeline', () => {
     );
   });
 
+<<<<<<< HEAD
+  it('applies EXIF orientation before the tag is dropped, so a phone photo avatar stays upright', async () => {
+    // Stored red-over-blue, tagged "rotate 180": displayed as blue over red
+    const pixels = Buffer.alloc(8 * 8 * 3);
+    for (let i = 0; i < 64; i++) pixels.set(i < 32 ? [255, 0, 0] : [0, 0, 255], i * 3);
+    const tagged = await sharp(pixels, { raw: { width: 8, height: 8, channels: 3 } })
+      .jpeg()
+      .withMetadata({ orientation: 3 })
+      .toBuffer();
+    fetchSpy.mockResolvedValue(
+      new Response(tagged, { status: 200, headers: { 'content-type': 'image/jpeg' } })
+    );
+    mockSelectChain([
+      { id: 'server-4', type: 'jellyfin', url: 'http://localhost:8096', token: 'token' },
+    ]);
+
+    const result = await proxyImage({
+      serverId: randomUUID(),
+      imagePath: '/Users/abc/Images/Primary',
+      width: 40,
+      height: 40,
+      fallback: 'avatar',
+    });
+
+    const { data } = await sharp(result.data)
+      .extract({ left: 0, top: 0, width: 1, height: 1 })
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    expect(data[2]).toBeGreaterThan(200);
+    expect(data[0]).toBeLessThan(60);
+
+    await vi.waitFor(() => expect(vi.mocked(db.update)).toHaveBeenCalledTimes(1));
+  });
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   it('falls back to the SVG placeholder with a short, non-immutable cacheControl and drains the body on an upstream HTTP error', async () => {
     mockSelectChain([
       { id: 'server-8', type: 'plex', url: 'http://localhost:32400', token: 'token' },
@@ -606,3 +642,109 @@ describe('buildUpstreamRequest', () => {
     });
   });
 });
+<<<<<<< HEAD
+
+describe('resizedOnly (background warms)', () => {
+  let fetchSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    vi.mocked(stat).mockRejectedValue(new Error('ENOENT'));
+    vi.mocked(mkdir).mockResolvedValue(undefined);
+    vi.mocked(writeFile).mockResolvedValue(undefined);
+    vi.mocked(rename).mockResolvedValue(undefined);
+    vi.mocked(cacheWriteAllowed).mockResolvedValue(true);
+    mockUpdateChain();
+    mockSelectChain([
+      { id: 'server-1', type: 'plex', url: 'http://localhost:32400', token: 'token' },
+    ]);
+    fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 500 }));
+  });
+
+  afterEach(() => {
+    fetchSpy.mockRestore();
+  });
+
+  it('does not retry the full-size original, so a struggling transcoder is not asked for more', async () => {
+    await proxyImage({
+      serverId: randomUUID(),
+      imagePath: '/library/metadata/1/thumb/1',
+      width: 360,
+      height: 540,
+      fallback: 'poster',
+      resizedOnly: true,
+    });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(String(fetchSpy.mock.calls[0]?.[0])).toContain('width=360');
+  });
+
+  it('still retries the original for a live request', async () => {
+    await proxyImage({
+      serverId: randomUUID(),
+      imagePath: '/library/metadata/2/thumb/1',
+      width: 360,
+      height: 540,
+      fallback: 'poster',
+    });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('flags the placeholder as degraded rather than rejecting, since live requests share the promise', async () => {
+    const result = await proxyImage({
+      serverId: randomUUID(),
+      imagePath: '/library/metadata/3/thumb/1',
+      width: 360,
+      height: 540,
+      fallback: 'poster',
+      resizedOnly: true,
+    });
+
+    expect(result.degraded).toBe(true);
+    expect(result.contentType).toBe('image/svg+xml');
+  });
+
+  it('does not flag a successful fetch as degraded', async () => {
+    const png = await sharp({
+      create: { width: 8, height: 8, channels: 3, background: { r: 1, g: 2, b: 3 } },
+    })
+      .jpeg()
+      .toBuffer();
+    fetchSpy.mockResolvedValue(
+      new Response(png, { status: 200, headers: { 'content-type': 'image/jpeg' } })
+    );
+
+    const result = await proxyImage({
+      serverId: randomUUID(),
+      imagePath: '/library/metadata/4/thumb/1',
+      width: 360,
+      height: 540,
+      fallback: 'poster',
+      resizedOnly: true,
+    });
+
+    expect(result.degraded).toBeUndefined();
+  });
+});
+
+describe('IMAGE_CACHE_DIR', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it('defaults to data/image-cache under the working directory', async () => {
+    vi.resetModules();
+    const mod = await import('../imageProxy.js');
+    expect(mod.IMAGE_CACHE_DIR).toBe(join(process.cwd(), 'data', 'image-cache'));
+  });
+
+  it('honours IMAGE_CACHE_DIR so a deployment can point it at a mounted volume', async () => {
+    vi.resetModules();
+    vi.stubEnv('IMAGE_CACHE_DIR', '/data/tracearr/image-cache');
+    const mod = await import('../imageProxy.js');
+    expect(mod.IMAGE_CACHE_DIR).toBe('/data/tracearr/image-cache');
+  });
+});
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)

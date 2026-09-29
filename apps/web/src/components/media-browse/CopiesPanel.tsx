@@ -26,9 +26,15 @@ interface CopiesPanelProps {
 
 const MAX_RESOLUTIONS_SHOWN = 3;
 
+<<<<<<< HEAD
+/** "4K · 1080p" from the rollup, capped at three entries then "+N". */
+function formatResolutionSet(resolutions: string[]): string {
+  const shown = resolutions.slice(0, MAX_RESOLUTIONS_SHOWN).map(formatMediaTech).join(' · ');
+=======
 /** "4k · 1080p" from the rollup, capped at three entries then "+N". */
 function formatResolutionSet(resolutions: string[]): string {
   const shown = resolutions.slice(0, MAX_RESOLUTIONS_SHOWN).join(' · ');
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   const extra = resolutions.length - MAX_RESOLUTIONS_SHOWN;
   return extra > 0 ? `${shown} +${extra}` : shown;
 }
@@ -104,7 +110,13 @@ export function CopiesPanel({
                 const quality =
                   entry.episodeResolutions && entry.episodeResolutions.length > 0
                     ? formatResolutionSet(entry.episodeResolutions)
+<<<<<<< HEAD
+                    : entry.videoResolution
+                      ? formatMediaTech(entry.videoResolution)
+                      : null;
+=======
                     : entry.videoResolution;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                 const sizeBytes = entry.fileSize ?? entry.episodeFileSize;
                 const mainRow = (
                   <TableRow key={`${entry.serverId}-${entry.libraryId}-${entry.ratingKey}`}>
@@ -151,9 +163,15 @@ export function CopiesPanel({
                           <TableCell className="text-muted-foreground text-xs">
                             {[
                               version.resolution ? formatMediaTech(version.resolution) : null,
+<<<<<<< HEAD
+                              version.videoCodec ? formatMediaTech(version.videoCodec) : null,
+                              version.dynamicRange && version.dynamicRange !== 'sdr'
+                                ? formatMediaTech(version.dynamicRange)
+=======
                               version.videoCodec,
                               version.dynamicRange && version.dynamicRange !== 'sdr'
                                 ? version.dynamicRange.toUpperCase()
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                                 : null,
                             ]
                               .filter(Boolean)

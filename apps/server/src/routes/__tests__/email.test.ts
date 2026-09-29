@@ -206,6 +206,10 @@ describe('branding', () => {
     expect(branding.saveEmailBranding).toHaveBeenCalledWith({
       logo: { mode: 'tracearr' },
       accentColor: '#123456',
+<<<<<<< HEAD
+      systemTitle: null,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       footerText: 'Family Media',
       postalAddress: null,
       mailtoUnsubscribe: false,

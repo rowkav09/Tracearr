@@ -53,6 +53,12 @@ import { runNewsletter } from '../send.js';
 import { EMAIL_CLIP_FIT_BYTES, deliveredBytes } from '../fit.js';
 import { EXTERNAL_URL, JELLYFIN_SERVER, heaviestDigest, heaviestRuns } from './heaviestDigest.js';
 
+<<<<<<< HEAD
+// Ten days back keeps the watermark inside the 31 day window floor on any run date
+const WATERMARK = new Date(Date.now() - 10 * 86_400_000);
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 const NEWSLETTER = {
   id: '11111111-1111-4111-8111-111111111111',
   name: 'Weekly',
@@ -172,7 +178,11 @@ beforeEach(() => {
   store.getNewsletter.mockResolvedValue(NEWSLETTER);
   store.findOpenSend.mockResolvedValue(null);
   store.closeStaleSend.mockResolvedValue(false);
+<<<<<<< HEAD
+  store.lastWatermark.mockResolvedValue(WATERMARK);
+=======
   store.lastWatermark.mockResolvedValue(new Date('2026-08-26T00:00:00Z'));
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   store.insertSend.mockImplementation(async (v: Record<string, unknown>) => ({
     id: 'send-1',
     ...v,
@@ -245,7 +255,11 @@ describe('runNewsletter', () => {
       newsletterId: NEWSLETTER.id,
       destinationId: NEWSLETTER.destinationId,
       trigger: 'schedule',
+<<<<<<< HEAD
+      windowStart: WATERMARK,
+=======
       windowStart: new Date('2026-08-26T00:00:00Z'),
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       outcome: 'rendering',
       itemCounts: ONE_MOVIE.counts,
       variants: [
@@ -276,7 +290,11 @@ describe('runNewsletter', () => {
     expect(store.markSendSending).toHaveBeenCalledWith('send-1', 1);
     expect(mockAssemble).toHaveBeenCalledWith(
       { scope: { serverIds: ['s1'], libraries: [] }, sections: NEWSLETTER.sections },
+<<<<<<< HEAD
+      { start: WATERMARK, end: expect.any(Date) },
+=======
       { start: new Date('2026-08-26T00:00:00Z'), end: expect.any(Date) },
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       {}
     );
     expect(mockDestination).toHaveBeenCalledWith(NEWSLETTER.destinationId);
@@ -307,7 +325,11 @@ describe('runNewsletter', () => {
     expect(snapshot.subject).toMatch(/^What's new on Family Media \(\w{3} \d{1,2}, \d{4}\) 1$/);
     const html = snapshot.html;
     expect(html).toContain('#123456');
+<<<<<<< HEAD
+    expect(html).toContain('Sent by Tracearr for Family Media.');
+=======
     expect(html).toContain('Sent by Tracearr for <!-- -->Family Media');
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     expect(html).toContain('The house server');
     expect(html).toContain('1 Main St');
   });

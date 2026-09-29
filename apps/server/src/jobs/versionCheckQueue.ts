@@ -9,7 +9,21 @@ import { Queue, Worker, type Job, type ConnectionOptions } from 'bullmq';
 import type { Redis } from 'ioredis';
 import { getBullPrefix, queueConnectionOptions } from './queueConnection.js';
 import { isMaintenance } from '../serverState.js';
+<<<<<<< HEAD
+import {
+  REDIS_KEYS,
+  CACHE_TTL,
+  WS_EVENTS,
+  compareVersions,
+  getBaseVersion,
+  isNewerVersion,
+  isPrerelease,
+  releaseNotesFileSchema,
+  type UpgradeWarning,
+} from '@tracearr/shared';
+=======
 import { REDIS_KEYS, CACHE_TTL, WS_EVENTS } from '@tracearr/shared';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { dispatchTracearrUpdate } from '../services/automations/events/producers.js';
 import { getCurrentVersion } from '../utils/buildInfo.js';
 
@@ -36,9 +50,12 @@ const GITHUB_API_LATEST_URL = 'https://api.github.com/repos/connorgallopo/Tracea
 const GITHUB_API_ALL_RELEASES_URL = 'https://api.github.com/repos/connorgallopo/Tracearr/releases';
 const GITHUB_RELEASES_URL = 'https://github.com/connorgallopo/Tracearr/releases';
 
+<<<<<<< HEAD
+=======
 // Prerelease identifier patterns (beta, alpha, rc, etc.)
 const PRERELEASE_PATTERN = /-(alpha|beta|rc|next|dev|canary)\.?\d*$/i;
 
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 // Job types
 interface VersionCheckJobData {
   type: 'check';
@@ -55,6 +72,10 @@ export interface LatestVersionData {
   isPrerelease: boolean;
   releaseName: string | null;
   releaseNotes: string | null;
+<<<<<<< HEAD
+  upgradeWarnings: UpgradeWarning[];
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 // Connection options (set during initialization)
@@ -216,6 +237,10 @@ export interface GitHubRelease {
   body: string | null;
   prerelease: boolean;
   draft: boolean;
+<<<<<<< HEAD
+  assets?: { name: string; browser_download_url: string }[];
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 /**
@@ -289,6 +314,61 @@ export function findBestUpdateForPrerelease(
   return validReleases.find((r) => compareVersions(r.tag_name, currentVersion) > 0) ?? null;
 }
 
+<<<<<<< HEAD
+const RELEASE_NOTES_ASSET = 'release-notes.json';
+
+/**
+ * Reads the release-notes.json asset of every release after the installed version up to the
+ * target. Releases published before notes files existed have no asset and contribute nothing.
+ */
+export async function collectUpgradeWarnings(
+  currentVersion: string,
+  targetVersion: string,
+  releases: GitHubRelease[]
+): Promise<UpgradeWarning[]> {
+  const targetIsPrerelease = isPrerelease(targetVersion);
+  const between = releases
+    .filter(
+      (r) =>
+        !r.draft &&
+        (targetIsPrerelease || !r.prerelease) &&
+        compareVersions(r.tag_name, currentVersion) > 0 &&
+        compareVersions(r.tag_name, targetVersion) <= 0
+    )
+    .sort((a, b) => compareVersions(b.tag_name, a.tag_name));
+
+  const warnings: UpgradeWarning[] = [];
+  const collectedVersions = new Set<string>();
+  for (const release of between) {
+    if (collectedVersions.has(getBaseVersion(release.tag_name))) continue;
+    const asset = release.assets?.find((a) => a.name === RELEASE_NOTES_ASSET);
+    if (!asset) continue;
+    try {
+      const response = await fetch(asset.browser_download_url, {
+        headers: { 'User-Agent': 'Tracearr-Version-Check' },
+      });
+      if (!response.ok) {
+        console.warn(`Release notes for ${release.tag_name} returned ${response.status}`);
+        continue;
+      }
+      const parsed = releaseNotesFileSchema.safeParse(await response.json());
+      if (
+        parsed.success &&
+        parsed.data.upgradeWarning &&
+        !collectedVersions.has(parsed.data.version)
+      ) {
+        collectedVersions.add(parsed.data.version);
+        warnings.push({ version: parsed.data.version, text: parsed.data.upgradeWarning });
+      }
+    } catch (error) {
+      console.warn(`Could not read release notes for ${release.tag_name}:`, error);
+    }
+  }
+  return warnings;
+}
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 /**
  * Process a version check job.
  * Best-effort/informational; on rate limit it sets a cooldown and returns
@@ -317,16 +397,30 @@ export async function processVersionCheck(job: Job<VersionCheckJobData>): Promis
     console.log(`Current version: ${currentVersion} (prerelease: ${currentIsPrerelease})`);
 
     let targetRelease: GitHubRelease | null = null;
+<<<<<<< HEAD
+    let releases: GitHubRelease[] = [];
+
+    if (currentIsPrerelease) {
+      // For prerelease users, fetch all releases to find the best update
+      const fetched = await fetchGitHubReleases(`${GITHUB_API_ALL_RELEASES_URL}?per_page=30`);
+
+      if (!fetched || !Array.isArray(fetched)) {
+=======
 
     if (currentIsPrerelease) {
       // For prerelease users, fetch all releases to find the best update
       const releases = await fetchGitHubReleases(`${GITHUB_API_ALL_RELEASES_URL}?per_page=30`);
 
       if (!releases || !Array.isArray(releases)) {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         console.log('No releases found or invalid response');
         return;
       }
 
+<<<<<<< HEAD
+      releases = fetched;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       targetRelease = findBestUpdateForPrerelease(currentVersion, releases);
     } else {
       // For stable users, just check the latest stable release
@@ -347,6 +441,24 @@ export async function processVersionCheck(job: Job<VersionCheckJobData>): Promis
 
     // Parse version from tag (remove 'v' prefix if present)
     const version = targetRelease.tag_name.replace(/^v/, '');
+<<<<<<< HEAD
+    const updateAvailable = isNewerVersion(version, currentVersion);
+
+    // Stable installs only fetched /releases/latest; warnings need the releases in between.
+    // Best-effort: any failure here must not affect update detection.
+    if (updateAvailable && releases.length === 0) {
+      try {
+        const fetched = await fetchGitHubReleases(`${GITHUB_API_ALL_RELEASES_URL}?per_page=30`);
+        if (Array.isArray(fetched)) releases = fetched;
+      } catch (error) {
+        console.warn('Could not fetch release list for upgrade warnings:', error);
+      }
+    }
+    const upgradeWarnings = updateAvailable
+      ? await collectUpgradeWarnings(currentVersion, version, releases)
+      : [];
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
     const latestData: LatestVersionData = {
       version,
@@ -357,6 +469,10 @@ export async function processVersionCheck(job: Job<VersionCheckJobData>): Promis
       isPrerelease: targetRelease.prerelease,
       releaseName: targetRelease.name || null,
       releaseNotes: targetRelease.body || null,
+<<<<<<< HEAD
+      upgradeWarnings,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     };
 
     // Cache in Redis
@@ -377,9 +493,12 @@ export async function processVersionCheck(job: Job<VersionCheckJobData>): Promis
       MIN_VERSION_CHECK_INTERVAL_S
     );
 
+<<<<<<< HEAD
+=======
     // Check if update is available
     const updateAvailable = isNewerVersion(version, currentVersion);
 
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     if (updateAvailable) {
       // Broadcast update availability to connected clients
       if (pubSubPublish) {
@@ -447,6 +566,10 @@ export async function getCachedLatestVersion(): Promise<LatestVersionData | null
       isPrerelease: data.isPrerelease ?? isPrerelease(data.tag),
       releaseName: data.releaseName ?? null,
       releaseNotes: data.releaseNotes ?? null,
+<<<<<<< HEAD
+      upgradeWarnings: data.upgradeWarnings ?? [],
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     };
   } catch {
     return null;
@@ -454,6 +577,8 @@ export async function getCachedLatestVersion(): Promise<LatestVersionData | null
 }
 
 /**
+<<<<<<< HEAD
+=======
  * Parsed semantic version with prerelease support
  */
 interface ParsedVersion {
@@ -571,6 +696,7 @@ export function isNewerVersion(latest: string, current: string): boolean {
 }
 
 /**
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
  * Gracefully shutdown the version check queue and worker
  */
 export async function shutdownVersionCheckQueue(): Promise<void> {

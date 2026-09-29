@@ -1,11 +1,19 @@
 /**
  * Jellystat Backup Import Service
  *
+<<<<<<< HEAD
+ * Parses Jellystat backup files (legacy JSON or 1.1.12 JSONL) and imports historical watch data
+ * into Tracearr's sessions table.
+ *
+ * Key features:
+ * - File-based import (JSON or JSONL upload from Jellystat backup)
+=======
  * Parses Jellystat backup JSON files and imports historical watch data
  * into Tracearr's sessions table.
  *
  * Key features:
  * - File-based import (JSON upload from Jellystat backup)
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
  * - Optional media enrichment via Jellyfin /Items API
  * - GeoIP lookup for IP addresses
  * - Progress tracking via WebSocket
@@ -14,7 +22,14 @@
 import type {
   JellystatImportProgress,
   JellystatImportResult,
+<<<<<<< HEAD
+  JellystatLibraryEpisode,
+  JellystatLibraryItem,
   JellystatPlaybackActivity,
+  JellystatPluginRow,
+=======
+  JellystatPlaybackActivity,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   SourceAudioDetails,
   SourceVideoDetails,
   StreamAudioDetails,
@@ -22,8 +37,19 @@ import type {
   SubtitleInfo,
   TranscodeInfo,
 } from '@tracearr/shared';
+<<<<<<< HEAD
+import {
+  jellystatBackupSchema,
+  jellystatLibraryEpisodeSchema,
+  jellystatLibraryItemSchema,
+  jellystatPluginRowSchema,
+} from '@tracearr/shared';
+import { eq } from 'drizzle-orm';
+import type { z } from 'zod';
+=======
 import { jellystatBackupSchema } from '@tracearr/shared';
 import { eq } from 'drizzle-orm';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { db } from '../db/client.js';
 import { servers, sessions } from '../db/schema.js';
 import {
@@ -31,7 +57,14 @@ import {
   refreshAggregates,
   uncapDecompressionForTx,
 } from '../db/timescale.js';
+<<<<<<< HEAD
+import {
+  enqueueMaintenanceJob,
+  enqueueServerLocationSyncIfBehind,
+} from '../jobs/maintenanceQueue.js';
+=======
 import { enqueueMaintenanceJob } from '../jobs/maintenanceQueue.js';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { batchGetLibraryItemIdentity, type SessionIdentity } from '../jobs/poller/database.js';
 import { sanitizeCodec } from '../utils/codecNormalizer.js';
 import { extractIpFromEndpoint } from '../utils/parsing.js';
@@ -44,22 +77,51 @@ import {
   createSimpleProgressPublisher,
   createSkippedUserTracker,
   createUserMapping,
+<<<<<<< HEAD
+  exceedsRuntime,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   fetchMediaEnrichment,
   flushInsertBatch,
   type MediaEnrichment,
   queryExistingByExternalIds,
+<<<<<<< HEAD
+  type ExistingSession,
+  type TimeBounds,
+} from './import/index.js';
+import {
+  buildJellystatRemapIndex,
+  chooseJellystatItemKey,
+  isImportedEpisodeRowRewritten,
+  isRemapVetoed,
+  resolveJellystatItemKey,
+} from './import/jellystatRemapVeto.js';
+import { EmbyClient } from './mediaServer/emby/client.js';
+import { JellyfinClient } from './mediaServer/jellyfin/client.js';
+import { parseMediaType } from './mediaServer/shared/jellyfinEmbyUtils.js';
+import { markImportedServerLocations } from './serverLocations.js';
+import { getWatchedThresholds, watchedThresholdFor, type WatchedThresholds } from './settings.js';
+=======
   type TimeBounds,
 } from './import/index.js';
 import { EmbyClient } from './mediaServer/emby/client.js';
 import { JellyfinClient } from './mediaServer/jellyfin/client.js';
 import { parseMediaType } from './mediaServer/shared/jellyfinEmbyUtils.js';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 const BATCH_SIZE = 500;
 const DEDUP_BATCH_SIZE = 5000;
 const ENRICHMENT_BATCH_SIZE = 200;
 const PROGRESS_THROTTLE_MS = 2000;
 const PROGRESS_RECORD_INTERVAL = 500;
+<<<<<<< HEAD
+// Plugin-origin rows (imported === true) carry ActivityDateInserted in the
+// plugin's database timezone, so the true UTC start is only known to within
+// this margin around it.
+const PLUGIN_ORIGIN_UNCERTAINTY_MS = 27 * 60 * 60 * 1000;
+=======
 const TICKS_TO_MS = 10000; // 100ns ticks to ms
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 // parsePlayMethod moved to utils/transcodeNormalizer.ts as parseJellystatPlayMethod
 
@@ -257,6 +319,105 @@ export function extractJellystatStreamDetails(
   return result;
 }
 
+<<<<<<< HEAD
+interface ParsedJellystatBackup {
+  activities: unknown[];
+  libraryItems: JellystatLibraryItem[] | null;
+  libraryEpisodes: JellystatLibraryEpisode[] | null;
+  pluginRows: JellystatPluginRow[] | null;
+}
+
+/**
+ * Keep only the rows of a table that parse, as slim records. Returns null when
+ * the backup excluded the table.
+ */
+function projectBackupTable<Schema extends z.ZodType>(
+  rows: unknown[] | undefined,
+  schema: Schema,
+  table: string
+): z.output<Schema>[] | null {
+  if (!rows) return null;
+  const records: z.output<Schema>[] = [];
+  let malformed = 0;
+  for (const row of rows) {
+    const parsed = schema.safeParse(row);
+    if (parsed.success) records.push(parsed.data);
+    else malformed++;
+  }
+  if (malformed > 0) {
+    console.warn(`[Jellystat] Skipped ${malformed} malformed ${table} rows during parsing`);
+  }
+  return records;
+}
+
+const READ_TABLES: ReadonlySet<string> = new Set(Object.keys(jellystatBackupSchema.element.shape));
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Tables of a JSONL backup, keyed by table name. Jellystat's own restore
+ * refuses a row whose table is not the last header, so this does too. The
+ * text is walked in place: a split into lines would hold a second copy of
+ * an upload that can be 500 MB. Rows are kept as JSON.parse built them, and
+ * only for the tables the import reads; every other table keeps its header
+ * and an empty list, since a backup's largest tables are ones Tracearr never
+ * reads and the whole result stays on the heap for the length of the import.
+ */
+export function readJsonlTables(text: string): Map<string, unknown[]> {
+  const tables = new Map<string, unknown[]>();
+  let currentTable: string | null = null;
+  let lineNumber = 0;
+  let offset = 0;
+  while (offset < text.length) {
+    const newline = text.indexOf('\n', offset);
+    const end = newline === -1 ? text.length : newline;
+    const line = text.slice(offset, end).trim();
+    offset = end + 1;
+    lineNumber++;
+    if (!line) continue;
+
+    let record: unknown;
+    try {
+      record = JSON.parse(line);
+    } catch {
+      throw new Error(`Invalid Jellystat backup: line ${lineNumber} is not valid JSON`);
+    }
+    const isHeader = isPlainObject(record) && record.type === 'table';
+    const isRow = isPlainObject(record) && record.type === 'row' && isPlainObject(record.data);
+    if (!isPlainObject(record) || typeof record.table !== 'string' || !(isHeader || isRow)) {
+      throw new Error(`Invalid Jellystat backup: line ${lineNumber} is not a table or row record`);
+    }
+
+    if (isHeader) {
+      currentTable = record.table;
+      if (!tables.has(currentTable)) tables.set(currentTable, []);
+      continue;
+    }
+    const rows = currentTable === null ? undefined : tables.get(currentTable);
+    if (!rows || record.table !== currentTable) {
+      throw new Error(
+        `Invalid Jellystat backup: line ${lineNumber} holds a ${record.table} row before that table's header`
+      );
+    }
+    if (READ_TABLES.has(currentTable)) rows.push(record.data);
+  }
+  return tables;
+}
+
+/**
+ * Parse and validate a Jellystat backup, either the legacy JSON array or the
+ * JSONL Jellystat 1.1.12 writes, told apart by the first character.
+ * Returns raw activity records (validated individually during import) and the
+ * library and plugin tables as slim records, each null when the backup left it out
+ */
+export function parseJellystatBackup(text: string): ParsedJellystatBackup {
+  const root: unknown = /^\s*\{/.test(text)
+    ? [Object.fromEntries(readJsonlTables(text))]
+    : JSON.parse(text);
+  const parsed = jellystatBackupSchema.safeParse(root);
+=======
 /**
  * Parse and validate Jellystat backup file structure
  * Returns raw activity records - individual records are validated during import
@@ -264,17 +425,57 @@ export function extractJellystatStreamDetails(
 export function parseJellystatBackup(jsonString: string): unknown[] {
   const data: unknown = JSON.parse(jsonString);
   const parsed = jellystatBackupSchema.safeParse(data);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
   if (!parsed.success) {
     throw new Error(`Invalid Jellystat backup format: ${parsed.error.message}`);
   }
 
+<<<<<<< HEAD
+  // Each table sits in its own section, and their order varies between backup files
+  const sections = parsed.data;
+  const findTable = <K extends keyof (typeof sections)[number]>(key: K) =>
+    sections.find((section) => section[key] !== undefined)?.[key];
+
+  return {
+    activities: findTable('jf_playback_activity') ?? [],
+    libraryItems: projectBackupTable(
+      findTable('jf_library_items'),
+      jellystatLibraryItemSchema,
+      'jf_library_items'
+    ),
+    libraryEpisodes: projectBackupTable(
+      findTable('jf_library_episodes'),
+      jellystatLibraryEpisodeSchema,
+      'jf_library_episodes'
+    ),
+    pluginRows: projectBackupTable(
+      findTable('jf_playback_reporting_plugin_data'),
+      jellystatPluginRowSchema,
+      'jf_playback_reporting_plugin_data'
+    ),
+  };
+}
+
+/**
+ * Compute the playback start from ActivityDateInserted (the end time) and duration.
+ */
+function computeActivityStartedAt(activity: JellystatPlaybackActivity): Date {
+  const durationSeconds =
+    typeof activity.PlaybackDuration === 'string'
+      ? parseInt(activity.PlaybackDuration, 10)
+      : activity.PlaybackDuration;
+  const durationMs = isNaN(durationSeconds) ? 0 : durationSeconds * 1000;
+
+  return new Date(new Date(activity.ActivityDateInserted).getTime() - durationMs);
+=======
   // Find the section containing playback activity (position varies in backup files)
   const playbackSection = parsed.data.find(
     (section): section is { jf_playback_activity: unknown[] } => 'jf_playback_activity' in section
   );
   const activities = playbackSection?.jf_playback_activity ?? [];
   return activities;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 /**
@@ -286,6 +487,17 @@ export function transformActivityToSession(
   serverUserId: string,
   geo: ReturnType<typeof geoipService.lookup>,
   enrichment?: MediaEnrichment,
+<<<<<<< HEAD
+  identity?: SessionIdentity,
+  ratingKey: string | null = activity.NowPlayingItemId,
+  thresholds?: WatchedThresholds
+): typeof sessions.$inferInsert {
+  const stoppedAt = new Date(activity.ActivityDateInserted);
+  const startedAt = computeActivityStartedAt(activity);
+  const durationMs = stoppedAt.getTime() - startedAt.getTime();
+
+  const totalDurationMs = enrichment?.runtimeMs ?? null;
+=======
   identity?: SessionIdentity
 ): typeof sessions.$inferInsert {
   const durationSeconds =
@@ -320,6 +532,7 @@ export function transformActivityToSession(
     totalDurationMs = Math.round((durationMs * 100) / percentComplete);
   }
   // If both are unavailable, totalDurationMs stays null
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
   // Detect media type - prefer enrichment data from media server API when available
   // Uses shared parseMediaType for consistency with live session polling
@@ -339,6 +552,14 @@ export function transformActivityToSession(
     }
   }
 
+<<<<<<< HEAD
+  const watched =
+    thresholds != null &&
+    totalDurationMs != null &&
+    durationMs >= totalDurationMs * watchedThresholdFor(thresholds, mediaType);
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   // Extract TranscodingInfo for DirectStream vs DirectPlay detection
   // Jellystat exports "DirectStream" for what Emby shows as "DirectPlay"
   const activityAnyForTranscode = activity as Record<string, unknown>;
@@ -371,7 +592,11 @@ export function transformActivityToSession(
     serverUserId,
     sessionKey: activity.Id,
     plexSessionId: null,
+<<<<<<< HEAD
+    ratingKey,
+=======
     ratingKey: activity.NowPlayingItemId,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     externalSessionId: activity.Id,
     referenceId: null,
     parentRatingKey: identity?.parentRatingKey ?? null,
@@ -400,9 +625,15 @@ export function transformActivityToSession(
     stoppedAt,
     durationMs,
     totalDurationMs,
+<<<<<<< HEAD
+    progressMs: null,
+    pausedDurationMs: 0,
+    watched,
+=======
     progressMs: positionMs,
     pausedDurationMs: 0,
     watched: activity.PlayState?.Completed ?? false,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     forceStopped: false,
     shortSession: durationMs < 120000,
     ipAddress: extractIpFromEndpoint(activity.RemoteEndPoint),
@@ -415,6 +646,10 @@ export function transformActivityToSession(
     geoLon: geo.lon,
     geoAsnNumber: geo.asnNumber,
     geoAsnOrganization: geo.asnOrganization,
+<<<<<<< HEAD
+    isLocal: geoipService.isPrivateIP(extractIpFromEndpoint(activity.RemoteEndPoint)),
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     // Normalize client info for consistency with live sessions
     // normalizeClient handles "AndroidTv" → "Android TV", "Emby for Kodi Next Gen" → "Kodi", etc.
     ...(() => {
@@ -449,6 +684,59 @@ export function transformActivityToSession(
  * @param pubSubService - Optional pub/sub service for progress updates
  * @param options - Additional import options
  */
+<<<<<<< HEAD
+interface ActivityLink {
+  keyChoice: ReturnType<typeof chooseJellystatItemKey>;
+  ratingKey: string;
+  identity: SessionIdentity | undefined;
+  rewrittenPluginRow: boolean;
+  isVetoed: boolean;
+}
+
+function resolveActivityLink(
+  activity: JellystatPlaybackActivity,
+  remapIndex: Parameters<typeof chooseJellystatItemKey>[1],
+  identityByRatingKey: Map<string, SessionIdentity>
+): ActivityLink {
+  const keyChoice = chooseJellystatItemKey(activity, remapIndex);
+  const { ratingKey, identity } = resolveJellystatItemKey(keyChoice, identityByRatingKey);
+  const rewrittenPluginRow = isImportedEpisodeRowRewritten(activity, keyChoice);
+  const isVetoed =
+    rewrittenPluginRow ||
+    (keyChoice.source === 'native' &&
+      keyChoice.checked &&
+      isRemapVetoed(activity, ratingKey, Boolean(activity.EpisodeId), remapIndex));
+  return { keyChoice, ratingKey, identity, rewrittenPluginRow, isVetoed };
+}
+
+/**
+ * Imports before 2.4.0 stored an episode play under its series id, so the row
+ * links to the show and never counts toward the episode. A later backup that
+ * names the episode moves only that row shape, an episode with no show link,
+ * and only when the id resolves to a library episode.
+ */
+function episodeRelink(
+  existing: ExistingSession,
+  link: ActivityLink
+): Partial<typeof sessions.$inferInsert> | null {
+  if (existing.mediaType !== 'episode' || existing.showMediaId !== null) return null;
+  const { identity } = link;
+  if (link.isVetoed || !identity || identity.itemMediaType !== 'episode') return null;
+  if (identity.mediaId === null || identity.mediaId === existing.mediaId) return null;
+  return {
+    ratingKey: link.ratingKey,
+    mediaId: identity.mediaId,
+    showMediaId: identity.showMediaId,
+    parentRatingKey: identity.parentRatingKey,
+    grandparentRatingKey: identity.grandparentRatingKey,
+    ...(identity.imdbId !== null && { imdbId: identity.imdbId }),
+    ...(identity.tmdbId !== null && { tmdbId: identity.tmdbId }),
+    ...(identity.tvdbId !== null && { tvdbId: identity.tvdbId }),
+  };
+}
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 export async function importJellystatBackup(
   serverId: string,
   backupJson: string,
@@ -481,7 +769,17 @@ export async function importJellystatBackup(
     progress.message = 'Parsing Jellystat backup file...';
     publishProgress(progress);
 
+<<<<<<< HEAD
+    const {
+      activities: rawActivities,
+      libraryItems,
+      libraryEpisodes,
+      pluginRows,
+    } = parseJellystatBackup(backupJson);
+    const remapIndex = buildJellystatRemapIndex(libraryItems, libraryEpisodes, pluginRows);
+=======
     const rawActivities = parseJellystatBackup(backupJson);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     progress.totalRecords = rawActivities.length;
     progress.message = `Parsed ${rawActivities.length} records from backup`;
     publishProgress(progress);
@@ -498,6 +796,14 @@ export async function importJellystatBackup(
         filtered: 0,
         errors: 0,
         enriched: 0,
+<<<<<<< HEAD
+        unchecked: 0,
+        unlinkedEpisodes: 0,
+        vetoed: 0,
+        pluginUnchecked: 0,
+        overlong: 0,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         message: 'No playback activity records found in backup',
       };
     }
@@ -536,7 +842,14 @@ export async function importJellystatBackup(
       throw new Error(`Jellystat import only supports Jellyfin/Emby servers, got: ${server.type}`);
     }
 
+<<<<<<< HEAD
+    const cutoff = server.createdAt;
+
     const userMap = await createUserMapping(serverId);
+    const thresholds = await getWatchedThresholds();
+=======
+    const userMap = await createUserMapping(serverId);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     const enrichmentMap = new Map<string, MediaEnrichment>();
 
     if (enrichMedia) {
@@ -544,7 +857,13 @@ export async function importJellystatBackup(
       progress.message = 'Fetching media metadata from Jellyfin...';
       publishProgress(progress);
 
+<<<<<<< HEAD
+      const uniqueMediaIds = [
+        ...new Set(activities.flatMap((a) => chooseJellystatItemKey(a, remapIndex).candidates)),
+      ];
+=======
       const uniqueMediaIds = [...new Set(activities.map((a) => a.NowPlayingItemId))];
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       console.log(`[Jellystat] Enriching ${uniqueMediaIds.length} unique media items`);
 
       const clientConfig = {
@@ -581,14 +900,31 @@ export async function importJellystatBackup(
     const updateStreamDetails = options?.updateStreamDetails ?? false;
 
     // Track date range of imported data for bounded aggregate refresh
+<<<<<<< HEAD
+    const importRange: { min: Date | null; max: Date | null } = { min: null, max: null };
+    const trackImportDate = (date: Date) => {
+      if (!importRange.min || date < importRange.min) importRange.min = date;
+      if (!importRange.max || date > importRange.max) importRange.max = date;
+    };
+=======
     let minImportDate: Date | null = null;
     let maxImportDate: Date | null = null;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
     let imported = 0;
     let updated = 0;
     let skipped = 0;
     let filtered = 0;
     let errors = 0;
+<<<<<<< HEAD
+    let unchecked = 0;
+    let unlinkedEpisodes = 0;
+    let relinked = 0;
+    let vetoed = 0;
+    let pluginUnchecked = 0;
+    let overlong = 0;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
     const skippedUserTracker = createSkippedUserTracker();
 
@@ -613,9 +949,17 @@ export async function importJellystatBackup(
       const existingMap =
         chunkIds.length > 0
           ? await queryExistingByExternalIds(serverId, chunkIds, chunkTimeBounds)
+<<<<<<< HEAD
+          : new Map<string, ExistingSession>();
+
+      const chunkRatingKeys = [
+        ...new Set(chunk.flatMap((a) => chooseJellystatItemKey(a, remapIndex).candidates)),
+      ].filter(Boolean);
+=======
           : new Map();
 
       const chunkRatingKeys = [...new Set(chunk.map((a) => a.NowPlayingItemId).filter(Boolean))];
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       const identityByRatingKey = await batchGetLibraryItemIdentity(serverId, chunkRatingKeys);
 
       const insertBatch: (typeof sessions.$inferInsert)[] = [];
@@ -640,10 +984,39 @@ export async function importJellystatBackup(
             continue;
           }
 
+<<<<<<< HEAD
+          // Tracearr already tracks anything at or after the server's cutoff.
+          // Plugin-origin rows store ActivityDateInserted in the plugin's own database
+          // timezone, so their real start is only known to within PLUGIN_ORIGIN_UNCERTAINTY_MS.
+          const isPluginOrigin = (activity as Record<string, unknown>).imported === true;
+          const cutoffCheckTime = isPluginOrigin
+            ? new Date(activity.ActivityDateInserted).getTime() + PLUGIN_ORIGIN_UNCERTAINTY_MS
+            : computeActivityStartedAt(activity).getTime();
+          if (cutoffCheckTime >= cutoff.getTime()) {
+            skipped++;
+            progress.skippedRecords++;
+            continue;
+          }
+
+          // Check if record exists in database
+          const existingSession = existingMap.get(activity.Id);
+          if (existingSession) {
+            const data: Partial<typeof sessions.$inferInsert> = {};
+            const relink = episodeRelink(
+              existingSession,
+              resolveActivityLink(activity, remapIndex, identityByRatingKey)
+            );
+            if (relink) {
+              Object.assign(data, relink);
+              relinked++;
+              if (existingSession.startedAt) trackImportDate(existingSession.startedAt);
+            }
+=======
           // Check if record exists in database
           const existingSession = existingMap.get(activity.Id);
           if (existingSession) {
             // Record exists - check if we should update stream details
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
             if (updateStreamDetails && !existingSession.sourceVideoCodec) {
               // Extract stream details from this activity
               const activityAny = activity as Record<string, unknown>;
@@ -666,6 +1039,17 @@ export async function importJellystatBackup(
                     : streamDetails.sourceVideoDetails?.bitrate
                       ? Math.floor(streamDetails.sourceVideoDetails.bitrate / 1000)
                       : null;
+<<<<<<< HEAD
+                  Object.assign(data, streamDetails, { bitrate });
+                }
+              }
+            }
+            if (Object.keys(data).length > 0) {
+              updateBatch.push({ id: existingSession.id, data });
+              updated++;
+              continue;
+            }
+=======
 
                   updateBatch.push({
                     id: existingSession.id,
@@ -679,6 +1063,7 @@ export async function importJellystatBackup(
                 }
               }
             }
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
             // No update needed - skip
             skipped++;
             progress.skippedRecords++;
@@ -698,7 +1083,13 @@ export async function importJellystatBackup(
             geoCache.set(ipAddress, geo);
           }
 
+<<<<<<< HEAD
+          const { keyChoice, ratingKey, identity, rewrittenPluginRow, isVetoed } =
+            resolveActivityLink(activity, remapIndex, identityByRatingKey);
+          const enrichment = isVetoed ? undefined : enrichmentMap.get(ratingKey);
+=======
           const enrichment = enrichmentMap.get(activity.NowPlayingItemId);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
           // Skip theme songs, theme videos, trailers, etc.
           if (enrichment?.filtered) {
@@ -709,13 +1100,51 @@ export async function importJellystatBackup(
             continue;
           }
 
+<<<<<<< HEAD
+          const playedMs =
+            new Date(activity.ActivityDateInserted).getTime() -
+            computeActivityStartedAt(activity).getTime();
+          if (exceedsRuntime(playedMs, enrichment?.runtimeMs)) {
+            overlong++;
+            progress.overlongRecords = overlong;
+            progress.skippedRecords++;
+            skipped++;
+            continue;
+          }
+
+=======
           const identity = identityByRatingKey.get(activity.NowPlayingItemId);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           const sessionData = transformActivityToSession(
             activity,
             serverId,
             serverUserId,
             geo,
             enrichment,
+<<<<<<< HEAD
+            isVetoed ? undefined : identity,
+            isVetoed ? null : ratingKey,
+            thresholds
+          );
+          insertBatch.push(sessionData);
+
+          if (rewrittenPluginRow && pluginRows === null) {
+            pluginUnchecked++;
+            progress.pluginUncheckedRecords = pluginUnchecked;
+          } else if (isVetoed) {
+            vetoed++;
+            progress.vetoedRecords = vetoed;
+          } else if (keyChoice.episodeIdDropped && !identity) {
+            unlinkedEpisodes++;
+            progress.unlinkedEpisodeRecords = unlinkedEpisodes;
+          } else if (!keyChoice.checked) {
+            unchecked++;
+            progress.uncheckedRecords = unchecked;
+          }
+
+          if (sessionData.startedAt) trackImportDate(sessionData.startedAt);
+
+=======
             identity
           );
           insertBatch.push(sessionData);
@@ -728,6 +1157,7 @@ export async function importJellystatBackup(
               maxImportDate = sessionData.startedAt;
           }
 
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           insertedInThisImport.add(activity.Id);
 
           imported++;
@@ -776,9 +1206,15 @@ export async function importJellystatBackup(
     try {
       // Use bounded refresh based on actual import date range (memory-efficient)
       // Add 1 day buffer on each side for timezone edge cases
+<<<<<<< HEAD
+      if (importRange.min && importRange.max) {
+        const startTime = new Date(importRange.min.getTime() - 24 * 60 * 60 * 1000);
+        const endTime = new Date(importRange.max.getTime() + 24 * 60 * 60 * 1000);
+=======
       if (minImportDate && maxImportDate) {
         const startTime = new Date(minImportDate.getTime() - 24 * 60 * 60 * 1000);
         const endTime = new Date(maxImportDate.getTime() + 24 * 60 * 60 * 1000);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         console.log(
           `[Jellystat] Refreshing aggregates for date range: ${startTime.toISOString()} to ${endTime.toISOString()}`
         );
@@ -806,6 +1242,15 @@ export async function importJellystatBackup(
     } catch (err) {
       console.warn('[Jellystat] Failed to refresh aggregates after import:', err);
     }
+<<<<<<< HEAD
+    try {
+      await markImportedServerLocations(serverId);
+      await enqueueServerLocationSyncIfBehind();
+    } catch (err) {
+      console.error('[Jellystat] Could not queue the server location sync:', err);
+    }
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
     let message = `Import complete: ${imported} imported, ${updated} updated, ${skipped} skipped, ${errors} errors`;
     if (filtered > 0) {
@@ -814,6 +1259,28 @@ export async function importJellystatBackup(
     if (enrichMedia && enrichmentMap.size > 0) {
       message += `, ${enrichmentMap.size} media items enriched`;
     }
+<<<<<<< HEAD
+    const plays = (count: number) => (count === 1 ? 'play' : 'plays');
+    if (relinked > 0) {
+      message += `, ${relinked} episode ${plays(relinked)} relinked to the episode`;
+    }
+    if (unlinkedEpisodes > 0) {
+      message += `. ${unlinkedEpisodes} episode ${plays(unlinkedEpisodes)} not linked because the backup left out jf_library_episodes; importing ${unlinkedEpisodes === 1 ? 'it' : 'them'} again will not link ${unlinkedEpisodes === 1 ? 'it' : 'them'}`;
+    }
+    if (unchecked > 0) {
+      message += `. ${unchecked} ${plays(unchecked)} could not be checked for moves to a different title because the backup left out library tables`;
+    }
+    if (pluginUnchecked > 0) {
+      message += `. ${pluginUnchecked} episode ${plays(pluginUnchecked)} from the Playback Reporting plugin not linked because the backup left out jf_playback_reporting_plugin_data`;
+    }
+    if (vetoed > 0) {
+      message += `. ${vetoed} ${plays(vetoed)} not linked because Jellystat may have moved ${vetoed === 1 ? 'it' : 'them'} to a different title`;
+    }
+    if (overlong > 0) {
+      message += `. ${overlong} ${plays(overlong)} skipped because the recorded play time runs past the media runtime`;
+    }
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
     const skippedUsersWarning = skippedUserTracker.formatWarning();
     if (skippedUsersWarning) {
@@ -838,6 +1305,14 @@ export async function importJellystatBackup(
       filtered,
       errors,
       enriched: enrichmentMap.size,
+<<<<<<< HEAD
+      unchecked,
+      unlinkedEpisodes,
+      vetoed,
+      pluginUnchecked,
+      overlong,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       message,
       skippedUsers:
         skippedUserTracker.size > 0
@@ -864,6 +1339,14 @@ export async function importJellystatBackup(
       filtered: progress.filteredRecords,
       errors: progress.errorRecords,
       enriched: progress.enrichedRecords,
+<<<<<<< HEAD
+      unchecked: progress.uncheckedRecords ?? 0,
+      unlinkedEpisodes: progress.unlinkedEpisodeRecords ?? 0,
+      vetoed: progress.vetoedRecords ?? 0,
+      pluginUnchecked: progress.pluginUncheckedRecords ?? 0,
+      overlong: progress.overlongRecords ?? 0,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       message: `Import failed: ${errorMessage}`,
     };
   }

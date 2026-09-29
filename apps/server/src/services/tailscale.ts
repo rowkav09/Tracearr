@@ -103,6 +103,8 @@ class TailscaleService {
     return this.getInfo();
   }
 
+<<<<<<< HEAD
+=======
   /**
    * Return the current peer table for integrations that need to correlate a
    * Tailscale address reported by another service. This is deliberately
@@ -145,6 +147,7 @@ class TailscaleService {
     }
   }
 
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   // Exit node disabled — this will come back when we implement SOCKS proxy support
   //
   // async setExitNode(id: string | null): Promise<TailscaleInfo> {

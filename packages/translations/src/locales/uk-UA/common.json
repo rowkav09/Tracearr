@@ -84,7 +84,14 @@
     "stopped": "Зупинено",
     "directPlay": "Пряме відтворення",
     "directStream": "Прямий потік",
+<<<<<<< HEAD
+    "transcode": "Перекодування",
+    "hwTranscode": "",
+    "burnIn": "",
+    "watched": "Переглянуто"
+=======
     "transcode": "Перекодування"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "severity": {
     "low": "Низька",
@@ -116,7 +123,16 @@
     "last30Days": "Останні 30 днів",
     "lastYear": "Останній рік",
     "byDay": "За день",
+<<<<<<< HEAD
+    "byHour": "За годину",
+    "short7Days": "",
+    "short30Days": "",
+    "shortYear": "",
+    "shortAll": "",
+    "timeRange": ""
+=======
     "byHour": "За годину"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "units": {
     "km": "км",
@@ -130,6 +146,10 @@
     "content": "Контент",
     "platform": "Платформа",
     "location": "Розташування",
+<<<<<<< HEAD
+    "local": "Локально",
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "ipAddress": "IP-адреса",
     "quality": "Якість",
     "duration": "Тривалість",
@@ -175,12 +195,22 @@
     "product": "",
     "deviceId": "",
     "created": "Створено",
+<<<<<<< HEAD
+    "total": "всього",
+    "mediaLength": "",
+    "segments": "",
+    "streamDetails": "Деталі трансляції",
+    "transcodeReason": "",
+    "loadMore": "Завантажити більше",
+    "playback": "Відтворення"
+=======
     "total": "",
     "mediaLength": "",
     "segments": "",
     "streamDetails": "",
     "transcodeReason": "",
     "loadMore": "Завантажити більше"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "search": {
     "placeholder": "Пошук...",
@@ -191,13 +221,27 @@
     "selectAllOnPage": "Вибрати все на сторінці",
     "selectRow": "Виберіть рядок",
     "pageOf": "Сторінка {{page}} з {{total}}",
+<<<<<<< HEAD
+    "pagination": "",
+    "goToPage": "Перейти на сторінку {{page}}"
+=======
     "pagination": ""
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "filters": {
     "clearAll": "Очистити все",
     "done": "Готово",
     "remove": "",
     "clearSearch": "Очистити пошук",
+<<<<<<< HEAD
+    "anyDate": "Будь-яка дата",
+    "dateAfter": "Після {{date}}",
+    "dateBefore": "До {{date}}",
+    "dateBetween": "{{from}} до {{to}}",
+    "clearDates": "",
+    "clearStartDate": "Очистити дату початку",
+    "clearEndDate": "Очистити кінцеву дату"
+=======
     "anyDate": "",
     "dateAfter": "",
     "dateBefore": "",
@@ -205,6 +249,7 @@
     "clearDates": "",
     "clearStartDate": "",
     "clearEndDate": ""
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "media": {
     "movie": "Фільм",
@@ -260,8 +305,13 @@
     "stream_other": "{{count}} потоки",
     "server_one": "{{count}} сервер",
     "server_other": "{{count}} сервери",
+<<<<<<< HEAD
+    "automation_one": "{{count}} автоматизація",
+    "automation_other": "{{count}} автоматизації",
+=======
     "automation_one": "",
     "automation_other": "",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "violation_one": "{{count}} порушення",
     "violation_other": "{{count}} порушень",
     "item_one": "{{count}} елемент",
@@ -282,8 +332,17 @@
     "alert_other": "",
     "location_one": "",
     "location_other": "",
+<<<<<<< HEAD
+    "device_one": "{{count}} пристрій",
+    "device_other": "{{count}} пристрої",
+    "play_one": "",
+    "play_other": "",
+    "segment_one": "",
+    "segment_other": ""
+=======
     "device_one": "",
     "device_other": ""
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "messages": {
     "noChangesDetected": "Змін не виявлено"
@@ -333,8 +392,13 @@
   "beta": "бета",
   "or": "або",
   "serverSelector": {
+<<<<<<< HEAD
+    "all": "Всі сервери",
+    "some": "{{count}} з {{total}} серверів",
+=======
     "all": "",
     "some": "",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "search": "",
     "noMatches": ""
   }

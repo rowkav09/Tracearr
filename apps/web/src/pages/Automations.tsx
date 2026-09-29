@@ -593,12 +593,20 @@ export function Automations() {
                 />
               </DataTableViewport>
               <DataTablePager
+<<<<<<< HEAD
+                variant="footer"
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                 {...pager}
                 labels={{
                   navigation: t('common:table.pagination'),
                   status: t('common:table.pageOf', { page: pager.page, total: pager.pageCount }),
                   previous: t('common:actions.previous'),
                   next: t('common:actions.next'),
+<<<<<<< HEAD
+                  goToPage: t('common:table.goToPage'),
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                 }}
               />
             </DataTableRoot>

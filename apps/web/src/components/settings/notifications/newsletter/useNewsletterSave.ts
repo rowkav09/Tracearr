@@ -1,6 +1,11 @@
+<<<<<<< HEAD
+import type { Newsletter } from '@tracearr/shared';
+import { useCreateNewsletter, useUpdateNewsletter } from '@/hooks/queries';
+=======
 import { useQueryClient } from '@tanstack/react-query';
 import type { Newsletter } from '@tracearr/shared';
 import { newsletterKeys, useCreateNewsletter, useUpdateNewsletter } from '@/hooks/queries';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { deepEqual, diffPatch, type NewsletterFormState } from './newsletterForm';
 
 interface UseNewsletterSaveArgs {
@@ -19,7 +24,10 @@ export function useNewsletterSave({
   valid,
   onSaved,
 }: UseNewsletterSaveArgs) {
+<<<<<<< HEAD
+=======
   const queryClient = useQueryClient();
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   const create = useCreateNewsletter();
   const update = useUpdateNewsletter();
   const dirty = !deepEqual(seed, state);
@@ -34,12 +42,16 @@ export function useNewsletterSave({
     }
     update.mutate(
       { id: newsletterId, data: diffPatch(seed, saved) },
+<<<<<<< HEAD
+      { onSuccess: (row) => onSaved(row, saved) }
+=======
       {
         onSuccess: (row) => {
           void queryClient.invalidateQueries({ queryKey: newsletterKeys.recipients(newsletterId) });
           onSaved(row, saved);
         },
       }
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     );
   };
 

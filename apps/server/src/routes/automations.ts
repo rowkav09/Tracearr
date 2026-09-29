@@ -112,7 +112,11 @@ const templateInputsSchema = z.object({
 const upgradeBodySchema = z.object({ inputs: z.record(z.string(), z.unknown()).optional() });
 
 const AUTOMATION_SORT_KEYS: Record<AutomationSortField, SortKey> = {
+<<<<<<< HEAD
+  name: { key: sql`lower(${automations.name})`, defaultDir: 'asc' },
+=======
   name: { key: sql`${automations.name}`, defaultDir: 'asc' },
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   createdAt: { key: sql`${automations.createdAt}`, defaultDir: 'desc' },
   updatedAt: { key: sql`${automations.updatedAt}`, defaultDir: 'desc' },
   kind: { key: sql`${automations.kind}`, defaultDir: 'asc' },

@@ -15,7 +15,10 @@ import { DestinationDialog } from '@/components/settings/destinations/Destinatio
 import { iconFor } from '@/components/settings/destinations/destinationIcons';
 import { useDestinations } from '@/hooks/queries/useDestinations';
 import { cn } from '@/lib/utils';
+<<<<<<< HEAD
+=======
 import { SELECTED_TOGGLE } from './selection';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 interface DestinationsFieldProps {
   value: string[];
@@ -25,11 +28,14 @@ interface DestinationsFieldProps {
   labelledBy?: string;
 }
 
+<<<<<<< HEAD
+=======
 function byBuiltinThenName(a: Destination, b: Destination): number {
   if (a.builtin !== b.builtin) return Number(b.builtin) - Number(a.builtin);
   return a.name.localeCompare(b.name);
 }
 
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 function lacksAlertRecipients(row: Destination): boolean {
   return (
     row.type === 'email' && row.config !== null && addressList(row.config.to ?? '').length === 0
@@ -47,7 +53,11 @@ export function DestinationsField({ value, onChange, label, labelledBy }: Destin
     return <Skeleton className="h-8 w-64" />;
   }
 
+<<<<<<< HEAD
+  const rows = destinations ?? [];
+=======
   const rows = [...(destinations ?? [])].sort(byBuiltinThenName);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   // A rule can outlive the destination it sends to; keep those ids visible so they can be dropped.
   const missingIds = value.filter((id) => !rows.some((row) => row.id === id));
 
@@ -93,11 +103,15 @@ export function DestinationsField({ value, onChange, label, labelledBy }: Destin
                 <ToggleGroupItem
                   key={row.id}
                   value={row.id}
+<<<<<<< HEAD
+                  className={cn('rounded-full', (!row.enabled || quiet) && 'opacity-60')}
+=======
                   className={cn(
                     'rounded-full',
                     SELECTED_TOGGLE,
                     (!row.enabled || quiet) && 'opacity-60'
                   )}
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                 >
                   {picked ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
                   {row.name}

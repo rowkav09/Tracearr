@@ -41,6 +41,10 @@ import {
   type SortKey,
 } from '../utils/listQuery.js';
 import { buildMultiServerCondition, resolveServerIds } from '../utils/serverFiltering.js';
+<<<<<<< HEAD
+import { isLocalSession } from '../utils/localSession.js';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import type { PgSelect } from 'drizzle-orm/pg-core';
 
 const runIdParamSchema = z.object({ id: uuidSchema });
@@ -224,11 +228,26 @@ async function loadSessionContext(sessionId: string | null): Promise<RunSessionC
       ipAddress: sessions.ipAddress,
       city: sessions.geoCity,
       country: sessions.geoCountry,
+<<<<<<< HEAD
+      isLocal: sessions.isLocal,
+      geoLat: sessions.geoLat,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     })
     .from(sessions)
     .where(eq(sessions.id, sessionId))
     .limit(1);
+<<<<<<< HEAD
+  const row = rows[0];
+  if (!row) return null;
+  const { isLocal, geoLat, ...context } = row;
+  return {
+    ...context,
+    isLocal: isLocalSession({ isLocal, geoCountry: row.country, geoCity: row.city, geoLat }),
+  };
+=======
   return rows[0] ?? null;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 /** The two fields the recorder copies onto the run, so a missing session still says something. */
@@ -248,6 +267,10 @@ function storedSessionContext(row: {
     ipAddress: row.storedIpAddress,
     city: null,
     country: null,
+<<<<<<< HEAD
+    isLocal: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   };
 }
 

@@ -89,7 +89,15 @@ function groupRow(input: GroupRowInput) {
   };
 }
 
+<<<<<<< HEAD
+function itemRow(
+  id: string,
+  fileSize: number | null = 160,
+  overrides: Record<string, unknown> = {}
+) {
+=======
 function itemRow(id: string, fileSize: number | null = 160) {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   return {
     id,
     server_id: SERVER_A,
@@ -99,8 +107,17 @@ function itemRow(id: string, fileSize: number | null = 160) {
     title: 'Some Movie',
     year: 2023,
     media_type: 'movie',
+<<<<<<< HEAD
+    grandparent_title: null,
+    parent_index: null,
+    item_index: null,
     file_size: fileSize != null ? String(fileSize) : null,
     video_resolution: '4k',
+    ...overrides,
+=======
+    file_size: fileSize != null ? String(fileSize) : null,
+    video_resolution: '4k',
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   };
 }
 
@@ -182,6 +199,44 @@ describe('GET /library/duplicates', () => {
     expect(allVersions.filter((v) => !v.isMirror)).toHaveLength(2);
   });
 
+<<<<<<< HEAD
+  it('carries the show and its season and episode numbers for an episode', async () => {
+    const itemX = randomUUID();
+    const itemY = randomUUID();
+    const episode = {
+      title: 'Grilled',
+      media_type: 'episode',
+      year: null,
+      grandparent_title: 'Breaking Bad',
+      parent_index: 2,
+      item_index: 2,
+    };
+    mockQueries({
+      groups: [
+        groupRow({
+          groupKey: 'tvdb:episode:349232',
+          itemIds: [itemX, itemY],
+          uniqueFileCount: 2,
+          totalBytes: 160,
+          savingsBytes: 60,
+        }),
+      ],
+      items: [itemRow(itemX, 100, episode), itemRow(itemY, 60, episode)],
+      versions: [versionRow(itemX, 100), versionRow(itemY, 60)],
+    });
+
+    const body = await requestDuplicates(app);
+
+    const item = body.duplicates[0]!.items[0]!;
+    expect(item.mediaType).toBe('episode');
+    expect(item.title).toBe('Grilled');
+    expect(item.grandparentTitle).toBe('Breaking Bad');
+    expect(item.seasonNumber).toBe(2);
+    expect(item.episodeNumber).toBe(2);
+  });
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   it('returns an honest zero when the gate leaves nothing', async () => {
     mockQueries({ groups: [] });
 

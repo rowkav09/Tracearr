@@ -9,6 +9,10 @@ import { db } from '../../db/client.js';
 import type { PosterRef } from '../../db/schema.js';
 import { posterVersionFor, proxyImage } from '../imageProxy.js';
 import { topWatched, type TopWatchedRow } from '../stats/topContent.js';
+<<<<<<< HEAD
+import { reAddedPredicate } from '../library/reAdded.js';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { libraryPairs } from './scopeSql.js';
 
 /** Another server's copy of the same title, folded into one card with a link of its own. */
@@ -401,7 +405,12 @@ interface RawItemRow {
 }
 
 const ITEM_TYPES = ['movie', 'show', 'season', 'episode', 'artist', 'album', 'track'];
+<<<<<<< HEAD
+/** Per media type, not per window: one type's rows must never crowd another's out of the digest. */
+export const WINDOW_TYPE_ROW_LIMIT = 5000;
+=======
 const WINDOW_ROW_LIMIT = 5000;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 function mapItemRow(r: RawItemRow): LibraryItemRow {
   return {
@@ -476,7 +485,11 @@ export function collapseMirrors(
   return rows.flatMap((row) => (dropped.has(row) ? [] : [replaced.get(row) ?? row]));
 }
 
+<<<<<<< HEAD
+/** Items first seen inside the window, minus copies that replace one this server lost; the server-reported added date only decides the card's display order. */
+=======
 /** Items first seen inside the window; the server-reported added date only decides the card's display order. */
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 export async function loadWindowItems(
   scope: NewsletterScope,
   window: { start: Date; end: Date }
@@ -489,6 +502,28 @@ export async function loadWindowItems(
       : sql`AND (li.server_id, li.library_id) IN ${libraryPairs(scope.libraries)}`;
   const seen = sql`COALESCE(li.first_seen_at, li.created_at)`;
   const result = await db.execute(sql`
+<<<<<<< HEAD
+    SELECT * FROM (
+      SELECT li.id, li.server_id, s.name AS server_name, s.type AS server_type,
+             li.library_id, COALESCE(l.name, li.library_id) AS library_name,
+             li.rating_key, li.media_id, li.media_type, li.title, li.year,
+             li.parent_title, li.parent_rating_key, li.parent_index,
+             li.grandparent_title, li.grandparent_rating_key, li.item_index,
+             li.thumb_path, li.genres, li.imdb_id, li.created_at AS added_at,
+             ${seen} AS seen_at,
+             row_number() OVER (PARTITION BY li.media_type ORDER BY ${seen} DESC) AS type_rank
+      FROM library_items li
+      JOIN servers s ON s.id = li.server_id
+      LEFT JOIN libraries l ON l.server_id = li.server_id AND l.library_id = li.library_id
+      WHERE li.removed_at IS NULL
+        AND ${seen} >= ${window.start} AND ${seen} < ${window.end}
+        AND li.media_type IN ${ITEM_TYPES}
+        AND NOT ${reAddedPredicate('li')}
+        ${serverFilter} ${libraryFilter}
+    ) windowed
+    WHERE type_rank <= ${WINDOW_TYPE_ROW_LIMIT}
+    ORDER BY seen_at DESC
+=======
     SELECT li.id, li.server_id, s.name AS server_name, s.type AS server_type,
            li.library_id, COALESCE(l.name, li.library_id) AS library_name,
            li.rating_key, li.media_id, li.media_type, li.title, li.year,
@@ -504,6 +539,7 @@ export async function loadWindowItems(
       ${serverFilter} ${libraryFilter}
     ORDER BY ${seen} DESC
     LIMIT ${WINDOW_ROW_LIMIT}
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   `);
   return (result.rows as unknown as RawItemRow[]).map(mapItemRow);
 }

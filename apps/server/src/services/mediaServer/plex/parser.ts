@@ -16,6 +16,10 @@ import {
   findSelectedElement,
 } from '../../../utils/parsing.js';
 import { normalizeStreamDecisions } from '../../../utils/transcodeNormalizer.js';
+<<<<<<< HEAD
+import { normalizePlexGuid } from '../../../utils/plexGuid.js';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import type {
   MediaSession,
   MediaUser,
@@ -40,7 +44,11 @@ import type {
   BandwidthDevice,
   BandwidthSample,
 } from '@tracearr/shared';
+<<<<<<< HEAD
+import { normalizeResolution, normalizeDynamicRange } from '@tracearr/shared';
+=======
 import { normalizeResolutionLabel, normalizeDynamicRange } from '@tracearr/shared';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { calculateProgress } from '../shared/parserUtils.js';
 import { extractPlexLiveTvMetadata, extractPlexMusicMetadata } from './plexUtils.js';
 
@@ -1497,6 +1505,13 @@ export function parseStatisticsBandwidthResponse(data: unknown): PlexBandwidthSt
  * External IDs (IMDB, TMDB, TVDB) are in nested Guid elements requiring `includeGuids=1`.
  *
  * Guid array format: [{ id: "imdb://tt1234567" }, { id: "tmdb://12345" }, ...]
+<<<<<<< HEAD
+ *
+ * The first id per provider wins. Plex's agents sometimes append a second id
+ * for the same provider that belongs to a different item (another episode of
+ * the show, or another show entirely); the first is the one the agent matched.
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
  */
 function parseExternalIds(guids: Array<{ id: string }> | undefined): {
   imdbId?: string;
@@ -1511,6 +1526,17 @@ function parseExternalIds(guids: Array<{ id: string }> | undefined): {
   for (const guid of guids) {
     const id = guid.id;
     if (id?.startsWith('imdb://')) {
+<<<<<<< HEAD
+      result.imdbId ??= id.replace('imdb://', '');
+    } else if (id?.startsWith('tmdb://')) {
+      const parsed = parseInt(id.replace('tmdb://', ''), 10);
+      if (!isNaN(parsed)) result.tmdbId ??= parsed;
+    } else if (id?.startsWith('tvdb://')) {
+      const parsed = parseInt(id.replace('tvdb://', ''), 10);
+      if (!isNaN(parsed)) result.tvdbId ??= parsed;
+    } else if (id?.startsWith('mbid://')) {
+      result.musicBrainzId ??= id.replace('mbid://', '');
+=======
       result.imdbId = id.replace('imdb://', '');
     } else if (id?.startsWith('tmdb://')) {
       const parsed = parseInt(id.replace('tmdb://', ''), 10);
@@ -1520,6 +1546,7 @@ function parseExternalIds(guids: Array<{ id: string }> | undefined): {
       if (!isNaN(parsed)) result.tvdbId = parsed;
     } else if (id?.startsWith('mbid://')) {
       result.musicBrainzId = id.replace('mbid://', '');
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     }
   }
 
@@ -1532,6 +1559,15 @@ function parseGenres(genre: Array<{ tag?: string }> | undefined): string[] | und
   return tags.length > 0 ? tags : undefined;
 }
 
+<<<<<<< HEAD
+/** Plex labels 2160x1080 "2k", so a version's tier comes from its pixels; stored lowercase. */
+function versionResolution(media: Record<string, unknown>): string | undefined {
+  return normalizeResolution({
+    label: parseOptionalString(media.videoResolution),
+    width: parseOptionalNumber(media.width),
+    height: parseOptionalNumber(media.height),
+  })?.toLowerCase();
+=======
 /**
  * Normalize video resolution string
  * Plex returns "4k", "1080", "720", "480", "sd"
@@ -1540,6 +1576,7 @@ function parseGenres(genre: Array<{ tag?: string }> | undefined): string[] | und
 function normalizeVideoResolution(resolution: string | undefined): string | undefined {
   const normalized = normalizeResolutionLabel(resolution);
   return normalized ? normalized.toLowerCase() : undefined;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 /**
@@ -1589,7 +1626,11 @@ function parseLibraryItem(item: Record<string, unknown>): MediaLibraryItem {
       // Media.id is always present in practice; the index form only guards
       // malformed payloads so a version is never silently dropped
       serverVersionKey: media.id != null ? String(media.id) : `idx:${index}`,
+<<<<<<< HEAD
+      videoResolution: versionResolution(media),
+=======
       videoResolution: normalizeVideoResolution(parseOptionalString(media.videoResolution)),
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       videoDynamicRange:
         normalizeDynamicRange(parseOptionalString(media.videoDynamicRange)) ?? undefined,
       videoCodec: parseOptionalString(media.videoCodec)?.toUpperCase(),
@@ -1664,6 +1705,12 @@ function parseLibraryItem(item: Record<string, unknown>): MediaLibraryItem {
     // External IDs
     ...externalIds,
 
+<<<<<<< HEAD
+    // Main guid attribute (NOT the Guid array), normalized for cross-server linking
+    plexGuid: normalizePlexGuid(parseOptionalString(item.guid))?.guid ?? null,
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     genres: parseGenres(item.Genre as Array<{ tag?: string }> | undefined),
 
     // File path (debug only)
@@ -1711,3 +1758,63 @@ export function parseLibraryItemsResponse(data: unknown): MediaLibraryItem[] {
   const metadata = container?.MediaContainer?.Metadata;
   return parseArray(metadata, (item) => parseLibraryItem(item as Record<string, unknown>));
 }
+<<<<<<< HEAD
+
+/**
+ * Rating keys from a batched /library/metadata/{keys} response that still
+ * belong to the section. Items in Plex's trash keep resolving by key with
+ * deletedAt set, and an item moved to another section answers with that
+ * section's id; neither counts as present here.
+ */
+export function parseRatingKeys(data: unknown, sectionId: string): string[] {
+  const container = data as { MediaContainer?: { Metadata?: unknown[] } };
+  const keys: string[] = [];
+  for (const raw of container?.MediaContainer?.Metadata ?? []) {
+    const item = raw as Record<string, unknown>;
+    const key = parseString(item.ratingKey);
+    if (key === '' || item.deletedAt != null) continue;
+    if (item.librarySectionID != null && String(item.librarySectionID) !== sectionId) continue;
+    keys.push(key);
+  }
+  return keys;
+}
+
+/**
+ * Per-version file existence from a batched /library/metadata/{keys}?checkFiles=1
+ * response. Version keys match parseLibraryItem's, so the two join. A version
+ * whose parts carry neither attribute reads as present: servers that skip the
+ * check must not make every file look missing.
+ */
+export function parseFileExistence(data: unknown): Map<string, Map<string, boolean>> {
+  const container = data as { MediaContainer?: { Metadata?: unknown[] } };
+  const byRatingKey = new Map<string, Map<string, boolean>>();
+  for (const raw of container?.MediaContainer?.Metadata ?? []) {
+    const item = raw as Record<string, unknown>;
+    const key = parseString(item.ratingKey);
+    if (key === '') continue;
+    const versions = new Map<string, boolean>();
+    const mediaArray = (item.Media as Array<Record<string, unknown>> | undefined) ?? [];
+    for (const [index, media] of mediaArray.entries()) {
+      if (media == null || typeof media !== 'object') continue;
+      const parts = (media.Part as Array<Record<string, unknown>> | undefined) ?? [];
+      const exists = parts.every((part) => part?.exists !== false && part?.accessible !== false);
+      versions.set(media.id != null ? String(media.id) : `idx:${index}`, exists);
+    }
+    byRatingKey.set(key, versions);
+  }
+  return byRatingKey;
+}
+
+/** Full genre lists keyed by ratingKey, from a batched /library/metadata/{keys} response. */
+export function parseGenresByRatingKey(data: unknown): Map<string, string[]> {
+  const container = data as { MediaContainer?: { Metadata?: unknown[] } };
+  const genres = new Map<string, string[]>();
+  for (const raw of container?.MediaContainer?.Metadata ?? []) {
+    const item = raw as Record<string, unknown>;
+    const tags = parseGenres(item.Genre as Array<{ tag?: string }> | undefined);
+    if (tags) genres.set(parseString(item.ratingKey), tags);
+  }
+  return genres;
+}
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)

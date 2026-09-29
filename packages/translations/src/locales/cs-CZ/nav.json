@@ -1,4 +1,37 @@
 {
+<<<<<<< HEAD
+  "dashboard": "Nástěnka",
+  "map": "Mapa",
+  "history": "Historie",
+  "stats": "Statistiky",
+  "activity": "Aktivita",
+  "library": "Knihovna",
+  "users": "Uživatelé",
+  "automations": "",
+  "violations": "Porušování",
+  "requests": "",
+  "alerts": "Výstrahy",
+  "settings": "Nastavení",
+  "overview": "Přehled",
+  "quality": "Kvalita",
+  "storage": "Úložiště",
+  "watch": "Sledujte",
+  "performance": "Výkon",
+  "devices": "Zařízení",
+  "bandwidth": "Šířka pásma",
+  "jobs": "Pracovní místa",
+  "accessControl": "Kontrola přístupu",
+  "media": "Média",
+  "mediaBrowse": "Procházet",
+  "mediaGenres": "Žánry",
+  "session": "",
+  "user": "",
+  "violation": "",
+  "monitor": "",
+  "manage": "",
+  "userStats": "",
+  "toggleSidebar": ""
+=======
   "accessControl": "Kontrola přístupu",
   "activity": "Aktivita",
   "alerts": "Výstrahy",
@@ -29,4 +62,5 @@
   "violation": "",
   "violations": "Porušování",
   "watch": "Sledujte"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }

@@ -12,11 +12,19 @@ import type { ViolationWithDetails, ActiveSession } from '@tracearr/shared';
 import { SEVERITY_LEVELS, getSeverityPriority, formatEpisodeLabel } from '@tracearr/shared';
 import { db } from '../db/client.js';
 import { mobileSessions, notificationPreferences, serverUsers } from '../db/schema.js';
+<<<<<<< HEAD
+import { getCacheService } from './cache.js';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { getPushRateLimiter } from './pushRateLimiter.js';
 import { quietHoursService, type NotificationSeverity } from './quietHours.js';
 import { pushEncryptionService } from './pushEncryption.js';
 import { getNetworkSettings } from '../routes/settings.js';
 import { buildPushPosterUrl, buildPushAvatarUrl, buildLogoUrl } from './imageProxy.js';
+<<<<<<< HEAD
+import { hashSha256 } from '../utils/hash.js';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import type { NewDevicePayload, TrustChangedPayload } from './notifications/events.js';
 
 // Initialize Expo SDK
@@ -39,6 +47,25 @@ const pendingReceipts = new Map<string, PendingReceipt>();
 // Invalid tokens that should be removed
 const tokensToRemove = new Set<string>();
 
+<<<<<<< HEAD
+// The mobile app registers its notification actions against these ids, so they cannot change.
+const PUSH_CATEGORY = {
+  VIOLATION: 'violation',
+  STREAM: 'stream',
+  SERVER: 'server',
+  NEW_DEVICE: 'new_device',
+  TRUST_SCORE_CHANGED: 'trust_score_changed',
+} as const;
+
+// threadId travels outside the encrypted data, so Expo and APNs see it: the id is
+// hashed, and the same id always gives the same thread. 32 hex chars is 128 bits.
+const threadHash = (id: string): string => hashSha256(id).slice(0, 32);
+const serverThreadId = (serverId: string | undefined): string | undefined =>
+  serverId ? `server:${threadHash(serverId)}` : undefined;
+const userThreadId = (serverUserId: string): string => `user:${threadHash(serverUserId)}`;
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 const MAX_PENDING_RECEIPTS = 10000;
 const MAX_TOKENS_TO_REMOVE = 1000;
 const RECEIPT_MAX_AGE_MS = 60 * 60 * 1000; // 1 hour - receipts older than this are stale
@@ -74,6 +101,10 @@ function formatMediaTitle(session: ActiveSession): string {
 interface SessionWithPrefs {
   expoPushToken: string;
   mobileSessionId: string;
+<<<<<<< HEAD
+  platform: 'ios' | 'android';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   deviceSecret: string | null;
   pushEnabled: boolean;
   onViolationDetected: boolean;
@@ -112,6 +143,11 @@ function buildPushMessage(
     data?: Record<string, unknown>;
     priority?: 'default' | 'high';
     channelId?: string;
+<<<<<<< HEAD
+    categoryId?: string;
+    threadId?: string; // iOS groups notifications that share one
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     badge?: number;
     sound?: 'default' | null;
     imageUrl?: string | null; // Rich notification image URL (must be HTTPS)
@@ -132,6 +168,11 @@ function buildPushMessage(
     data,
     priority: notification.priority ?? 'default',
     channelId: notification.channelId,
+<<<<<<< HEAD
+    categoryId: notification.categoryId,
+    threadId: notification.threadId,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     badge: notification.badge,
     sound: notification.sound === undefined ? 'default' : notification.sound,
   };
@@ -175,6 +216,10 @@ async function getSessionsWithPreferences(): Promise<SessionWithPrefs[]> {
     .select({
       expoPushToken: mobileSessions.expoPushToken,
       mobileSessionId: mobileSessions.id,
+<<<<<<< HEAD
+      platform: mobileSessions.platform,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       deviceSecret: mobileSessions.deviceSecret,
       pushEnabled: notificationPreferences.pushEnabled,
       onViolationDetected: notificationPreferences.onViolationDetected,
@@ -212,6 +257,10 @@ async function getSessionsWithPreferences(): Promise<SessionWithPrefs[]> {
     .map((s) => ({
       expoPushToken: s.expoPushToken,
       mobileSessionId: s.mobileSessionId,
+<<<<<<< HEAD
+      platform: s.platform,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       deviceSecret: s.deviceSecret ?? null,
       // Use defaults if no preferences exist
       pushEnabled: s.pushEnabled ?? true,
@@ -567,6 +616,16 @@ export class PushNotificationService {
     const identityUserId =
       violation.user.userId ?? (await getIdentityUserId(violation.serverUserId));
 
+<<<<<<< HEAD
+    // Only a session that is still playing: a client offers to terminate it.
+    const activeSessionId =
+      violation.sessionId &&
+      (await getCacheService()?.getActiveSessionIds())?.includes(violation.sessionId)
+        ? violation.sessionId
+        : null;
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     const messages = activeSessions.map((session) =>
       buildPushMessage(session.expoPushToken, session.deviceSecret, {
         title: override?.title ?? serverName,
@@ -584,9 +643,18 @@ export class PushNotificationService {
           ruleType: violation.rule.type,
           severity: violation.severity,
           serverId: violation.server?.id,
+<<<<<<< HEAD
+          ...(activeSessionId && { sessionId: activeSessionId }),
         },
         priority: severity === 'high' ? 'high' : 'default',
         channelId: 'violations',
+        categoryId: PUSH_CATEGORY.VIOLATION,
+        threadId: serverThreadId(serverId),
+=======
+        },
+        priority: severity === 'high' ? 'high' : 'default',
+        channelId: 'violations',
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         badge: 1,
         sound: severity === 'high' ? 'default' : undefined,
         imageUrl,
@@ -662,6 +730,11 @@ export class PushNotificationService {
         },
         priority: 'default',
         channelId: 'sessions',
+<<<<<<< HEAD
+        categoryId: PUSH_CATEGORY.STREAM,
+        threadId: serverThreadId(session.server.id),
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         imageUrl,
       })
     );
@@ -734,6 +807,11 @@ export class PushNotificationService {
         },
         priority: 'default',
         channelId: 'sessions',
+<<<<<<< HEAD
+        categoryId: PUSH_CATEGORY.STREAM,
+        threadId: serverThreadId(session.server.id),
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         imageUrl,
       })
     );
@@ -794,6 +872,11 @@ export class PushNotificationService {
         },
         priority: 'high',
         channelId: 'alerts',
+<<<<<<< HEAD
+        categoryId: PUSH_CATEGORY.SERVER,
+        threadId: serverThreadId(serverId),
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         sound: 'default',
         imageUrl,
       })
@@ -840,6 +923,11 @@ export class PushNotificationService {
         data: { ...payload, type: 'new_device' },
         priority: 'high',
         channelId: 'alerts',
+<<<<<<< HEAD
+        categoryId: PUSH_CATEGORY.NEW_DEVICE,
+        threadId: userThreadId(payload.serverUserId),
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         sound: 'default',
         imageUrl,
       })
@@ -892,6 +980,11 @@ export class PushNotificationService {
         data: { ...payload, type: 'trust_score_changed' },
         priority: dropped ? 'high' : 'default',
         channelId: 'alerts',
+<<<<<<< HEAD
+        categoryId: PUSH_CATEGORY.TRUST_SCORE_CHANGED,
+        threadId: userThreadId(payload.serverUserId),
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         imageUrl,
       })
     );
@@ -901,6 +994,25 @@ export class PushNotificationService {
 
   /**
    * Send silent push notification for background data sync
+<<<<<<< HEAD
+   * These notifications don't show any UI, just trigger the app's background task.
+   * Only the master toggle applies: the per-event toggles, rate limits and quiet
+   * hours govern what a user sees, and nothing here is shown.
+   */
+  async sendSilentNotification(
+    data: Record<string, unknown>,
+    allowDevice?: (session: SessionWithPrefs) => Promise<boolean>
+  ): Promise<void> {
+    const sessions = await getSessionsWithPreferences();
+    const eligibleSessions: SessionWithPrefs[] = [];
+    for (const session of sessions) {
+      if (!session.pushEnabled) continue;
+      if (allowDevice && !(await allowDevice(session))) continue;
+      eligibleSessions.push(session);
+    }
+
+    if (eligibleSessions.length === 0) return;
+=======
    * These notifications don't show any UI, just trigger the app's background task
    */
   async sendSilentNotification(
@@ -925,6 +1037,7 @@ export class PushNotificationService {
 
     // Note: Silent notifications typically skip rate limiting and quiet hours
     // as they're for background data sync, not user-facing alerts
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
     const messages: ExpoPushMessage[] = eligibleSessions.map((session) => {
       // Encrypt data payload if device has a secret
@@ -958,6 +1071,28 @@ export class PushNotificationService {
   }
 
   /**
+<<<<<<< HEAD
+   * Wake backgrounded iOS apps so the home screen widget reloads the active
+   * sessions. Runs on every stream start, stop and widget-visible change, so
+   * each device is claimed through the rate limiter first; without Redis
+   * nothing is sent.
+   */
+  async triggerSessionsSync(): Promise<void> {
+    const rateLimiter = getPushRateLimiter();
+    if (!rateLimiter) return;
+
+    await this.sendSilentNotification(
+      { syncType: 'sessions', timestamp: Date.now() },
+      async (session) =>
+        session.platform === 'ios' &&
+        (await rateLimiter.claimSessionsSync(session.mobileSessionId, () =>
+          this.sendSilentNotification(
+            { syncType: 'sessions', timestamp: Date.now() },
+            async (device) => device.mobileSessionId === session.mobileSessionId
+          )
+        ))
+    );
+=======
    * Trigger a data sync push for sessions refresh
    */
   async triggerSessionsSync(): Promise<void> {
@@ -965,6 +1100,7 @@ export class PushNotificationService {
       syncType: 'sessions',
       timestamp: Date.now(),
     });
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   }
 
   /**
@@ -1056,6 +1192,11 @@ export class PushNotificationService {
         },
         priority: 'default',
         channelId: 'alerts',
+<<<<<<< HEAD
+        categoryId: PUSH_CATEGORY.SERVER,
+        threadId: serverThreadId(serverId),
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         imageUrl,
       })
     );

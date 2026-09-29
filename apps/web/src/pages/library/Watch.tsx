@@ -2,7 +2,11 @@ import { useTranslation } from 'react-i18next';
 import { Eye, Clock, CheckCircle2, Flame, BarChart3 } from 'lucide-react';
 import type { Server } from '@tracearr/shared';
 import { StatCard, formatWatchTime } from '@/components/ui/stat-card';
+<<<<<<< HEAD
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+=======
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { Badge } from '@/components/ui/badge';
 import { ErrorState, BingeHighlightsTable, MostWatchedSection } from '@/components/library';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -303,6 +307,20 @@ export function LibraryWatch() {
       {/* Binge Highlights Section - Full Width */}
       <Card>
         <CardHeader>
+<<<<<<< HEAD
+          <CardTitle className="text-base font-medium">
+            {t('library.watch.bingeHighlights')}
+          </CardTitle>
+          <p className="text-muted-foreground text-sm">{t('library.watch.bingeHighlightsDesc')}</p>
+          {patterns.data?.summary && (
+            <CardAction className="text-right">
+              <p className="text-lg font-medium">
+                {patterns.data.summary.bingeSessionsPct.toFixed(0)}%
+              </p>
+              <p className="text-muted-foreground text-xs">{t('library.watch.bingeSessions')}</p>
+            </CardAction>
+          )}
+=======
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="text-base font-medium">
@@ -321,6 +339,7 @@ export function LibraryWatch() {
               </div>
             )}
           </div>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         </CardHeader>
         <CardContent>
           <BingeHighlightsTable

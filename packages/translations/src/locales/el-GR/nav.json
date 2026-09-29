@@ -1,4 +1,37 @@
 {
+<<<<<<< HEAD
+  "dashboard": "Ταμπλό",
+  "map": "Χάρτης",
+  "history": "Ιστορικό",
+  "stats": "Στατιστικά",
+  "activity": "Δραστηριότητα",
+  "library": "Βιβλιοθήκη",
+  "users": "Χρήστες",
+  "automations": "",
+  "violations": "Παραβάσεις",
+  "requests": "",
+  "alerts": "Ειδοποιήσεις",
+  "settings": "Ρυθμίσεις",
+  "overview": "Επισκόπηση",
+  "quality": "Ποιότητα",
+  "storage": "Αποθήκευση",
+  "watch": "Παρακολούθηση",
+  "performance": "Επιδόσεις",
+  "devices": "Συσκευές",
+  "bandwidth": "Εύρος Ζώνης",
+  "jobs": "Εργασίες",
+  "accessControl": "Έλεγχος Πρόσβασης",
+  "media": "Πολυμέσα",
+  "mediaBrowse": "Περιήγηση",
+  "mediaGenres": "Είδη",
+  "session": "",
+  "user": "",
+  "violation": "",
+  "monitor": "",
+  "manage": "",
+  "userStats": "",
+  "toggleSidebar": ""
+=======
   "accessControl": "Έλεγχος Πρόσβασης",
   "activity": "Δραστηριότητα",
   "alerts": "Ειδοποιήσεις",
@@ -29,4 +62,5 @@
   "violation": "",
   "violations": "Παραβάσεις",
   "watch": "Παρακολούθηση"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }

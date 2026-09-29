@@ -26,8 +26,14 @@ function status(overrides: Partial<ImageCacheStatus> = {}): ImageCacheStatus {
     sweptAt: '2026-08-20T00:00:00.000Z',
     freedBytesLastSweep: 500,
     deletedFilesLastSweep: 2,
+<<<<<<< HEAD
+    notPersisting: false,
+    postersWithThumb: 42,
+    estimatedNeedBytes: 42 * 20 * 1024,
+=======
     postersWithThumb: 42,
     estimatedNeedBytes: 42 * 18 * 1024,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     freeBytes: 50 * 1024 ** 3,
     totalBytes: 100 * 1024 ** 3,
     minFreePercent: 10,
@@ -80,7 +86,13 @@ describe('ImageCacheCard', () => {
     expect(screen.getByText('10')).toBeInTheDocument(); // files
     expect(screen.getByText('10%')).toBeInTheDocument(); // minFreePercent
     expect(
+<<<<<<< HEAD
+      screen.getByText('general.imageCache.needHint:{"count":42,"size":"20 KB"}', {
+        exact: false,
+      })
+=======
       screen.getByText('general.imageCache.needHint:{"count":42}', { exact: false })
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     ).toBeInTheDocument();
     expect(
       screen.getByText('general.imageCache.freeOf:{"total":"100 GB"}', { exact: false })
@@ -149,3 +161,43 @@ describe('ImageCacheCard', () => {
     expect(screen.queryByText('general.imageCache.diskLimited', { exact: false })).toBeNull();
   });
 });
+<<<<<<< HEAD
+
+describe('sweep accounting', () => {
+  it('shows what the last sweep removed and freed', () => {
+    mockUseImageCacheStatus.mockReturnValue({
+      data: status({ deletedFilesLastSweep: 12, freedBytesLastSweep: 2048 }),
+      isLoading: false,
+    } as never);
+
+    render(<ImageCacheCard />);
+
+    expect(screen.getByText('general.imageCache.swept')).toBeInTheDocument();
+    expect(screen.getByText('12')).toBeInTheDocument();
+    expect(screen.getByText('general.imageCache.freed')).toBeInTheDocument();
+  });
+
+  it('warns when a completed pass was followed by an empty cache', () => {
+    mockUseImageCacheStatus.mockReturnValue({
+      data: status({ notPersisting: true }),
+      isLoading: false,
+    } as never);
+
+    render(<ImageCacheCard />);
+
+    expect(screen.getByText('general.imageCache.notPersisting')).toBeInTheDocument();
+  });
+
+  it('stays quiet when the cache is persisting', () => {
+    mockUseImageCacheStatus.mockReturnValue({
+      data: status({ notPersisting: false }),
+      isLoading: false,
+    } as never);
+
+    render(<ImageCacheCard />);
+
+    expect(screen.queryByText('general.imageCache.notPersisting')).not.toBeInTheDocument();
+  });
+});
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)

@@ -31,6 +31,10 @@ import {
   type AutomationKind,
   type EmailRichTextDoc,
   type EmailSuppressionReason,
+<<<<<<< HEAD
+  type MediaRequestStatus,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   type NewsletterImageMode,
   type NewsletterLinks,
   type NewsletterRecipientStatus,
@@ -43,6 +47,12 @@ import {
   type NewsletterSendVariant,
   type NewsletterWindow,
   type NotificationEventType,
+<<<<<<< HEAD
+  type RequestCounts,
+  type RequestSeason,
+  type RequestServiceType,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   type RunOutcome,
   type TEMPLATE_GROUPS,
   type TemplateDefinition,
@@ -51,7 +61,11 @@ import {
 } from '@tracearr/shared';
 
 // Server types enum
+<<<<<<< HEAD
+export const serverTypeEnum = ['plex', 'jellyfin', 'emby'] as const;
+=======
 export const serverTypeEnum = ['plex', 'jellyfin', 'emby', 'navidrome'] as const;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 // Session state enum
 export const sessionStateEnum = ['playing', 'paused', 'stopped'] as const;
@@ -106,6 +120,12 @@ export const servers = pgTable(
     // The version the media server reports, and the newest release known for it.
     version: text('version'),
     latestVersion: text('latest_version'),
+<<<<<<< HEAD
+    // Bumped on every save of this server's server_locations; the sync job records the version it applied
+    locationVersion: integer('location_version').notNull().default(1),
+    locationSyncedVersion: integer('location_synced_version').notNull().default(0),
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -115,6 +135,35 @@ export const servers = pgTable(
   ]
 );
 
+<<<<<<< HEAD
+// Where a server sits over time; each local session takes the entry in effect when it started
+export const serverLocations = pgTable(
+  'server_locations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    serverId: uuid('server_id')
+      .notNull()
+      .references(() => servers.id, { onDelete: 'cascade' }),
+    // Null covers everything before the first dated entry
+    effectiveFrom: timestamp('effective_from', { withTimezone: true }),
+    lat: real('lat').notNull(),
+    lon: real('lon').notNull(),
+    city: varchar('city', { length: 255 }),
+    region: varchar('region', { length: 255 }),
+    country: varchar('country', { length: 2 }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('server_locations_server_from_uidx').on(table.serverId, table.effectiveFrom),
+    // The unique index above treats nulls as distinct, so it alone would allow two undated entries
+    uniqueIndex('server_locations_server_undated_uidx')
+      .on(table.serverId)
+      .where(sql`effective_from IS NULL`),
+  ]
+);
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 /**
  * Users - Identity table representing real humans
  *
@@ -187,7 +236,14 @@ export const users = pgTable(
     // Roster sort orders. Each one has to match the ORDER BY in
     // routes/users/list.ts key for key, direction for direction, nulls for
     // nulls, or the plan drops from an index scan to an incremental sort.
+<<<<<<< HEAD
+    index('users_display_name_idx').on(
+      sql`lower(coalesce(${table.name}, ${table.username}))`,
+      table.id
+    ),
+=======
     index('users_display_name_idx').on(sql`coalesce(${table.name}, ${table.username})`, table.id),
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     index('users_aggregate_trust_idx').on(table.aggregateTrustScore.desc(), table.id),
     index('users_first_joined_idx').on(table.firstJoinedAt.desc().nullsLast(), table.id),
     index('users_last_activity_idx').on(table.lastActivityAt.desc().nullsLast(), table.id),
@@ -397,6 +453,11 @@ export const sessions = pgTable(
     geoLon: real('geo_lon'),
     geoAsnNumber: integer('geo_asn_number'),
     geoAsnOrganization: varchar('geo_asn_organization', { length: 255 }),
+<<<<<<< HEAD
+    // From the IP at insert; null on rows the location sync has not classified yet
+    isLocal: boolean('is_local'),
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     playerName: varchar('player_name', { length: 255 }), // Player title/friendly name
     deviceId: varchar('device_id', { length: 255 }), // Machine identifier (unique device UUID)
     product: varchar('product', { length: 255 }), // Product name (e.g., "Plex for iOS")
@@ -563,6 +624,11 @@ export const automations = pgTable(
     index('automations_server_user_id_idx').on(table.serverUserId),
     index('automations_user_id_idx').on(table.userId),
     index('automations_template_id_idx').on(table.templateId),
+<<<<<<< HEAD
+    // Matches the name sort in routes/automations.ts key for key.
+    index('automations_name_idx').on(sql`lower(${table.name})`, table.id),
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   ]
 );
 
@@ -816,6 +882,84 @@ export const destinations = pgTable(
   ]
 );
 
+<<<<<<< HEAD
+export const requestServices = pgTable(
+  'request_services',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    serverId: uuid('server_id')
+      .notNull()
+      .references(() => servers.id, { onDelete: 'cascade' }),
+    type: varchar('type', { length: 20 }).notNull().$type<RequestServiceType>(),
+    name: text('name').notNull(),
+    url: text('url').notNull(),
+    config: text('config'),
+    configStatus: varchar('config_status', { length: 20 })
+      .notNull()
+      .default('ok')
+      .$type<'ok' | 'reencrypt'>(),
+    enabled: boolean('enabled').notNull().default(true),
+    remoteServerId: text('remote_server_id').notNull(),
+    version: text('version'),
+    syncCursor: timestamp('sync_cursor', { withTimezone: true }),
+    lastCounts: jsonb('last_counts').$type<RequestCounts>(),
+    lastSyncAt: timestamp('last_sync_at', { withTimezone: true }),
+    lastFullSyncAt: timestamp('last_full_sync_at', { withTimezone: true }),
+    lastSyncError: text('last_sync_error'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex('request_services_server_unique').on(table.serverId)]
+);
+
+export const mediaRequests = pgTable(
+  'media_requests',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    serviceId: uuid('service_id')
+      .notNull()
+      .references(() => requestServices.id, { onDelete: 'cascade' }),
+    remoteId: integer('remote_id').notNull(),
+    remoteMediaId: integer('remote_media_id').notNull(),
+    mediaType: varchar('media_type', { length: 10 }).notNull().$type<'movie' | 'show'>(),
+    title: text('title'),
+    year: integer('year'),
+    tmdbId: integer('tmdb_id'),
+    tvdbId: integer('tvdb_id'),
+    imdbId: varchar('imdb_id', { length: 20 }),
+    ratingKey: varchar('rating_key', { length: 255 }),
+    // Same convention as libraryItems.mediaId: media rows merge-fold, so no FK
+    mediaId: uuid('media_id'),
+    serverUserId: uuid('server_user_id').references(() => serverUsers.id, {
+      onDelete: 'set null',
+    }),
+    remoteUserId: integer('remote_user_id').notNull(),
+    remoteUsername: text('remote_username').notNull(),
+    remotePlexId: varchar('remote_plex_id', { length: 64 }),
+    remoteJellyfinUserId: varchar('remote_jellyfin_user_id', { length: 64 }),
+    status: varchar('status', { length: 20 }).notNull().$type<MediaRequestStatus>(),
+    seasons: jsonb('seasons').$type<RequestSeason[]>(),
+    is4k: boolean('is_4k').notNull().default(false),
+    isAutoRequest: boolean('is_auto_request').notNull().default(false),
+    requestedAt: timestamp('requested_at', { withTimezone: true }).notNull(),
+    availableAt: timestamp('available_at', { withTimezone: true }),
+    remoteUpdatedAt: timestamp('remote_updated_at', { withTimezone: true }).notNull(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    syncedAt: timestamp('synced_at', { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('media_requests_service_remote_unique').on(table.serviceId, table.remoteId),
+    index('media_requests_media_idx').on(table.mediaId),
+    index('media_requests_server_user_idx').on(table.serverUserId),
+    index('media_requests_requested_at_idx').on(table.requestedAt),
+    index('media_requests_service_updated_idx').on(table.serviceId, table.remoteUpdatedAt),
+  ]
+);
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 /** What a delivery needs to turn a `poster:<cardId>` reference back into bytes or a URL. */
 export interface PosterRef {
   serverId: string;
@@ -1006,6 +1150,12 @@ export const userMergeAudits = pgTable(
       email: string | null;
       thumbnail: string | null;
       role: string;
+<<<<<<< HEAD
+      // Absent on audits written before merges carried the contact email
+      contactEmail?: string | null;
+      contactEmailCarried?: boolean;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     }>(),
     // Which plex_accounts / mobile_sessions / mobile_tokens rows repointIdentityRows
     // moved off the source identity during this merge, so a later split can move
@@ -1026,6 +1176,28 @@ export const userMergeAudits = pgTable(
   ]
 );
 
+<<<<<<< HEAD
+export const dismissalKindEnum = ['merge_suggestion'] as const;
+
+// Something the owner told the app to stop raising. subjectKey is shaped by kind
+// (merge_suggestion: "lowerUserId:higherUserId") and has no FK, so whatever deletes
+// the rows it names has to delete the dismissal too.
+export const dismissals = pgTable(
+  'dismissals',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    kind: text('kind').notNull().$type<(typeof dismissalKindEnum)[number]>(),
+    subjectKey: text('subject_key').notNull(),
+    dismissedByUserId: uuid('dismissed_by_user_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex('dismissals_kind_subject_unique').on(table.kind, table.subjectKey)]
+);
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 // Unit system enum for display preferences
 export const unitSystemEnum = ['metric', 'imperial'] as const;
 
@@ -1302,6 +1474,11 @@ export const libraryItems = pgTable(
     imdbId: varchar('imdb_id', { length: 20 }), // IMDB ID (tt1234567 format)
     tmdbId: integer('tmdb_id'), // TMDB ID
     tvdbId: integer('tvdb_id'), // TVDB ID
+<<<<<<< HEAD
+    // Normalized plex://movie/<id> or plex://episode/<id> guid (see utils/plexGuid.ts). Plex only.
+    plexGuid: varchar('plex_guid', { length: 255 }),
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
     // Media metadata
     title: text('title').notNull(),
@@ -1371,6 +1548,12 @@ export const libraryItems = pgTable(
     index('idx_library_items_tvdb_partial')
       .on(table.tvdbId)
       .where(sql`${table.tvdbId} IS NOT NULL`),
+<<<<<<< HEAD
+    index('library_items_server_plex_guid_idx')
+      .on(table.serverId, table.plexGuid)
+      .where(sql`${table.plexGuid} IS NOT NULL`),
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
     // Composite index for library-scoped queries
     index('idx_library_items_server_library').on(table.serverId, table.libraryId),
@@ -1583,9 +1766,18 @@ export const librarySnapshots = pgTable(
     musicCount: integer('music_count').notNull().default(0),
 
     // Resolution breakdown
+<<<<<<< HEAD
+    count8k: integer('count_8k').notNull().default(0),
+    count4k: integer('count_4k').notNull().default(0),
+    count1440p: integer('count_1440p').notNull().default(0),
+    count1080p: integer('count_1080p').notNull().default(0),
+    count720p: integer('count_720p').notNull().default(0),
+    count480p: integer('count_480p').notNull().default(0),
+=======
     count4k: integer('count_4k').notNull().default(0),
     count1080p: integer('count_1080p').notNull().default(0),
     count720p: integer('count_720p').notNull().default(0),
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     countSd: integer('count_sd').notNull().default(0),
 
     // Codec breakdown

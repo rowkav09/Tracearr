@@ -6,8 +6,16 @@
  * are aggregated into a single row with combined duration.
  */
 
+<<<<<<< HEAD
+import { createHash } from 'node:crypto';
 import type { FastifyPluginAsync } from 'fastify';
 import { eq, sql, inArray } from 'drizzle-orm';
+import countries from 'i18n-iso-countries';
+import countriesEn from 'i18n-iso-countries/langs/en.json' with { type: 'json' };
+=======
+import type { FastifyPluginAsync } from 'fastify';
+import { eq, sql, inArray } from 'drizzle-orm';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import {
   sessionQuerySchema,
   historyQuerySchema,
@@ -26,11 +34,14 @@ import {
   type CountryOption,
   type HistoryAggregatesQueryInput,
 } from '@tracearr/shared';
+<<<<<<< HEAD
+=======
 import countries from 'i18n-iso-countries';
 import countriesEn from 'i18n-iso-countries/langs/en.json' with { type: 'json' };
 
 // Register English locale for country name lookups
 countries.registerLocale(countriesEn);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { db } from '../db/client.js';
 import { sessions, serverUsers, servers, users } from '../db/schema.js';
 import {
@@ -39,9 +50,20 @@ import {
   buildMultiServerFragment,
 } from '../utils/serverFiltering.js';
 import { representativeAccountOrderSql } from '../utils/representativeAccount.js';
+<<<<<<< HEAD
+import { compareNames } from '../utils/collation.js';
+import { serverOrderBy } from '../utils/serverOrder.js';
+import { isLocalSession, localSessionSql } from '../utils/localSession.js';
+import { terminateSession } from '../services/termination.js';
+import { getCacheService } from '../services/cache.js';
+
+// Register English locale for country name lookups
+countries.registerLocale(countriesEn);
+=======
 import { terminateSession } from '../services/termination.js';
 import { getCacheService } from '../services/cache.js';
 import { createHash } from 'node:crypto';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 /**
  * Result from building history filter conditions.
@@ -87,6 +109,10 @@ function buildHistoryFilterConditions(
     geoCountries,
     geoCity,
     geoRegion,
+<<<<<<< HEAD
+    network,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     transcodeDecisions,
     watched,
     excludeShortSessions,
@@ -182,6 +208,11 @@ function buildHistoryFilterConditions(
   }
   if (geoCity) conditions.push(sql`s.geo_city = ${geoCity}`);
   if (geoRegion) conditions.push(sql`s.geo_region = ${geoRegion}`);
+<<<<<<< HEAD
+  if (network === 'local') conditions.push(localSessionSql('s'));
+  if (network === 'remote') conditions.push(sql`NOT ${localSessionSql('s')}`);
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
   if (transcodeDecisions && transcodeDecisions.length > 0 && transcodeDecisions.length < 3) {
     const decisions = transcodeDecisions as string[];
@@ -358,6 +389,10 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
           s.geo_lon,
           s.geo_asn_number,
           s.geo_asn_organization,
+<<<<<<< HEAD
+          ${localSessionSql('s')} AS is_local,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           s.player_name,
           s.device_id,
           s.product,
@@ -430,6 +465,10 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
         geo_lon: number | null;
         geo_asn_number: number | null;
         geo_asn_organization: string | null;
+<<<<<<< HEAD
+        is_local: boolean;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         player_name: string | null;
         device_id: string | null;
         product: string | null;
@@ -467,7 +506,11 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
       server: {
         id: row.server_id,
         name: row.server_name,
+<<<<<<< HEAD
+        type: row.server_type as 'plex' | 'jellyfin' | 'emby',
+=======
         type: row.server_type as 'plex' | 'jellyfin' | 'emby' | 'navidrome',
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       },
       sessionKey: row.session_key,
       state: row.state,
@@ -499,6 +542,10 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
       geoLon: row.geo_lon,
       geoAsnNumber: row.geo_asn_number,
       geoAsnOrganization: row.geo_asn_organization,
+<<<<<<< HEAD
+      isLocal: row.is_local === true,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       playerName: row.player_name,
       deviceId: row.device_id,
       product: row.product,
@@ -571,6 +618,44 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
     }
     const { conditions } = filterResult;
 
+<<<<<<< HEAD
+    // Cursor: `${startedAtMs}_${playId}`, plus `_${hex(JSON sort key)}` for the
+    // Content and Duration sorts so the keyset comparison starts from the key.
+    let cursorTime: Date | null = null;
+    let cursorId: string | null = null;
+    let cursorKey: string | number | null = null;
+    if (cursor) {
+      const [timeStr, id, keyHex, ...extra] = cursor.split('_');
+      const parsedTime = timeStr ? Number(timeStr) : NaN;
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (
+        !timeStr ||
+        !id ||
+        extra.length > 0 ||
+        !Number.isInteger(parsedTime) ||
+        !uuidRegex.test(id)
+      ) {
+        return reply.badRequest('Invalid cursor');
+      }
+      if (orderBy !== 'startedAt') {
+        if (!keyHex || !/^[0-9a-f]*$/.test(keyHex)) return reply.badRequest('Invalid cursor');
+        let parsedKey: unknown;
+        try {
+          parsedKey = JSON.parse(Buffer.from(keyHex, 'hex').toString('utf8'));
+        } catch {
+          return reply.badRequest('Invalid cursor');
+        }
+        if (orderBy === 'durationMs') {
+          const asNumber = Number(parsedKey);
+          if (!Number.isInteger(asNumber)) return reply.badRequest('Invalid cursor');
+          cursorKey = asNumber;
+        } else if (typeof parsedKey === 'string') {
+          cursorKey = parsedKey;
+        } else {
+          return reply.badRequest('Invalid cursor');
+        }
+      } else if (keyHex !== undefined) {
+=======
     // Cursor-based pagination - parse cursor (format: `${startedAt.getTime()}_${playId}`)
     let cursorTime: Date | null = null;
     let cursorId: string | null = null;
@@ -581,12 +666,43 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
       const parsedTime = timeStr ? Number(timeStr) : NaN;
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (!timeStr || !id || !Number.isInteger(parsedTime) || !uuidRegex.test(id)) {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         return reply.badRequest('Invalid cursor');
       }
       cursorTime = new Date(parsedTime);
       cursorId = id;
     }
 
+<<<<<<< HEAD
+    const dir = orderDir === 'desc' ? sql`DESC` : sql`ASC`;
+    const playIdTiebreak = sql`COALESCE(s.reference_id, s.id)::text`;
+    // The key follows the title the table shows: an episode keys on its show's
+    // media row, every other type on its own row, and a session with no linked
+    // row falls back to that shown title (the show for an episode, else its own).
+    const sortKeyExpr =
+      orderBy === 'durationMs'
+        ? sql`SUM(COALESCE(s.duration_ms, 0))`
+        : orderBy === 'mediaTitle'
+          ? sql`COALESCE(MIN(m.sort_title), lower(MIN(CASE WHEN s.media_type = 'episode' AND s.grandparent_title <> '' THEN s.grandparent_title ELSE s.media_title END)))`
+          : null;
+    const mediaJoin =
+      orderBy === 'mediaTitle'
+        ? sql`LEFT JOIN media m ON m.id = CASE WHEN s.media_type = 'episode' THEN s.show_media_id ELSE s.media_id END`
+        : sql``;
+    // Every key in one direction so the keyset tuple comparison below is exact.
+    const orderByExpr = sortKeyExpr
+      ? sql`${sortKeyExpr} ${dir}, MIN(s.started_at) ${dir}, ${playIdTiebreak} ${dir}`
+      : sql`MIN(s.started_at) ${dir}, ${playIdTiebreak} ${dir}`;
+
+    const cursorOp = orderDir === 'desc' ? sql`<` : sql`>`;
+    const cursorKeyParam =
+      orderBy === 'durationMs' ? sql`${cursorKey}::bigint` : sql`${cursorKey}::text`;
+    const havingClause =
+      cursorTime && cursorId
+        ? sortKeyExpr
+          ? sql`HAVING (${sortKeyExpr}, MIN(s.started_at), ${playIdTiebreak}) ${cursorOp} (${cursorKeyParam}, ${cursorTime}, ${cursorId})`
+          : sql`HAVING (MIN(s.started_at), ${playIdTiebreak}) ${cursorOp} (${cursorTime}, ${cursorId})`
+=======
     const buildOrderByExpr = () => {
       const dir = orderDir === 'desc' ? sql`DESC` : sql`ASC`;
       const playIdTiebreak = sql`COALESCE(s.reference_id, s.id)::text`;
@@ -607,6 +723,7 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
         ? orderDir === 'desc'
           ? sql`HAVING (MIN(s.started_at), COALESCE(s.reference_id, s.id)::text) < (${cursorTime}, ${cursorId})`
           : sql`HAVING (MIN(s.started_at), COALESCE(s.reference_id, s.id)::text) > (${cursorTime}, ${cursorId})`
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         : sql``;
 
     // Full per-play aggregation is scoped to this page's play ids and to started_at at or
@@ -623,8 +740,15 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
           SELECT
             COALESCE(s.reference_id, s.id) as play_id,
             MIN(s.started_at) as started_at,
+<<<<<<< HEAD
+            ${sortKeyExpr ?? sql`NULL`} as sort_key,
             ROW_NUMBER() OVER (ORDER BY ${orderByExpr}) as rn
           FROM sessions s
+          ${mediaJoin}
+=======
+            ROW_NUMBER() OVER (ORDER BY ${orderByExpr}) as rn
+          FROM sessions s
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           ${buildWhereClause(conditions)}
           GROUP BY COALESCE(s.reference_id, s.id)
           ${havingClause}
@@ -632,7 +756,11 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
           LIMIT ${pageSize + 1}
         ),
         history_page_ids AS MATERIALIZED (
+<<<<<<< HEAD
+          SELECT play_id, started_at, sort_key, rn FROM history_page WHERE rn <= ${pageSize}
+=======
           SELECT play_id, started_at FROM history_page WHERE rn <= ${pageSize}
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         ),
         grouped_sessions AS (
           SELECT
@@ -691,6 +819,10 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
           s.geo_lon,
           s.geo_asn_number,
           s.geo_asn_organization,
+<<<<<<< HEAD
+          ${localSessionSql('s')} AS is_local,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           s.player_name,
           s.device_id,
           s.product,
@@ -714,8 +846,15 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
           s.stream_audio_details,
           s.transcode_info,
           s.subtitle_info,
+<<<<<<< HEAD
+          hp.sort_key,
           (SELECT count(*) FROM history_page)::int as page_candidate_count
         FROM grouped_sessions gs
+        JOIN history_page_ids hp ON hp.play_id = gs.play_id
+=======
+          (SELECT count(*) FROM history_page)::int as page_candidate_count
+        FROM grouped_sessions gs
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         -- bounds the join for chunk pruning
         JOIN sessions s ON s.id = gs.first_session_id AND s.started_at = gs.started_at
         JOIN server_users su ON su.id = s.server_user_id
@@ -733,8 +872,12 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
             LIMIT 20
           ) sub
         ) lat ON true
+<<<<<<< HEAD
+        ORDER BY hp.rn
+=======
         ORDER BY gs.started_at ${orderDir === 'desc' ? sql`DESC` : sql`ASC`},
           gs.play_id::text ${orderDir === 'desc' ? sql`DESC` : sql`ASC`}
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       `);
 
     const firstRow = result.rows[0] as { page_candidate_count: number } | undefined;
@@ -793,6 +936,10 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
         geo_lon: number | null;
         geo_asn_number: number | null;
         geo_asn_organization: string | null;
+<<<<<<< HEAD
+        is_local: boolean;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         player_name: string | null;
         device_id: string | null;
         product: string | null;
@@ -830,7 +977,11 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
       server: {
         id: row.server_id,
         name: row.server_name,
+<<<<<<< HEAD
+        type: row.server_type as 'plex' | 'jellyfin' | 'emby',
+=======
         type: row.server_type as 'plex' | 'jellyfin' | 'emby' | 'navidrome',
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       },
       sessionKey: row.session_key,
       state: row.state,
@@ -868,6 +1019,10 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
       geoLon: row.geo_lon,
       geoAsnNumber: row.geo_asn_number,
       geoAsnOrganization: row.geo_asn_organization,
+<<<<<<< HEAD
+      isLocal: row.is_local === true,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       playerName: row.player_name,
       deviceId: row.device_id,
       product: row.product,
@@ -896,9 +1051,22 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
 
     // Generate next cursor
     const lastSession = sessionData[sessionData.length - 1];
+<<<<<<< HEAD
+    const lastRow = result.rows[result.rows.length - 1] as { sort_key: string | number | null };
+    const nextCursor =
+      hasMore && lastSession?.startedAt
+        ? [
+            `${new Date(lastSession.startedAt).getTime()}`,
+            lastSession.id,
+            ...(orderBy === 'startedAt'
+              ? []
+              : [Buffer.from(JSON.stringify(lastRow.sort_key)).toString('hex')]),
+          ].join('_')
+=======
     const nextCursor =
       hasMore && lastSession?.startedAt
         ? `${new Date(lastSession.startedAt).getTime()}_${lastSession.id}`
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         : undefined;
 
     const response: HistorySessionResponse = {
@@ -1189,7 +1357,14 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
         ORDER BY LOWER(COALESCE(u.name, su.username))
       `),
       // Servers (for rules builder)
+<<<<<<< HEAD
+      db
+        .select({ id: servers.id, name: servers.name, type: servers.type })
+        .from(servers)
+        .orderBy(...serverOrderBy()),
+=======
       db.select({ id: servers.id, name: servers.name, type: servers.type }).from(servers),
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     ]);
 
     // Transform users result
@@ -1210,6 +1385,14 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
       identityName: row.identity_name,
       serverUserIds: row.server_user_ids ?? [row.id],
     }));
+<<<<<<< HEAD
+    usersData.sort(
+      (a, b) =>
+        compareNames(a.identityName ?? a.username, b.identityName ?? b.username) ||
+        a.id.localeCompare(b.id)
+    );
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
     // Transform servers result
     const serversData = serversResult.map((row) => ({
@@ -1383,6 +1566,10 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
         geoLon: sessions.geoLon,
         geoAsnNumber: sessions.geoAsnNumber,
         geoAsnOrganization: sessions.geoAsnOrganization,
+<<<<<<< HEAD
+        isLocal: sessions.isLocal,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         playerName: sessions.playerName,
         deviceId: sessions.deviceId,
         product: sessions.product,
@@ -1469,6 +1656,10 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
       geoLon: row.geoLon,
       geoAsnNumber: row.geoAsnNumber,
       geoAsnOrganization: row.geoAsnOrganization,
+<<<<<<< HEAD
+      isLocal: isLocalSession(row),
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       playerName: row.playerName,
       deviceId: row.deviceId,
       product: row.product,

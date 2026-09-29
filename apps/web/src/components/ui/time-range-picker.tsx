@@ -22,9 +22,12 @@ interface TimeRangePickerProps {
   className?: string;
 }
 
+<<<<<<< HEAD
+=======
 // one selected-state language across every segmented control in the app
 const SELECTED = 'data-[state=on]:bg-primary/15 data-[state=on]:text-primary';
 
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 const PRESETS: { value: TimeRangePeriod; label: string }[] = [
   { value: 'week', label: '7d' },
   { value: 'month', label: '30d' },
@@ -79,14 +82,22 @@ export function TimeRangePicker({ value, onChange, className }: TimeRangePickerP
       className={className}
     >
       {PRESETS.map((preset) => (
+<<<<<<< HEAD
+        <ToggleGroupItem key={preset.value} value={preset.value}>
+=======
         <ToggleGroupItem key={preset.value} value={preset.value} className={SELECTED}>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           {preset.label}
         </ToggleGroupItem>
       ))}
 
       <Popover open={isOpen} onOpenChange={setIsOpen}>
         <PopoverTrigger asChild>
+<<<<<<< HEAD
+          <ToggleGroupItem value="custom">
+=======
           <ToggleGroupItem value="custom" className={SELECTED}>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
             <CalendarIcon />
             {value.period === 'custom' ? formatDateRange() : 'Custom'}
           </ToggleGroupItem>

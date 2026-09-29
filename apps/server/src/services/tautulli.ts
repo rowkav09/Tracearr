@@ -6,17 +6,36 @@ import type { TautulliImportProgress, TautulliImportResult } from '@tracearr/sha
 import { and, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../db/client.js';
+<<<<<<< HEAD
+import { servers, serverUsers, sessions, users } from '../db/schema.js';
+=======
 import { serverUsers, sessions, users } from '../db/schema.js';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import {
   checkAggregateNeedsRebuild,
   refreshAggregates,
   uncapDecompressionForTx,
 } from '../db/timescale.js';
+<<<<<<< HEAD
+import {
+  enqueueMaintenanceJob,
+  enqueueServerLocationSyncIfBehind,
+} from '../jobs/maintenanceQueue.js';
+import {
+  batchGetLibraryItemIdentity,
+  batchResolveMediaByPlexGuid,
+} from '../jobs/poller/database.js';
+import { sanitizeCodec } from '../utils/codecNormalizer.js';
+import { extractIpFromEndpoint } from '../utils/parsing.js';
+import { normalizeClient } from '../utils/platformNormalizer.js';
+import { normalizePlexGuid } from '../utils/plexGuid.js';
+=======
 import { enqueueMaintenanceJob } from '../jobs/maintenanceQueue.js';
 import { batchGetLibraryItemIdentity } from '../jobs/poller/database.js';
 import { sanitizeCodec } from '../utils/codecNormalizer.js';
 import { extractIpFromEndpoint } from '../utils/parsing.js';
 import { normalizeClient } from '../utils/platformNormalizer.js';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { normalizeStreamDecisions } from '../utils/transcodeNormalizer.js';
 import type { PubSubService } from './cache.js';
 import { geoasnService } from './geoasn.js';
@@ -28,12 +47,21 @@ import {
   createUserMapping,
   flushInsertBatch,
   flushUpdateBatch,
+<<<<<<< HEAD
+  getServerTrackingStart,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   queryExistingByExternalIds,
   queryExistingByTimeKeys,
   type SessionUpdate,
   type TimeBounds,
 } from './import/index.js';
+<<<<<<< HEAD
+import { markImportedServerLocations } from './serverLocations.js';
+import { getSettings, rearmImportedHistoryLink } from './settings.js';
+=======
 import { getSettings } from './settings.js';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 const PAGE_SIZE = 5000; // Larger batches = fewer API calls (tested up to 10k, scales linearly)
 const REQUEST_TIMEOUT_MS = 30000; // 30 seconds
@@ -58,6 +86,17 @@ export function isFatalImportError(err: unknown): boolean {
   return err instanceof Error && err.message.startsWith('Invalid Tautulli API response');
 }
 
+<<<<<<< HEAD
+async function rearmLinking(): Promise<void> {
+  try {
+    await rearmImportedHistoryLink({ keepProviderPass: false });
+  } catch (err) {
+    console.warn('Failed to re-arm imported history linking:', err);
+  }
+}
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 async function readErrorBody(response: Response): Promise<string> {
   try {
     return (await response.text()).slice(0, ERROR_BODY_MAX_CHARS);
@@ -84,6 +123,20 @@ export function parseHistoryGuid(guid: string | null): {
   return {};
 }
 
+<<<<<<< HEAD
+// Live content reports its actual type in media_type too, so the live flag wins.
+function mapTautulliMediaType(record: {
+  live: number | null;
+  media_type: string;
+}): 'movie' | 'episode' | 'track' | 'live' {
+  if (record.live === 1) return 'live';
+  if (record.media_type === 'episode') return 'episode';
+  if (record.media_type === 'track') return 'track';
+  return 'movie';
+}
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 // Helper for fields that can be number or empty string (Tautulli API inconsistency)
 // Exported for testing
 export const numberOrEmptyString = z.union([z.number(), z.literal('')]);
@@ -174,6 +227,37 @@ export const TautulliHistoryResponseSchema = z.object({
   }),
 });
 
+<<<<<<< HEAD
+// Unlike TautulliHistoryResponseSchema, an error response (data: null) parses here.
+const TautulliGuidHistoryResponseSchema = z.object({
+  response: z.object({
+    result: z.string(),
+    data: z
+      .object({
+        recordsFiltered: z.number(),
+        data: z.array(z.unknown()),
+      })
+      .nullish(),
+  }),
+});
+
+const TautulliGuidHistoryRowSchema = z.object({
+  rating_key: z.union([z.number(), z.string()]).transform(String),
+  live: z.number().nullable(),
+  media_type: z.string(),
+  guid: z.string().nullable(),
+  reference_id: z.number().nullable(),
+});
+
+const TautulliServerInfoResponseSchema = z.object({
+  response: z.object({
+    result: z.string(),
+    data: z.object({ pms_identifier: z.string().nullish() }).nullish(),
+  }),
+});
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 export const TautulliUserRecordSchema = z.object({
   user_id: z.coerce.number(),
   username: z.string(),
@@ -499,6 +583,10 @@ export class TautulliService {
         length,
         order_column: 'date',
         order_dir: 'desc',
+<<<<<<< HEAD
+        grouping: 1,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       },
       TautulliHistoryResponseSchema
     );
@@ -511,6 +599,66 @@ export class TautulliService {
   }
 
   /**
+<<<<<<< HEAD
+   * The machine identifier of the Plex server this Tautulli monitors
+   */
+  async getPmsIdentifier(): Promise<string | null> {
+    const result = await this.request('get_server_info', {}, TautulliServerInfoResponseSchema);
+    const identifier = result.response.data?.pms_identifier;
+    return result.response.result === 'success' && identifier ? identifier : null;
+  }
+
+  /**
+   * Raw guids and reference ids Tautulli recorded for each rating key, from
+   * non-live movie and episode history rows. Null when the answer may be
+   * incomplete: an error result, a row that does not parse, or fewer rows
+   * returned than matched.
+   */
+  async getGuidsByRatingKey(
+    ratingKeys: string[]
+  ): Promise<Map<string, { guids: Set<string>; referenceIds: Set<string> }> | null> {
+    const result = await this.request(
+      'get_history',
+      {
+        rating_key: ratingKeys.join(','),
+        grouping: 0,
+        include_activity: 0,
+        length: 100000,
+      },
+      TautulliGuidHistoryResponseSchema
+    );
+    const { data } = result.response;
+    if (result.response.result !== 'success' || !data) return null;
+    if (data.data.length !== data.recordsFiltered) return null;
+
+    const requested = new Set(ratingKeys);
+    const history = new Map<string, { guids: Set<string>; referenceIds: Set<string> }>();
+    for (const raw of data.data) {
+      const row = TautulliGuidHistoryRowSchema.safeParse(raw);
+      if (!row.success) return null;
+      const {
+        rating_key: ratingKey,
+        live,
+        media_type: mediaType,
+        guid,
+        reference_id: referenceId,
+      } = row.data;
+      // Tautulli filters on session_history.rating_key but reports
+      // session_history_metadata.rating_key, so check the key it reports.
+      if (!requested.has(ratingKey)) continue;
+      if (live !== 0 || (mediaType !== 'movie' && mediaType !== 'episode')) continue;
+      const entry = history.get(ratingKey) ?? { guids: new Set(), referenceIds: new Set() };
+      // A row without a guid still counts, so its key cannot look unanimous.
+      entry.guids.add(guid ?? '');
+      if (referenceId !== null) entry.referenceIds.add(String(referenceId));
+      history.set(ratingKey, entry);
+    }
+    return history;
+  }
+
+  /**
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
    * Get detailed stream data for a specific session
    * This provides codec, bitrate, resolution, and transcode details not available in get_history
    *
@@ -549,6 +697,42 @@ export class TautulliService {
   }
 
   /**
+<<<<<<< HEAD
+   * The guid fallback resolves against this server's library, so it applies
+   * only when Tautulli reports the same Plex machine identifier as the server row.
+   */
+  private static async monitorsServer(
+    tautulli: TautulliService,
+    serverId: string
+  ): Promise<boolean> {
+    const [server] = await db
+      .select({ machineIdentifier: servers.machineIdentifier })
+      .from(servers)
+      .where(eq(servers.id, serverId))
+      .limit(1);
+    let pmsIdentifier: string | null = null;
+    try {
+      pmsIdentifier = await tautulli.getPmsIdentifier();
+    } catch (err) {
+      console.warn(
+        `[Import] Tautulli server info failed: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
+    const matches =
+      pmsIdentifier !== null &&
+      !!server?.machineIdentifier &&
+      pmsIdentifier === server.machineIdentifier;
+    if (!matches) {
+      console.log(
+        '[Import] Tautulli reports a different or unknown Plex server; skipping the Plex guid fallback'
+      );
+    }
+    return matches;
+  }
+
+  /**
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
    * Import all history from Tautulli into Tracearr (OPTIMIZED)
    *
    * Performance improvements over original:
@@ -563,10 +747,37 @@ export class TautulliService {
     serverId: string,
     pubSubService?: PubSubService,
     onProgress?: (progress: TautulliImportProgress) => Promise<void>,
+<<<<<<< HEAD
+    options?: { overwriteFriendlyNames?: boolean }
+  ): Promise<TautulliImportResult> {
+    const changes = { imported: 0, updated: 0, complete: false };
+    try {
+      return await TautulliService.runImportHistory(
+        serverId,
+        pubSubService,
+        onProgress,
+        options,
+        changes
+      );
+    } finally {
+      if (changes.complete || changes.imported > 0 || changes.updated > 0) await rearmLinking();
+    }
+  }
+
+  private static async runImportHistory(
+    serverId: string,
+    pubSubService: PubSubService | undefined,
+    onProgress: ((progress: TautulliImportProgress) => Promise<void>) | undefined,
+    options: { overwriteFriendlyNames?: boolean } | undefined,
+    changes: { imported: number; updated: number; complete: boolean }
+  ): Promise<TautulliImportResult> {
+    const overwriteFriendlyNames = options?.overwriteFriendlyNames ?? false;
+=======
     options?: { overwriteFriendlyNames?: boolean; skipRefresh?: boolean }
   ): Promise<TautulliImportResult> {
     const overwriteFriendlyNames = options?.overwriteFriendlyNames ?? false;
     const skipRefresh = options?.skipRefresh ?? false;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
     // Get Tautulli settings
     const config = await getSettings(['tautulliUrl', 'tautulliApiKey']);
@@ -599,6 +810,24 @@ export class TautulliService {
       };
     }
 
+<<<<<<< HEAD
+    const cutoff = await getServerTrackingStart(serverId);
+    if (!cutoff) {
+      return {
+        success: false,
+        imported: 0,
+        updated: 0,
+        linked: 0,
+        skipped: 0,
+        errors: 0,
+        message: 'Server not found; cannot determine import cutoff.',
+      };
+    }
+
+    const guidFallback = await TautulliService.monitorsServer(tautulli, serverId);
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     // Initialize progress with detailed tracking
     const progress: TautulliImportProgress = {
       status: 'fetching',
@@ -689,10 +918,16 @@ export class TautulliService {
     const insertBatch: (typeof sessions.$inferInsert)[] = [];
     const updateBatch: SessionUpdate[] = [];
 
+<<<<<<< HEAD
+    let skipped = 0;
+    let errors = 0;
+    let alreadyTracked = 0;
+=======
     let imported = 0;
     let updated = 0;
     let skipped = 0;
     let errors = 0;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     let page = 0;
     const failedPages: number[] = [];
 
@@ -800,6 +1035,34 @@ export class TautulliService {
         .filter((k): k is string => k !== null);
       const identityByRatingKey = await batchGetLibraryItemIdentity(serverId, pageRatingKeys);
 
+<<<<<<< HEAD
+      // Records whose rating key resolved no library_items row at all get a second
+      // chance by guid: it survives a Plex re-key that leaves the rating key
+      // pointing at nothing. A rating key that DID resolve, even to a row not yet
+      // linked to canonical media, keeps its own (possibly partial) identity as-is
+      // rather than mixing in a second, independently-matched guid identity.
+      let identityByGuid: Awaited<ReturnType<typeof batchResolveMediaByPlexGuid>> = new Map();
+      if (guidFallback) {
+        const pageGuidLookups: Array<{ guid: string; mediaType: 'movie' | 'episode' }> = [];
+        for (const record of validRecords) {
+          const ratingKeyStr =
+            typeof record.rating_key === 'number' ? String(record.rating_key) : null;
+          const identity = ratingKeyStr ? identityByRatingKey.get(ratingKeyStr) : undefined;
+          if (identity !== undefined) continue;
+
+          const mappedType = mapTautulliMediaType(record);
+          if (mappedType !== 'movie' && mappedType !== 'episode') continue;
+
+          const normalizedGuid = normalizePlexGuid(record.guid);
+          if (normalizedGuid && normalizedGuid.mediaType === mappedType) {
+            pageGuidLookups.push(normalizedGuid);
+          }
+        }
+        identityByGuid = await batchResolveMediaByPlexGuid(serverId, pageGuidLookups);
+      }
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       for (const record of validRecords) {
         progress.processedRecords++;
 
@@ -859,14 +1122,40 @@ export class TautulliService {
             continue;
           }
 
+<<<<<<< HEAD
+          // Tracearr already tracks anything at or after the server's cutoff.
+          if (record.started * 1000 >= cutoff.getTime()) {
+            skipped++;
+            progress.skippedRecords++;
+            alreadyTracked++;
+            continue;
+          }
+
+          // Check if exists in database (per-page query result)
+          const existingByRef = sessionByExternalId.get(referenceIdStr);
+          if (existingByRef) {
+            // A reference_id match whose recorded start has drifted isn't the same
+            // play Tracearr stored; leave it alone rather than overwrite it.
+            const startsMatch = existingByRef.startedAt?.getTime() === record.started * 1000;
+=======
           // Check if exists in database (per-page query result)
           const existingByRef = sessionByExternalId.get(referenceIdStr);
           if (existingByRef) {
             // Calculate new values
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
             const newStoppedAt = new Date((record.started + record.duration) * 1000);
             const newDurationMs = record.duration * 1000;
             const newPausedDurationMs = record.paused_counter * 1000;
             const newWatched = record.watched_status === 1;
+<<<<<<< HEAD
+            const hasChanges =
+              existingByRef.stoppedAt?.getTime() !== newStoppedAt.getTime() ||
+              existingByRef.durationMs !== newDurationMs ||
+              existingByRef.pausedDurationMs !== newPausedDurationMs ||
+              existingByRef.watched !== newWatched;
+
+            if (startsMatch && hasChanges) {
+=======
             const newProgressMs = Math.round(
               (record.percent_complete / 100) * (existingByRef.totalDurationMs ?? 0)
             );
@@ -878,16 +1167,32 @@ export class TautulliService {
             const watchedChanged = existingByRef.watched !== newWatched;
 
             if (stoppedAtChanged || durationChanged || pausedChanged || watchedChanged) {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
               updateBatch.push({
                 id: existingByRef.id,
                 stoppedAt: newStoppedAt,
                 durationMs: newDurationMs,
                 pausedDurationMs: newPausedDurationMs,
                 watched: newWatched,
+<<<<<<< HEAD
+                progressMs: Math.round(
+                  (record.percent_complete / 100) * (existingByRef.totalDurationMs ?? 0)
+                ),
+              });
+              changes.updated++;
+              progress.updatedRecords++;
+
+              const recordStartedAt = new Date(record.started * 1000);
+              if (!minImportDate || recordStartedAt < minImportDate)
+                minImportDate = recordStartedAt;
+              if (!maxImportDate || recordStartedAt > maxImportDate)
+                maxImportDate = recordStartedAt;
+=======
                 progressMs: newProgressMs,
               });
               updated++;
               progress.updatedRecords++;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
             } else {
               skipped++;
               progress.skippedRecords++;
@@ -951,7 +1256,11 @@ export class TautulliService {
                   pausedDurationMs: newPausedDurationMs,
                   watched: newWatched,
                 });
+<<<<<<< HEAD
+                changes.updated++;
+=======
                 updated++;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                 progress.updatedRecords++;
               } else {
                 skipped++;
@@ -989,6 +1298,9 @@ export class TautulliService {
             geoCache.set(ipForLookup, geo);
           }
 
+<<<<<<< HEAD
+          const mediaType = mapTautulliMediaType(record);
+=======
           // Map media type - check live flag FIRST (live content reports as movie/episode)
           let mediaType: 'movie' | 'episode' | 'track' | 'live' = 'movie';
           if (record.live === 1) {
@@ -998,6 +1310,7 @@ export class TautulliService {
           } else if (record.media_type === 'track') {
             mediaType = 'track';
           }
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
           // Music-specific fields (only for tracks)
           const isMusic = record.media_type === 'track';
@@ -1019,6 +1332,14 @@ export class TautulliService {
           insertedThisRun.add(referenceIdStr);
 
           const identity = ratingKeyStr ? identityByRatingKey.get(ratingKeyStr) : undefined;
+<<<<<<< HEAD
+          const normalizedGuid = identity !== undefined ? null : normalizePlexGuid(record.guid);
+          const guidIdentity =
+            normalizedGuid && normalizedGuid.mediaType === mediaType
+              ? identityByGuid.get(normalizedGuid.guid)
+              : undefined;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           // Legacy episode guids carry the series' external ID, so trust guid IDs for movies only.
           const guidIds = record.media_type === 'movie' ? parseHistoryGuid(record.guid) : {};
           const parentRatingKeyStr =
@@ -1037,11 +1358,19 @@ export class TautulliService {
             externalSessionId: referenceIdStr,
             parentRatingKey: parentRatingKeyStr,
             grandparentRatingKey: grandparentRatingKeyStr,
+<<<<<<< HEAD
+            mediaId: identity?.mediaId ?? guidIdentity?.mediaId ?? null,
+            showMediaId: identity?.showMediaId ?? guidIdentity?.showMediaId ?? null,
+            imdbId: identity?.imdbId ?? guidIdentity?.imdbId ?? guidIds.imdbId ?? null,
+            tmdbId: identity?.tmdbId ?? guidIdentity?.tmdbId ?? guidIds.tmdbId ?? null,
+            tvdbId: identity?.tvdbId ?? guidIdentity?.tvdbId ?? guidIds.tvdbId ?? null,
+=======
             mediaId: identity?.mediaId ?? null,
             showMediaId: identity?.showMediaId ?? null,
             imdbId: identity?.imdbId ?? guidIds.imdbId ?? null,
             tmdbId: identity?.tmdbId ?? guidIds.tmdbId ?? null,
             tvdbId: identity?.tvdbId ?? guidIds.tvdbId ?? null,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
             state: 'stopped',
             mediaType,
             mediaTitle: record.title,
@@ -1076,6 +1405,10 @@ export class TautulliService {
             geoLon: geo.lon,
             geoAsnNumber: geo.asnNumber,
             geoAsnOrganization: geo.asnOrganization,
+<<<<<<< HEAD
+            isLocal: geoipService.isPrivateIP(extractIpFromEndpoint(record.ip_address)),
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
             playerName: (record.player || record.product)?.slice(0, 255) ?? null,
             deviceId: record.machine_id?.slice(0, 255) || null,
             product: record.product?.slice(0, 255) || null,
@@ -1133,7 +1466,11 @@ export class TautulliService {
             }
           }
 
+<<<<<<< HEAD
+          changes.imported++;
+=======
           imported++;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           progress.importedRecords++;
         } catch (error) {
           console.error('Error processing record:', record.reference_id, error);
@@ -1215,6 +1552,52 @@ export class TautulliService {
       }
     }
 
+<<<<<<< HEAD
+    // An imported day only reaches the aggregates if a refresh covers it: once the
+    // refresh policy advances the watermark past it, the real-time union stops
+    // reading raw sessions for that day and the plays are invisible to every
+    // aggregate-backed read (watchers, watched state, request lenses).
+    progress.message = 'Refreshing aggregates...';
+    publishProgress(progress);
+    try {
+      // Use bounded refresh based on actual import date range (memory-efficient)
+      // Add 1 day buffer on each side for timezone edge cases
+      if (minImportDate && maxImportDate) {
+        const startTime = new Date(minImportDate.getTime() - 24 * 60 * 60 * 1000);
+        const endTime = new Date(maxImportDate.getTime() + 24 * 60 * 60 * 1000);
+        console.log(
+          `[Import] Refreshing aggregates for date range: ${startTime.toISOString()} to ${endTime.toISOString()}`
+        );
+        await refreshAggregates({ startTime, endTime });
+      } else {
+        // Fallback to default 7-day bounded refresh if no dates tracked
+        await refreshAggregates();
+      }
+
+      // Check if this is a fresh install that needs full aggregate rebuild
+      // (aggregates missing >7 days of historical data)
+      const rebuildStatus = await checkAggregateNeedsRebuild();
+      if (rebuildStatus.needsRebuild) {
+        console.log(
+          `[Import] Fresh install detected - queueing safe aggregate rebuild: ${rebuildStatus.reason}`
+        );
+        try {
+          await enqueueMaintenanceJob('full_aggregate_rebuild', 'system');
+          console.log('[Import] Safe aggregate rebuild job queued');
+        } catch {
+          // Job might already be running/queued - that's fine
+          console.log('[Import] Could not queue aggregate rebuild (may already be running)');
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to refresh aggregates after import:', err);
+    }
+    try {
+      await markImportedServerLocations(serverId);
+      await enqueueServerLocationSyncIfBehind();
+    } catch (err) {
+      console.error('[Import] Could not queue the server location sync:', err);
+=======
     // Refresh TimescaleDB aggregates so imported data appears in stats immediately
     // Skip if enrichment will follow (it will refresh after updating bitrate data)
     if (!skipRefresh) {
@@ -1253,6 +1636,7 @@ export class TautulliService {
       } catch (err) {
         console.warn('Failed to refresh aggregates after import:', err);
       }
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     }
 
     // Update joinedAt for users based on their earliest session
@@ -1286,12 +1670,29 @@ export class TautulliService {
       console.warn('Failed to update user join dates:', err);
     }
 
+<<<<<<< HEAD
+    changes.complete = true;
+
+    // Build final message with detailed breakdown
+    const parts: string[] = [];
+    if (changes.imported > 0) parts.push(`${changes.imported} new`);
+    if (changes.updated > 0) parts.push(`${changes.updated} updated`);
+    if (linkedSessions > 0) parts.push(`${linkedSessions} linked`);
+    if (skipped > 0) {
+      parts.push(
+        alreadyTracked > 0
+          ? `${skipped} skipped (${alreadyTracked} started after this server was added to Tracearr)`
+          : `${skipped} skipped`
+      );
+    }
+=======
     // Build final message with detailed breakdown
     const parts: string[] = [];
     if (imported > 0) parts.push(`${imported} new`);
     if (updated > 0) parts.push(`${updated} updated`);
     if (linkedSessions > 0) parts.push(`${linkedSessions} linked`);
     if (skipped > 0) parts.push(`${skipped} skipped`);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     if (errors > 0) parts.push(`${errors} errors`);
     if (failedPages.length > 0) {
       parts.push(`${failedPages.length} pages not fetched (${failedPages.join(', ')})`);
@@ -1318,8 +1719,13 @@ export class TautulliService {
 
     return {
       success: true,
+<<<<<<< HEAD
+      imported: changes.imported,
+      updated: changes.updated,
+=======
       imported,
       updated,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       linked: linkedSessions,
       skipped,
       errors,
@@ -1397,6 +1803,11 @@ export class TautulliService {
     let totalEnriched = 0;
     let totalFailed = 0;
     let totalSkipped = 0;
+<<<<<<< HEAD
+    let minEnrichedDate: Date | null = null;
+    let maxEnrichedDate: Date | null = null;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     let lastProgressTime = Date.now();
     let chunkNumber = 0;
     let cursor: number | undefined;
@@ -1414,6 +1825,10 @@ export class TautulliService {
           id: sessions.id,
           externalSessionId: sessions.externalSessionId,
           sessionKey: sessions.sessionKey,
+<<<<<<< HEAD
+          startedAt: sessions.startedAt,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         })
         .from(sessions)
         .where(
@@ -1442,6 +1857,10 @@ export class TautulliService {
         // Process batch with concurrency limit
         const pendingUpdates: Array<{
           id: string;
+<<<<<<< HEAD
+          startedAt: Date;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           data: ReturnType<typeof mapStreamDataToSession>;
         }> = [];
 
@@ -1479,7 +1898,16 @@ export class TautulliService {
                 mappedData.sourceAudioCodec ||
                 mappedData.bitrate
               ) {
+<<<<<<< HEAD
+                return {
+                  status: 'enriched' as const,
+                  id: session.id,
+                  startedAt: session.startedAt,
+                  data: mappedData,
+                };
+=======
                 return { status: 'enriched' as const, id: session.id, data: mappedData };
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
               }
               return { status: 'skipped' as const, id: session.id };
             })
@@ -1492,7 +1920,15 @@ export class TautulliService {
             if (result.status === 'fulfilled') {
               const value = result.value;
               if (value.status === 'enriched' && value.data) {
+<<<<<<< HEAD
+                pendingUpdates.push({
+                  id: value.id,
+                  startedAt: value.startedAt,
+                  data: value.data,
+                });
+=======
                 pendingUpdates.push({ id: value.id, data: value.data });
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
               } else {
                 totalSkipped++;
                 progress.skippedRecords++;
@@ -1518,6 +1954,15 @@ export class TautulliService {
               await tx.update(sessions).set(update.data).where(eq(sessions.id, update.id));
             }
           });
+<<<<<<< HEAD
+          for (const update of pendingUpdates) {
+            if (!minEnrichedDate || update.startedAt < minEnrichedDate)
+              minEnrichedDate = update.startedAt;
+            if (!maxEnrichedDate || update.startedAt > maxEnrichedDate)
+              maxEnrichedDate = update.startedAt;
+          }
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           totalEnriched += pendingUpdates.length;
           progress.updatedRecords += pendingUpdates.length;
         }
@@ -1544,14 +1989,30 @@ export class TautulliService {
       }
     }
 
+<<<<<<< HEAD
+    // Bitrate lands on sessions that are already years old, so the refresh has to
+    // cover the days it just rewrote - a 7-day window leaves every older bucket
+    // holding the pre-enrichment bitrate.
+=======
     // Refresh aggregates so updated bitrate data appears in bandwidth stats
     // Enrichment only updates existing sessions, doesn't add new dates, so default bounded refresh is fine
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     if (totalEnriched > 0) {
       progress.message = 'Refreshing aggregates...';
       publishProgress(progress);
       try {
+<<<<<<< HEAD
+        if (minEnrichedDate && maxEnrichedDate) {
+          const startTime = new Date(minEnrichedDate.getTime() - 24 * 60 * 60 * 1000);
+          const endTime = new Date(maxEnrichedDate.getTime() + 24 * 60 * 60 * 1000);
+          await refreshAggregates({ startTime, endTime });
+        } else {
+          await refreshAggregates();
+        }
+=======
         // Default 7-day bounded refresh is sufficient for enrichment updates
         await refreshAggregates();
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       } catch (err) {
         console.warn('[Tautulli] Failed to refresh aggregates after enrichment:', err);
       }

@@ -63,6 +63,36 @@
     "resetTrustScoreTitle_other": "Reset Trust Score for {{count}} Users",
     "resetTrustScoreConfirm": "Are you sure you want to reset the trust score to 100? This action cannot be undone.",
     "mergeUsers": "Merge users",
+<<<<<<< HEAD
+    "mergeTitleSuggestion": "Are these the same person?",
+    "mergeTitleBulk": "Merge these users?",
+    "mergeReasonEmail": "Both have the email {{value}} on their server accounts.",
+    "mergeReasonEmailUsername": "Both use {{value}} as a username or account email.",
+    "mergeReasonUsername": "Both use the username {{value}}.",
+    "mergeKeep": "Keep",
+    "mergeFoldIn": "Fold in, then deleted",
+    "mergeSwap": "Swap which one is kept",
+    "mergeRequired": "{{name}} can sign in to Tracearr, so {{name}} is kept.",
+    "mergeLastActive": "Last active {{relative}}",
+    "mergeNeverActive": "Never active",
+    "mergeSessions_one": "{{count}} session",
+    "mergeSessions_other": "{{count}} sessions",
+    "mergeMoreServers": "+{{count}}",
+    "mergeWhatHappens": "What happens",
+    "mergeMoves_one": "{{foldName}}'s server accounts and {{count}} session move to {{keepName}}.",
+    "mergeMoves_other": "{{foldName}}'s server accounts and {{count}} sessions move to {{keepName}}.",
+    "mergeMovesNoCount": "{{foldName}}'s server accounts and sessions move to {{keepName}}.",
+    "mergeCarriesOver": "Their contact email, newsletter exclusions and Seerr requests carry over.",
+    "mergeDeleted": "{{foldName}} is deleted. You can split an account back out from {{keepName}}'s page.",
+    "mergeRulesKept": "Per-server rules with the same name keep {{keepName}}'s version.",
+    "mergeIrreversibleTitle": "This cannot be undone",
+    "mergeIrreversibleBody": "Both have an account on the same server. Those two accounts become one, with their sessions, violations and trust score combined. Splitting later does not bring the second account back.",
+    "mergeServerLabel": "Server",
+    "mergeServerUnknown": "Unknown server",
+    "mergeIrreversibleAcknowledge": "I understand the two accounts on this server cannot be separated again",
+    "mergeServerAccountRemoved": "Removed",
+    "mergeConfirmInto": "Merge into {{keepName}}",
+=======
     "mergeDialogTitle": "Merge users",
     "mergeDialogDescription": "Every server account, session, and violation from the duplicate moves to the primary. The duplicate identity is deleted.",
     "mergePickPrimary": "Choose the primary identity",
@@ -75,14 +105,40 @@
     "mergeSameServerFallbackName": "this server",
     "mergeServerAccountRemoved": "Removed",
     "mergeConfirm": "Merge",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "mergeSelectTwo": "Select exactly two users to merge",
     "mergeSameIdentity": "These accounts already belong to the same user",
     "mergeSelectAllActive": "Clear the select-all selection and pick exactly two users to merge",
     "suggestionsTitle": "Possible duplicate users",
+<<<<<<< HEAD
+    "suggestionsCount_one": "{{count}} possible duplicate user",
+    "suggestionsCount_other": "{{count}} possible duplicate users",
+    "suggestionsPairEmail": "{{first}} and {{second}} share an email",
+    "suggestionsPairEmailMore_one": "{{first}} and {{second}} share an email, plus {{count}} more",
+    "suggestionsPairEmailMore_other": "{{first}} and {{second}} share an email, plus {{count}} more",
+    "suggestionsPairEmailUsername": "{{first}} and {{second}} use the same address as a username or account email",
+    "suggestionsPairEmailUsernameMore_one": "{{first}} and {{second}} use the same address as a username or account email, plus {{count}} more",
+    "suggestionsPairEmailUsernameMore_other": "{{first}} and {{second}} use the same address as a username or account email, plus {{count}} more",
+    "suggestionsPairUsername": "{{first}} and {{second}} share a username",
+    "suggestionsPairUsernameMore_one": "{{first}} and {{second}} share a username, plus {{count}} more",
+    "suggestionsPairUsernameMore_other": "{{first}} and {{second}} share a username, plus {{count}} more",
+    "suggestionsSheetDescription": "Merging keeps one user and deletes the other. A pair marked as not the same person stops showing up until you restore it.",
+    "suggestionsReview": "Review",
+    "suggestionsNotSame": "Not the same person",
+    "suggestionsMatchEmail": "Same email",
+    "suggestionsMatchEmailUsername": "Both use {{value}} as a username or account email",
+    "suggestionsMatchUsername": "Same username",
+    "suggestionsEmpty": "Nothing left to review.",
+    "suggestionsDismissed": "Dismissed ({{count}})",
+    "suggestionsDismissedPair": "{{first}} and {{second}}",
+    "suggestionsDismissedAt": "Dismissed {{relative}}",
+    "suggestionsRestore": "Restore",
+=======
     "suggestionsDescription": "These identities look like the same person across servers. Review and merge them if they match.",
     "suggestionsReview": "Review",
     "suggestionsMatchEmail": "Same email",
     "suggestionsMatchUsername": "Same username",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "suggestionsError": "Could not load merge suggestions",
     "filterHasAccessTo": "Has access to",
     "filterHasAccessToPlaceholder": "Any server",
@@ -119,27 +175,51 @@
     "contactEmailHelp": "Where newsletters go. It grants no login and never matches a synced account.",
     "contactEmailLabel": "Newsletter address:",
     "contactEmailNone": "none set",
+<<<<<<< HEAD
+    "contactEmailNoLogin": "Grants no login.",
+    "locations": "Locations"
+  },
+  "history": {
+    "title": "History",
+    "description": "Browse all streaming sessions with powerful filtering.",
+=======
     "contactEmailNoLogin": "Grants no login."
   },
   "history": {
     "title": "History",
     "description": "Browse all streaming sessions with powerful filtering",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "loadingMore": "Loading more...",
     "scrollForMore": "Scroll for more",
     "showingAllResults": "Showing all {{total}} results",
     "deleteSession_one": "Delete {{count}} Session",
     "deleteSession_other": "Delete {{count}} Sessions",
+<<<<<<< HEAD
+    "deleteSessionsConfirm": "Are you sure you want to delete? This action cannot be undone.",
+    "totalPlays": "Total Plays",
+    "uniqueTitles": "Unique Titles",
+    "uniqueUsers": "Unique Users"
+  },
+  "library": {
+    "title": "Library",
+    "description": "Top movies and shows on your server.",
+=======
     "deleteSessionsConfirm": "Are you sure you want to delete? This action cannot be undone."
   },
   "library": {
     "title": "Library",
     "description": "Top movies and shows on your server",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "topMovies": "Top Movies",
     "topShows": "Top TV Shows",
     "noMoviePlays": "No movie plays in this period",
     "noShowPlays": "No TV show plays in this period",
     "overview": {
+<<<<<<< HEAD
+      "description": "Library health and growth metrics.",
+=======
       "description": "Library health and growth metrics",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       "lastUpdated": "Last updated:",
       "totalItems": "Total Items",
       "shows": "shows",
@@ -155,7 +235,11 @@
     },
     "quality": {
       "title": "Quality",
+<<<<<<< HEAD
+      "description": "Resolution and codec distribution.",
+=======
       "description": "Resolution and codec distribution",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       "qualityEvolution": "Quality Evolution",
       "all": "All",
       "failedToLoad": "Failed to load quality data",
@@ -163,14 +247,22 @@
     },
     "storage": {
       "title": "Storage",
+<<<<<<< HEAD
+      "description": "Storage usage, predictions, and optimization.",
+=======
       "description": "Storage usage, predictions, and optimization",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       "totalStorage": "Total Storage",
       "growthRate": "Growth Rate",
       "duplicates": "Duplicates",
       "groups": "groups",
       "recoverable": "recoverable",
       "staleContent": "Stale Content",
+<<<<<<< HEAD
+      "staleContentDesc": "Content that may be candidates for removal.",
+=======
       "staleContentDesc": "Content that may be candidates for removal",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       "items": "items",
       "unused": "unused",
       "storageTrend": "Storage Trend",
@@ -181,7 +273,11 @@
       "zeroGrowth": "0 GB/mo",
       "predictions": "Predictions",
       "contentROI": "Content ROI",
+<<<<<<< HEAD
+      "contentROIDesc": "Watch value per storage cost.",
+=======
       "contentROIDesc": "Watch value per storage cost",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       "avgHoursPerGB": "avg hours/GB",
       "insufficientData": "Insufficient data",
       "of": "of",
@@ -189,22 +285,41 @@
       "failedToLoad": "Failed to load storage data",
       "failedToLoadDesc": "Could not fetch storage data. Please try again.",
       "duplicatesTitle": "Duplicates",
+<<<<<<< HEAD
+      "duplicatesSubtitle": "Titles stored as more than one physical file, across servers, libraries, and versions.",
+=======
       "duplicatesSubtitle": "Titles stored as more than one physical file, across servers, libraries, and versions",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       "growthPreChangeover": "based on pre-update history",
       "loadingDuplicates": "Loading duplicates...",
       "duplicatesFailed": "Failed to load duplicates",
       "noDuplicatesTitle": "No duplicates found",
       "noDuplicatesDesc": "No titles with more than one physical file detected.",
       "colTitle": "Title",
+<<<<<<< HEAD
+      "colType": "Type",
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       "colMatchType": "Match Type",
       "colCopies": "Copies",
       "colRecoverable": "Recoverable Space",
       "sameServer": "Same server",
+<<<<<<< HEAD
+      "mirror": "Mirror",
+      "missingOnServer": "Missing on server",
+      "missingOnServerHint": "The server still lists this file but cannot find it on disk. On Plex, empty the library trash to clear it.",
+      "copyPath": "Copy file path"
+    },
+    "watch": {
+      "title": "Watch Analytics",
+      "description": "Viewing behavior and content engagement.",
+=======
       "mirror": "Mirror"
     },
     "watch": {
       "title": "Watch Analytics",
       "description": "Viewing behavior and content engagement",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       "watched": "Watched",
       "percentWatched": "% watched",
       "totalWatchTime": "Total Watch Time",
@@ -217,7 +332,11 @@
       "busiest": "Busiest:",
       "quietest": "Quietest:",
       "bingeHighlights": "Binge Highlights",
+<<<<<<< HEAD
+      "bingeHighlightsDesc": "Shows with the most intensive viewing patterns.",
+=======
       "bingeHighlightsDesc": "Shows with the most intensive viewing patterns",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       "bingeSessions": "Binge Sessions",
       "noData": "No watch data yet",
       "noDataDesc": "Watch analytics will appear here once content has been played. Check back after some viewing activity.",
@@ -283,7 +402,11 @@
   },
   "activity": {
     "title": "Activity",
+<<<<<<< HEAD
+    "description": "Play trends, patterns, and streaming behavior.",
+=======
     "description": "Play trends, patterns, and streaming behavior",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "playsOverTime": "Plays Over Time",
     "concurrentStreams": "Concurrent Streams",
     "engagementBreakdown": "Engagement Breakdown",
@@ -754,6 +877,11 @@
         "total_pause_minutes": "the total pause time",
         "source_resolution": "the source resolution",
         "output_resolution": "the output resolution",
+<<<<<<< HEAD
+        "source_dynamic_range": "the source dynamic range",
+        "source_video_codec": "the source video codec",
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         "is_transcoding": "the transcoding",
         "is_transcode_downgrade": "the downgrade",
         "source_bitrate_mbps": "the source bitrate",
@@ -768,6 +896,11 @@
         "ip_in_range": "the IP address",
         "server_id": "the server",
         "media_type": "the media type",
+<<<<<<< HEAD
+        "season_number": "the season number",
+        "episode_number": "the episode number",
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         "library_item_type": "the item type",
         "library_name": "the library",
         "resolution_after": "the resolution",
@@ -839,7 +972,11 @@
         "listed": "those chosen"
       }
     },
+<<<<<<< HEAD
+    "description": "Automations watch your servers and act when their conditions match.",
+=======
     "description": "Automations watch your servers and act when their conditions match",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "detail": {
       "notFound": "Automation not found",
       "title": "Automation",
@@ -939,6 +1076,17 @@
         "label": "Output Resolution",
         "description": "Transcoded or delivered resolution"
       },
+<<<<<<< HEAD
+      "source_dynamic_range": {
+        "label": "Source Dynamic Range",
+        "description": "HDR format of the file being played; unknown never matches, even for \"is not\""
+      },
+      "source_video_codec": {
+        "label": "Source Video Codec",
+        "description": "Video codec of the file being played, such as HEVC or AV1"
+      },
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       "is_transcoding": {
         "label": "Is Transcoding",
         "description": "Whether video or audio streams are being transcoded"
@@ -1000,6 +1148,17 @@
         "label": "Media Type",
         "description": "Type of content"
       },
+<<<<<<< HEAD
+      "season_number": {
+        "label": "Season Number",
+        "description": "Season the episode belongs to; anything that is not an episode never matches"
+      },
+      "episode_number": {
+        "label": "Episode Number",
+        "description": "Episode within its season; anything that is not an episode never matches"
+      },
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       "library_item_type": {
         "label": "Item Type",
         "description": "What kind of library item it is"
@@ -1604,6 +1763,10 @@
         "host": "SMTP host",
         "port": "Port",
         "security": "Security",
+<<<<<<< HEAD
+        "verifyCertificate": "Verify certificate",
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         "username": "Username",
         "password": "Password",
         "fromName": "From name",
@@ -1621,8 +1784,14 @@
       "hints": {
         "authTokenOptional": "Optional for public topics",
         "smtpPreset": "Fills the host, port and security for common providers. Amazon SES and Mailgun EU need the region edited into the host.",
+<<<<<<< HEAD
+        "smtpVerifyCertificate": "Checks the mail server's TLS certificate against a trusted authority. Turn it off only for a server with a self-signed certificate, such as a local bridge: anyone on the path between Tracearr and the mail server can then intercept the connection.",
+        "smtpUsernameOptional": "Leave blank when the server needs no login",
+        "smtpTo": "Alerts go out as one email with every address here in To. Leave it blank if this server only sends newsletters.",
+=======
         "smtpUsernameOptional": "Leave blank when the server needs no login",
         "smtpTo": "Alerts sent to this destination go to these addresses. Newsletters ignore this list and pick their own recipients, so you can leave it blank.",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         "smtpRate": "Per Tracearr instance; stay under your provider's limit",
         "smtpMessageStream": "Postmark only: the stream ID to send through, for example broadcast. Leave blank elsewhere.",
         "smtpGmailUsername": "Your full Gmail address. Gmail sends from this address whatever the sender address says, and personal accounts stop near 500 recipients a day.",
@@ -1640,6 +1809,12 @@
         "smtpPostmarkUsername": "Your Server API token.",
         "smtpPostmarkPassword": "The same Server API token, or a stream token's secret."
       },
+<<<<<<< HEAD
+      "newsletterAlertsNote": "Newsletter recipients are set on the newsletter itself. To send alerts through this server too, edit it later under Destinations.",
+      "newsletterDescription": "Tracearr sends newsletters through this SMTP server.",
+      "newsletterTitle": "Add email server",
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       "newslettersOnly": "Newsletters only",
       "noAlertRecipients": "No alert recipients",
       "options": {
@@ -1741,6 +1916,19 @@
   },
   "devices": {
     "title": "Device Compatibility",
+<<<<<<< HEAD
+    "description": "See which devices direct play vs transcode each codec.",
+    "analyzedSessions": "Analyzed Sessions",
+    "analyzedSessionsTooltip": "Sessions in device + codec combinations with at least {{count}} sessions and a known codec. Rare combinations and sessions with no codec info aren't counted.",
+    "directPlayRate": "Direct Play Rate",
+    "videoAndAudio": "Video + Audio",
+    "uniqueDevices": "Unique Devices",
+    "uniqueCodecs": "Unique Codecs",
+    "deviceHealth": "Device Health",
+    "deviceHealthDesc": "Direct play rate by device type.",
+    "transcodeHotspots": "Transcode Hotspots",
+    "transcodeHotspotsDesc": "Combinations causing the most transcodes.",
+=======
     "description": "See which devices direct play vs transcode each codec",
     "analyzedSessions": "Analyzed Sessions",
     "analyzedSessionsTooltip": "Sessions in device + codec combinations with at least {{count}} sessions and a known codec. Rare combinations and sessions with no codec info aren't counted.",
@@ -1752,6 +1940,7 @@
     "deviceHealthDesc": "Direct play rate by device type",
     "transcodeHotspots": "Transcode Hotspots",
     "transcodeHotspotsDesc": "Combinations causing the most transcodes",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "deviceAndCodec": "Device + Codec",
     "transcodes": "Transcodes",
     "pctOfTotal": "% of Total",
@@ -1764,12 +1953,20 @@
     "directPlayMid": "50-79%",
     "directPlayLow": "<50%",
     "topTranscodingUsers": "Top Transcoding Users",
+<<<<<<< HEAD
+    "topTranscodingUsersDesc": "Users causing the most transcodes on your server.",
+=======
     "topTranscodingUsersDesc": "Users causing the most transcodes on your server",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "noTranscodingUsers": "No transcoding users found"
   },
   "statsBandwidth": {
     "title": "Bandwidth",
+<<<<<<< HEAD
+    "description": "Streaming bandwidth usage and bitrate analysis.",
+=======
     "description": "Streaming bandwidth usage and bitrate analysis",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "dataTransferred": "Data Transferred",
     "avgBitrate": "Avg Bitrate",
     "avgBitrateMbps": "Avg Bitrate (Mbps)",
@@ -1777,9 +1974,15 @@
     "totalWatchTime": "Total Watch Time",
     "uniqueUsers": "Unique Users",
     "dailyUsage": "Daily Bandwidth Usage",
+<<<<<<< HEAD
+    "dailyUsageDesc": "Average bitrate and session count over time.",
+    "topUsers": "Top Bandwidth Users",
+    "topUsersDesc": "Users consuming the most bandwidth.",
+=======
     "dailyUsageDesc": "Average bitrate and session count over time",
     "topUsers": "Top Bandwidth Users",
     "topUsersDesc": "Users consuming the most bandwidth",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "noData": "No bandwidth data available"
   },
   "statsUsers": {
@@ -1803,7 +2006,11 @@
   },
   "debug": {
     "title": "Debug Tools",
+<<<<<<< HEAD
+    "description": "Administrative utilities for troubleshooting and data management.",
+=======
     "description": "Administrative utilities for troubleshooting and data management",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "overview": "Overview",
     "librarySnapshots": "Library Snapshots",
     "tasks": "Tasks",
@@ -1817,7 +2024,11 @@
     "memory": "Memory",
     "uptime": "Uptime",
     "database": "Database",
+<<<<<<< HEAD
+    "databaseDesc": "Database size and table statistics.",
+=======
     "databaseDesc": "Database size and table statistics",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "totalSize": "Total Size",
     "maintenance": "Maintenance",
     "destructiveActions": "Destructive Actions",
@@ -1859,11 +2070,22 @@
       "shelves": {
         "recentlyAddedMovies": "Recently Added Movies",
         "recentlyAddedShows": "Recently Added Shows",
+<<<<<<< HEAD
+        "recentlyUpdated": "Recently Updated",
+        "mostPopularMovies": "Most Popular Movies",
+        "mostPopularShows": "Most Popular Shows",
+        "emptyRecentlyAdded": "Nothing added in this period",
+        "emptyRecentlyUpdated": "Nothing replaced in this period",
+        "emptyMostPopular": "No plays in this period",
+        "captionRecentlyAdded": "deduped across servers",
+        "captionRecentlyUpdated": "a better copy replaced the one here",
+=======
         "mostPopularMovies": "Most Popular Movies",
         "mostPopularShows": "Most Popular Shows",
         "emptyRecentlyAdded": "Nothing added in this period",
         "emptyMostPopular": "No plays in this period",
         "captionRecentlyAdded": "deduped across servers",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         "captionMostPopular": {
           "day": "today",
           "week": "last 7 days",
@@ -1876,6 +2098,11 @@
       "card": {
         "newEpisodes_one": "{{count}} new episode",
         "newEpisodes_other": "{{count}} new episodes",
+<<<<<<< HEAD
+        "replacedEpisodes_one": "{{count}} episode replaced",
+        "replacedEpisodes_other": "{{count}} episodes replaced",
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         "addedAgo": "added {{date}}",
         "addedCompactAgo": "added {{age}} ago",
         "newEpisodesChip": "{{count}} new"
@@ -2144,5 +2371,120 @@
       "emptyAnchored": "Nothing at or after \"{{letter}}\" under these filters",
       "loadError": "Couldn't load the catalog"
     }
+<<<<<<< HEAD
+  },
+  "requests": {
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "declined": "Declined",
+      "failed": "Failed",
+      "completed": "Available",
+      "deleted": "Removed"
+    },
+    "columns": {
+      "requester": "Requested by",
+      "title": "Title",
+      "status": "Status",
+      "requested": "Requested",
+      "wait": "Wait",
+      "seasons": "Seasons",
+      "watched": "Watched"
+    },
+    "wait": {
+      "pending": "waiting",
+      "declined": "declined"
+    },
+    "seasons": {
+      "all": "All seasons",
+      "item": "S{{number}}"
+    },
+    "flags": {
+      "fourK": "4K request",
+      "auto": "Auto-requested from a watchlist"
+    },
+    "hero": {
+      "line": "Requested by {{name}} · {{date}} · {{tail}}",
+      "landed": "landed {{wait}} later",
+      "waiting": "still waiting"
+    },
+    "mediaPanel": {
+      "title": "Requests",
+      "loadError": "Couldn't load requests",
+      "empty": "No requests for this title"
+    },
+    "userCard": {
+      "title": "Requests",
+      "loadError": "Couldn't load requests",
+      "viewAll": "View all ({{count}} more)",
+      "showLess": "Show less",
+      "summary": {
+        "requests": "Requests",
+        "medianWait": "median wait {{duration}}",
+        "approvalRate": "Approval rate",
+        "neverWatched": "Never watched"
+      },
+      "empty": "No requests yet"
+    },
+    "unattributed": "Not on this server",
+    "watched": {
+      "byRequester": "Watched by the requester",
+      "byOthers": "Watched by someone else"
+    },
+    "page": {
+      "title": "Requests",
+      "description": "What people asked for, what landed, and whether they ever played it.",
+      "failedToLoad": "Couldn't load request analytics",
+      "notConfigured": "No Seerr linked",
+      "notConfiguredDescription": "Link a Seerr instance to a server and this page fills in after the first sync.",
+      "linkSeerr": "Link Seerr",
+      "kpi": {
+        "requested": "Requested",
+        "landedOf": "{{count}} landed",
+        "watched": "Watched",
+        "neverPlayed": "Never played",
+        "ofLanded": "{{share}} of landed",
+        "onDisk": "{{size}} on disk"
+      }
+    },
+    "funnel": {
+      "title": "Where requests end up",
+      "description": "Watched means someone got through 85% of it, the same bar the library pages use. A request has to land and be matched to a title before Tracearr can measure that.",
+      "requested": "Requested",
+      "landed": "Landed",
+      "watched": "Watched",
+      "share": "{{count}} of {{total}} requests",
+      "empty": "No requests yet"
+    },
+    "unplayed": {
+      "title": "Landed and never played",
+      "description": "Downloaded because someone asked, and no account on these servers has pressed play even once.",
+      "emptyTitle": "Everything that landed got played",
+      "emptyDescription": "Nothing here is holding disk for no reason."
+    },
+    "outcomes": {
+      "title": "Title",
+      "requester": "Requested by",
+      "wait": "Wait",
+      "requested": "Requested",
+      "onDisk": "On disk",
+      "untitled": "Untitled",
+      "failedToLoad": "Couldn't load these requests"
+    },
+    "followThrough": {
+      "title": "Requesters",
+      "description": "Who asks for what, whether they watch it through, and whether anyone else does.",
+      "person": "Person",
+      "asked": "Asked",
+      "landed": "Landed",
+      "watched": "Watched",
+      "watchedByOthers": "Watched by others",
+      "medianWait": "Median wait",
+      "emptyTitle": "No requesters yet",
+      "emptyDescription": "Requests appear here once a linked Seerr has synced.",
+      "failedToLoad": "Couldn’t load requesters"
+    }
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   }
 }

@@ -7,11 +7,25 @@
 # Format: https://github.com/mitchellh/vouch
 -adkeyz low quality bug report, bad additude
 connorgallopo
+<<<<<<< HEAD
+-d4rk-4lchemy AI Slop
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 durzo
 -emre155 did not follow contributing, invalid diff, reported as spam
 -hstorey219 AI generated bug report. Duplicated bug report
 -iokernel Slop PR, did not follow contributing guide.
 -ionbazan - Contributing guide not read or followed
+<<<<<<< HEAD
+-mafyuh Slop bug report
+-nullable-eth AI Slop PR - Contributing guide ignored
+pelluch
+-pilascat ai submission
+-prueckls AI slop feature requests
+-ramonskie Contributing guide completely ignored
+spartacusiam Quality bug report, history of detailed high quality reports
+=======
 -nullable-eth AI Slop PR - Contributing guide ignored
 -ramonskie Contributing guide completely ignored
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 -tottencam AI slop bug report - fictional issue

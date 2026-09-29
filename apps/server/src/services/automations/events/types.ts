@@ -22,7 +22,11 @@ export type TriggerType =
 export interface EvaluationServer {
   id: string;
   name: string;
+<<<<<<< HEAD
+  type: 'plex' | 'jellyfin' | 'emby';
+=======
   type: 'plex' | 'jellyfin' | 'emby' | 'navidrome';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 /** What every producer already holds about the account; matches SessionCreationInput['serverUser']. */

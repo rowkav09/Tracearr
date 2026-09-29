@@ -13,13 +13,27 @@ import { getBullPrefix, queueConnectionOptions } from './queueConnection.js';
 import { isMaintenance } from '../serverState.js';
 import { getRedisPrefix, LEGACY_VERSION_SENTINEL } from '@tracearr/shared';
 import { Redis } from 'ioredis';
+<<<<<<< HEAD
+import { eq, sql } from 'drizzle-orm';
+=======
 import { sql } from 'drizzle-orm';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { WS_EVENTS, REDIS_KEYS } from '@tracearr/shared';
 import type { LibrarySyncProgress } from '@tracearr/shared';
 import { db } from '../db/client.js';
 import { getSetting, setSetting } from '../services/settings.js';
 import { servers } from '../db/schema.js';
+<<<<<<< HEAD
+import {
+  librarySyncService,
+  initLibrarySyncRedis,
+  maybeEnqueueImportedHistoryLink,
+  type SyncResult,
+} from '../services/librarySync.js';
+import { syncServer } from '../services/sync.js';
+=======
 import { librarySyncService, initLibrarySyncRedis } from '../services/librarySync.js';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { getPubSubService } from '../services/cache.js';
 import { enqueueMaintenanceJob, maybeEnqueueMaintenanceJob } from './maintenanceQueue.js';
 import { enqueueImagePrecache } from './imagePrecacheQueue.js';
@@ -232,6 +246,22 @@ export function startLibrarySyncWorker(): void {
       activeSyncs.set(serverId, true);
 
       try {
+<<<<<<< HEAD
+        // Nothing else re-reads a server's user list, so the cron and boot runs
+        // refresh it. Event runs fire every 30s during a scan and are left out.
+        if (job.name.startsWith('auto-sync-') || job.name.startsWith('boot-sync-')) {
+          try {
+            const userSync = await syncServer(serverId, { syncUsers: true, syncLibraries: false });
+            if (userSync.errors.length > 0) {
+              console.warn(`[LibrarySync] User sync for server ${serverId}:`, userSync.errors);
+            }
+          } catch (err) {
+            console.error(`[LibrarySync] User sync failed for server ${serverId}:`, err);
+          }
+        }
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         // Progress callback for WebSocket updates
         const onProgress = (progress: LibrarySyncProgress) => {
           // Update job progress percentage
@@ -351,6 +381,10 @@ export function startLibrarySyncWorker(): void {
       void checkAndTriggerSnapshotBackfill();
     }
     void stampVersionsBackfillComplete();
+<<<<<<< HEAD
+    void handOffImportedHistoryLink(job);
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   });
 
   console.log('Library sync worker started');
@@ -380,6 +414,30 @@ export function startLibrarySyncWorker(): void {
  */
 let normalizationConfirmed = false;
 
+<<<<<<< HEAD
+/**
+ * BullMQ emits `completed` only after moving the job out of `active`, so the
+ * link job's readiness check never finds the sync that handed it off.
+ */
+async function handOffImportedHistoryLink(job: Job<LibrarySyncJobData>): Promise<void> {
+  try {
+    const [server] = await db
+      .select({ type: servers.type })
+      .from(servers)
+      .where(eq(servers.id, job.data.serverId));
+    if (server?.type !== 'plex') return;
+    const results = (job.returnvalue as { results?: SyncResult[] } | undefined)?.results ?? [];
+    await maybeEnqueueImportedHistoryLink(
+      results.some((r) => r.itemsAdded > 0),
+      hasPendingLibrarySync
+    );
+  } catch (error) {
+    console.error('[LibrarySync] Imported history link hand-off failed:', error);
+  }
+}
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 async function stampVersionsBackfillComplete(): Promise<void> {
   try {
     if ((await getSetting('mediaVersionsBackfilledAt')) !== null) {
@@ -672,6 +730,28 @@ export async function enqueueLibrarySync(serverId: string, userId?: string): Pro
 }
 
 /**
+<<<<<<< HEAD
+ * True when a library sync for the server is active, waiting or delayed, and
+ * when the queue is not initialized, since nothing then says there is none. A
+ * job SCHEDULER's parked delayed job (id "repeat:...") is a placeholder for
+ * the next cron slot - possibly hours out - not pending work, so it does not
+ * count. Scheduler jobs that reached waiting/active ARE real work and do.
+ */
+export async function hasPendingLibrarySync(serverId: string): Promise<boolean> {
+  if (!librarySyncQueue) return true;
+  const [runningJobs, delayedJobs] = await Promise.all([
+    librarySyncQueue.getJobs(['active', 'waiting']),
+    librarySyncQueue.getJobs(['delayed']),
+  ]);
+  return (
+    runningJobs.some((job) => job.data.serverId === serverId) ||
+    delayedJobs.some((job) => job.data.serverId === serverId && !isSchedulerJob(job))
+  );
+}
+
+/**
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
  * Enqueue a targeted sync triggered by a real-time library event (Plex SSE or
  * the Jellyfin/Emby plugin SSE). Uses triggeredBy 'scheduled' so the incremental
  * path stays eligible - unlike a manual sync, an event doesn't warrant forcing
@@ -686,6 +766,10 @@ export async function enqueueLibrarySyncFromEvent(serverId: string): Promise<voi
   if (!librarySyncQueue) return;
 
   // One pending sync per server is all that's ever needed: a sync job reads
+<<<<<<< HEAD
+  // the server's current state when it runs.
+  if (await hasPendingLibrarySync(serverId)) return;
+=======
   // the server's current state when it runs. But a job SCHEDULER's parked
   // delayed job (id "repeat:...") is a placeholder for the next cron slot -
   // possibly hours out - not pending work, so it must not suppress event
@@ -698,6 +782,7 @@ export async function enqueueLibrarySyncFromEvent(serverId: string): Promise<voi
     runningJobs.some((job) => job.data.serverId === serverId) ||
     delayedJobs.some((job) => job.data.serverId === serverId && !isSchedulerJob(job));
   if (covered) return;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
   const bucket = Math.floor(Date.now() / EVENT_SYNC_JOB_BUCKET_MS);
   await librarySyncQueue.add(

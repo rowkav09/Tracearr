@@ -70,7 +70,11 @@ function makeMockRedis(): Redis {
 function setupDbSelectMocks(mockServer: {
   id: string;
   name: string;
+<<<<<<< HEAD
+  type: 'plex' | 'jellyfin' | 'emby';
+=======
   type: 'plex' | 'jellyfin' | 'emby' | 'navidrome';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   url: string;
   token: string;
 }) {
@@ -138,6 +142,18 @@ function setupDbSelectMocks(mockServer: {
   });
 }
 
+<<<<<<< HEAD
+function makeMockClient(
+  opts: { totalCount?: number; itemsSinceCount?: number; libraryType?: string } = {}
+) {
+  const totalCount = opts.totalCount ?? 100;
+  const itemsSinceCount = opts.itemsSinceCount ?? 0;
+  const libraryType = opts.libraryType ?? 'movie';
+
+  return {
+    serverType: 'plex' as const,
+    getLibraries: vi.fn().mockResolvedValue([{ id: '1', name: 'Movies', type: libraryType }]),
+=======
 function makeMockClient(opts: { totalCount?: number; itemsSinceCount?: number } = {}) {
   const totalCount = opts.totalCount ?? 100;
   const itemsSinceCount = opts.itemsSinceCount ?? 0;
@@ -145,6 +161,7 @@ function makeMockClient(opts: { totalCount?: number; itemsSinceCount?: number } 
   return {
     serverType: 'plex' as const,
     getLibraries: vi.fn().mockResolvedValue([{ id: '1', name: 'Movies', type: 'movie' }]),
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     getLibraryItems: vi.fn().mockResolvedValue({ items: [], totalCount }),
     getLibraryItemsSince: vi.fn().mockResolvedValue({
       items: Array.from({ length: itemsSinceCount }, (_, i) => ({
@@ -196,6 +213,10 @@ describe('LibrarySyncService full-scan cycle', () => {
       new Date(Date.now() - 3600000).toISOString()
     );
     await mockRedis.set('tracearr:library:sync:count:srv-1:1', '100');
+<<<<<<< HEAD
+    await mockRedis.set('tracearr:library:sync:scanversion:srv-1:1', '2');
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     await mockRedis.set(
       'tracearr:library:sync:fullscan:srv-1:1',
       new Date(Date.now() - 3600000).toISOString()
@@ -206,6 +227,41 @@ describe('LibrarySyncService full-scan cycle', () => {
     expect(client.getLibraryItemsSince).toHaveBeenCalled();
   });
 
+<<<<<<< HEAD
+  // Plex serves a flat section's leaves from the same listing as its items, so
+  // asking for both hands every movie to the upsert twice.
+  it.each([
+    { libraryType: 'movie', leafCalls: 0 },
+    { libraryType: 'movies', leafCalls: 0 },
+    { libraryType: 'show', leafCalls: 1 },
+    { libraryType: 'artist', leafCalls: 1 },
+  ])(
+    'incremental sync of a $libraryType library makes $leafCalls leaf fetch(es)',
+    async ({ libraryType, leafCalls }) => {
+      const client = makeMockClient({ totalCount: 100, itemsSinceCount: 5, libraryType });
+      mockCreateClient.mockReturnValue(client);
+
+      const lastSyncedAt = new Date(Date.now() - 3600000);
+      await mockRedis.set('tracearr:library:sync:last:srv-1:1', lastSyncedAt.toISOString());
+      await mockRedis.set('tracearr:library:sync:count:srv-1:1', '100');
+      await mockRedis.set('tracearr:library:sync:scanversion:srv-1:1', '2');
+      await mockRedis.set(
+        'tracearr:library:sync:fullscan:srv-1:1',
+        new Date(Date.now() - 3600000).toISOString()
+      );
+
+      await service.syncServer('srv-1', undefined, 'scheduled');
+
+      expect(client.getLibraryItemsSince).toHaveBeenCalledTimes(1);
+      expect(client.getLibraryLeavesSince).toHaveBeenCalledTimes(leafCalls);
+      if (leafCalls > 0) {
+        expect(client.getLibraryLeavesSince).toHaveBeenCalledWith('1', lastSyncedAt);
+      }
+    }
+  );
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   it('forces full scan when the last full scan is older than FULL_SCAN_MAX_AGE_MS', async () => {
     const client = makeMockClient({ totalCount: 100 });
     mockCreateClient.mockReturnValue(client);
@@ -215,6 +271,10 @@ describe('LibrarySyncService full-scan cycle', () => {
       new Date(Date.now() - 3600000).toISOString()
     );
     await mockRedis.set('tracearr:library:sync:count:srv-1:1', '100');
+<<<<<<< HEAD
+    await mockRedis.set('tracearr:library:sync:scanversion:srv-1:1', '2');
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     // 85 hours ago, past the 84h max age
     await mockRedis.set(
       'tracearr:library:sync:fullscan:srv-1:1',
@@ -237,6 +297,10 @@ describe('LibrarySyncService full-scan cycle', () => {
       new Date(Date.now() - 3600000).toISOString()
     );
     await mockRedis.set('tracearr:library:sync:count:srv-1:1', '100');
+<<<<<<< HEAD
+    await mockRedis.set('tracearr:library:sync:scanversion:srv-1:1', '2');
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
     await service.syncServer('srv-1', undefined, 'scheduled');
 
@@ -247,6 +311,39 @@ describe('LibrarySyncService full-scan cycle', () => {
     expect(Number.isNaN(new Date(seeded!).getTime())).toBe(false);
   });
 
+<<<<<<< HEAD
+  it.each([
+    { type: 'plex' as const, fullScan: true },
+    { type: 'jellyfin' as const, fullScan: false },
+  ])(
+    '$type library last scanned at version 1 does a full scan: $fullScan',
+    async ({ type, fullScan }) => {
+      setupDbSelectMocks({ ...TEST_SERVER, type });
+      const client = makeMockClient({ totalCount: 100, itemsSinceCount: 5 });
+      mockCreateClient.mockReturnValue(client);
+
+      await mockRedis.set(
+        'tracearr:library:sync:last:srv-1:1',
+        new Date(Date.now() - 3600000).toISOString()
+      );
+      await mockRedis.set('tracearr:library:sync:count:srv-1:1', '100');
+      await mockRedis.set('tracearr:library:sync:scanversion:srv-1:1', '1');
+      await mockRedis.set(
+        'tracearr:library:sync:fullscan:srv-1:1',
+        new Date(Date.now() - 3600000).toISOString()
+      );
+
+      await service.syncServer('srv-1', undefined, 'scheduled');
+
+      expect(client.getLibraryItemsSince).toHaveBeenCalledTimes(fullScan ? 0 : 1);
+      expect(await mockRedis.get('tracearr:library:sync:scanversion:srv-1:1')).toBe(
+        fullScan ? '2' : '1'
+      );
+    }
+  );
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   it('always forces full scan for manual triggers', async () => {
     const client = makeMockClient({ totalCount: 100 });
     mockCreateClient.mockReturnValue(client);
@@ -256,6 +353,10 @@ describe('LibrarySyncService full-scan cycle', () => {
       new Date(Date.now() - 3600000).toISOString()
     );
     await mockRedis.set('tracearr:library:sync:count:srv-1:1', '100');
+<<<<<<< HEAD
+    await mockRedis.set('tracearr:library:sync:scanversion:srv-1:1', '2');
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     await mockRedis.set(
       'tracearr:library:sync:fullscan:srv-1:1',
       new Date(Date.now() - 3600000).toISOString()
@@ -288,6 +389,10 @@ describe('undercount escalation memory (accepted shortfall)', () => {
       new Date(Date.now() - 3600000).toISOString()
     );
     await mockRedis.set('tracearr:library:sync:count:srv-1:1', '100');
+<<<<<<< HEAD
+    await mockRedis.set('tracearr:library:sync:scanversion:srv-1:1', '2');
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     await mockRedis.set(
       'tracearr:library:sync:fullscan:srv-1:1',
       new Date(Date.now() - 3600000).toISOString()
@@ -299,7 +404,15 @@ describe('undercount escalation memory (accepted shortfall)', () => {
     await service.syncServer('srv-1', undefined, 'scheduled');
 
     // No accepted shortfall yet, so the gap (5) exceeds tolerance (3) and escalates to a full scan.
+<<<<<<< HEAD
+    expect(client1.getLibraryItems).toHaveBeenCalledWith('1', {
+      offset: 0,
+      limit: 200,
+      libraryType: 'movie',
+    });
+=======
     expect(client1.getLibraryItems).toHaveBeenCalledWith('1', { offset: 0, limit: 200 });
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
     // Second sync: same structural gap, nothing new - must stay incremental.
     // Re-arm lastSyncedAt outside the drift-check cooldown, as if the
@@ -315,7 +428,15 @@ describe('undercount escalation memory (accepted shortfall)', () => {
     await service.syncServer('srv-1', undefined, 'scheduled');
 
     expect(client2.getLibraryItemsSince).toHaveBeenCalled();
+<<<<<<< HEAD
+    expect(client2.getLibraryItems).not.toHaveBeenCalledWith('1', {
+      offset: 0,
+      limit: 200,
+      libraryType: 'movie',
+    });
+=======
     expect(client2.getLibraryItems).not.toHaveBeenCalledWith('1', { offset: 0, limit: 200 });
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   });
 
   it('still escalates when a new wrong tombstone widens the gap beyond the accepted shortfall', async () => {
@@ -327,6 +448,10 @@ describe('undercount escalation memory (accepted shortfall)', () => {
       new Date(Date.now() - 3600000).toISOString()
     );
     await mockRedis.set('tracearr:library:sync:count:srv-1:1', '100');
+<<<<<<< HEAD
+    await mockRedis.set('tracearr:library:sync:scanversion:srv-1:1', '2');
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     await mockRedis.set(
       'tracearr:library:sync:fullscan:srv-1:1',
       new Date(Date.now() - 3600000).toISOString()
@@ -334,7 +459,15 @@ describe('undercount escalation memory (accepted shortfall)', () => {
 
     vi.mocked(db.execute).mockResolvedValue({ rows: [{ count: 95 }] } as never);
     await service.syncServer('srv-1', undefined, 'scheduled');
+<<<<<<< HEAD
+    expect(client1.getLibraryItems).toHaveBeenCalledWith('1', {
+      offset: 0,
+      limit: 200,
+      libraryType: 'movie',
+    });
+=======
     expect(client1.getLibraryItems).toHaveBeenCalledWith('1', { offset: 0, limit: 200 });
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
     // Second sync: a NEW wrong tombstone widens the gap to 10 - beyond the accepted shortfall (5) plus tolerance.
     // Re-arm lastSyncedAt outside the drift-check cooldown so the check runs.
@@ -350,6 +483,39 @@ describe('undercount escalation memory (accepted shortfall)', () => {
     await service.syncServer('srv-1', undefined, 'scheduled');
 
     expect(client2.getLibraryItemsSince).toHaveBeenCalled();
+<<<<<<< HEAD
+    expect(client2.getLibraryItems).toHaveBeenCalledWith('1', {
+      offset: 0,
+      limit: 200,
+      libraryType: 'movie',
+    });
+  });
+
+  it('forces a full scan when the stored scan version is behind the current listing query', async () => {
+    const client = makeMockClient({ totalCount: 100, itemsSinceCount: 5 });
+    mockCreateClient.mockReturnValue(client);
+
+    await mockRedis.set(
+      'tracearr:library:sync:last:srv-1:1',
+      new Date(Date.now() - 3600000).toISOString()
+    );
+    await mockRedis.set('tracearr:library:sync:count:srv-1:1', '100');
+    await mockRedis.set(
+      'tracearr:library:sync:fullscan:srv-1:1',
+      new Date(Date.now() - 3600000).toISOString()
+    );
+
+    await service.syncServer('srv-1', undefined, 'scheduled');
+
+    expect(client.getLibraryItemsSince).not.toHaveBeenCalled();
+    expect(client.getLibraryItems).toHaveBeenCalledWith('1', {
+      offset: 0,
+      limit: 200,
+      libraryType: 'movie',
+    });
+    expect(await mockRedis.get('tracearr:library:sync:scanversion:srv-1:1')).toBe('2');
+=======
     expect(client2.getLibraryItems).toHaveBeenCalledWith('1', { offset: 0, limit: 200 });
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   });
 });

@@ -19,6 +19,10 @@ export interface HistoryFilters {
   geoCountries?: string[];
   geoCity?: string;
   geoRegion?: string;
+<<<<<<< HEAD
+  network?: 'local' | 'remote';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   transcodeDecisions?: ('directplay' | 'copy' | 'transcode')[];
   watched?: boolean;
   excludeShortSessions?: boolean;

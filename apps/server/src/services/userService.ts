@@ -13,7 +13,11 @@
 
 import { eq, and, sql, inArray, isNull, type SQL } from 'drizzle-orm';
 import type { MediaUser } from './mediaServer/index.js';
+<<<<<<< HEAD
+import { usernameAsEmail, type UserRole } from '@tracearr/shared';
+=======
 import type { UserRole } from '@tracearr/shared';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { db } from '../db/client.js';
 import {
   users,
@@ -741,11 +745,21 @@ export async function syncUserFromMediaServer(
 
   // For Jellyfin/Emby: original flow using externalId
   const existing = await getServerUserByExternalId(serverId, mediaUser.id);
+<<<<<<< HEAD
+  // Account level only: the identity lookup and users.email below keep the raw
+  // value, so a username never becomes a login email or links two people.
+  const accountEmail = mediaUser.email ?? usernameAsEmail(mediaUser.username);
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
   if (existing) {
     const updatePayload: Parameters<typeof updateServerUser>[1] = {
       username: mediaUser.username,
+<<<<<<< HEAD
+      email: accountEmail,
+=======
       email: mediaUser.email ?? null,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       thumbUrl: mediaUser.thumb ?? null,
       isServerAdmin: mediaUser.isAdmin,
     };
@@ -813,7 +827,11 @@ export async function syncUserFromMediaServer(
         serverId,
         externalId: mediaUser.id,
         username: mediaUser.username,
+<<<<<<< HEAD
+        email: accountEmail,
+=======
         email: mediaUser.email ?? null,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         thumbUrl: mediaUser.thumb ?? null,
         isServerAdmin: mediaUser.isAdmin,
         joinedAt: mediaUser.joinedAt ?? null,

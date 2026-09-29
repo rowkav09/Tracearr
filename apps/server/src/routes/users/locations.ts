@@ -5,10 +5,16 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify';
+<<<<<<< HEAD
+import { userIdParamSchema, identityScopeQuerySchema } from '@tracearr/shared';
+import { db } from '../../db/client.js';
+import { queryUserLocations, resolveIdentityScopedServerUserIds } from './queries.js';
+=======
 import { sql } from 'drizzle-orm';
 import { userIdParamSchema, identityScopeQuerySchema, type UserLocation } from '@tracearr/shared';
 import { db } from '../../db/client.js';
 import { resolveIdentityScopedServerUserIds, serverUserIdAnyFragment } from './queries.js';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 export const locationsRoutes: FastifyPluginAsync = async (app) => {
   /**
@@ -39,6 +45,9 @@ export const locationsRoutes: FastifyPluginAsync = async (app) => {
       return reply.forbidden('You do not have access to this user');
     }
 
+<<<<<<< HEAD
+    const locations = await queryUserLocations(db, scoped.ids);
+=======
     // Deduplicate to one row per play, then aggregate by location.
     // Each play is assigned to its most recent segment's location.
     const locationResult = await db.execute(sql`
@@ -85,6 +94,7 @@ export const locationsRoutes: FastifyPluginAsync = async (app) => {
       lastSeenAt: loc.last_seen_at,
       ipAddresses: loc.ip_addresses ?? [],
     }));
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
     return { data: locations };
   });

@@ -11,6 +11,10 @@ import type { MediaSession } from '../../services/mediaServer/types.js';
 import type { ProcessedSession } from './types.js';
 import { normalizeClient } from '../../utils/platformNormalizer.js';
 import { formatQualityString } from '../../utils/resolutionNormalizer.js';
+<<<<<<< HEAD
+import { isLocalSession } from '../../utils/localSession.js';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import type { sessions } from '../../db/schema.js';
 
 /** Set of valid media types for O(1) validation */
@@ -156,7 +160,11 @@ export function pickLiveSessionFields(processed: ProcessedSession): Partial<Sess
  */
 export function mapMediaSession(
   session: MediaSession,
+<<<<<<< HEAD
+  serverType: 'plex' | 'jellyfin' | 'emby'
+=======
   serverType: 'plex' | 'jellyfin' | 'emby' | 'navidrome'
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 ): ProcessedSession {
   // Resolve thumb path using lookup table
   const thumbPath = resolveThumbPath(session);
@@ -284,6 +292,10 @@ export function mapSessionRow(s: typeof sessions.$inferSelect): Session {
     geoLon: s.geoLon,
     geoAsnNumber: s.geoAsnNumber,
     geoAsnOrganization: s.geoAsnOrganization,
+<<<<<<< HEAD
+    isLocal: isLocalSession(s),
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     playerName: s.playerName,
     deviceId: s.deviceId,
     product: s.product,

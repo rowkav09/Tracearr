@@ -3,7 +3,10 @@
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src",
+<<<<<<< HEAD
+=======
     "composite": true,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "lib": ["ES2022", "DOM"]
   },
   "include": ["src/**/*.ts", "src/**/*.json"],

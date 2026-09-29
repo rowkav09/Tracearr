@@ -111,6 +111,10 @@ describe('RunDetail', () => {
           ipAddress: '10.0.0.9',
           city: null,
           country: null,
+<<<<<<< HEAD
+          isLocal: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         },
       })
     );

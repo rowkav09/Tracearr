@@ -7,7 +7,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Redis } from 'ioredis';
 import { REDIS_KEYS } from '@tracearr/shared';
+<<<<<<< HEAD
+import {
+  resolvePrecachePass,
+  commitFullPass,
+  PRECACHE_FULL_PASS_INTERVAL_MS,
+} from '../precachePassPolicy.js';
+=======
 import { resolvePrecachePass, PRECACHE_FULL_PASS_INTERVAL_MS } from '../precachePassPolicy.js';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 function makeMockRedis(initial: Record<string, string> = {}): Redis {
   const store = new Map<string, string>(Object.entries(initial));
@@ -70,7 +78,13 @@ describe('resolvePrecachePass', () => {
     await result?.commit();
 
     expect(result?.sinceUpdatedAt).toBeNull();
+<<<<<<< HEAD
+    // The stamp is no longer commit's job: it is written by commitFullPass when
+    // the pass terminates, so an interrupted pass stays due.
+    expect(redis.set).not.toHaveBeenCalledWith(
+=======
     expect(redis.set).toHaveBeenCalledWith(
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       REDIS_KEYS.LIBRARY_PRECACHE_LAST_FULL(SERVER_ID),
       expect.any(String)
     );
@@ -88,7 +102,13 @@ describe('resolvePrecachePass', () => {
     await result?.commit();
 
     expect(result?.sinceUpdatedAt).toBeNull();
+<<<<<<< HEAD
+    // The stamp is no longer commit's job: it is written by commitFullPass when
+    // the pass terminates, so an interrupted pass stays due.
+    expect(redis.set).not.toHaveBeenCalledWith(
+=======
     expect(redis.set).toHaveBeenCalledWith(
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       REDIS_KEYS.LIBRARY_PRECACHE_LAST_FULL(SERVER_ID),
       expect.any(String)
     );
@@ -103,7 +123,13 @@ describe('resolvePrecachePass', () => {
     await result?.commit();
 
     expect(result?.sinceUpdatedAt).toBeNull();
+<<<<<<< HEAD
+    // The stamp is no longer commit's job: it is written by commitFullPass when
+    // the pass terminates, so an interrupted pass stays due.
+    expect(redis.set).not.toHaveBeenCalledWith(
+=======
     expect(redis.set).toHaveBeenCalledWith(
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       REDIS_KEYS.LIBRARY_PRECACHE_LAST_FULL(SERVER_ID),
       expect.any(String)
     );
@@ -157,3 +183,39 @@ describe('resolvePrecachePass', () => {
     expect(next?.sinceUpdatedAt).toBe(watermark);
   });
 });
+<<<<<<< HEAD
+
+describe('full pass stamping', () => {
+  it('commit writes the watermark but not the full-pass stamp', async () => {
+    const redis = makeMockRedis();
+    const result = await resolvePrecachePass(redis, SERVER_ID, 'manual', true);
+    await result!.commit();
+
+    const get = redis.get as unknown as (k: string) => Promise<string | null>;
+    expect(await get(REDIS_KEYS.LIBRARY_PRECACHE_WATERMARK(SERVER_ID))).not.toBeNull();
+    expect(await get(REDIS_KEYS.LIBRARY_PRECACHE_LAST_FULL(SERVER_ID))).toBeNull();
+  });
+
+  it('commitFullPass writes a parseable full-pass stamp and the directory it walked', async () => {
+    const redis = makeMockRedis();
+    await commitFullPass(redis, SERVER_ID, '/cache');
+
+    const get = redis.get as unknown as (k: string) => Promise<string | null>;
+    const stamp = await get(REDIS_KEYS.LIBRARY_PRECACHE_LAST_FULL(SERVER_ID));
+    expect(stamp).not.toBeNull();
+    expect(Number.isNaN(new Date(stamp!).getTime())).toBe(false);
+    expect(await get(REDIS_KEYS.LIBRARY_PRECACHE_LAST_FULL_DIR(SERVER_ID))).toBe('/cache');
+  });
+
+  it('leaves a server whose pass never terminated still due for a full pass', async () => {
+    const redis = makeMockRedis();
+    const first = await resolvePrecachePass(redis, SERVER_ID, 'scheduled', true);
+    expect(first?.sinceUpdatedAt).toBeNull();
+    await first!.commit();
+
+    const second = await resolvePrecachePass(redis, SERVER_ID, 'scheduled', true);
+    expect(second?.sinceUpdatedAt).toBeNull();
+  });
+});
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)

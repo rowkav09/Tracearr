@@ -18,6 +18,10 @@ import {
   createTestLibraryItem,
 } from '@tracearr/test-utils/factories';
 import { db, recreatePool } from '../../src/db/client.js';
+<<<<<<< HEAD
+import { compressSessionChunks } from '../../src/test/compressChunks.js';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { media } from '../../src/db/schema.js';
 import { backfillSessionIdentityBatch } from '../../src/jobs/sessionIdentityBackfill.js';
 
@@ -65,6 +69,10 @@ describe('identity backfill on a compressed chunk', () => {
       WHERE server_id = ${server.id}::uuid AND rating_key = 'rk-compressed'
     `);
 
+<<<<<<< HEAD
+      const compressed = await compressSessionChunks(CHUNK_AGE_DAYS - 30);
+      expect(compressed.length).toBeGreaterThanOrEqual(1);
+=======
       const compressed = await db.execute(sql`
       SELECT compress_chunk(c, true) FROM show_chunks(
         'sessions',
@@ -72,6 +80,7 @@ describe('identity backfill on a compressed chunk', () => {
       ) AS c
     `);
       expect(compressed.rows.length).toBeGreaterThanOrEqual(1);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
       // New connections inherit the database-level cap; without the batch's
       // SET LOCAL this makes the UPDATE trip the decompression limit

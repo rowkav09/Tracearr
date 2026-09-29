@@ -10,7 +10,11 @@
     "enterManually": "手动输入 URL 和令牌",
     "cameraPermissionRequired": "请授予相机权限以扫描二维码",
     "scanQrInstructions": "在您的 Tracearr 仪表盘中打开设置 -> 移动应用程序并扫描二维码",
+<<<<<<< HEAD
+    "urlPlaceholder": "https://tracearr.example.com",
+=======
     "urlPlaceholder": "",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "tokenPlaceholder": "trr_mob_……",
     "missingToken": "缺失的令牌",
     "pleaseEnterToken": "请输入您的访问令牌"
@@ -43,13 +47,21 @@
     "configureNotifications": "配置推送通知偏好设置",
     "language": "语言",
     "community": "社区",
+<<<<<<< HEAD
+    "discord": "Discord",
+=======
     "discord": "",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "joinCommunity": "加入社区",
     "docs": "文档",
     "readDocs": "阅读文档",
     "website": "网站",
     "visitWebsite": "访问tracearr.com",
+<<<<<<< HEAD
+    "github": "GitHub",
+=======
     "github": "",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "viewSourceCode": "查看源代码",
     "sponsor": "支持者",
     "supportDevelopment": "支持发展",
@@ -70,7 +82,15 @@
   },
   "resources": {
     "cpu": "处理器",
+<<<<<<< HEAD
+    "ram": "内存",
+    "item": "",
+    "noData": "",
+    "system": "",
+    "waiting": ""
+=======
     "ram": "内存"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "notifications": {
     "testSent": "测试发送",
@@ -98,11 +118,27 @@
     "criticalOverrideDescription": "在静音时间内仍然有高严重性犯规通知",
     "rateLimitDescription": "速率限制防止通知垃圾邮件。当前限制：{{perMinute}}/分钟，{{perHour}}/小时。",
     "sendTestNotification": "发送测试通知",
+<<<<<<< HEAD
+    "testDescription": "验证推送通知是否正常工作",
+    "pushNotifications": "",
+    "ruleTypes": {
+      "accountInactivity": "",
+      "deviceVelocity": "",
+      "geoRestriction": "",
+      "impossibleTravel": "",
+      "simultaneousLocations": ""
+    },
+    "severityAll": "",
+    "severityHighOnly": "",
+    "severityWarningUp": "",
+    "violationTypes": ""
+=======
     "testDescription": "验证推送通知是否正常工作"
   },
   "dashboard": {
     "today": "今天",
     "hrs": "小时"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "session": {
     "streamTerminated": "流已终止",
@@ -117,6 +153,44 @@
     "moreDevices": "{{count}}",
     "noViolations": "没有违反行为",
     "noTerminations": "没有流终止",
+<<<<<<< HEAD
+    "lastSeen": "",
+    "terminatedBy": "",
+    "trustScoreConfirm": "",
+    "trustScoreRange": ""
+  },
+  "violation": {
+    "violationNotFoundDesc": "更多设备。",
+    "ips": "IPs"
+  },
+  "alerts": {
+    "clearFilters": "清除筛选",
+    "acknowledgeAll": "",
+    "acknowledgeAllBody": "",
+    "acknowledgeAllBodySeverity": "",
+    "acknowledgeAllTitle_one": "",
+    "acknowledgeAllTitle_other": "",
+    "all": "",
+    "allClear": "",
+    "allServers": "",
+    "noAlertsRecorded": "",
+    "noMatches": "",
+    "pendingCount": ""
+  },
+  "history": {
+    "adjustFilters": "尝试调整筛选条件",
+    "historyWillAppear": "一旦用户开始串流，会话历史将出现在这里",
+    "filters": {
+      "clearCount": "",
+      "countries": "",
+      "filterBy": "",
+      "mediaType": "",
+      "noCountries": "",
+      "noPlatforms": "",
+      "noUsers": "",
+      "sectionSelected": ""
+    }
+=======
     "trustLow": "低",
     "trustMedium": "中等",
     "trustHigh": "高"
@@ -135,12 +209,20 @@
     "noHistoryFound": "没有历史记录",
     "adjustFilters": "尝试调整筛选条件",
     "historyWillAppear": "一旦用户开始串流，会话历史将出现在这里"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "users": {
     "owner": "所有者",
     "noUsers": "暂无用户",
     "usersWillAppear": "用户将在与您的媒体服务器同步后显示在这里",
+<<<<<<< HEAD
+    "noUsersMatch": "没有匹配的用户{{query}}",
+    "joinedRelative": "",
+    "sortActive": "",
+    "sortTrust": ""
+=======
     "noUsersMatch": "没有匹配的用户{{query}}"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "activity": {
     "playsOverTime": "一段时间后播放",
@@ -157,10 +239,16 @@
     "servers": "服务器",
     "selectServers": "选择服务器",
     "serversSelected": "已选择 {{selected}} 个服务器，共 {{total}} 个服务器",
+<<<<<<< HEAD
+    "allServers": "所有服务器"
+  },
+  "reconnected": "已经重新连接",
+=======
     "allServers": ""
   },
   "reconnected": "已经重新连接",
   "actionsExecuted": "操作已执行",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   "serverScope": {
     "single": "仅显示{{name}}"
   },
@@ -169,10 +257,77 @@
     "alerts": "警告",
     "alertsCount": "提醒，{{count}} 条未读",
     "settings": "设置",
+<<<<<<< HEAD
+    "trustScore": "信任分数{{score}}",
+    "decreaseTrustScore": "",
+    "filtersActive": "",
+    "increaseTrustScore": "",
+    "sortAscending": "",
+    "sortDescending": ""
+=======
     "trustScore": "信任分数{{score}}"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "map": {
     "noData": "无可用位置数据",
     "unavailable": "地图不可用"
+<<<<<<< HEAD
+  },
+  "automations": {
+    "conditions_one": "",
+    "conditions_other": "",
+    "editOnWeb": "",
+    "emptyDescription": "",
+    "kind": {
+      "notification": "",
+      "policy": ""
+    },
+    "lastRun": "",
+    "truncated": "",
+    "turnOffFailed": "",
+    "turnOnFailed": "",
+    "unsupportedDescription": "",
+    "unsupportedTitle": "",
+    "versionCheckFailed": ""
+  },
+  "charts": {
+    "weekOf": ""
+  },
+  "push": {
+    "violationTitle": ""
+  },
+  "streamDetails": {
+    "bitrate": "",
+    "channels": "",
+    "codec": "",
+    "color": "",
+    "container": "",
+    "forced": "",
+    "format": "",
+    "framerate": "",
+    "hwDecode": "",
+    "hwEncode": "",
+    "mono": "",
+    "noDetails": "",
+    "notAvailable": "",
+    "profile": "",
+    "sampleRate": "",
+    "source": "",
+    "speed": "",
+    "stereo": "",
+    "stream": "",
+    "subtitles": "",
+    "throttled": "",
+    "transcodeDetails": ""
+  },
+  "widget": {
+    "asOf": "",
+    "serversDown_one": "",
+    "serversDown_other": "",
+    "signedOut": "",
+    "transcodes_one": "",
+    "transcodes_other": ""
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   }
 }

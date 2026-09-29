@@ -2,9 +2,16 @@
  * sessionIdentityBackfill tests
  *
  * Covers the widened repair pass: sessions that already have media_id but were
+<<<<<<< HEAD
+ * stamped before their media row's show_media_id existed, and the unlink pass
+ * for sessions linked to a container (show, season, artist, album). All three
+ * passes run in the same transaction and their results combine into a single
+ * updated/oldest result.
+=======
  * stamped before their media row's show_media_id existed. Both the fresh-stamp
  * query and the repair query run in the same transaction and their results
  * combine into a single updated/oldest result.
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
@@ -47,8 +54,27 @@ beforeEach(() => {
 const GUC_ABSENT = { rows: [] };
 const GUC_PRESENT = { rows: [{ '?column?': 1 }] };
 
+<<<<<<< HEAD
+const CONTAINER_TYPES = ['show', 'season', 'artist', 'album'];
+
+/** The library_items EXISTS guard body, not the UPDATE's own WHERE */
+function guardBody(text: string | undefined): string | undefined {
+  return /FROM library_items li2?\b([\s\S]*?)\)\s*(?:ORDER BY|$)/.exec(text ?? '')?.[1];
+}
+
+async function renderBatchPasses(window?: { start: Date; end: Date }) {
+  const execute = mockTransaction([GUC_ABSENT, { rows: [] }, { rows: [] }, { rows: [] }]);
+  await backfillSessionIdentityBatch(5000, window);
+  expect(execute).toHaveBeenCalledTimes(4);
+  return execute.mock.calls.slice(1).map((call) => renderSql(call[0] as SQL));
+}
+
+describe('backfillSessionIdentityBatch', () => {
+  it('combines the counts of every pass and picks the oldest across them', async () => {
+=======
 describe('backfillSessionIdentityBatch', () => {
   it('combines the fresh-stamp and repair pass counts and picks the oldest across both', async () => {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     mockTransaction([
       GUC_ABSENT,
       {
@@ -58,31 +84,56 @@ describe('backfillSessionIdentityBatch', () => {
         ],
       },
       { rows: [{ started_at: '2023-12-01T00:00:00.000Z' }] },
+<<<<<<< HEAD
+      { rows: [{ started_at: '2023-11-01T00:00:00.000Z' }] },
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     ]);
 
     const result = await backfillSessionIdentityBatch(5000);
 
+<<<<<<< HEAD
+    expect(result.updated).toBe(4);
+    expect(result.oldest).toEqual(new Date('2023-11-01T00:00:00.000Z'));
+  });
+
+  it('runs every pass even when the fresh-stamp pass finds nothing', async () => {
+=======
     expect(result.updated).toBe(3);
     expect(result.oldest).toEqual(new Date('2023-12-01T00:00:00.000Z'));
   });
 
   it('runs both passes even when the fresh-stamp pass finds nothing to repair', async () => {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     const execute = mockTransaction([
       GUC_ABSENT,
       { rows: [] },
       { rows: [{ started_at: '2024-02-01T00:00:00.000Z' }] },
+<<<<<<< HEAD
+      { rows: [] },
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     ]);
 
     const result = await backfillSessionIdentityBatch(5000);
 
     expect(result.updated).toBe(1);
     expect(result.oldest).toEqual(new Date('2024-02-01T00:00:00.000Z'));
+<<<<<<< HEAD
+    // GUC probe + fresh-stamp, repair and unlink queries, nothing else.
+    expect(execute).toHaveBeenCalledTimes(4);
+  });
+
+  it('returns zero updated and a null oldest when no pass finds anything', async () => {
+    mockTransaction([GUC_ABSENT, { rows: [] }, { rows: [] }, { rows: [] }]);
+=======
     // GUC probe + fresh-stamp query + repair query, nothing else.
     expect(execute).toHaveBeenCalledTimes(3);
   });
 
   it('returns zero updated and a null oldest when neither pass finds anything', async () => {
     mockTransaction([GUC_ABSENT, { rows: [] }, { rows: [] }]);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
     const result = await backfillSessionIdentityBatch(5000);
 
@@ -93,16 +144,79 @@ describe('backfillSessionIdentityBatch', () => {
     // The field failure: a compressed month-chunk decompresses more tuples
     // than the 100k default for one batch, and without SET LOCAL the walk
     // fail-retries forever
+<<<<<<< HEAD
+    const execute = mockTransaction([
+      GUC_PRESENT,
+      { rows: [] },
+      { rows: [] },
+      { rows: [] },
+      { rows: [] },
+    ]);
+
+    await backfillSessionIdentityBatch(5000);
+
+    expect(execute).toHaveBeenCalledTimes(5);
+=======
     const execute = mockTransaction([GUC_PRESENT, { rows: [] }, { rows: [] }, { rows: [] }]);
 
     await backfillSessionIdentityBatch(5000);
 
     expect(execute).toHaveBeenCalledTimes(4);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     const setLocal = renderSql(execute.mock.calls[1]![0] as SQL).sql;
     expect(setLocal).toContain(
       'SET LOCAL timescaledb.max_tuples_decompressed_per_dml_transaction = 0'
     );
   });
+<<<<<<< HEAD
+
+  it('refuses container library items in both the fresh-stamp update and its guard', async () => {
+    const [fresh] = await renderBatchPasses();
+    const [select, update] = fresh!.sql.split('UPDATE sessions s');
+
+    expect(guardBody(select)).toMatch(/li2\.media_type NOT IN \(\$\d+, \$\d+, \$\d+, \$\d+\)/);
+    expect(update).toMatch(/li\.media_type NOT IN \(\$\d+, \$\d+, \$\d+, \$\d+\)/);
+    expect(fresh!.params).toEqual(expect.arrayContaining(CONTAINER_TYPES));
+  });
+
+  it('refuses a library item whose media row is a container, in the update, guard and probe', async () => {
+    // The unlink pass keys on the media row's type, so a fresh stamp that only
+    // checked the library item's type could re-stamp what unlink just cleared.
+    const [fresh] = await renderBatchPasses();
+    const [select, update] = fresh!.sql.split('UPDATE sessions s');
+    const probeExecute = mockExecute({ rows: [{ stampable: false }] });
+    await hasStampableSessionsBefore(new Date('2026-08-01T00:00:00Z'));
+    const [freshProbe] = renderSql(probeExecute.mock.calls[0]![0] as SQL).sql.split(
+      /\)\s*OR EXISTS/
+    );
+    const containerMedia = (alias: string) =>
+      new RegExp(
+        `JOIN media ${alias} ON ${alias}\\.id = li2?\\.media_id[\\s\\S]*${alias}\\.media_type NOT IN \\(\\$\\d+, \\$\\d+, \\$\\d+, \\$\\d+\\)`
+      );
+
+    expect(guardBody(select)).toMatch(containerMedia('m2'));
+    expect(update).toMatch(containerMedia('m'));
+    expect(guardBody(freshProbe)).toMatch(containerMedia('m'));
+  });
+
+  it('unlinks sessions stamped with a container media row', async () => {
+    const [, , unlink] = await renderBatchPasses();
+    const text = unlink!.sql.replace(/\s+/g, ' ');
+
+    expect(text).toContain('JOIN media m ON m.id = s.media_id');
+    expect(text).toMatch(/m\.media_type IN \(\$\d+, \$\d+, \$\d+, \$\d+\)/);
+    expect(unlink!.params).toEqual(expect.arrayContaining(CONTAINER_TYPES));
+    expect(text).toContain(
+      'SET media_id = NULL, show_media_id = NULL, imdb_id = NULL, tmdb_id = NULL, tvdb_id = NULL'
+    );
+    expect(text).toContain('RETURNING s.started_at');
+  });
+});
+
+describe('backfillSessionIdentityBatch windowing', () => {
+  it('bounds both the batch select and the update target of every pass when a window is given', async () => {
+    const passes = await renderBatchPasses({
+=======
 });
 
 describe('backfillSessionIdentityBatch windowing', () => {
@@ -110,10 +224,24 @@ describe('backfillSessionIdentityBatch windowing', () => {
     const execute = mockTransaction([GUC_ABSENT, { rows: [] }, { rows: [] }]);
 
     await backfillSessionIdentityBatch(5000, {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       start: new Date('2026-01-01T00:00:00.000Z'),
       end: new Date('2026-01-08T00:00:00.000Z'),
     });
 
+<<<<<<< HEAD
+    // Each pass must carry both bounds on its own, not just the union of the
+    // passes, and on the UPDATE target as well as the batch that feeds it.
+    expect(passes).toHaveLength(3);
+    for (const { sql: text, params } of passes) {
+      const [select, update] = text.split('UPDATE sessions s');
+      for (const part of [select, update]) {
+        expect(part).toMatch(/s\.started_at >= \$\d+::timestamptz/);
+        expect(part).toMatch(/s\.started_at < \$\d+::timestamptz/);
+      }
+      expect(params.filter((p) => p === '2026-01-01T00:00:00.000Z')).toHaveLength(2);
+      expect(params.filter((p) => p === '2026-01-08T00:00:00.000Z')).toHaveLength(2);
+=======
     // After the GUC probe: the fresh-stamp pass, then the show-link repair
     // pass - each must carry both bounds, not just the union of the two.
     expect(execute).toHaveBeenCalledTimes(3);
@@ -123,14 +251,19 @@ describe('backfillSessionIdentityBatch windowing', () => {
       expect(text).toContain('started_at <');
       expect(params).toContain('2026-01-01T00:00:00.000Z');
       expect(params).toContain('2026-01-08T00:00:00.000Z');
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     }
   });
 
   it('omits the bounds when no window is given', async () => {
+<<<<<<< HEAD
+    for (const { sql: text } of await renderBatchPasses()) {
+=======
     const execute = mockTransaction([GUC_ABSENT, { rows: [] }, { rows: [] }]);
     await backfillSessionIdentityBatch(5000);
     for (const call of execute.mock.calls.slice(1)) {
       const { sql: text } = renderSql(call[0] as SQL);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       expect(text).not.toContain('started_at >=');
       expect(text).not.toContain('started_at <');
     }
@@ -138,6 +271,35 @@ describe('backfillSessionIdentityBatch windowing', () => {
 });
 
 describe('hasStampableSessionsBefore', () => {
+<<<<<<< HEAD
+  it('answers from a single statement', async () => {
+    const execute = mockExecute({ rows: [{ stampable: true }] });
+
+    await expect(hasStampableSessionsBefore(new Date('2026-08-01T00:00:00Z'))).resolves.toBe(true);
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(renderSql(execute.mock.calls[0]![0] as SQL).sql).toMatch(
+      /^\s*SELECT EXISTS \([\s\S]*\) OR EXISTS \([\s\S]*\) OR EXISTS \([\s\S]*\) AS stampable\s*$/
+    );
+  });
+
+  it('returns false when no probe finds work', async () => {
+    const execute = mockExecute({ rows: [{ stampable: false }] });
+
+    await expect(hasStampableSessionsBefore(new Date('2026-08-01T00:00:00Z'))).resolves.toBe(false);
+    expect(execute).toHaveBeenCalledTimes(1);
+  });
+
+  it('bounds every probe below the cutoff', async () => {
+    const execute = mockExecute({ rows: [{ stampable: false }] });
+
+    await hasStampableSessionsBefore(new Date('2026-08-01T00:00:00Z'));
+
+    const { sql: text, params } = renderSql(execute.mock.calls[0]![0] as SQL);
+    for (const probe of text.split(/\)\s*OR EXISTS/)) {
+      expect(probe).toMatch(/s\.started_at < \$\d+::timestamptz/);
+    }
+    expect(params.filter((p) => p === '2026-08-01T00:00:00.000Z')).toHaveLength(3);
+=======
   it('returns true from the fresh-stamp probe without running the repair probe', async () => {
     const execute = mockExecute({ rows: [{ '?column?': 1 }] });
 
@@ -170,11 +332,24 @@ describe('hasStampableSessionsBefore', () => {
       expect(text).toContain('LIMIT 1');
       expect(params).toContain('2026-08-01T00:00:00.000Z');
     }
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   });
 });
 
 describe('probe / batch predicate drift', () => {
   it('pins each probe predicate and keeps it in step with the batch query it mirrors', async () => {
+<<<<<<< HEAD
+    const probeExecute = mockExecute({ rows: [{ stampable: false }] });
+    await hasStampableSessionsBefore(new Date('2026-08-01T00:00:00Z'));
+    const [freshProbe, repairProbe, unlinkProbe] = renderSql(
+      probeExecute.mock.calls[0]![0] as SQL
+    ).sql.split(/\)\s*OR EXISTS/);
+
+    const [freshBatch, repairBatch, unlinkBatch] = (await renderBatchPasses()).map(
+      (pass) => pass.sql
+    );
+
+=======
     const probeExecute = mockExecute({ rows: [] }, { rows: [] });
     await hasStampableSessionsBefore(new Date('2026-08-01T00:00:00Z'));
     const [freshProbe, repairProbe] = probeExecute.mock.calls.map(
@@ -187,6 +362,7 @@ describe('probe / batch predicate drift', () => {
       .slice(1)
       .map((call) => renderSql(call[0] as SQL).sql);
 
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     // The probe answers "does the maintenance walk still have work below the
     // horizon", so it has to select exactly the rows the batch would stamp.
     // Drop a predicate from the probe and it says true for rows no batch can
@@ -196,17 +372,33 @@ describe('probe / batch predicate drift', () => {
     for (const text of [freshProbe, freshBatch]) {
       expect(text).toContain('s.media_id IS NULL');
       expect(text).toContain('s.rating_key IS NOT NULL');
+<<<<<<< HEAD
+      // The EXISTS guard is what keeps unresolvable rating keys and container
+      // items from re-selecting forever. The batch repeats both predicates in
+      // the UPDATE's own WHERE, so match inside the guard, not anywhere.
+      const guard = guardBody(text);
+      expect(guard).toMatch(/li2?\.media_id IS NOT NULL/);
+      expect(guard).toMatch(/li2?\.media_type NOT IN \(\$\d+, \$\d+, \$\d+, \$\d+\)/);
+=======
       // The EXISTS guard is what keeps unresolvable rating keys from re-selecting
       // forever. The batch also carries li.media_id IS NOT NULL in the UPDATE's
       // own WHERE, so match inside the EXISTS body, not anywhere in the query.
       const exists = /EXISTS\s*\(([\s\S]*?)\)/.exec(text ?? '')?.[1];
       expect(exists).toMatch(/li2?\.media_id IS NOT NULL/);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     }
 
     for (const text of [repairProbe, repairBatch]) {
       expect(text).toContain('s.show_media_id IS NULL');
       expect(text).toContain('m.show_media_id IS NOT NULL');
     }
+<<<<<<< HEAD
+
+    for (const text of [unlinkProbe, unlinkBatch]) {
+      expect(text).toMatch(/JOIN media m ON m\.id = s\.media_id\s+WHERE m\.media_type IN \(/);
+    }
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   });
 });
 

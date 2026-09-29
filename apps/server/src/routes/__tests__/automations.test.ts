@@ -1744,6 +1744,27 @@ describe('Automation routes', () => {
       expect(response.statusCode).toBe(400);
     });
 
+<<<<<<< HEAD
+    it.each([
+      ['session.started', '2.2.0'],
+      ['newsletter.failed', '2.3.0'],
+    ])('stamps an export whose trigger is %s with %s', async (type, minServerVersion) => {
+      app = await buildTestApp(ownerUser);
+      setupSelect([
+        boundRow({ serverId: null, triggers: [{ id: TRIGGER_ID, type, enabled: true }] }),
+      ]);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/automations/${AUTOMATION_ID}/export`,
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json().envelope.minServerVersion).toBe(minServerVersion);
+    });
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     it('404s an automation the caller cannot see', async () => {
       app = await buildTestApp(viewerUser);
       setupSelect([]);

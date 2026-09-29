@@ -1,6 +1,15 @@
 {
   "$schema": "https://turbo.build/schema.json",
+<<<<<<< HEAD
+  "globalDependencies": [
+    "tsconfig.base.json",
+    ".prettierrc",
+    ".oxlintrc.json",
+    "release-notes/*.json"
+  ],
+=======
   "globalDependencies": ["tsconfig.base.json", ".prettierrc", ".oxlintrc.json"],
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

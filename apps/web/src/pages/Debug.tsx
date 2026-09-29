@@ -22,7 +22,18 @@ import {
   Download,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+<<<<<<< HEAD
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+=======
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -868,6 +879,35 @@ export function Debug() {
           {/* Snapshot Management */}
           <Card>
             <CardHeader>
+<<<<<<< HEAD
+              <CardTitle className="flex items-center gap-2">
+                <Camera className="h-5 w-5" />
+                {t('debug.librarySnapshots')}
+              </CardTitle>
+              <CardDescription>{t('debug.manageSnapshots')}</CardDescription>
+              <CardAction className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="suspicious-only"
+                    checked={showSuspiciousOnly}
+                    onCheckedChange={setShowSuspiciousOnly}
+                  />
+                  <Label htmlFor="suspicious-only" className="text-sm">
+                    {t('debug.suspiciousOnly')}
+                  </Label>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void fetchSnapshots()}
+                  disabled={isLoadingSnapshots}
+                  className="gap-1.5"
+                >
+                  <RefreshCw className={cn('h-3.5 w-3.5', isLoadingSnapshots && 'animate-spin')} />
+                  {t('debug.load')}
+                </Button>
+              </CardAction>
+=======
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle className="flex items-center gap-2">
@@ -901,6 +941,7 @@ export function Debug() {
                   </Button>
                 </div>
               </div>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
             </CardHeader>
             <CardContent>
               {snapshots.length === 0 && !isLoadingSnapshots ? (
@@ -978,6 +1019,10 @@ export function Debug() {
                       />
                     </DataTableViewport>
                     <DataTablePager
+<<<<<<< HEAD
+                      variant="footer"
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                       {...snapshotsPager}
                       labels={{
                         navigation: t('common:table.pagination'),

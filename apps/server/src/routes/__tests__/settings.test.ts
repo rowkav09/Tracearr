@@ -18,6 +18,10 @@ vi.mock('../../services/settings.js', () => ({
   setSettings: vi.fn(),
   getSettings: vi.fn(),
   getSetting: vi.fn(),
+<<<<<<< HEAD
+  rearmImportedHistoryLink: vi.fn(),
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   getPollerSettings: vi.fn(),
   getGeoIPSettings: vi.fn(),
   getNetworkSettings: vi.fn(),
@@ -45,7 +49,11 @@ vi.mock('../../services/geoip.js', () => ({
   },
 }));
 
+<<<<<<< HEAD
+import { getAllSettings, rearmImportedHistoryLink, setSettings } from '../../services/settings.js';
+=======
 import { getAllSettings, setSettings } from '../../services/settings.js';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { getImageCacheStatus } from '../../services/imageCacheSweep.js';
 import { settingsRoutes } from '../settings.js';
 
@@ -85,6 +93,10 @@ const mockImageCacheStatus: ImageCacheStatus = {
   sweptAt: '2026-08-23T00:00:00.000Z',
   freedBytesLastSweep: 500,
   deletedFilesLastSweep: 2,
+<<<<<<< HEAD
+  notPersisting: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   postersWithThumb: 42,
   estimatedNeedBytes: 42 * 18 * 1024,
   freeBytes: 50 * 1024 ** 3,
@@ -242,6 +254,26 @@ describe('Settings Routes', () => {
       expect(body.allowGuestAccess).toBe(true);
     });
 
+<<<<<<< HEAD
+    it('re-arms imported history linking when Tautulli settings are saved', async () => {
+      app = await buildTestApp(ownerUser);
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: '/settings',
+        payload: { tautulliUrl: 'http://tautulli.local:8181', tautulliApiKey: 'new-key' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(setSettings).toHaveBeenCalledWith({
+        tautulliUrl: 'http://tautulli.local:8181',
+        tautulliApiKey: 'new-key',
+      });
+      expect(rearmImportedHistoryLink).toHaveBeenCalledWith({ keepProviderPass: true });
+    });
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     it('strips provider keys instead of persisting them', async () => {
       app = await buildTestApp(ownerUser);
 

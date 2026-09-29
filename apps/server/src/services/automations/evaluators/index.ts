@@ -1,4 +1,8 @@
+<<<<<<< HEAD
+import { BYTES_PER_GB, TIME_MS, normalizeDynamicRange, resolutionTierRank } from '@tracearr/shared';
+=======
 import { BYTES_PER_GB, TIME_MS, resolutionTierRank } from '@tracearr/shared';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import type {
   Condition,
   ConditionField,
@@ -11,6 +15,10 @@ import type {
 import { isIpInCidr, toNetworkKey, unmapIpv4Mapped } from '../../../utils/ip.js';
 import { automationsLogger } from '../../../utils/logger.js';
 import { LOCAL_NETWORK_COUNTRY, normalizeToCountryCode } from '../../../utils/country.js';
+<<<<<<< HEAD
+import { isLocalSession } from '../../../utils/localSession.js';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { normalizeResolution } from '../../../utils/resolutionNormalizer.js';
 import { geoipService } from '../../geoip.js';
 import { compare } from '../comparisons.js';
@@ -57,6 +65,33 @@ function calculateDistanceKm(
   return EARTH_RADIUS_KM * c;
 }
 
+<<<<<<< HEAD
+/** Rules give a local session no location, even when its server's location is on the row. */
+function sessionDistanceKm(a: Session, b: Session): number | null {
+  if (isLocalSession(a) || isLocalSession(b)) return null;
+  return calculateDistanceKm(a.geoLat, a.geoLon, b.geoLat, b.geoLon);
+}
+
+/**
+ * Get normalized resolution from dimensions using the standard normalizer.
+ * Returns 'unknown' if dimensions are missing.
+ */
+function getResolution(width: number | null, height: number | null): VideoResolution {
+  return (
+    normalizeResolution({ width: width ?? undefined, height: height ?? undefined }) ?? 'unknown'
+  );
+}
+
+/**
+ * Convert resolution string to numeric value for comparison. Line counts, not
+ * tier ranks: a numeric condition value is a height.
+ */
+function resolutionToNumber(resolution: VideoResolution): number {
+  const map: Record<VideoResolution, number> = {
+    '8K': 4320,
+    '4K': 2160,
+    '1440p': 1440,
+=======
 /**
  * Get normalized resolution from dimensions using the standard normalizer.
  * Returns 'unknown' if dimensions are missing.
@@ -77,6 +112,7 @@ function getResolution(width: number | null, height: number | null): VideoResolu
 function resolutionToNumber(resolution: VideoResolution): number {
   const map: Record<VideoResolution, number> = {
     '4K': 2160,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     '1080p': 1080,
     '720p': 720,
     '480p': 480,
@@ -323,12 +359,16 @@ const evaluateActiveSessionDistanceKm: ConditionEvaluator = (
   let maxDistance = 0;
   const distances: Record<string, number> = {};
   for (const other of otherSessions) {
+<<<<<<< HEAD
+    const distance = sessionDistanceKm(session, other);
+=======
     const distance = calculateDistanceKm(
       session.geoLat,
       session.geoLon,
       other.geoLat,
       other.geoLon
     );
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     if (distance !== null) {
       distances[other.id] = Math.round(distance * 100) / 100;
       if (distance > maxDistance) {
@@ -381,12 +421,16 @@ const evaluateTravelSpeedKmh: ConditionEvaluator = (
     };
   }
 
+<<<<<<< HEAD
+  const distance = sessionDistanceKm(session, previous);
+=======
   const distance = calculateDistanceKm(
     session.geoLat,
     session.geoLon,
     previous.geoLat,
     previous.geoLon
   );
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
   if (distance === null) {
     return {
@@ -647,6 +691,50 @@ const evaluateOutputResolution: ConditionEvaluator = (
   };
 };
 
+<<<<<<< HEAD
+/** Sessions store the server's own label ("Dolby Vision"); the picker offers tokens. */
+const evaluateSourceDynamicRange: ConditionEvaluator = (
+  context: SessionEvaluationContext,
+  condition: Condition
+): EvaluatorResult => {
+  const actual = normalizeDynamicRange(context.session.sourceVideoDetails?.dynamicRange);
+  if (actual === null) return { matched: false, actual };
+  return { matched: compare(actual, condition.operator, condition.value), actual };
+};
+
+/** Both parsers upper-case the codec, so the comparison folds case on both sides. */
+const evaluateSourceVideoCodec: ConditionEvaluator = (
+  context: SessionEvaluationContext,
+  condition: Condition
+): EvaluatorResult => {
+  const actual = context.session.sourceVideoCodec;
+  if (actual === null) return { matched: false, actual };
+  const value =
+    typeof condition.value === 'string' ? condition.value.toLowerCase() : condition.value;
+  return { matched: compare(actual.toLowerCase(), condition.operator, value), actual };
+};
+
+/** A movie has no season or episode, and must not answer "is not 1" with a match. */
+const evaluateSeasonNumber: ConditionEvaluator = (
+  context: SessionEvaluationContext,
+  condition: Condition
+): EvaluatorResult => {
+  const actual = context.session.seasonNumber;
+  if (actual === null) return { matched: false, actual };
+  return { matched: compare(actual, condition.operator, condition.value), actual };
+};
+
+const evaluateEpisodeNumber: ConditionEvaluator = (
+  context: SessionEvaluationContext,
+  condition: Condition
+): EvaluatorResult => {
+  const actual = context.session.episodeNumber;
+  if (actual === null) return { matched: false, actual };
+  return { matched: compare(actual, condition.operator, condition.value), actual };
+};
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 const evaluateIsTranscoding: ConditionEvaluator = (
   context: SessionEvaluationContext,
   condition: Condition
@@ -912,10 +1000,17 @@ const evaluateCountry: ConditionEvaluator = (
   const { session } = context;
   const raw = session.geoCountry;
 
+<<<<<<< HEAD
+  // Local sessions (flagged, or still carrying the Local Network sentinel) and sessions without
+  // geo data have no meaningful country, so never match: a "country neq US" rule must not fire
+  // on them regardless of operator.
+  if (!raw || raw === LOCAL_NETWORK_COUNTRY || isLocalSession(session)) {
+=======
   // LAN sessions store the 'Local Network' sentinel and sessions without geo
   // data store null; neither has a meaningful country, so never match - a
   // "country neq US" rule must not fire on them regardless of operator.
   if (!raw || raw === LOCAL_NETWORK_COUNTRY) {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     if (!raw) {
       automationsLogger.debug(
         `country condition skipped: session ${session.id} has no geo data (ip: ${session.ipAddress ?? 'unknown'})`
@@ -1118,6 +1213,11 @@ export const evaluatorRegistry: Record<ConditionField, ConditionEvaluator> = {
   // Stream quality
   source_resolution: evaluateSourceResolution,
   output_resolution: evaluateOutputResolution,
+<<<<<<< HEAD
+  source_dynamic_range: evaluateSourceDynamicRange,
+  source_video_codec: evaluateSourceVideoCodec,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   is_transcoding: evaluateIsTranscoding,
   is_transcode_downgrade: evaluateIsTranscodeDowngrade,
   source_bitrate_mbps: evaluateSourceBitrateMbps,
@@ -1142,6 +1242,11 @@ export const evaluatorRegistry: Record<ConditionField, ConditionEvaluator> = {
   media_type: evaluateMediaType,
 
   // Media
+<<<<<<< HEAD
+  season_number: evaluateSeasonNumber,
+  episode_number: evaluateEpisodeNumber,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   library_item_type: evaluateLibraryItemType,
   library_name: evaluateLibraryName,
   resolution_after: evaluateResolutionAfter,

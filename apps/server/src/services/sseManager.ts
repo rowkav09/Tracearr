@@ -62,7 +62,11 @@ export interface SSEManagerEvents {
 interface ServerConnection {
   serverId: string;
   serverName: string;
+<<<<<<< HEAD
+  serverType: 'plex' | 'jellyfin' | 'emby';
+=======
   serverType: 'plex' | 'jellyfin' | 'emby' | 'navidrome';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   // Kept for the plugin-list probe when the SSE endpoint 404s
   url: string;
   token: string;
@@ -220,12 +224,19 @@ export class SSEManager extends EventEmitter {
   async addServer(
     serverId: string,
     serverName: string,
+<<<<<<< HEAD
+    serverType: 'plex' | 'jellyfin' | 'emby',
+    url: string,
+    token: string
+  ): Promise<void> {
+=======
     serverType: 'plex' | 'jellyfin' | 'emby' | 'navidrome',
     url: string,
     token: string
   ): Promise<void> {
     // Navidrome has no Tracearr SSE plugin. Its ordinary poller is the source of truth.
     if (serverType === 'navidrome') return;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     if (this.pendingOperations.has(serverId)) {
       console.log(`[SSEManager] Operation already in progress for ${serverName}, skipping`);
       return;
@@ -480,7 +491,11 @@ export class SSEManager extends EventEmitter {
   private buildConnectionStatus(
     serverId: string,
     serverName: string,
+<<<<<<< HEAD
+    serverType: 'plex' | 'jellyfin' | 'emby',
+=======
     serverType: 'plex' | 'jellyfin' | 'emby' | 'navidrome',
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     status: SSEConnectionStatus
   ): ServerConnectionStatus {
     const state = status.state;
@@ -622,7 +637,11 @@ export class SSEManager extends EventEmitter {
    */
   private diagnoseUnsupported(serverId: string): void {
     const connection = this.connections.get(serverId);
+<<<<<<< HEAD
+    if (!connection || connection.serverType === 'plex') return;
+=======
     if (!connection || connection.serverType === 'plex' || connection.serverType === 'navidrome') return;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     if (this.pluginProbesInFlight.has(serverId)) return;
 
     const now = Date.now();

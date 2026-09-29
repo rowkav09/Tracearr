@@ -1,13 +1,25 @@
 import { describe, it, expect } from 'vitest';
+<<<<<<< HEAD
+import { newsletterRecipientsDraftSchema, type Newsletter } from '@tracearr/shared';
+=======
 import type { Newsletter } from '@tracearr/shared';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import {
   deepEqual,
   defaultFormState,
   diffPatch,
+<<<<<<< HEAD
+  extraRecipients,
+  firstInvalidField,
+  focusTargetId,
+  prefillFromRouterState,
+  recipientsDraft,
+=======
   firstInvalidField,
   focusTargetId,
   prefillFromRouterState,
   scopeMoved,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   seedFromNewsletter,
   validateForm,
   visibleErrors,
@@ -155,6 +167,61 @@ describe('newsletter form model', () => {
   });
 });
 
+<<<<<<< HEAD
+describe('extraRecipients', () => {
+  it('normalizes for dedupe but keeps the typed casing, and keeps the first name for a repeated address', () => {
+    expect(
+      extraRecipients([
+        { address: ' Ann@X.com ', name: 'Ann' },
+        { address: 'ann@x.com', name: 'Other' },
+        { address: '' },
+        { address: 'nope' },
+        { address: 'bo@x.com' },
+      ])
+    ).toEqual([
+      { address: 'Ann@X.com', name: 'Ann' },
+      { address: 'bo@x.com', name: null },
+    ]);
+  });
+});
+
+describe('recipientsDraft', () => {
+  const scope = { serverIds: ['550e8400-e29b-41d4-a716-446655440001'], libraries: [] };
+  const excluded = '550e8400-e29b-41d4-a716-446655440002';
+
+  it('asks for nothing when nobody could receive', () => {
+    expect(
+      recipientsDraft(
+        scope,
+        { members: false, extraAddresses: [{ address: 'half@' }], excludeUserIds: [] },
+        'n-1'
+      )
+    ).toBeNull();
+  });
+
+  it('builds the body the route accepts from the scope and the usable recipients', () => {
+    const draft = recipientsDraft(
+      scope,
+      {
+        members: true,
+        extraAddresses: [{ address: ' A@x.com ', name: 'A' }, { address: 'half@' }],
+        excludeUserIds: [excluded],
+      },
+      null
+    );
+    expect(draft).not.toHaveProperty('newsletterId');
+    expect(draft?.scope).toBe(scope);
+    expect(draft?.recipients).toEqual({
+      members: true,
+      extraAddresses: [{ address: 'A@x.com', name: 'A' }],
+      excludeUserIds: [excluded],
+    });
+    expect(newsletterRecipientsDraftSchema.safeParse(draft).success).toBe(true);
+    expect(
+      recipientsDraft(scope, { members: true, extraAddresses: [], excludeUserIds: [] }, 'n-1')
+        ?.newsletterId
+    ).toBe('n-1');
+=======
 describe('scopeMoved', () => {
   it('never flags a form that has never been saved, and compares the ids in order otherwise', () => {
     expect(scopeMoved(null, ['s-1'])).toBe(false);
@@ -162,6 +229,7 @@ describe('scopeMoved', () => {
     expect(scopeMoved(['s-1'], ['s-1'])).toBe(false);
     expect(scopeMoved(['s-1'], ['s-2'])).toBe(true);
     expect(scopeMoved([], ['s-1'])).toBe(true);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   });
 });
 

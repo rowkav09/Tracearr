@@ -28,6 +28,22 @@ vi.mock('@dnd-kit/core', async () => {
   };
 });
 
+<<<<<<< HEAD
+const { serverRowProps } = vi.hoisted(() => ({
+  serverRowProps: [] as { server: Server; requestService?: unknown }[],
+}));
+
+vi.mock('@/components/settings/servers/ServerRow', () => ({
+  ServerRow: (props: { server: Server; onDelete: () => void; requestService?: unknown }) => {
+    serverRowProps.push(props);
+    return (
+      <div>
+        {props.server.name}
+        <button onClick={props.onDelete}>remove-{props.server.id}</button>
+      </div>
+    );
+  },
+=======
 vi.mock('@/components/settings/servers/ServerRow', () => ({
   ServerRow: ({ server, onDelete }: { server: Server; onDelete: () => void }) => (
     <div>
@@ -35,6 +51,7 @@ vi.mock('@/components/settings/servers/ServerRow', () => ({
       <button onClick={onDelete}>remove-{server.id}</button>
     </div>
   ),
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }));
 
 const { connectJellyfinWithApiKey } = vi.hoisted(() => ({ connectJellyfinWithApiKey: vi.fn() }));
@@ -50,7 +67,10 @@ vi.mock('@/lib/api', () => ({
       connectEmbyWithApiKey: vi.fn(),
     },
   },
+<<<<<<< HEAD
+=======
   tokenStorage: { setTokens: vi.fn() },
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }));
 
 vi.mock('@/components/settings/servers/AddServerDialog', () => ({
@@ -97,6 +117,10 @@ const invalidateQueries = vi.fn();
 vi.mock('@/hooks/queries', () => ({
   useDeleteServer: vi.fn(() => ({ mutate: deleteMutate, isPending: false })),
   useReorderServers: vi.fn(() => ({ mutate: reorderMutate, isPending: false })),
+<<<<<<< HEAD
+  useRequestServices: vi.fn(),
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   useServers: vi.fn(),
   useSyncServer: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
   useUpdateServer: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
@@ -108,7 +132,11 @@ vi.mock('@tanstack/react-query', async () => {
   return { ...actual, useQueryClient: () => ({ invalidateQueries }) };
 });
 
+<<<<<<< HEAD
+import { useRequestServices, useServers } from '@/hooks/queries';
+=======
 import { useServers } from '@/hooks/queries';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
 
@@ -128,6 +156,14 @@ describe('Connections', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     capturedOnDragEnd = undefined;
+<<<<<<< HEAD
+    serverRowProps.length = 0;
+    vi.mocked(useRequestServices).mockReturnValue({
+      data: [],
+      isLoading: false,
+    } as unknown as ReturnType<typeof useRequestServices>);
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     vi.mocked(useAuth).mockReturnValue({
       user: { role: 'owner' },
       refetch: vi.fn(),
@@ -145,6 +181,46 @@ describe('Connections', () => {
     } as unknown as ReturnType<typeof useServers>);
   });
 
+<<<<<<< HEAD
+  it('holds the Seerr line back until the services query has answered', () => {
+    vi.mocked(useRequestServices).mockReturnValue({
+      data: undefined,
+      isLoading: true,
+    } as unknown as ReturnType<typeof useRequestServices>);
+    const { rerender } = render(<Connections />);
+
+    expect(serverRowProps).not.toHaveLength(0);
+    expect(serverRowProps.every((props) => props.requestService === undefined)).toBe(true);
+
+    const linked = { id: 'rs-1', serverId: 'server-1' };
+    vi.mocked(useRequestServices).mockReturnValue({
+      data: [linked],
+      isLoading: false,
+    } as unknown as ReturnType<typeof useRequestServices>);
+    serverRowProps.length = 0;
+    rerender(<Connections />);
+
+    expect(serverRowProps.map((props) => props.requestService)).toEqual([
+      { service: linked },
+      { service: undefined },
+    ]);
+  });
+
+  it('keeps the Seerr line and its query away from a non-owner', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      user: { role: 'member' },
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useAuth>);
+
+    render(<Connections />);
+
+    expect(useRequestServices).toHaveBeenCalledWith({ enabled: false });
+    expect(serverRowProps).not.toHaveLength(0);
+    expect(serverRowProps.every((props) => props.requestService === undefined)).toBe(true);
+  });
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   it('maps a keyboard drag to the reordered displayOrder payload', () => {
     render(<Connections />);
 

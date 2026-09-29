@@ -33,6 +33,10 @@ import { useMaintenanceMode } from './useMaintenanceMode';
 import { toast } from 'sonner';
 import { useDestinations } from './queries';
 import { DESTINATIONS_KEY } from './queries/useDestinations';
+<<<<<<< HEAD
+import { REQUESTS_KEY } from './queries/useRequests';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { RUNS_KEY } from './queries/useRuns';
 import { api } from '@/lib/api';
 
@@ -302,6 +306,13 @@ export function SocketProvider({ children }: { children: ReactNode }) {
       void queryClient.invalidateQueries({ queryKey: DESTINATIONS_KEY });
     });
 
+<<<<<<< HEAD
+    newSocket.on(WS_EVENTS.REQUESTS_CHANGED, () => {
+      void queryClient.invalidateQueries({ queryKey: REQUESTS_KEY });
+    });
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     // A server added, renamed, reordered or removed anywhere; the builder's
     // server list comes from the filter options, so refresh both.
     newSocket.on(WS_EVENTS.SERVERS_CHANGED, () => {
@@ -388,6 +399,23 @@ export function SocketProvider({ children }: { children: ReactNode }) {
             // Affects user data
             void queryClient.invalidateQueries({ queryKey: ['users'] });
             break;
+<<<<<<< HEAD
+          case 'backfill_session_identity':
+          case 'remove_import_duplicates':
+          case 'link_imported_history':
+            void queryClient.invalidateQueries({ queryKey: ['sessions'] });
+            void queryClient.invalidateQueries({ queryKey: ['stats'] });
+            void queryClient.invalidateQueries({ queryKey: ['library'] });
+            void queryClient.invalidateQueries({ queryKey: ['media'] });
+            break;
+          case 'sync_server_locations':
+            void queryClient.invalidateQueries({ queryKey: ['sessions'] });
+            void queryClient.invalidateQueries({ queryKey: ['stats'] });
+            void queryClient.invalidateQueries({ queryKey: ['users'] });
+            void queryClient.invalidateQueries({ queryKey: ['servers', 'locations'] });
+            break;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           default:
             // Unknown job type - invalidate common caches as fallback
             void queryClient.invalidateQueries({ queryKey: ['sessions'] });

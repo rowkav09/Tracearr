@@ -21,6 +21,12 @@ test.describe('Dashboard', () => {
     await expect(page.getByText('Now Playing')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Now Playing' })).toBeVisible();
     await expect(page.getByText('No active streams')).toBeVisible();
+<<<<<<< HEAD
+
+    // The stream counter prefixes this only while something is playing
+    await expect(page).toHaveTitle('Dashboard | Tracearr');
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   });
 
   test('sidebar navigation is visible', async ({ page }) => {

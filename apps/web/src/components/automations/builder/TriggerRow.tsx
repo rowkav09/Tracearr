@@ -12,7 +12,10 @@ import {
   type TriggerParamPatch,
 } from './builderReducer';
 import { RowActions, RowIssues } from './RowActions';
+<<<<<<< HEAD
+=======
 import { SELECTED_TOGGLE } from './selection';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import type { RowProps } from './useRowKeyboard';
 import type { BuilderIssue } from './validation';
 
@@ -49,12 +52,19 @@ function TriggerTitle({
             if (measure === 'current' || measure === 'total') setParam({ measure });
           }}
         >
+<<<<<<< HEAD
+          <ToggleGroupItem value="current">
+            {t('automations.builder.heldFor.current')}
+          </ToggleGroupItem>
+          <ToggleGroupItem value="total">{t('automations.builder.heldFor.total')}</ToggleGroupItem>
+=======
           <ToggleGroupItem value="current" className={SELECTED_TOGGLE}>
             {t('automations.builder.heldFor.current')}
           </ToggleGroupItem>
           <ToggleGroupItem value="total" className={SELECTED_TOGGLE}>
             {t('automations.builder.heldFor.total')}
           </ToggleGroupItem>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         </ToggleGroup>
       </>
     );

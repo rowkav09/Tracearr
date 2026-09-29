@@ -218,12 +218,21 @@ export const libraryWatchRoute: FastifyPluginAsync = async (app) => {
       const unwatchedFilter = !includeUnwatched ? sql`AND watch_count > 0` : sql``;
 
       const sortColumnMap = {
+<<<<<<< HEAD
+        watch_count: 'watch_count',
+        last_watched: 'last_watched_at',
+        title: 'sort_key',
+        file_size: 'file_size',
+      } as const;
+      const sortColumnName: string = sortColumnMap[sortBy] ?? 'watch_count';
+=======
         watch_count: sql`watch_count`,
         last_watched: sql`last_watched_at`,
         title: sql`title`,
         file_size: sql`file_size`,
       };
       const sortColumn = sortColumnMap[sortBy] || sql`watch_count`;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       const sortDir = sortOrder === 'asc' ? sql`ASC NULLS LAST` : sql`DESC NULLS FIRST`;
 
       const offset = (page - 1) * pageSize;
@@ -250,6 +259,10 @@ export const libraryWatchRoute: FastifyPluginAsync = async (app) => {
               li.file_size,
               li.video_resolution,
               li.created_at AS added_at,
+<<<<<<< HEAD
+              COALESCE(m.sort_title, lower(li.title)) AS sort_key,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
               COUNT(DISTINCT COALESCE(sess.reference_id, sess.id)) FILTER (WHERE COALESCE(sess.duration_ms, 0) >= 120000) AS watch_count,
               COALESCE(SUM(sess.duration_ms) FILTER (WHERE sess.duration_ms >= 120000), 0) AS total_watch_ms,
               MAX(sess.stopped_at) AS last_watched_at,
@@ -261,6 +274,10 @@ export const libraryWatchRoute: FastifyPluginAsync = async (app) => {
               ) AS has_completion
             FROM library_items li
             JOIN servers s ON li.server_id = s.id
+<<<<<<< HEAD
+            LEFT JOIN media m ON m.id = li.media_id
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
             LEFT JOIN sessions sess ON sess.rating_key = li.rating_key
               AND sess.server_id = li.server_id
             WHERE 1=1
@@ -269,7 +286,11 @@ export const libraryWatchRoute: FastifyPluginAsync = async (app) => {
               ${libraryFilter}
               ${mediaTypeFilter}
             GROUP BY li.id, li.server_id, s.name, li.library_id, li.title,
+<<<<<<< HEAD
+                     li.media_type, li.year, li.file_size, li.video_resolution, li.created_at, m.sort_title
+=======
                      li.media_type, li.year, li.file_size, li.video_resolution, li.created_at
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           ),
           filtered_items AS (
             SELECT * FROM item_watch_stats
@@ -290,7 +311,11 @@ export const libraryWatchRoute: FastifyPluginAsync = async (app) => {
           ),
           paginated_items AS (
             SELECT * FROM filtered_items
+<<<<<<< HEAD
+            ORDER BY ${sql.raw(sortColumnName)} ${sortDir}, id
+=======
             ORDER BY ${sortColumn} ${sortDir}
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
             LIMIT ${pageSize} OFFSET ${offset}
           )
           SELECT
@@ -315,6 +340,10 @@ export const libraryWatchRoute: FastifyPluginAsync = async (app) => {
             ss.completed_count::text AS _completed_count
           FROM paginated_items pi
           CROSS JOIN summary_stats ss
+<<<<<<< HEAD
+          ORDER BY ${sql.raw(`pi.${sortColumnName}`)} ${sortDir}, pi.id
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         `);
 
         const rows = combinedResult.rows as unknown as RawSingleRow[];
@@ -337,8 +366,13 @@ export const libraryWatchRoute: FastifyPluginAsync = async (app) => {
           serverIds: [row.server_id],
         }));
 
+<<<<<<< HEAD
+        const firstRow = rows[0];
+        if (firstRow) {
+=======
         if (rows.length > 0) {
           const firstRow = rows[0]!;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           totalItems = parseInt(firstRow._total_items, 10) || 0;
           watchedCount = parseInt(firstRow._watched_count, 10) || 0;
           const unwatchedCount = parseInt(firstRow._unwatched_count, 10) || 0;
@@ -418,6 +452,10 @@ export const libraryWatchRoute: FastifyPluginAsync = async (app) => {
               li.video_resolution,
               li.created_at AS added_at,
               COALESCE(li.media_id::text, li.id::text) AS match_key,
+<<<<<<< HEAD
+              COALESCE(m.sort_title, lower(li.title)) AS sort_key,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
               COUNT(DISTINCT COALESCE(sess.reference_id, sess.id)) FILTER (WHERE COALESCE(sess.duration_ms, 0) >= 120000) AS watch_count,
               COALESCE(SUM(sess.duration_ms) FILTER (WHERE sess.duration_ms >= 120000), 0) AS total_watch_ms,
               MAX(sess.stopped_at) AS last_watched_at,
@@ -430,6 +468,10 @@ export const libraryWatchRoute: FastifyPluginAsync = async (app) => {
               ) AS has_completion
             FROM library_items li
             JOIN servers s ON li.server_id = s.id
+<<<<<<< HEAD
+            LEFT JOIN media m ON m.id = li.media_id
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
             LEFT JOIN sessions sess ON sess.rating_key = li.rating_key
               AND sess.server_id = li.server_id
             WHERE 1=1
@@ -438,7 +480,11 @@ export const libraryWatchRoute: FastifyPluginAsync = async (app) => {
               ${libraryFilter}
               ${mediaTypeFilter}
             GROUP BY li.id, li.server_id, s.name, li.library_id, li.title,
+<<<<<<< HEAD
+                     li.media_type, li.year, li.file_size, li.video_resolution, li.created_at, m.sort_title
+=======
                      li.media_type, li.year, li.file_size, li.video_resolution, li.created_at
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           ),
           deduped_stats AS (
             -- Collapse same title across servers into one row using match_key.
@@ -452,16 +498,28 @@ export const libraryWatchRoute: FastifyPluginAsync = async (app) => {
               MIN(server_name) AS primary_server_name,
               MIN(library_id) AS primary_library_id,
               MIN(title) AS title,
+<<<<<<< HEAD
+              MIN(sort_key) AS sort_key,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
               MIN(media_type) AS media_type,
               MIN(year) AS year,
               MAX(file_size) AS file_size,
               (ARRAY_AGG(video_resolution ORDER BY ${resolutionRankSql('video_resolution')} DESC))[1]
                 AS video_resolution,
+<<<<<<< HEAD
+              MIN(added_at) AS added_at,
+              -- Sum events across all copies of this title
+              SUM(watch_count) AS watch_count,
+              SUM(total_watch_ms) AS total_watch_ms,
+              MAX(last_watched_at) AS last_watched_at,
+=======
               MIN(added_at::text) AS added_at,
               -- Sum events across all copies of this title
               SUM(watch_count) AS watch_count,
               SUM(total_watch_ms) AS total_watch_ms,
               MAX(last_watched_at::text) AS last_watched_at,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
               BOOL_OR(has_completion) AS has_completion,
               -- Collect all server_ids that own a copy (for frontend color dots)
               ARRAY_AGG(DISTINCT server_id ORDER BY server_id) AS server_ids_arr
@@ -487,7 +545,11 @@ export const libraryWatchRoute: FastifyPluginAsync = async (app) => {
           ),
           paginated_items AS (
             SELECT * FROM filtered_items
+<<<<<<< HEAD
+            ORDER BY ${sql.raw(sortColumnName)} ${sortDir}, match_key
+=======
             ORDER BY ${sortColumn} ${sortDir}
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
             LIMIT ${pageSize} OFFSET ${offset}
           )
           SELECT
@@ -501,10 +563,17 @@ export const libraryWatchRoute: FastifyPluginAsync = async (app) => {
             pi.year,
             pi.file_size::text AS file_size,
             pi.video_resolution,
+<<<<<<< HEAD
+            pi.added_at::text AS added_at,
+            pi.watch_count::text AS watch_count,
+            pi.total_watch_ms::text AS total_watch_ms,
+            pi.last_watched_at::text AS last_watched_at,
+=======
             pi.added_at,
             pi.watch_count::text AS watch_count,
             pi.total_watch_ms::text AS total_watch_ms,
             pi.last_watched_at,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
             ARRAY_TO_STRING(pi.server_ids_arr, ',') AS server_ids,
             ss.total_items::text AS _total_items,
             ss.watched_count::text AS _watched_count,
@@ -514,6 +583,10 @@ export const libraryWatchRoute: FastifyPluginAsync = async (app) => {
             ss.completed_count::text AS _completed_count
           FROM paginated_items pi
           CROSS JOIN summary_stats ss
+<<<<<<< HEAD
+          ORDER BY ${sql.raw(`pi.${sortColumnName}`)} ${sortDir}, pi.match_key
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         `);
 
         const rows = combinedResult.rows as unknown as RawCombinedRow[];
@@ -535,8 +608,13 @@ export const libraryWatchRoute: FastifyPluginAsync = async (app) => {
           serverIds: row.server_ids ? row.server_ids.split(',') : [row.primary_server_id],
         }));
 
+<<<<<<< HEAD
+        const firstRow = rows[0];
+        if (firstRow) {
+=======
         if (rows.length > 0) {
           const firstRow = rows[0]!;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           totalItems = parseInt(firstRow._total_items, 10) || 0;
           watchedCount = parseInt(firstRow._watched_count, 10) || 0;
           const unwatchedCount = parseInt(firstRow._unwatched_count, 10) || 0;

@@ -3,7 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { Film, Tv } from 'lucide-react';
 import { TimeRangePicker } from '@/components/ui/time-range-picker';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+<<<<<<< HEAD
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+=======
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import {
   ErrorState,
   LibraryEmptyState,
@@ -148,6 +152,25 @@ export function LibraryQuality() {
               <CardTitle className="text-base font-medium">
                 {t('library.quality.qualityEvolution')}
               </CardTitle>
+<<<<<<< HEAD
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                value={mediaType}
+                onValueChange={(v) => v && setMediaType(v as MediaTypeFilter)}
+                aria-label={t('media.grid.toolbar.typeLabel')}
+              >
+                <ToggleGroupItem value="all">{t('library.quality.all')}</ToggleGroupItem>
+                <ToggleGroupItem value="movies">
+                  <Film />
+                  {t('common:media.movie_plural')}
+                </ToggleGroupItem>
+                <ToggleGroupItem value="shows">
+                  <Tv />
+                  {t('common:media.tv')}
+                </ToggleGroupItem>
+              </ToggleGroup>
+=======
               <Tabs value={mediaType} onValueChange={(v) => setMediaType(v as MediaTypeFilter)}>
                 <TabsList className="h-8">
                   <TabsTrigger value="all" className="h-7 px-3 text-xs">
@@ -163,6 +186,7 @@ export function LibraryQuality() {
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
             </div>
             <TimeRangePicker value={timeRange} onChange={setTimeRange} />
           </div>

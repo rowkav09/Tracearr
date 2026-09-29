@@ -11,7 +11,11 @@
  */
 
 import { randomUUID } from 'node:crypto';
+<<<<<<< HEAD
+import { Queue, UnrecoverableError, Worker, type Job, type ConnectionOptions } from 'bullmq';
+=======
 import { Queue, Worker, type Job, type ConnectionOptions } from 'bullmq';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { getBullPrefix, queueConnectionOptions } from './queueConnection.js';
 import { isMaintenance } from '../serverState.js';
 import type {
@@ -24,6 +28,16 @@ import type {
 } from '@tracearr/shared';
 import { TautulliService } from '../services/tautulli.js';
 import { importJellystatBackup } from '../services/jellystat.js';
+<<<<<<< HEAD
+import {
+  JellystatUploadMissingError,
+  clearJellystatUploads,
+  readJellystatUpload,
+  removeJellystatUpload,
+  sweepJellystatUploads,
+} from '../services/import/jellystatUpload.js';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { importPlaybackReporting } from '../services/playbackReporting.js';
 import { getPubSubService } from '../services/cache.js';
 import { extendJobLock } from './lockUtils.js';
@@ -50,7 +64,12 @@ export interface JellystatImportJobData {
   type: 'jellystat';
   serverId: string;
   userId: string; // Audit trail - who initiated the import
+<<<<<<< HEAD
+  backupPath?: string; // Uploaded backup on disk, see services/import/jellystatUpload.ts
+  backupJson?: string; // Jobs queued before 2.4.0 carry the file contents instead of a path
+=======
   backupJson: string; // Jellystat backup file contents
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   enrichMedia: boolean; // Whether to enrich with metadata from Jellyfin/Emby
   updateStreamDetails?: boolean; // Whether to update existing records with stream/transcode data
 }
@@ -326,6 +345,27 @@ export function startImportWorker(): void {
       });
   }
 
+<<<<<<< HEAD
+  if (importQueue) {
+    importQueue
+      .getJobs(['active', 'waiting', 'delayed', 'paused', 'prioritized'])
+      .then((jobs) =>
+        sweepJellystatUploads(
+          new Set(
+            jobs.flatMap((j) => (j.data.type === 'jellystat' ? [j.data.backupPath ?? ''] : []))
+          )
+        )
+      )
+      .then((removed) => {
+        if (removed > 0) console.log(`[Import] Removed ${removed} orphaned Jellystat upload(s)`);
+      })
+      .catch((err) => {
+        console.warn('[Import] Failed to sweep Jellystat uploads:', err);
+      });
+  }
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   importWorker = new Worker<ImportJobData>(
     QUEUE_NAME,
     async (job: Job<ImportJobData>) => {
@@ -446,11 +486,26 @@ export function startImportWorker(): void {
     activeImportProgress = null;
   });
 
+<<<<<<< HEAD
+  importWorker.on('completed', (job) => {
+    if (job.data.type === 'jellystat') void removeJellystatUpload(job.data.backupPath);
+  });
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   // Handle job failures - notify frontend and move to DLQ if retries exhausted
   importWorker.on('failed', (job, error) => {
     if (!job) return;
     activeImportProgress = null;
 
+<<<<<<< HEAD
+    const exhausted = job.attemptsMade >= (job.opts.attempts || 3);
+    if (job.data.type === 'jellystat' && (exhausted || error instanceof UnrecoverableError)) {
+      void removeJellystatUpload(job.data.backupPath);
+    }
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     // Always notify frontend of failure
     const pubSubService = getPubSubService();
     if (pubSubService) {
@@ -460,7 +515,11 @@ export function startImportWorker(): void {
       });
     }
 
+<<<<<<< HEAD
+    if (exhausted) {
+=======
     if (job.attemptsMade >= (job.opts.attempts || 3)) {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       console.error(`[Import] Job ${job.id} exhausted retries, moving to DLQ:`, error);
       if (dlqQueue) {
         void dlqQueue.add(`dlq-${job.data.type}`, job.data, {
@@ -514,8 +573,16 @@ async function processTautulliImportJob(
       activeImportProgress.progress = progress;
     }
 
+<<<<<<< HEAD
+    // Extend locks - fails fast if lock is lost to avoid wasted work on large imports.
+    // The aggregate refresh at the end of an import runs one CALL per aggregate over
+    // the whole import range with no progress ticks of its own, so the last tick before
+    // it has to cover that on its own.
+    await extendJobLock(job, 30 * 60 * 1000);
+=======
     // Extend locks - fails fast if lock is lost to avoid wasted work on large imports
     await extendJobLock(job, 5 * 60 * 1000);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     await extendHeavyOpsLock(job.id!);
 
     // Publish to WebSocket for UI
@@ -532,7 +599,11 @@ async function processTautulliImportJob(
     serverId,
     pubSubService ?? undefined,
     onProgress,
+<<<<<<< HEAD
+    { overwriteFriendlyNames }
+=======
     { overwriteFriendlyNames, skipRefresh: includeStreamDetails }
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   );
 
   // (BETA) Enrich sessions with detailed stream data
@@ -593,9 +664,23 @@ async function processTautulliImportJob(
 async function processJellystatImportJob(
   job: Job<JellystatImportJobData>
 ): Promise<JellystatImportResult> {
+<<<<<<< HEAD
+  const { serverId, enrichMedia, updateStreamDetails } = job.data;
+  const pubSubService = getPubSubService();
+
+  let backupJson: string;
+  try {
+    backupJson = job.data.backupJson ?? (await readJellystatUpload(job.data.backupPath ?? ''));
+  } catch (error) {
+    if (error instanceof JellystatUploadMissingError) throw new UnrecoverableError(error.message);
+    throw error;
+  }
+
+=======
   const { serverId, backupJson, enrichMedia, updateStreamDetails } = job.data;
   const pubSubService = getPubSubService();
 
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   // Run the actual import
   const result = await importJellystatBackup(
     serverId,
@@ -616,6 +701,14 @@ async function processJellystatImportJob(
       skippedRecords: result.skipped,
       errorRecords: result.errors,
       enrichedRecords: result.enriched,
+<<<<<<< HEAD
+      uncheckedRecords: result.unchecked,
+      unlinkedEpisodeRecords: result.unlinkedEpisodes,
+      vetoedRecords: result.vetoed,
+      pluginUncheckedRecords: result.pluginUnchecked,
+      overlongRecords: result.overlong,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       message: result.message,
       jobId: job.id,
     });
@@ -653,6 +746,10 @@ async function processPlaybackReportingImportJob(
       unknownUserRecords,
       overlapRecords: result.overlap,
       filteredRecords: result.filtered,
+<<<<<<< HEAD
+      overlongRecords: result.overlong,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       errorRecords: result.errors,
       enrichedRecords: result.enriched,
       message: result.message,
@@ -766,6 +863,10 @@ export async function cancelImport(jobId: string): Promise<boolean> {
   // Active jobs need worker-level cancellation (not implemented in Phase 1)
   if (state === 'waiting' || state === 'delayed') {
     await job.remove();
+<<<<<<< HEAD
+    if (job.data.type === 'jellystat') await removeJellystatUpload(job.data.backupPath);
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     console.log(`[Import] Cancelled job ${jobId}`);
     return true;
   }
@@ -827,7 +928,11 @@ export async function getActiveJellystatImportForServer(serverId: string): Promi
 export async function enqueueJellystatImport(
   serverId: string,
   userId: string,
+<<<<<<< HEAD
+  backupPath: string,
+=======
   backupJson: string,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   enrichMedia: boolean = true,
   updateStreamDetails: boolean = false
 ): Promise<string> {
@@ -846,7 +951,11 @@ export async function enqueueJellystatImport(
     type: 'jellystat',
     serverId,
     userId,
+<<<<<<< HEAD
+    backupPath,
+=======
     backupJson,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     enrichMedia,
     updateStreamDetails,
   });
@@ -994,6 +1103,10 @@ export async function obliterateImportQueue(): Promise<{ success: boolean }> {
     if (dlqQueue) {
       await dlqQueue.obliterate({ force: true });
     }
+<<<<<<< HEAD
+    await clearJellystatUploads();
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     activeImportProgress = null;
     console.log('[Import] Queue obliterated');
     return { success: true };

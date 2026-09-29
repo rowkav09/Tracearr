@@ -12,6 +12,10 @@ import {
   needsSenderName,
   newsletterCron,
   newsletterPreviewDraftSchema,
+<<<<<<< HEAD
+  newsletterRecipientsDraftSchema,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   newsletterScheduleSchema,
   newsletterTestSendSchema,
   resolveSenderName,
@@ -198,6 +202,10 @@ describe('emailBrandingSchema', () => {
     expect(emailBrandingSchema.parse({})).toEqual({
       logo: { mode: 'tracearr' },
       accentColor: '#0ea0b3',
+<<<<<<< HEAD
+      systemTitle: null,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       footerText: null,
       postalAddress: null,
       mailtoUnsubscribe: false,
@@ -241,6 +249,17 @@ describe('emailBrandingSchema', () => {
     expect(emailBrandingSchema.safeParse({ footerText: 'x'.repeat(501) }).success).toBe(false);
   });
 
+<<<<<<< HEAD
+  it('trims and caps the system title, and reads a blob saved before it existed', () => {
+    expect(emailBrandingSchema.parse({ systemTitle: '  Tracearr for Emby  ' }).systemTitle).toBe(
+      'Tracearr for Emby'
+    );
+    expect(emailBrandingSchema.safeParse({ systemTitle: 'x'.repeat(121) }).success).toBe(false);
+    expect(emailBrandingReadSchema.parse({ accentColor: '#123456' }).systemTitle).toBeNull();
+  });
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   it('rejects unknown keys on write and strips them on read', () => {
     expect(emailBrandingSchema.safeParse({ theme: 'dark' }).success).toBe(false);
     expect(emailBrandingSchema.safeParse({ senderName: 'Movies' }).success).toBe(false);
@@ -248,6 +267,10 @@ describe('emailBrandingSchema', () => {
       {
         logo: { mode: 'tracearr' },
         accentColor: '#123456',
+<<<<<<< HEAD
+        systemTitle: null,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         footerText: null,
         postalAddress: null,
         mailtoUnsubscribe: false,
@@ -321,3 +344,27 @@ describe('newsletterPreviewDraftSchema', () => {
     expect(newsletterPreviewDraftSchema.safeParse({ ...body, extra: 1 }).success).toBe(false);
   });
 });
+<<<<<<< HEAD
+
+describe('newsletterRecipientsDraftSchema', () => {
+  it('takes the scope and the recipients with an optional newsletter id, and nothing else', () => {
+    const body = {
+      scope: { serverIds: ['11111111-1111-4111-8111-111111111111'] },
+      recipients: { members: true },
+    };
+    const parsed = newsletterRecipientsDraftSchema.parse(body);
+    expect(parsed.scope.libraries).toEqual([]);
+    expect(parsed.recipients).toEqual({ members: true, extraAddresses: [], excludeUserIds: [] });
+    expect(
+      newsletterRecipientsDraftSchema.safeParse({
+        ...body,
+        newsletterId: '22222222-2222-4222-8222-222222222222',
+      }).success
+    ).toBe(true);
+    expect(newsletterRecipientsDraftSchema.safeParse({ ...body, name: 'Weekly' }).success).toBe(
+      false
+    );
+  });
+});
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)

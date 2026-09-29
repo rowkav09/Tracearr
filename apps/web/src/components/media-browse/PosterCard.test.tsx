@@ -3,7 +3,11 @@ import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { initI18n } from '@tracearr/translations';
+<<<<<<< HEAD
+import { PosterCard, buildPosterSrc } from './PosterCard';
+=======
 import { PosterCard, buildPosterSrc, formatResolutionLabel } from './PosterCard';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 beforeAll(async () => {
   await initI18n({ lng: 'en' });
@@ -343,6 +347,8 @@ describe('PosterCard', () => {
   });
 });
 
+<<<<<<< HEAD
+=======
 describe('formatResolutionLabel', () => {
   it('uppercases 4k and sd to match the Resolution filter options', () => {
     expect(formatResolutionLabel('4k')).toBe('4K');
@@ -359,6 +365,7 @@ describe('formatResolutionLabel', () => {
   });
 });
 
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 describe('buildPosterSrc', () => {
   const url =
     '/api/v1/images/proxy?server=srv-1&url=%2Flibrary%2Fthumb%2F1&width=240&height=360&fallback=poster';

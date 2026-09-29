@@ -16,6 +16,10 @@ import {
   serverIdsQuerySchema,
   REDIS_KEYS,
   CACHE_TTL,
+<<<<<<< HEAD
+  POSTER_IMAGE_SIZE,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   type MediaAvailabilityEntry,
   type MediaDetailResponse,
   type MediaChildEntry,
@@ -33,6 +37,12 @@ import { resolveServerIds } from '../../utils/serverFiltering.js';
 import { decodeCursor } from '../../utils/cursor.js';
 import { cursorPage, cursorPaginationSchema } from '../publicV2/shared.js';
 import { resolveMediaAliases } from '../../services/library/mediaResolutionService.js';
+<<<<<<< HEAD
+import { buildProxyUrl, posterVersionFor } from '../../services/imageProxy.js';
+import { listMediaRequests } from '../../services/requests/reads.js';
+import { getSetting } from '../../services/settings.js';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import {
   buildMediaScope,
   getAvailability,
@@ -41,6 +51,10 @@ import {
   getMediaPlatformBreakdown,
   getMediaStats,
   getMediaWatchers,
+<<<<<<< HEAD
+  getPosterCopy,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   getSeasonHeat,
   resolveCanonicalMediaByRef,
   type AvailabilityRow,
@@ -57,6 +71,15 @@ const mediaIdParamSchema = z.object({ id: uuidSchema });
 // no other query params (detail, children, stats, platforms).
 const mediaScopeQuerySchema = z.object({ serverIds: serverIdsQuerySchema });
 
+<<<<<<< HEAD
+// The routes that also accept an explicit serverId to narrow within that scope.
+const mediaServerQuerySchema = z.object({
+  serverId: uuidSchema.optional(),
+  serverIds: serverIdsQuerySchema,
+});
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 function mediaCacheKey(id: string, segment: string, serverIds: string[] | undefined): string {
   const scope = serverIds !== undefined ? [...serverIds].sort().join(',') : 'all';
   return REDIS_KEYS.LIBRARY_MEDIA_DETAIL(`${id}:${segment}:${scope}`);
@@ -194,8 +217,13 @@ export const libraryMediaRoute: FastifyPluginAsync = async (app) => {
     const canonical = await resolveCanonicalMediaByRef(id);
     if (!canonical) return reply.notFound();
 
+<<<<<<< HEAD
+    // detail-v4: response gained the poster fields
+    const cacheKey = mediaCacheKey(canonical.id, 'detail-v4', resolvedIds);
+=======
     // detail-v3: availability rows gained replaced-copy info
     const cacheKey = mediaCacheKey(canonical.id, 'detail-v3', resolvedIds);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     const cached = await readCache<MediaDetailResponse>(app.redis, cacheKey);
     if (cached) return cached;
 
@@ -206,6 +234,15 @@ export const libraryMediaRoute: FastifyPluginAsync = async (app) => {
       canonical.mediaType,
       resolvedIds
     );
+<<<<<<< HEAD
+    const poster = await getPosterCopy(
+      canonical.id,
+      resolvedIds,
+      await getSetting('preferredPosterServerId')
+    );
+    const posterVersion = poster ? posterVersionFor(poster.thumbPath) : null;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
     const response: MediaDetailResponse = {
       id: canonical.id,
@@ -221,6 +258,21 @@ export const libraryMediaRoute: FastifyPluginAsync = async (app) => {
       availability: availability.map(toAvailabilityEntry),
       seasonCount,
       episodeCount,
+<<<<<<< HEAD
+      posterUrl:
+        poster && posterVersion
+          ? buildProxyUrl({
+              serverId: poster.serverId,
+              path: poster.thumbPath,
+              ...POSTER_IMAGE_SIZE,
+              version: posterVersion,
+              fallback: 'poster',
+            })
+          : null,
+      posterVersion,
+      dominantColor: poster?.dominantColor ?? null,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     };
     await app.redis.setex(cacheKey, CACHE_TTL.LIBRARY_MEDIA_DETAIL, JSON.stringify(response));
     return response;
@@ -333,10 +385,15 @@ export const libraryMediaRoute: FastifyPluginAsync = async (app) => {
     if (!params.success) return reply.badRequest('Invalid media id');
     const { id } = params.data;
 
+<<<<<<< HEAD
+    const querySchema = mediaServerQuerySchema.extend({
+      window: z.enum(['all_time', 'last_30', 'last_7']).default('all_time'),
+=======
     const querySchema = z.object({
       window: z.enum(['all_time', 'last_30', 'last_7']).default('all_time'),
       serverId: uuidSchema.optional(),
       serverIds: serverIdsQuerySchema,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     });
     const query = querySchema.safeParse(request.query);
     if (!query.success) return reply.badRequest('Invalid query parameters');
@@ -366,6 +423,31 @@ export const libraryMediaRoute: FastifyPluginAsync = async (app) => {
   });
 
   /**
+<<<<<<< HEAD
+   * GET /media/:id/requests - Seerr requests for this title, scoped to
+   * accessible servers. Never cached: the socket event that tells the client
+   * to refetch would otherwise land on a stale copy for the rest of the TTL.
+   */
+  app.get('/media/:id/requests', { preHandler: [app.authenticate] }, async (request, reply) => {
+    const params = mediaIdParamSchema.safeParse(request.params);
+    if (!params.success) return reply.badRequest('Invalid media id');
+
+    const query = mediaServerQuerySchema.safeParse(request.query);
+    if (!query.success) return reply.badRequest('Invalid query parameters');
+
+    const resolvedIds = resolveServerIds(request.user, query.data.serverId, query.data.serverIds);
+    const canonical = await resolveCanonicalMediaByRef(params.data.id);
+    if (!canonical) return reply.notFound();
+    if (canonical.mediaType === 'episode') return { data: [] };
+    const scope = await buildMediaScope(canonical);
+    if (!scope) return reply.notFound();
+
+    return { data: await listMediaRequests({ scope, serverIds: resolvedIds }) };
+  });
+
+  /**
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
    * GET /media/:id/history - Watch history for a media item as plays,
    * scoped to accessible servers. Computed live (paginated, never cached).
    */

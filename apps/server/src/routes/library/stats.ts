@@ -19,6 +19,21 @@ import {
   REDIS_KEYS,
   CACHE_TTL,
   libraryStatsQuerySchema,
+<<<<<<< HEAD
+  RESOLUTION_BUCKETS,
+  type LibraryStatsQueryInput,
+  type LibraryStatsResponse,
+} from '@tracearr/shared';
+import { db } from '../../db/client.js';
+import {
+  perResolutionBucket,
+  readResolutionCounts,
+  versionBucketFlagsJoin,
+} from '../../utils/resolutionBuckets.js';
+import { resolveServerIds, buildMultiServerFragment } from '../../utils/serverFiltering.js';
+import { buildLibraryCacheKey, dedupedStorageBytesSql } from './utils.js';
+
+=======
   type LibraryStatsQueryInput,
 } from '@tracearr/shared';
 import { db } from '../../db/client.js';
@@ -42,6 +57,7 @@ interface LibraryStatsResponse {
   asOf: string | null;
 }
 
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 export const libraryStatsRoute: FastifyPluginAsync = async (app) => {
   /**
    * GET /stats - Current library statistics
@@ -109,10 +125,14 @@ export const libraryStatsRoute: FastifyPluginAsync = async (app) => {
               ls.movie_count,
               ls.episode_count,
               ls.show_count,
+<<<<<<< HEAD
+              ${perResolutionBucket((bucket) => `ls.count_${bucket}`)},
+=======
               ls.count_4k,
               ls.count_1080p,
               ls.count_720p,
               ls.count_sd,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
               ls.snapshot_time
             FROM library_snapshots ls
             WHERE 1=1
@@ -126,10 +146,14 @@ export const libraryStatsRoute: FastifyPluginAsync = async (app) => {
             COALESCE(SUM(movie_count), 0)::int AS movie_count,
             COALESCE(SUM(episode_count), 0)::int AS episode_count,
             COALESCE(SUM(show_count), 0)::int AS show_count,
+<<<<<<< HEAD
+            ${perResolutionBucket((bucket) => `COALESCE(SUM(count_${bucket}), 0)::int AS count_${bucket}`)},
+=======
             COALESCE(SUM(count_4k), 0)::int AS count_4k,
             COALESCE(SUM(count_1080p), 0)::int AS count_1080p,
             COALESCE(SUM(count_720p), 0)::int AS count_720p,
             COALESCE(SUM(count_sd), 0)::int AS count_sd,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
             MAX(snapshot_time) AS as_of
           FROM latest_snapshots
         `);
@@ -141,10 +165,13 @@ export const libraryStatsRoute: FastifyPluginAsync = async (app) => {
               movie_count: number;
               episode_count: number;
               show_count: number;
+<<<<<<< HEAD
+=======
               count_4k: number;
               count_1080p: number;
               count_720p: number;
               count_sd: number;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
               as_of: string | null;
             }
           | undefined;
@@ -155,12 +182,16 @@ export const libraryStatsRoute: FastifyPluginAsync = async (app) => {
           movieCount: row?.movie_count ?? 0,
           episodeCount: row?.episode_count ?? 0,
           showCount: row?.show_count ?? 0,
+<<<<<<< HEAD
+          qualityBreakdown: readResolutionCounts(row),
+=======
           qualityBreakdown: {
             count4k: row?.count_4k ?? 0,
             count1080p: row?.count_1080p ?? 0,
             count720p: row?.count_720p ?? 0,
             countSd: row?.count_sd ?? 0,
           },
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           asOf: row?.as_of ?? null,
         };
       } else {
@@ -177,12 +208,25 @@ export const libraryStatsRoute: FastifyPluginAsync = async (app) => {
             COUNT(DISTINCT CASE WHEN li.media_type = 'movie' THEN ${matchKey} END)::int AS movie_count,
             COUNT(DISTINCT CASE WHEN li.media_type = 'episode' THEN ${matchKey} END)::int AS episode_count,
             COUNT(DISTINCT CASE WHEN li.media_type = 'show' THEN ${matchKey} END)::int AS show_count,
+<<<<<<< HEAD
+            ${sql.join(
+              RESOLUTION_BUCKETS.map(
+                (bucket) =>
+                  sql`COUNT(CASE WHEN (li.file_size > 0 OR li.media_type IN ('show', 'season')) AND ${sql.raw(`vb.has_${bucket}`)} THEN 1 END)::int AS ${sql.raw(`count_${bucket}`)}`
+              ),
+              sql`, `
+            )},
+            MAX(li.updated_at)::text AS as_of
+          FROM library_items li
+          ${versionBucketFlagsJoin('li.id')}
+=======
             COUNT(CASE WHEN (li.file_size > 0 OR li.media_type IN ('show', 'season')) AND ${hasVersionInBucket('li.id', '4k')} THEN 1 END)::int AS count_4k,
             COUNT(CASE WHEN (li.file_size > 0 OR li.media_type IN ('show', 'season')) AND ${hasVersionInBucket('li.id', '1080p')} THEN 1 END)::int AS count_1080p,
             COUNT(CASE WHEN (li.file_size > 0 OR li.media_type IN ('show', 'season')) AND ${hasVersionInBucket('li.id', '720p')} THEN 1 END)::int AS count_720p,
             COUNT(CASE WHEN (li.file_size > 0 OR li.media_type IN ('show', 'season')) AND ${hasVersionInBucket('li.id', 'sd')} THEN 1 END)::int AS count_sd,
             MAX(li.updated_at)::text AS as_of
           FROM library_items li
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           WHERE 1=1
             AND li.removed_at IS NULL
             ${serverFilter}
@@ -196,10 +240,13 @@ export const libraryStatsRoute: FastifyPluginAsync = async (app) => {
               movie_count: number;
               episode_count: number;
               show_count: number;
+<<<<<<< HEAD
+=======
               count_4k: number;
               count_1080p: number;
               count_720p: number;
               count_sd: number;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
               as_of: string | null;
             }
           | undefined;
@@ -210,12 +257,16 @@ export const libraryStatsRoute: FastifyPluginAsync = async (app) => {
           movieCount: row?.movie_count ?? 0,
           episodeCount: row?.episode_count ?? 0,
           showCount: row?.show_count ?? 0,
+<<<<<<< HEAD
+          qualityBreakdown: readResolutionCounts(row),
+=======
           qualityBreakdown: {
             count4k: row?.count_4k ?? 0,
             count1080p: row?.count_1080p ?? 0,
             count720p: row?.count_720p ?? 0,
             countSd: row?.count_sd ?? 0,
           },
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           asOf: row?.as_of ?? null,
         };
       }

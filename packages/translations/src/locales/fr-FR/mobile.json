@@ -70,7 +70,15 @@
   },
   "resources": {
     "cpu": "CPU",
+<<<<<<< HEAD
+    "ram": "RAM",
+    "item": "",
+    "noData": "",
+    "system": "Système",
+    "waiting": ""
+=======
     "ram": "RAM"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "notifications": {
     "testSent": "Test envoyé",
@@ -98,11 +106,27 @@
     "criticalOverrideDescription": "Les violations de gravité élevée continuent de déclencher des notifications pendant les heures silencieuses",
     "rateLimitDescription": "Les limites de débit empêchent le spam de notifications. Limites actuelles : {{perMinute}}/min, {{perHour}}/h.",
     "sendTestNotification": "Envoyer une notification de test",
+<<<<<<< HEAD
+    "testDescription": "Vérifier que les notifications push fonctionnent correctement",
+    "pushNotifications": "",
+    "ruleTypes": {
+      "accountInactivity": "",
+      "deviceVelocity": "",
+      "geoRestriction": "",
+      "impossibleTravel": "",
+      "simultaneousLocations": ""
+    },
+    "severityAll": "",
+    "severityHighOnly": "",
+    "severityWarningUp": "",
+    "violationTypes": ""
+=======
     "testDescription": "Vérifier que les notifications push fonctionnent correctement"
   },
   "dashboard": {
     "today": "AUJOURD'HUI",
     "hrs": "heures"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "session": {
     "streamTerminated": "Diffusion interrompue",
@@ -117,6 +141,44 @@
     "moreDevices": "+{{count}} appareils en plus",
     "noViolations": "Aucune violation",
     "noTerminations": "Aucune interruption de lecture",
+<<<<<<< HEAD
+    "lastSeen": "",
+    "terminatedBy": "Par @{{username}}",
+    "trustScoreConfirm": "",
+    "trustScoreRange": ""
+  },
+  "violation": {
+    "violationNotFoundDesc": "Cette violation a peut-être été ignorée ou n'est plus disponible.",
+    "ips": "IP"
+  },
+  "alerts": {
+    "clearFilters": "Effacer les filtres",
+    "acknowledgeAll": "",
+    "acknowledgeAllBody": "",
+    "acknowledgeAllBodySeverity": "",
+    "acknowledgeAllTitle_one": "",
+    "acknowledgeAllTitle_other": "",
+    "all": "",
+    "allClear": "",
+    "allServers": "",
+    "noAlertsRecorded": "",
+    "noMatches": "",
+    "pendingCount": ""
+  },
+  "history": {
+    "adjustFilters": "Essayez d'ajuster vos filtres",
+    "historyWillAppear": "L'historique des sessions apparaîtra ici lorsque les utilisateurs commenceront à lancer des lectures",
+    "filters": {
+      "clearCount": "",
+      "countries": "Pays",
+      "filterBy": "Filtrer par",
+      "mediaType": "Type de média",
+      "noCountries": "Aucun pays disponible",
+      "noPlatforms": "Aucune plateforme disponible",
+      "noUsers": "Aucun utilisateur disponible",
+      "sectionSelected": ""
+    }
+=======
     "trustLow": "Basse",
     "trustMedium": "Moyenne",
     "trustHigh": "Élevée"
@@ -135,12 +197,20 @@
     "noHistoryFound": "Aucun historique trouvé",
     "adjustFilters": "Essayez d'ajuster vos filtres",
     "historyWillAppear": "L'historique des sessions apparaîtra ici lorsque les utilisateurs commenceront à lancer des lectures"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "users": {
     "owner": "Propriétaire",
     "noUsers": "Aucun utilisateur",
     "usersWillAppear": "Les utilisateurs apparaîtront ici après la synchronisation avec votre serveur multimédia",
+<<<<<<< HEAD
+    "noUsersMatch": "Aucun utilisateur ne correspond à « {{query}} »",
+    "joinedRelative": "",
+    "sortActive": "",
+    "sortTrust": ""
+=======
     "noUsersMatch": "Aucun utilisateur ne correspond à « {{query}} »"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "activity": {
     "playsOverTime": "Lectures au fil du temps",
@@ -160,7 +230,10 @@
     "allServers": "Tous les serveurs"
   },
   "reconnected": "Reconnecté",
+<<<<<<< HEAD
+=======
   "actionsExecuted": "Actions exécutées",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   "serverScope": {
     "single": "Affichage de {{name}} uniquement"
   },
@@ -169,10 +242,77 @@
     "alerts": "Alertes",
     "alertsCount": "{{count}} alertes non lues",
     "settings": "Paramètres",
+<<<<<<< HEAD
+    "trustScore": "Score de confiance : {{score}}",
+    "decreaseTrustScore": "",
+    "filtersActive": "",
+    "increaseTrustScore": "",
+    "sortAscending": "",
+    "sortDescending": ""
+=======
     "trustScore": "Score de confiance : {{score}}"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   "map": {
     "noData": "Aucune donnée d'emplacement disponible",
     "unavailable": "Carte indisponible"
+<<<<<<< HEAD
+  },
+  "automations": {
+    "conditions_one": "",
+    "conditions_other": "",
+    "editOnWeb": "",
+    "emptyDescription": "",
+    "kind": {
+      "notification": "Notification",
+      "policy": ""
+    },
+    "lastRun": "",
+    "truncated": "",
+    "turnOffFailed": "",
+    "turnOnFailed": "",
+    "unsupportedDescription": "",
+    "unsupportedTitle": "",
+    "versionCheckFailed": ""
+  },
+  "charts": {
+    "weekOf": ""
+  },
+  "push": {
+    "violationTitle": ""
+  },
+  "streamDetails": {
+    "bitrate": "",
+    "channels": "",
+    "codec": "",
+    "color": "",
+    "container": "",
+    "forced": "",
+    "format": "Format :",
+    "framerate": "",
+    "hwDecode": "",
+    "hwEncode": "",
+    "mono": "",
+    "noDetails": "",
+    "notAvailable": "",
+    "profile": "Profil",
+    "sampleRate": "",
+    "source": "Source",
+    "speed": "Vitesse",
+    "stereo": "Stéréo",
+    "stream": "",
+    "subtitles": "Sous-titres",
+    "throttled": "",
+    "transcodeDetails": "Détails du transcodage"
+  },
+  "widget": {
+    "asOf": "",
+    "serversDown_one": "{{count}} serveur hors ligne",
+    "serversDown_other": "{{count}} serveurs hors ligne",
+    "signedOut": "",
+    "transcodes_one": "{{count}} transcodage",
+    "transcodes_other": "{{count}} transcodages"
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   }
 }

@@ -56,7 +56,14 @@ export function safeFormatDistanceToNow(
  */
 export function formatDuration(
   ms: number | null | undefined,
+<<<<<<< HEAD
+  options: {
+    style?: 'compact' | 'compactShort' | 'compactDays' | 'full' | 'clock';
+    emptyValue?: string;
+  } = {}
+=======
   options: { style?: 'compact' | 'compactShort' | 'full' | 'clock'; emptyValue?: string } = {}
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 ): string {
   const { style = 'clock', emptyValue } = options;
 
@@ -67,6 +74,10 @@ export function formatDuration(
 
   const totalSeconds = Math.floor(ms / 1000);
   const hours = Math.floor(totalSeconds / 3600);
+<<<<<<< HEAD
+  const days = Math.floor(hours / 24);
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
 
@@ -93,6 +104,19 @@ export function formatDuration(
       if (minutes > 0) return `${minutes}m ${seconds}s`;
       return `${seconds}s`;
 
+<<<<<<< HEAD
+    case 'compactDays': {
+      // Two largest units only: spans here run to months, where "4909h 1m" is unreadable.
+      if (days > 0) {
+        const restHours = hours % 24;
+        return restHours > 0 ? `${days}d ${restHours}h` : `${days}d`;
+      }
+      if (hours > 0) return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
+      return minutes > 0 ? `${minutes}m` : '<1m';
+    }
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     case 'compactShort':
     default:
       // "2h 30m" format (no seconds)

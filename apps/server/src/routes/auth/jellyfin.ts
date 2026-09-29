@@ -11,8 +11,11 @@ import { db } from '../../db/client.js';
 import { servers } from '../../db/schema.js';
 import { invalidateServersCache } from '../../jobs/poller/database.js';
 import { JellyfinClient } from '../../services/mediaServer/index.js';
+<<<<<<< HEAD
+=======
 // Token encryption removed - tokens now stored in plain text (DB is localhost-only)
 import { generateTokens } from './utils.js';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { syncServer } from '../../services/sync.js';
 
 export const jellyfinRoutes: FastifyPluginAsync = async (app) => {
@@ -47,7 +50,11 @@ export const jellyfinRoutes: FastifyPluginAsync = async (app) => {
             return reply.serviceUnavailable(adminCheck.message);
           }
           if (adminCheck.code === JellyfinClient.AdminVerifyError.INVALID_KEY) {
+<<<<<<< HEAD
+            return reply.badRequest(adminCheck.message);
+=======
             return reply.unauthorized(adminCheck.message);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           }
           return reply.forbidden(adminCheck.message);
         }
@@ -104,8 +111,12 @@ export const jellyfinRoutes: FastifyPluginAsync = async (app) => {
             app.log.error({ err: error, serverId }, 'Auto-sync failed for Jellyfin server');
           });
 
+<<<<<<< HEAD
+        return { serverId };
+=======
         // Return updated tokens with new server access
         return generateTokens(app, authUser.userId, authUser.username, authUser.role);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       } catch (error) {
         app.log.error({ err: error }, 'Jellyfin connect-api-key failed');
         return reply.internalServerError('Failed to connect Jellyfin server');

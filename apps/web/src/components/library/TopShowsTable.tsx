@@ -171,11 +171,19 @@ export function TopShowsTable({
         canNext={page < totalPages}
         onPrevious={() => onPageChange(page - 1)}
         onNext={() => onPageChange(page + 1)}
+<<<<<<< HEAD
+        onPage={onPageChange}
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         labels={{
           navigation: t('table.pagination'),
           status: t('table.pageOf', { page, total: totalPages }),
           previous: t('actions.previous'),
           next: t('actions.next'),
+<<<<<<< HEAD
+          goToPage: t('table.goToPage'),
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         }}
         className="px-2"
       />

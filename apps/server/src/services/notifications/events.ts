@@ -10,7 +10,11 @@ import type { MediaQuality } from '../automations/types.js';
 export interface ServerEventPayload {
   serverName: string;
   serverId: string;
+<<<<<<< HEAD
+  serverType?: 'plex' | 'jellyfin' | 'emby';
+=======
   serverType?: 'plex' | 'jellyfin' | 'emby' | 'navidrome';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 /** One library item, flat, with `to` holding the quality it ends the sync at. */

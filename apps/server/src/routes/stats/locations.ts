@@ -13,6 +13,10 @@ import { locationStatsQuerySchema } from '@tracearr/shared';
 import { db } from '../../db/client.js';
 import { resolveServerIds, buildMultiServerFragment } from '../../utils/serverFiltering.js';
 import { representativeAccountOrderSql } from '../../utils/representativeAccount.js';
+<<<<<<< HEAD
+import { localSessionSql } from '../../utils/localSession.js';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { resolveDateRange } from './utils.js';
 
 interface LocationFilters {
@@ -167,6 +171,10 @@ export const locationsRoutes: FastifyPluginAsync = async (app) => {
             s.geo_country,
             s.geo_lat,
             s.geo_lon,
+<<<<<<< HEAD
+            ${localSessionSql('s')} AS local_flag,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
             MAX(s.started_at) AS last_activity,
             MIN(s.started_at) AS first_activity,
             COUNT(DISTINCT COALESCE(s.device_id, s.player_name))::int AS device_count,
@@ -175,7 +183,11 @@ export const locationsRoutes: FastifyPluginAsync = async (app) => {
           FROM sessions s
           LEFT JOIN server_users su ON s.server_user_id = su.id
           ${whereClause}
+<<<<<<< HEAD
+          GROUP BY s.geo_city, s.geo_region, s.geo_country, s.geo_lat, s.geo_lon, ${localSessionSql('s')}
+=======
           GROUP BY s.geo_city, s.geo_region, s.geo_country, s.geo_lat, s.geo_lon
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         ),
         per_server AS (
           SELECT
@@ -184,11 +196,19 @@ export const locationsRoutes: FastifyPluginAsync = async (app) => {
             s.geo_country,
             s.geo_lat,
             s.geo_lon,
+<<<<<<< HEAD
+            ${localSessionSql('s')} AS local_flag,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
             s.server_id,
             COUNT(DISTINCT COALESCE(s.reference_id, s.id))::int AS server_count
           FROM sessions s
           ${whereClause}
+<<<<<<< HEAD
+          GROUP BY s.geo_city, s.geo_region, s.geo_country, s.geo_lat, s.geo_lon, ${localSessionSql('s')}, s.server_id
+=======
           GROUP BY s.geo_city, s.geo_region, s.geo_country, s.geo_lat, s.geo_lon, s.server_id
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         ),
         server_agg AS (
           SELECT
@@ -197,13 +217,21 @@ export const locationsRoutes: FastifyPluginAsync = async (app) => {
             geo_country,
             geo_lat,
             geo_lon,
+<<<<<<< HEAD
+            local_flag,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
             SUM(server_count)::int AS total_count,
             JSON_AGG(
               jsonb_build_object('serverId', server_id, 'count', server_count)
               ORDER BY server_count DESC, server_id
             ) AS servers
           FROM per_server
+<<<<<<< HEAD
+          GROUP BY geo_city, geo_region, geo_country, geo_lat, geo_lon, local_flag
+=======
           GROUP BY geo_city, geo_region, geo_country, geo_lat, geo_lon
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         )
         SELECT
           ld.geo_city AS city,
@@ -211,6 +239,10 @@ export const locationsRoutes: FastifyPluginAsync = async (app) => {
           ld.geo_country AS country,
           ld.geo_lat AS lat,
           ld.geo_lon AS lon,
+<<<<<<< HEAD
+          ld.local_flag AS is_local,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           sa.total_count AS count,
           ld.last_activity,
           ld.first_activity,
@@ -223,7 +255,12 @@ export const locationsRoutes: FastifyPluginAsync = async (app) => {
           ld.geo_region IS NOT DISTINCT FROM sa.geo_region AND
           ld.geo_country IS NOT DISTINCT FROM sa.geo_country AND
           ld.geo_lat IS NOT DISTINCT FROM sa.geo_lat AND
+<<<<<<< HEAD
+          ld.geo_lon IS NOT DISTINCT FROM sa.geo_lon AND
+          ld.local_flag = sa.local_flag
+=======
           ld.geo_lon IS NOT DISTINCT FROM sa.geo_lon
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         ORDER BY sa.total_count DESC
         LIMIT 500
       `),
@@ -314,6 +351,10 @@ export const locationsRoutes: FastifyPluginAsync = async (app) => {
         country: string | null;
         lat: number;
         lon: number;
+<<<<<<< HEAD
+        is_local: boolean;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         count: number;
         last_activity: Date;
         first_activity: Date;
@@ -327,6 +368,10 @@ export const locationsRoutes: FastifyPluginAsync = async (app) => {
       country: row.country,
       lat: row.lat,
       lon: row.lon,
+<<<<<<< HEAD
+      isLocal: row.is_local,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       count: row.count,
       lastActivity: row.last_activity,
       firstActivity: row.first_activity,

@@ -124,6 +124,14 @@ vi.mock('../../services/plexGeoip.js', () => ({
   }),
 }));
 
+<<<<<<< HEAD
+vi.mock('../../services/serverLocations.js', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  resolveSessionGeo: vi.fn().mockResolvedValue({ city: null, country: null, isLocal: true }),
+}));
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 vi.mock('../../routes/settings.js', () => ({
   getGeoIPSettings: vi.fn().mockResolvedValue({ usePlexGeoip: false }),
 }));
@@ -870,6 +878,10 @@ describe('SSE Processor - Pending Session Flow', () => {
       // First call returns true (threshold exceeded)
       mockIsPlaybackConfirmed.mockReturnValueOnce(true);
 
+<<<<<<< HEAD
+      const insertedGeo = { city: 'Chicago', country: 'US', isLocal: true };
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       // Mock confirmation result
       mockConfirmAndPersistSession.mockResolvedValueOnce({
         insertedSession: {
@@ -884,6 +896,10 @@ describe('SSE Processor - Pending Session Flow', () => {
         qualityChange: null,
         referenceId: null,
         wasTerminatedByRule: false,
+<<<<<<< HEAD
+        geo: insertedGeo,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       });
 
       mockBuildActiveSession.mockReturnValueOnce({
@@ -914,6 +930,12 @@ describe('SSE Processor - Pending Session Flow', () => {
 
       // Should have updated the session in cache (same ID, just confirming status)
       expect(mockCacheService.updateActiveSession).toHaveBeenCalled();
+<<<<<<< HEAD
+      expect(mockBuildActiveSession).toHaveBeenCalledWith(
+        expect.objectContaining({ geo: insertedGeo })
+      );
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
       // Confirmed sessions carry no pending flag, so rule evaluation counts them
       const confirmedSession = mockCacheService.updateActiveSession.mock.calls[0]?.[0];

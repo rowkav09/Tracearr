@@ -2,7 +2,10 @@ import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { Tags } from 'lucide-react';
+<<<<<<< HEAD
+=======
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorState } from '@/components/library/ErrorState';
 import { LibraryEmptyState } from '@/components/library/LibraryEmptyState';
@@ -17,6 +20,10 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { TopListChart } from '@/components/charts/TopListChart';
+<<<<<<< HEAD
+import { MediaTypeToggle } from '@/components/media-browse/MediaTypeToggle';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { useGenres } from '@/hooks/queries';
 import { useServer } from '@/hooks/useServer';
 import { formatNumber, formatWatchTime } from '@/components/ui/stat-card';
@@ -96,6 +103,12 @@ export function MediaGenres() {
     );
   }
 
+<<<<<<< HEAD
+  return (
+    <div className="space-y-6">
+      {header}
+      <MediaTypeToggle value={type} onChange={setType} />
+=======
   const typeToggle = (
     <ToggleGroup
       type="single"
@@ -125,6 +138,7 @@ export function MediaGenres() {
     <div className="space-y-6">
       {header}
       {typeToggle}
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
       {isLoading ? (
         <div className="space-y-6" data-testid="genres-skeleton">

@@ -10,6 +10,11 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
 import sensible from '@fastify/sensible';
 import { randomUUID } from 'node:crypto';
+<<<<<<< HEAD
+import { existsSync } from 'node:fs';
+import { readFile, rm } from 'node:fs/promises';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import type { AuthUser } from '@tracearr/shared';
 
 // Mock class for TautulliService
@@ -74,6 +79,10 @@ vi.mock('../../services/mediaServer/index.js', () => {
 vi.mock('../../jobs/importQueue.js', () => ({
   enqueueImport: vi.fn().mockRejectedValue(new Error('Queue not available')),
   enqueuePlaybackReportingImport: vi.fn().mockRejectedValue(new Error('Queue not available')),
+<<<<<<< HEAD
+  enqueueJellystatImport: vi.fn().mockRejectedValue(new Error('Queue not available')),
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   getImportStatus: vi.fn().mockResolvedValue(null),
   cancelImport: vi.fn().mockResolvedValue(false),
   getImportQueueStats: vi.fn().mockResolvedValue(null),
@@ -88,6 +97,10 @@ import { db } from '../../db/client.js';
 import {
   enqueueImport,
   enqueuePlaybackReportingImport,
+<<<<<<< HEAD
+  enqueueJellystatImport,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   getImportStatus,
   cancelImport,
   getImportQueueStats,
@@ -923,4 +936,63 @@ describe('Import Routes', () => {
       expect(response.statusCode).toBe(403);
     });
   });
+<<<<<<< HEAD
+
+  describe('POST /import/jellystat', () => {
+    const validServerId = randomUUID();
+    const backup = '[{"jf_playback_activity":[]}]';
+
+    function multipartUpload() {
+      const boundary = 'tracearr-test-boundary';
+      const payload = [
+        `--${boundary}`,
+        'Content-Disposition: form-data; name="serverId"',
+        '',
+        validServerId,
+        `--${boundary}`,
+        'Content-Disposition: form-data; name="file"; filename="backup.json"',
+        'Content-Type: application/json',
+        '',
+        backup,
+        `--${boundary}--`,
+        '',
+      ].join('\r\n');
+      return {
+        method: 'POST' as const,
+        url: '/import/jellystat',
+        headers: { 'content-type': `multipart/form-data; boundary=${boundary}` },
+        payload,
+      };
+    }
+
+    it('queues the path of the saved upload, not its contents', async () => {
+      app = await buildTestApp(ownerUser);
+      mockDbSelectLimit([{ id: validServerId, type: 'jellyfin' }]);
+      vi.mocked(enqueueJellystatImport).mockResolvedValueOnce('job-js-1');
+
+      const response = await app.inject(multipartUpload());
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({ status: 'queued', jobId: 'job-js-1' });
+      const backupPath = vi.mocked(enqueueJellystatImport).mock.calls[0]?.[2] ?? '';
+      expect(await readFile(backupPath, 'utf-8')).toBe(backup);
+      await rm(backupPath);
+    });
+
+    it('removes the upload when an import is already running', async () => {
+      app = await buildTestApp(ownerUser);
+      mockDbSelectLimit([{ id: validServerId, type: 'jellyfin' }]);
+      vi.mocked(enqueueJellystatImport).mockRejectedValueOnce(
+        new Error(`Import already in progress for server ${validServerId} (job job-js-1)`)
+      );
+
+      const response = await app.inject(multipartUpload());
+
+      expect(response.statusCode).toBe(409);
+      const backupPath = vi.mocked(enqueueJellystatImport).mock.calls[0]?.[2] ?? '';
+      expect(existsSync(backupPath)).toBe(false);
+    });
+  });
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 });

@@ -8,6 +8,17 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+<<<<<<< HEAD
+import { REDIS_KEYS } from '@tracearr/shared';
+import {
+  WARM_CONCURRENCY_IDLE,
+  WARM_CONCURRENCY_LIGHT,
+  WARM_CONCURRENCY_HEAVY,
+  FAILURE_BACKOFF_BATCHES,
+  FAILURE_BACKOFF_BASE_MS,
+} from '../warmConcurrency.js';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { Worker } from 'bullmq';
 import type { Job } from 'bullmq';
 
@@ -32,6 +43,10 @@ vi.mock('../librarySyncQueue.js', () => ({
 }));
 
 vi.mock('../../services/imageProxy.js', () => ({
+<<<<<<< HEAD
+  IMAGE_CACHE_DIR: '/cache',
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   proxyImage: (...args: unknown[]) => mockProxyImage(...args),
   posterCacheEntryExists: (...args: unknown[]) => mockPosterCacheEntryExists(...args),
 }));
@@ -43,8 +58,30 @@ vi.mock('../../services/imageCacheGuard.js', () => ({
   readDiskLimited: (...args: unknown[]) => mockReadDiskLimited(...args),
 }));
 
+<<<<<<< HEAD
+const mockGetAllActiveSessions = vi.fn<() => Promise<Array<Record<string, unknown>>>>();
+vi.mock('../../services/cache.js', () => ({
+  getCacheService: () => ({ getAllActiveSessions: mockGetAllActiveSessions }),
+}));
+
+const redisStore = new Map<string, string>();
+vi.mock('../../lib/redisShared.js', () => ({
+  getRedis: () =>
+    ({
+      get: (k: string) => Promise.resolve(redisStore.get(k) ?? null),
+      set: (k: string, v: string) => {
+        redisStore.set(k, v);
+        return Promise.resolve('OK');
+      },
+      del: (k: string) => {
+        redisStore.delete(k);
+        return Promise.resolve(1);
+      },
+    }) as never,
+=======
 vi.mock('../../lib/redisShared.js', () => ({
   getRedis: () => ({}) as never,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }));
 
 vi.mock('../../services/imageCacheSweep.js', () => ({
@@ -89,6 +126,10 @@ import {
   initImagePrecacheQueue,
   enqueueImagePrecache,
   processImagePrecacheJob,
+<<<<<<< HEAD
+  _resetWarmBackoffForTests,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   shutdownImagePrecacheQueue,
   startImagePrecacheWorker,
   type ImagePrecacheJobData,
@@ -180,9 +221,18 @@ function queueFillsAfterAdd(pending: unknown[]) {
 describe('imagePrecacheQueue', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
+<<<<<<< HEAD
+    redisStore.clear();
+    _resetWarmBackoffForTests();
     await shutdownImagePrecacheQueue();
     initImagePrecacheQueue('redis://localhost:6379');
     mockGetSetting.mockResolvedValue(true);
+    mockGetAllActiveSessions.mockResolvedValue([]);
+=======
+    await shutdownImagePrecacheQueue();
+    initImagePrecacheQueue('redis://localhost:6379');
+    mockGetSetting.mockResolvedValue(true);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     mockGetLibrarySyncStatus.mockResolvedValue({ isActive: false });
     mockProxyImage.mockResolvedValue({
       data: Buffer.from(''),
@@ -371,6 +421,117 @@ describe('imagePrecacheQueue', () => {
     });
   });
 
+<<<<<<< HEAD
+  describe('full pass stamping', () => {
+    it('does not stamp while the chain continues, and stamps when it runs out of rows', async () => {
+      const full = Array.from({ length: 50 }, (_, i) => ({
+        id: `item-${i}`,
+        thumbPath: `/t/${i}`,
+      }));
+      mockBatchQuery(full);
+      mockQueueAdd.mockResolvedValue({ id: 'job-next' });
+
+      await processImagePrecacheJob(makeJob({ serverId: 'server-1', cursor: null }));
+      expect(redisStore.get(REDIS_KEYS.LIBRARY_PRECACHE_LAST_FULL('server-1'))).toBeUndefined();
+
+      mockBatchQuery([{ id: 'item-50', thumbPath: '/t/50' }]);
+      await processImagePrecacheJob(makeJob({ serverId: 'server-1', cursor: 'item-49' }));
+      expect(redisStore.get(REDIS_KEYS.LIBRARY_PRECACHE_LAST_FULL('server-1'))).toBeDefined();
+      expect(redisStore.get(REDIS_KEYS.LIBRARY_PRECACHE_LAST_FULL_DIR('server-1'))).toBe('/cache');
+    });
+
+    it('does not stamp a watermark-scoped pass, which walked only recent rows', async () => {
+      mockBatchQuery([{ id: 'item-1', thumbPath: '/t/1' }]);
+
+      await processImagePrecacheJob(
+        makeJob({
+          serverId: 'server-1',
+          cursor: null,
+          sinceUpdatedAt: new Date().toISOString(),
+        })
+      );
+
+      expect(redisStore.get(REDIS_KEYS.LIBRARY_PRECACHE_LAST_FULL('server-1'))).toBeUndefined();
+    });
+  });
+
+  describe('persistence detection', () => {
+    function fullPassStamp(dir = '/cache') {
+      redisStore.set(
+        REDIS_KEYS.LIBRARY_PRECACHE_LAST_FULL('server-1'),
+        new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+      );
+      redisStore.set(REDIS_KEYS.LIBRARY_PRECACHE_LAST_FULL_DIR('server-1'), dir);
+    }
+
+    it('flags a cache that lost everything since a full pass against this directory, even one a previous process completed', async () => {
+      mockBatchQuery([makeItemRow('item-0')]);
+      mockPosterCacheEntryExists.mockResolvedValue(false);
+      fullPassStamp();
+
+      await processImagePrecacheJob(makeJob({ serverId: 'server-1', cursor: null }));
+
+      expect(redisStore.get(REDIS_KEYS.IMAGE_CACHE_NOT_PERSISTING)).toBeDefined();
+    });
+
+    it('clears the flag when the sample is still on disk', async () => {
+      mockBatchQuery([makeItemRow('item-0')]);
+      mockPosterCacheEntryExists.mockResolvedValue(true);
+      redisStore.set(REDIS_KEYS.IMAGE_CACHE_NOT_PERSISTING, 'stale');
+      fullPassStamp();
+
+      await processImagePrecacheJob(makeJob({ serverId: 'server-1', cursor: null }));
+
+      expect(redisStore.get(REDIS_KEYS.IMAGE_CACHE_NOT_PERSISTING)).toBeUndefined();
+    });
+
+    it('does not flag when no full pass has ever completed', async () => {
+      mockBatchQuery([makeItemRow('item-0')]);
+      mockPosterCacheEntryExists.mockResolvedValue(false);
+
+      await processImagePrecacheJob(makeJob({ serverId: 'server-1', cursor: null }));
+
+      expect(redisStore.get(REDIS_KEYS.IMAGE_CACHE_NOT_PERSISTING)).toBeUndefined();
+    });
+
+    it('does not flag on a stamp with no recorded directory, which every upgrade carries', async () => {
+      mockBatchQuery([makeItemRow('item-0')]);
+      mockPosterCacheEntryExists.mockResolvedValue(false);
+      redisStore.set(
+        REDIS_KEYS.LIBRARY_PRECACHE_LAST_FULL('server-1'),
+        new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+      );
+
+      await processImagePrecacheJob(makeJob({ serverId: 'server-1', cursor: null }));
+
+      expect(redisStore.get(REDIS_KEYS.IMAGE_CACHE_NOT_PERSISTING)).toBeUndefined();
+    });
+
+    it('does not flag on a stamp taken against another directory', async () => {
+      mockBatchQuery([makeItemRow('item-0')]);
+      mockPosterCacheEntryExists.mockResolvedValue(false);
+      fullPassStamp('/app/data/image-cache');
+
+      await processImagePrecacheJob(makeJob({ serverId: 'server-1', cursor: null }));
+
+      expect(redisStore.get(REDIS_KEYS.IMAGE_CACHE_NOT_PERSISTING)).toBeUndefined();
+    });
+
+    it('does not sample a watermark-scoped pass, which only walks recent rows', async () => {
+      mockBatchQuery([makeItemRow('item-0')]);
+      mockPosterCacheEntryExists.mockResolvedValue(false);
+      fullPassStamp();
+
+      await processImagePrecacheJob(
+        makeJob({ serverId: 'server-1', cursor: null, sinceUpdatedAt: new Date().toISOString() })
+      );
+
+      expect(redisStore.get(REDIS_KEYS.IMAGE_CACHE_NOT_PERSISTING)).toBeUndefined();
+    });
+  });
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   describe('processImagePrecacheJob', () => {
     it('no-ops without touching the database when disabled', async () => {
       mockGetSetting.mockResolvedValue(false);
@@ -565,6 +726,14 @@ describe('imagePrecacheQueue', () => {
       expect(mockQueueAdd).not.toHaveBeenCalled();
     });
 
+<<<<<<< HEAD
+    function trackPeakConcurrency() {
+      const observed = { peak: 0 };
+      let active = 0;
+      mockProxyImage.mockImplementation(async () => {
+        active++;
+        observed.peak = Math.max(observed.peak, active);
+=======
     it('never runs more than 2 concurrent warm calls', async () => {
       const rows = Array.from({ length: 5 }, (_, i) => makeItemRow(`item-${i}`));
       mockBatchQuery(rows);
@@ -574,16 +743,140 @@ describe('imagePrecacheQueue', () => {
       mockProxyImage.mockImplementation(async () => {
         active++;
         peak = Math.max(peak, active);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         await new Promise((resolve) => setTimeout(resolve, 5));
         active--;
         return { data: Buffer.from(''), contentType: 'image/webp', cached: false };
       });
+<<<<<<< HEAD
+      return observed;
+    }
+
+    it('warms at the idle concurrency when nothing is streaming', async () => {
+      // Peak is min(concurrency, missing), so the fixture must hold at least
+      // the idle width or this asserts the fixture size, not the tiering.
+      mockBatchQuery(Array.from({ length: 8 }, (_, i) => makeItemRow(`item-${i}`)));
+      mockGetAllActiveSessions.mockResolvedValue([]);
+      const observed = trackPeakConcurrency();
+
+      await processImagePrecacheJob(makeJob({ serverId: 'server-1', cursor: null }));
+
+      expect(observed.peak).toBe(WARM_CONCURRENCY_IDLE);
+    });
+
+    it('drops to the floor while a transcode is running on that server', async () => {
+      mockBatchQuery(Array.from({ length: 8 }, (_, i) => makeItemRow(`item-${i}`)));
+      mockGetAllActiveSessions.mockResolvedValue([
+        { serverId: 'server-1', isTranscode: true },
+        { serverId: 'server-1', isTranscode: true },
+      ]);
+      const observed = trackPeakConcurrency();
+
+      await processImagePrecacheJob(makeJob({ serverId: 'server-1', cursor: null }));
+
+      expect(observed.peak).toBe(WARM_CONCURRENCY_HEAVY);
+    });
+
+    it('eases off but keeps parallelism for a couple of direct plays', async () => {
+      mockBatchQuery(Array.from({ length: 8 }, (_, i) => makeItemRow(`item-${i}`)));
+      mockGetAllActiveSessions.mockResolvedValue([
+        { serverId: 'server-1', isTranscode: false },
+        { serverId: 'server-1', isTranscode: false },
+      ]);
+      const observed = trackPeakConcurrency();
+
+      await processImagePrecacheJob(makeJob({ serverId: 'server-1', cursor: null }));
+
+      expect(observed.peak).toBe(WARM_CONCURRENCY_LIGHT);
+    });
+
+    it('counts only the streams on the server being warmed', async () => {
+      mockBatchQuery(Array.from({ length: 8 }, (_, i) => makeItemRow(`item-${i}`)));
+      mockGetAllActiveSessions.mockResolvedValue([
+        { serverId: 'other-server', isTranscode: true },
+        { serverId: 'other-server', isTranscode: true },
+      ]);
+      const observed = trackPeakConcurrency();
+
+      await processImagePrecacheJob(makeJob({ serverId: 'server-1', cursor: null }));
+
+      expect(observed.peak).toBe(WARM_CONCURRENCY_IDLE);
+    });
+
+    it('pauses the chain once enough consecutive batches fail outright', async () => {
+      mockBatchQuery([makeItemRow('item-0')]);
+      mockProxyImage.mockRejectedValue(new Error('upstream 503'));
+      mockQueueAdd.mockResolvedValue({ id: 'job-delayed' });
+
+      for (let i = 0; i < FAILURE_BACKOFF_BATCHES; i++) {
+        await processImagePrecacheJob(makeJob({ serverId: 'server-1', cursor: null }));
+      }
+      const result = await processImagePrecacheJob(makeJob({ serverId: 'server-1', cursor: null }));
+
+      expect(result).toEqual({ skipped: true, reason: 'backing off' });
+      const [, , opts] = mockQueueAdd.mock.calls.at(-1)!;
+      expect((opts as { delay?: number }).delay).toBeGreaterThanOrEqual(FAILURE_BACKOFF_BASE_MS);
+    });
+
+    it('warms again after the pause rather than re-enqueueing forever', async () => {
+      mockBatchQuery([makeItemRow('item-0')]);
+      mockProxyImage.mockRejectedValue(new Error('upstream 503'));
+      mockQueueAdd.mockResolvedValue({ id: 'job-delayed' });
+      for (let i = 0; i <= FAILURE_BACKOFF_BATCHES; i++) {
+        await processImagePrecacheJob(makeJob({ serverId: 'server-1', cursor: null }));
+      }
+
+      mockProxyImage.mockClear();
+      await processImagePrecacheJob(makeJob({ serverId: 'server-1', cursor: null }));
+
+      expect(mockProxyImage).toHaveBeenCalled();
+    });
+
+    it('clears the pause once a warm succeeds', async () => {
+      mockBatchQuery([makeItemRow('item-0')]);
+      mockQueueAdd.mockResolvedValue({ id: 'job-delayed' });
+      mockProxyImage.mockRejectedValue(new Error('upstream 503'));
+      for (let i = 0; i <= FAILURE_BACKOFF_BATCHES; i++) {
+        await processImagePrecacheJob(makeJob({ serverId: 'server-1', cursor: null }));
+      }
+
+      mockProxyImage.mockResolvedValue({
+        data: Buffer.from(''),
+        contentType: 'image/webp',
+        cached: false,
+      });
+      await processImagePrecacheJob(makeJob({ serverId: 'server-1', cursor: null }));
+
+      mockProxyImage.mockRejectedValue(new Error('upstream 503'));
+      const result = await processImagePrecacheJob(makeJob({ serverId: 'server-1', cursor: null }));
+
+      expect(result).not.toEqual({ skipped: true, reason: 'backing off' });
+    });
+
+    it('treats a degraded placeholder as a failure, since proxyImage does not reject', async () => {
+      mockBatchQuery([makeItemRow('item-0')]);
+      mockQueueAdd.mockResolvedValue({ id: 'job-delayed' });
+      mockProxyImage.mockResolvedValue({
+        data: Buffer.from('<svg/>'),
+        contentType: 'image/svg+xml',
+        cached: false,
+        degraded: true,
+      });
+
+      for (let i = 0; i < FAILURE_BACKOFF_BATCHES; i++) {
+        await processImagePrecacheJob(makeJob({ serverId: 'server-1', cursor: null }));
+      }
+      const result = await processImagePrecacheJob(makeJob({ serverId: 'server-1', cursor: null }));
+
+      expect(result).toEqual({ skipped: true, reason: 'backing off' });
+=======
 
       await processImagePrecacheJob(makeJob({ serverId: 'server-1', cursor: null }));
 
       expect(mockProxyImage).toHaveBeenCalledTimes(5); // 5 missing items, one warm each
       expect(peak).toBeLessThanOrEqual(2);
       expect(peak).toBe(2); // confirms the pool actually parallelizes, not serialized to 1
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     });
 
     it('continues the batch and does not fail the job when one warm call throws', async () => {

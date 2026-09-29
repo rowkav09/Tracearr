@@ -7,7 +7,11 @@ import type {
 } from 'maplibre-gl';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import { PMTiles, Protocol } from 'pmtiles';
+<<<<<<< HEAD
+import { type Flavor, layers as flavorLayers, namedFlavor } from '@protomaps/basemaps';
+=======
 import { layers as flavorLayers, namedFlavor } from '@protomaps/basemaps';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import type { Feature, FeatureCollection } from 'geojson';
 import type { LocationStats } from '@tracearr/shared';
 import { API_BASE_URL } from '@/lib/api';
@@ -24,15 +28,38 @@ const basemapArchive = new PMTiles(BASEMAP_URL);
 protocol.add(basemapArchive);
 
 let basemapCheck: Promise<boolean> | null = null;
+<<<<<<< HEAD
+let archiveMaxZoom: number | null = null;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 export function checkBasemap(): Promise<boolean> {
   basemapCheck ??= basemapArchive
     .getHeader()
+<<<<<<< HEAD
+    .then((header) => {
+      archiveMaxZoom = header.maxZoom;
+      return true;
+    })
+=======
     .then(() => true)
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     .catch(() => false);
   return basemapCheck;
 }
 
+<<<<<<< HEAD
+// Vector tiles overzoom cleanly for a level or two; past that the coastlines
+// turn to polygons. The floor keeps the heat to circle crossfade reachable on
+// a shallow archive.
+const MAX_OVERZOOM = 2;
+
+export function mapMaxZoom(archiveZoom = archiveMaxZoom): number {
+  return archiveZoom === null ? 14 : Math.max(HEAT_FADE.end, archiveZoom + MAX_OVERZOOM);
+}
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 let webglSupport: boolean | null = null;
 
 // maplibre v6 needs webgl2 and fires its GPU error inside the Map constructor,
@@ -216,10 +243,37 @@ export interface LocationFeatureProps {
   count: number;
   city: string | null;
   country: string | null;
+<<<<<<< HEAD
+  isLocal: boolean;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   serverId: string | null;
   servers: { serverId: string; count: number }[] | null;
 }
 
+<<<<<<< HEAD
+// Nested GeoJSON properties cross the tile worker as JSON strings and come
+// back that way from map events.
+export function readLocationFeature(props: Record<string, unknown>): LocationFeatureProps {
+  const { servers } = props;
+  return {
+    w: Number(props.w),
+    count: Number(props.count),
+    city: typeof props.city === 'string' ? props.city : null,
+    country: typeof props.country === 'string' ? props.country : null,
+    isLocal: props.isLocal === true,
+    serverId: typeof props.serverId === 'string' ? props.serverId : null,
+    servers:
+      typeof servers === 'string'
+        ? (JSON.parse(servers) as LocationFeatureProps['servers'])
+        : Array.isArray(servers)
+          ? (servers as LocationFeatureProps['servers'])
+          : null,
+  };
+}
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 export function locationsGeojson(
   locations: LocationStats[],
   perServer: boolean
@@ -234,6 +288,10 @@ export function locationsGeojson(
       count,
       city: l.city,
       country: l.country,
+<<<<<<< HEAD
+      isLocal: l.isLocal,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       serverId: serverId ?? l.servers?.[0]?.serverId ?? null,
       servers: l.servers ?? null,
     } satisfies LocationFeatureProps,
@@ -248,6 +306,76 @@ export function locationsGeojson(
   return { type: 'FeatureCollection', features };
 }
 
+<<<<<<< HEAD
+const LANDCOVER_KEYS = [
+  'park_a',
+  'park_b',
+  'wood_a',
+  'wood_b',
+  'scrub_a',
+  'scrub_b',
+  'hospital',
+  'industrial',
+  'school',
+  'zoo',
+  'military',
+  'pedestrian',
+  'aerodrome',
+  'sand',
+  'beach',
+  'glacier',
+] as const;
+
+function fill(keys: readonly (keyof Flavor)[], color: string): Partial<Flavor> {
+  return Object.fromEntries(keys.map((k) => [k, color]));
+}
+
+// Colors sampled from the Carto dark_all and light_all raster tiles the map
+// used before the MapLibre swap.
+function flavorFor(dark: boolean): Flavor {
+  if (dark) {
+    return {
+      ...namedFlavor('black'),
+      ...fill(LANDCOVER_KEYS, '#0e0e0e'),
+      ...fill(['other', 'minor_service', 'minor_a', 'minor_b', 'link'], '#1a1a1a'),
+      ...fill(
+        ['minor_service_casing', 'minor_casing', 'link_casing', 'major_casing_early'],
+        '#090909'
+      ),
+      earth: '#090909',
+      water: '#262626',
+      buildings: '#111111',
+      major: '#2a2b2b',
+      highway: '#424343',
+      boundaries: '#5c5e5e',
+      city_label: '#a8b0b4',
+      city_label_halo: '#111111',
+      country_label: '#9d9d9d',
+      ocean_label: '#6d7b81',
+    };
+  }
+  return {
+    ...namedFlavor('white'),
+    ...fill(LANDCOVER_KEYS, '#f2f5f0'),
+    ...fill(['other', 'minor_service', 'minor_a', 'minor_b', 'link', 'major'], '#fefefe'),
+    ...fill(
+      ['minor_service_casing', 'minor_casing', 'link_casing', 'major_casing_early'],
+      '#e1e1e1'
+    ),
+    earth: '#fafaf8',
+    water: '#d4dadc',
+    buildings: '#e9e9e9',
+    highway: '#ffffff',
+    highway_casing_early: '#e1e1e1',
+    city_label: '#697b89',
+    country_label: '#8a99a4',
+    state_label: '#97a4ae',
+    ocean_label: '#abb6be',
+  };
+}
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 export interface BaseStyleOptions {
   dark: boolean;
   basemapOk: boolean;
@@ -278,9 +406,13 @@ export function buildBaseStyle({ dark, basemapOk, lang }: BaseStyleOptions): Sty
         'Protomaps &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     };
     style.layers.push(
+<<<<<<< HEAD
+      ...flavorLayers('basemap', flavorFor(dark), { lang }).filter((l) => l.type !== 'background')
+=======
       ...flavorLayers('basemap', namedFlavor(flavorName), { lang }).filter(
         (l) => l.type !== 'background'
       )
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     );
   }
   return style;

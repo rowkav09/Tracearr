@@ -60,6 +60,10 @@ vi.mock('@/lib/api', () => ({
 import { WS_EVENTS } from '@tracearr/shared';
 import { toast } from 'sonner';
 import { DESTINATIONS_KEY } from './queries/useDestinations';
+<<<<<<< HEAD
+import { REQUESTS_KEY } from './queries/useRequests';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { RUNS_KEY } from './queries/useRuns';
 import { SocketProvider, useSocket } from './useSocket';
 
@@ -206,6 +210,16 @@ describe('SocketProvider', () => {
     expect(invalidate).toHaveBeenCalledWith({ queryKey: DESTINATIONS_KEY });
   });
 
+<<<<<<< HEAD
+  it('refetches requests when another instance changes one', () => {
+    const { invalidate } = setup();
+    fire(WS_EVENTS.REQUESTS_CHANGED);
+
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: REQUESTS_KEY });
+  });
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   it('refetches servers and filter options when a server changes', () => {
     const { invalidate } = setup();
     fire(WS_EVENTS.SERVERS_CHANGED);

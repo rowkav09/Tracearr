@@ -1,6 +1,13 @@
 import { useMemo } from 'react';
+<<<<<<< HEAD
+import { useTranslation } from 'react-i18next';
 import Highcharts from 'highcharts';
 import { HighchartsReact } from 'highcharts-react-official';
+import { PLAYBACK_DECISION_LABEL_KEYS } from '@tracearr/shared';
+=======
+import Highcharts from 'highcharts';
+import { HighchartsReact } from 'highcharts-react-official';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { getHour12 } from '@/lib/timeFormat';
 import { ChartSkeleton } from '@/components/ui/skeleton';
 import { ChartEmpty } from './ChartEmpty';
@@ -27,6 +34,10 @@ export function ConcurrentChart({
   height = 250,
   period = 'month',
 }: ConcurrentChartProps) {
+<<<<<<< HEAD
+  const { t } = useTranslation();
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   const options = useMemo<Highcharts.Options>(() => {
     if (!data || data.length === 0) {
       return {};
@@ -157,7 +168,11 @@ export function ConcurrentChart({
       series: [
         {
           type: 'area',
+<<<<<<< HEAD
+          name: t(PLAYBACK_DECISION_LABEL_KEYS.directplay),
+=======
           name: 'Direct Play',
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           data: data.map((d, i) => [timestamps[i]!, d.direct]),
           color: 'hsl(var(--chart-2))',
           fillColor: {
@@ -170,7 +185,11 @@ export function ConcurrentChart({
         },
         {
           type: 'area',
+<<<<<<< HEAD
+          name: t(PLAYBACK_DECISION_LABEL_KEYS.copy),
+=======
           name: 'Direct Stream',
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           data: data.map((d, i) => [timestamps[i]!, d.directStream]),
           color: 'hsl(210, 76%, 50%)',
           fillColor: {
@@ -183,7 +202,11 @@ export function ConcurrentChart({
         },
         {
           type: 'area',
+<<<<<<< HEAD
+          name: t(PLAYBACK_DECISION_LABEL_KEYS.transcode),
+=======
           name: 'Transcode',
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           data: data.map((d, i) => [timestamps[i]!, d.transcode]),
           color: 'hsl(var(--chart-4))',
           fillColor: {
@@ -228,7 +251,11 @@ export function ConcurrentChart({
         ],
       },
     };
+<<<<<<< HEAD
+  }, [data, height, period, t]);
+=======
   }, [data, height, period]);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
   if (isLoading) {
     return <ChartSkeleton height={height} />;

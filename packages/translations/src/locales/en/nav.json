@@ -8,6 +8,10 @@
   "users": "Users",
   "automations": "Automations",
   "violations": "Violations",
+<<<<<<< HEAD
+  "requests": "Requests",
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   "alerts": "Alerts",
   "settings": "Settings",
   "overview": "Overview",

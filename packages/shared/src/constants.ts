@@ -2,7 +2,15 @@
  * Shared constants for Tracearr
  */
 
+<<<<<<< HEAD
+import {
+  classifyByDimensions,
+  normalizeResolutionLabel,
+  type ResolutionLabel,
+} from './resolution.js';
+=======
 import { classifyByDimensions, type ResolutionLabel } from './resolution.js';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 export { IDENTITY_AWARE_CONDITION_FIELDS } from './automations/conditions.js';
 
@@ -45,6 +53,10 @@ export const WS_EVENTS = {
   SERVER_CONNECTION: 'server:connection',
   NOTIFICATION_TOAST: 'notification:toast',
   DESTINATIONS_CHANGED: 'destinations:changed',
+<<<<<<< HEAD
+  REQUESTS_CHANGED: 'requests:changed',
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   SERVERS_CHANGED: 'servers:changed',
 } as const;
 
@@ -111,6 +123,15 @@ export const REDIS_KEYS = {
   // Notification rate limiting (sliding window counters)
   PUSH_RATE_MINUTE: (sessionId: string) => `${_redisPrefix}tracearr:push:rate:minute:${sessionId}`,
   PUSH_RATE_HOUR: (sessionId: string) => `${_redisPrefix}tracearr:push:rate:hour:${sessionId}`,
+<<<<<<< HEAD
+  // Held for CACHE_TTL.PUSH_SESSIONS_SYNC after a device is sent a silent sessions sync
+  PUSH_SESSIONS_SYNC: (sessionId: string) =>
+    `${_redisPrefix}tracearr:push:sync:sessions:${sessionId}`,
+  // Held until that window ends while one instance has the trailing sync scheduled
+  PUSH_SESSIONS_SYNC_PENDING: (sessionId: string) =>
+    `${_redisPrefix}tracearr:push:sync:sessions:pending:${sessionId}`,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   // Location stats filter caching (includes serverIds hash for proper scoping)
   LOCATION_FILTERS: (userId: string, serverIds: string[]) => {
     // Sort and hash serverIds for stable cache key
@@ -141,7 +162,14 @@ export const REDIS_KEYS = {
     return `${_redisPrefix}tracearr:library:stale:v2`;
   },
   get LIBRARY_DUPLICATES() {
+<<<<<<< HEAD
+    return `${_redisPrefix}tracearr:library:duplicates:v5`;
+  },
+  get LIBRARY_DUPLICATE_FILES() {
+    return `${_redisPrefix}tracearr:library:duplicate-files`;
+=======
     return `${_redisPrefix}tracearr:library:duplicates:v3`;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   get LIBRARY_STORAGE() {
     return `${_redisPrefix}tracearr:library:storage:v3`;
@@ -173,6 +201,12 @@ export const REDIS_KEYS = {
   get LIBRARY_SHELVES() {
     return `${_redisPrefix}tracearr:library:shelves`;
   },
+<<<<<<< HEAD
+  get REQUESTS_ANALYTICS() {
+    return `${_redisPrefix}tracearr:requests:analytics`;
+  },
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   get LIBRARY_GENRES() {
     return `${_redisPrefix}tracearr:library:genres`;
   },
@@ -180,7 +214,11 @@ export const REDIS_KEYS = {
     return `${_redisPrefix}tracearr:library:catalog-letters:v2`;
   },
   get LIBRARY_LIBRARIES() {
+<<<<<<< HEAD
+    return `${_redisPrefix}tracearr:library:libraries:v2`;
+=======
     return `${_redisPrefix}tracearr:library:libraries`;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   },
   // Watched-filtered ordered candidate list shared by /catalog and
   // /catalog/letters (see getWatchedCandidates in catalog.ts)
@@ -213,19 +251,38 @@ export const REDIS_KEYS = {
   // Accepted structural shortfall from the last full scan - see COUNT_MISMATCH_* in librarySync.ts
   LIBRARY_SYNC_SHORTFALL: (serverId: string, libraryId: string) =>
     `${_redisPrefix}tracearr:library:sync:shortfall:${serverId}:${libraryId}`,
+<<<<<<< HEAD
+  // Shape of the listing query the last full scan used - see LIBRARY_SCAN_VERSION in librarySync.ts
+  LIBRARY_SYNC_SCAN_VERSION: (serverId: string, libraryId: string) =>
+    `${_redisPrefix}tracearr:library:sync:scanversion:${serverId}:${libraryId}`,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   // Image precache watermark state (per server, not per library - the precache
   // job walks library_items scoped only by server)
   LIBRARY_PRECACHE_WATERMARK: (serverId: string) =>
     `${_redisPrefix}tracearr:library:precache:watermark:${serverId}`,
   LIBRARY_PRECACHE_LAST_FULL: (serverId: string) =>
     `${_redisPrefix}tracearr:library:precache:last-full:${serverId}`,
+<<<<<<< HEAD
+  // The cache directory that full pass walked; the persistence check only
+  // trusts a stamp taken against the directory the process is using now.
+  LIBRARY_PRECACHE_LAST_FULL_DIR: (serverId: string) =>
+    `${_redisPrefix}tracearr:library:precache:last-full-dir:${serverId}`,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   // Poster cache: one-time boot reconciliation marker, the last sweep's tally,
   // and the disk-limited flag the precache sets when the guard refused writes.
   IMAGE_CACHE_SCHEMA: `${_redisPrefix}tracearr:image-cache:schema`,
   IMAGE_CACHE_TALLY: `${_redisPrefix}tracearr:image-cache:tally`,
   IMAGE_CACHE_DISK_LIMITED: `${_redisPrefix}tracearr:image-cache:disk-limited`,
+<<<<<<< HEAD
+  // Global, not per-server: the cache directory is one path for the whole process.
+  IMAGE_CACHE_NOT_PERSISTING: `${_redisPrefix}tracearr:image-cache:not-persisting`,
+  // Auth tokens
+=======
   // Auth tokens
   REFRESH_TOKEN: (hash: string) => `${_redisPrefix}tracearr:refresh:${hash}`,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   PLEX_TEMP_TOKEN: (token: string) => `${_redisPrefix}tracearr:plex_temp:${token}`,
   MOBILE_REFRESH_TOKEN: (hash: string) => `${_redisPrefix}tracearr:mobile_refresh:${hash}`,
   MOBILE_BLACKLISTED_TOKEN: (deviceId: string) =>
@@ -266,7 +323,11 @@ export const REDIS_KEYS = {
   },
   // Filter options caching
   FILTER_OPTIONS: (userId: string, scopeHash: string) =>
+<<<<<<< HEAD
+    `${_redisPrefix}tracearr:filter-options:v2:${userId}:${scopeHash}`,
+=======
     `${_redisPrefix}tracearr:filter-options:${userId}:${scopeHash}`,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   // v1 segment invalidates cached entries if the GeoLocation shape ever changes
   PLEX_GEOIP: (ip: string) => `${_redisPrefix}tracearr:geoip:plex:v1:${ip}`,
   // Public API v2 per-media stats/watchers responses
@@ -303,6 +364,10 @@ export const CACHE_TTL = {
   LIBRARY_QUALITY: 300, // 5 minutes
   LIBRARY_STALE: 3600, // 1 hour (changes slowly)
   LIBRARY_DUPLICATES: 3600, // 1 hour (changes slowly)
+<<<<<<< HEAD
+  LIBRARY_DUPLICATE_FILES: 60, // 1 minute - a live answer from the media server
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   LIBRARY_STORAGE: 300, // 5 minutes
   LIBRARY_WATCH: 300, // 5 minutes
   LIBRARY_ROI: 3600, // 1 hour (ROI changes slowly)
@@ -313,11 +378,22 @@ export const CACHE_TTL = {
   LIBRARY_CODECS: 300, // 5 minutes
   LIBRARY_RESOLUTION: 300, // 5 minutes
   LIBRARY_SHELVES: 300, // 5 minutes
+<<<<<<< HEAD
+  REQUESTS_ANALYTICS: 300, // 5 minutes - the request sync runs far less often
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   LIBRARY_GENRES: 3600, // 1 hour
   LIBRARY_CATALOG_LETTERS: 300, // 5 minutes, matches LIBRARY_SHELVES freshness
   LIBRARY_LIBRARIES: 300, // 5 minutes - library list changes only on sync
   LIBRARY_MEDIA_DETAIL: 60, // 1 minute, matches PUBLIC_MEDIA_STATS freshness
   MOBILE_LAST_SEEN: 300, // 5 minutes - throttle for device activity updates
+<<<<<<< HEAD
+  // 20 minutes: Apple asks for no more than two or three background pushes an
+  // hour, drops the rest, and each one that lands also spends one of the 40 to
+  // 70 daily widget reloads, so three an hour is the fastest that stays honest
+  PUSH_SESSIONS_SYNC: 1200,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   // Filter options (dropdown values change infrequently)
   FILTER_OPTIONS: 120, // 2 minutes
   PLEX_GEOIP: 86400,
@@ -599,6 +675,8 @@ export function formatBitrate(kbps: number | null | undefined): string {
  * Keys are lowercase, values are proper display casing.
  */
 const MEDIA_TECH_DISPLAY: Record<string, string> = {
+<<<<<<< HEAD
+=======
   // Resolution
   '4k': '4K',
   '2k': '2K',
@@ -608,6 +686,7 @@ const MEDIA_TECH_DISPLAY: Record<string, string> = {
   '1080p': '1080p',
   '720p': '720p',
   '480p': '480p',
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   // Dynamic range
   sdr: 'SDR',
   hdr: 'HDR',
@@ -695,6 +774,13 @@ const MEDIA_TECH_DISPLAY: Record<string, string> = {
   cc: 'CC',
 };
 
+<<<<<<< HEAD
+/** Display casing for a resolution, codec or dynamic range; a resolution comes back as its tier name. */
+export function formatMediaTech(value: string | null | undefined): string {
+  if (!value) return 'Unknown';
+  const tier = normalizeResolutionLabel(value);
+  if (tier) return tier;
+=======
 /**
  * Format a media tech string (resolution, codec, dynamic range) for display.
  * Uses a lookup map for known values, falls back to uppercase for unknown.
@@ -710,6 +796,7 @@ const MEDIA_TECH_DISPLAY: Record<string, string> = {
  */
 export function formatMediaTech(value: string | null | undefined): string {
   if (!value) return 'Unknown';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   const lower = value.toLowerCase().trim();
   return MEDIA_TECH_DISPLAY[lower] ?? value.toUpperCase();
 }
@@ -799,7 +886,10 @@ export const SERVER_TYPE_BRAND_COLORS: Record<string, string> = {
   plex: '#F4A825',
   jellyfin: '#895FDD',
   emby: '#39C668',
+<<<<<<< HEAD
+=======
   navidrome: '#0088CC',
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 };
 
 /** Pick best color for a server given its type and colors already used by other servers */

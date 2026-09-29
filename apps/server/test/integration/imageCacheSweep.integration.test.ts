@@ -12,7 +12,12 @@ import { createTestServer } from '@tracearr/test-utils/factories';
 import { db } from '../../src/db/client.js';
 import { libraryItems } from '../../src/db/schema.js';
 import { posterCacheFileName } from '../../src/services/imageProxy.js';
+<<<<<<< HEAD
+import { getImageCacheStatus, sweepImageCache } from '../../src/services/imageCacheSweep.js';
+import { ESTIMATED_POSTER_BYTES } from '../../src/services/imageCacheGuard.js';
+=======
 import { sweepImageCache } from '../../src/services/imageCacheSweep.js';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 const ITEMS = 150_000;
 const REMOVED = 15_000; // subset of ITEMS with removed_at set; their files must survive
@@ -86,3 +91,50 @@ describe('imageCacheSweep at scale', () => {
     expect(grew).toBeLessThan(300 * 1024 * 1024);
   }, 600_000);
 });
+<<<<<<< HEAD
+
+describe('getImageCacheStatus poster count', () => {
+  it('counts one poster per server and path, not one per row that carries it', async () => {
+    const server = await createTestServer();
+    const albumCover = '/library/metadata/900/thumb/1';
+    await db.insert(libraryItems).values([
+      // Three tracks sharing their album's cover: one cache file, not three.
+      ...[0, 1, 2].map((n) => ({
+        serverId: server.id,
+        libraryId: 'lib-1',
+        ratingKey: `track-${n}`,
+        title: `Track ${n}`,
+        mediaType: 'track' as const,
+        thumbPath: albumCover,
+        removedAt: null,
+      })),
+      // Removed rows keep their poster, so they still count toward the need.
+      {
+        serverId: server.id,
+        libraryId: 'lib-1',
+        ratingKey: 'gone-movie',
+        title: 'Gone Movie',
+        mediaType: 'movie' as const,
+        thumbPath: '/library/metadata/901/thumb/1',
+        removedAt: new Date(),
+      },
+      // No thumb, so nothing to cache.
+      {
+        serverId: server.id,
+        libraryId: 'lib-1',
+        ratingKey: 'no-thumb',
+        title: 'No Thumb',
+        mediaType: 'movie' as const,
+        thumbPath: null,
+        removedAt: null,
+      },
+    ]);
+
+    const status = await getImageCacheStatus();
+
+    expect(status.postersWithThumb).toBe(2);
+    expect(status.estimatedNeedBytes).toBe(2 * ESTIMATED_POSTER_BYTES);
+  });
+});
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)

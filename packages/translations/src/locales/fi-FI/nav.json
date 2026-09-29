@@ -1,4 +1,37 @@
 {
+<<<<<<< HEAD
+  "dashboard": "Hallintapaneeli",
+  "map": "Kartta",
+  "history": "Historia",
+  "stats": "Tilastot",
+  "activity": "Toiminta",
+  "library": "Kirjasto",
+  "users": "Käyttäjät",
+  "automations": "",
+  "violations": "Rikkomukset",
+  "requests": "",
+  "alerts": "Ilmoitukset",
+  "settings": "Asetukset",
+  "overview": "Yleiskatsaus",
+  "quality": "Laatu",
+  "storage": "Tallennustila",
+  "watch": "Tarkkaile",
+  "performance": "Suorituskyky",
+  "devices": "Laitteet",
+  "bandwidth": "Kaistanleveys",
+  "jobs": "Työt",
+  "accessControl": "Käyttöoikeuksien Hallinta",
+  "media": "",
+  "mediaBrowse": "Selaa",
+  "mediaGenres": "Genret",
+  "session": "",
+  "user": "",
+  "violation": "",
+  "monitor": "",
+  "manage": "",
+  "userStats": "",
+  "toggleSidebar": ""
+=======
   "accessControl": "Käyttöoikeuksien Hallinta",
   "activity": "Toiminta",
   "alerts": "Ilmoitukset",
@@ -29,4 +62,5 @@
   "violation": "",
   "violations": "Rikkomukset",
   "watch": "Tarkkaile"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }

@@ -1,6 +1,15 @@
 import { useMemo } from 'react';
 import Highcharts from 'highcharts';
 import { HighchartsReact } from 'highcharts-react-official';
+<<<<<<< HEAD
+import { BarChart3 } from 'lucide-react';
+import { RESOLUTION_LABELS, resolutionBucket, type LibraryQualityResponse } from '@tracearr/shared';
+import { ChartSkeleton } from '@/components/ui/skeleton';
+import { EmptyState } from '@/components/ui/empty-state';
+import { RESOLUTION_COLORS } from '@/lib/resolutionColors';
+import { parseChartDate } from './chartUtils';
+
+=======
 import type { LibraryQualityResponse } from '@tracearr/shared';
 import { ChartSkeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -16,6 +25,7 @@ const QUALITY_COLORS = {
   SD: '#ef4444', // Red - needs upgrade
 };
 
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 interface QualityTimelineChartProps {
   data: LibraryQualityResponse | undefined;
   isLoading?: boolean;
@@ -30,6 +40,15 @@ export function QualityTimelineChart({ data, isLoading, height = 250 }: QualityT
     }
 
     const totalByDay = new Map(data.data.map((d) => [parseChartDate(d.day), d.totalItems]));
+<<<<<<< HEAD
+    const countOf = (label: (typeof RESOLUTION_LABELS)[number], d: (typeof data.data)[number]) =>
+      d.counts[resolutionBucket(label) ?? 'sd'];
+    // Worst tier first so the legend and stacking read upward; a tier nobody has stays off the chart
+    const shownLabels = [...RESOLUTION_LABELS]
+      .reverse()
+      .filter((label) => data.data.some((d) => countOf(label, d) > 0));
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
     return {
       chart: {
@@ -156,6 +175,14 @@ export function QualityTimelineChart({ data, isLoading, height = 250 }: QualityT
           return html;
         },
       },
+<<<<<<< HEAD
+      series: shownLabels.map((label) => ({
+        type: 'line' as const,
+        name: label,
+        data: data.data.map((d) => [parseChartDate(d.day), countOf(label, d)]),
+        color: RESOLUTION_COLORS[label],
+      })),
+=======
       series: [
         {
           type: 'line',
@@ -182,6 +209,7 @@ export function QualityTimelineChart({ data, isLoading, height = 250 }: QualityT
           color: QUALITY_COLORS['4K'],
         },
       ],
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       responsive: {
         rules: [
           {

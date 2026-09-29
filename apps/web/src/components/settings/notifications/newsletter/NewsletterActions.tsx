@@ -1,8 +1,15 @@
+<<<<<<< HEAD
+import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { ChevronDown, Eye, Send, TestTube2 } from 'lucide-react';
+import { isEmailAddress, type Newsletter, type NewsletterPreview } from '@tracearr/shared';
+=======
 import { useImperativeHandle, useState, type Ref } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, Eye, Send, TestTube2 } from 'lucide-react';
 import type { Newsletter, NewsletterPreview } from '@tracearr/shared';
 import { z } from 'zod';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { Button } from '@/components/ui/button';
 import { ButtonGroup } from '@/components/ui/button-group';
 import {
@@ -34,7 +41,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { formatList } from '@/lib/listFormat';
 import type { Translate } from '../newsletterFormat';
 import { SendNowDialog } from './SendNowDialog';
+<<<<<<< HEAD
+import { previewDraftBody, type NewsletterFormState } from './newsletterForm';
+=======
 import type { NewsletterFormState } from './newsletterForm';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import {
   countsListedLine,
   defaultVariantKey,
@@ -43,21 +54,27 @@ import {
   windowLabel,
 } from './previewSummary';
 
+<<<<<<< HEAD
+=======
 const address = z.email();
 
 export interface NewsletterActionsHandle {
   openPreview: () => void;
 }
 
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 interface NewsletterActionsProps {
   /** Null while the newsletter has not been saved: Preview alone, no send buttons. */
   newsletter: Newsletter | null;
   state: NewsletterFormState;
   dirty: boolean;
   valid: boolean;
+<<<<<<< HEAD
+=======
   /** The page's own refusal: callers without a disabled state reach openPreview on an invalid form. */
   onRefuse: () => void;
   ref?: Ref<NewsletterActionsHandle>;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 interface SwitchableVariant {
@@ -114,6 +131,9 @@ function VariantSwitcher({
 }
 
 /** Preview renders the form as it is, saved or not; Send test and Send now act on the saved row and wait for a save while the form is dirty. */
+<<<<<<< HEAD
+export function NewsletterActions({ newsletter, state, dirty, valid }: NewsletterActionsProps) {
+=======
 export function NewsletterActions({
   newsletter,
   state,
@@ -122,6 +142,7 @@ export function NewsletterActions({
   onRefuse,
   ref,
 }: NewsletterActionsProps) {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   const { t, i18n } = useTranslation(['settings', 'common']);
   // The two plural keys below exist as `_one`/`_other`, which the typed TFunction refuses as a base key.
   const translate = t as Translate;
@@ -140,10 +161,13 @@ export function NewsletterActions({
   const variantsQuery = useNewsletterVariants(testOpen && newsletter ? newsletter.id : undefined);
 
   const openPreview = () => {
+<<<<<<< HEAD
+=======
     if (!valid) {
       onRefuse();
       return;
     }
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     setPreviewed(null);
     setPreviewKey(null);
     setPreviewOpen(true);
@@ -154,12 +178,17 @@ export function NewsletterActions({
       return;
     }
     setPreviewIsDraft(true);
+<<<<<<< HEAD
+    previewDraft.mutate(previewDraftBody(state, newsletter?.id ?? null), handlers);
+  };
+=======
     previewDraft.mutate(
       { ...(newsletter ? { newsletterId: newsletter.id } : {}), newsletter: state },
       handlers
     );
   };
   useImperativeHandle(ref, () => ({ openPreview }));
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
   const openTest = () => {
     setTestAddress(user?.email ?? '');
@@ -322,7 +351,11 @@ export function NewsletterActions({
                   {t('common:actions.cancel')}
                 </Button>
                 <Button
+<<<<<<< HEAD
+                  disabled={test.isPending || !isEmailAddress(testAddress.trim())}
+=======
                   disabled={test.isPending || !address.safeParse(testAddress.trim()).success}
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                   onClick={() => {
                     const union = variantsQuery.data?.variants[0]?.key;
                     test.mutate(

@@ -340,6 +340,12 @@ export interface MediaLibraryItem {
   /** MusicBrainz ID (track/album/artist only) */
   musicBrainzId?: string;
 
+<<<<<<< HEAD
+  /** Normalized plex://movie/<id> or plex://episode/<id> guid (Plex only, see normalizePlexGuid) */
+  plexGuid?: string | null;
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   /** Genre names */
   genres?: string[];
 
@@ -483,7 +489,12 @@ export interface IMediaServerClient {
    * with quality metadata and external IDs when available.
    *
    * @param libraryId - The library identifier
+<<<<<<< HEAD
+   * @param options - Pagination options; libraryType lets the client narrow the
+   *   listing to the item types that library holds
+=======
    * @param options - Pagination options
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
    * @returns Promise with items array and total count for pagination. rawCount, when
    *   present, is the page's item count before any client-side filtering (e.g. extras) -
    *   callers should use it instead of items.length to decide whether pagination is
@@ -495,10 +506,27 @@ export interface IMediaServerClient {
     options?: {
       offset?: number;
       limit?: number;
+<<<<<<< HEAD
+      libraryType?: string;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     }
   ): Promise<{ items: MediaLibraryItem[]; totalCount: number; rawCount?: number }>;
 
   /**
+<<<<<<< HEAD
+   * Which of the given rating keys the server still has as items of this
+   * library. Optional - the full scan uses it to confirm that an item missing
+   * from the listing is gone before tombstoning it.
+   */
+  findExistingRatingKeys?(
+    ratingKeys: string[],
+    library: { id: string; type: string }
+  ): Promise<Set<string>>;
+
+  /**
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
    * Get all leaf items (episodes) from a library with pagination support
    *
    * For TV show libraries, returns all episodes across all shows.
@@ -529,7 +557,11 @@ export interface IMediaServerClient {
   getLibraryItemsSince?(
     libraryId: string,
     since: Date,
+<<<<<<< HEAD
+    options?: { offset?: number; limit?: number; libraryType?: string }
+=======
     options?: { offset?: number; limit?: number }
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   ): Promise<{ items: MediaLibraryItem[]; totalCount: number }>;
 
   /**
@@ -575,6 +607,20 @@ export interface IMediaServerClient {
     since: Date,
     options?: { offset?: number; limit?: number }
   ): Promise<{ items: MediaLibraryItem[]; totalCount: number }>;
+<<<<<<< HEAD
+
+  /**
+   * Ask the server whether each item's files are still on disk. Plex-only:
+   * its listings keep reporting a file until the library trash is emptied, and
+   * only the metadata endpoint says whether the file is really there. JF/Emby
+   * drop the item instead, so they leave this undefined.
+   *
+   * @param ratingKeys - Server item identifiers to check
+   * @returns Rating key -> version key -> whether the file exists
+   */
+  checkFilesExist?(ratingKeys: string[]): Promise<Map<string, Map<string, boolean>>>;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 /**

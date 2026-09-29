@@ -19,6 +19,10 @@ import {
   templateName,
   type DescribeRefs,
 } from '@/lib/automations';
+<<<<<<< HEAD
+import { compareText } from '@/lib/collation';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import type { AutomationTemplate, TemplateGroup } from '@/lib/api';
 import { GalleryRow, TemplateCard } from './TemplateCard';
 
@@ -155,6 +159,12 @@ export function TemplateGallery({
             <CommandGroup key={group} heading={t(`automations.gallery.group.${group}`)}>
               {entries
                 .filter((entry) => entry.template.group === group)
+<<<<<<< HEAD
+                .sort((a, b) =>
+                  compareText(templateName(t, a.template), templateName(t, b.template))
+                )
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                 .map(({ template, haystack }) => (
                   <CommandItem
                     key={template.id}

@@ -273,6 +273,10 @@ describe('browse hooks forward the full serverIds selection', () => {
         period: 'month',
         recentlyAddedMovies: [],
         recentlyAddedShows: [],
+<<<<<<< HEAD
+        recentlyUpdated: [],
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         mostPopularMovies: [],
         mostPopularShows: [],
         deadWeight: [],
@@ -439,7 +443,11 @@ describe('findCachedMediaStub', () => {
   function shelfRow(
     overrides: Partial<ShelvesResponse['recentlyAddedMovies'][number]> = {}
   ): ShelvesResponse['recentlyAddedMovies'][number] {
+<<<<<<< HEAD
+    return { ...stubFields, newEpisodes: null, newestEpisodeAt: null, ...overrides };
+=======
     return { ...stubFields, newEpisodes: null, ...overrides };
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   }
 
   it('finds a row cached under a catalog window query and maps it to a stub', () => {
@@ -471,6 +479,10 @@ describe('findCachedMediaStub', () => {
       period: 'month',
       recentlyAddedMovies: [shelfRow({ mediaId: 'media-2', title: 'Shogun' })],
       recentlyAddedShows: [],
+<<<<<<< HEAD
+      recentlyUpdated: [],
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       mostPopularMovies: [],
       mostPopularShows: [],
       deadWeight: [],

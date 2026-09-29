@@ -1,4 +1,302 @@
 {
+<<<<<<< HEAD
+  "toast": {
+    "success": {
+      "serverAdded": {
+        "title": "Serwer dodany",
+        "message": "{{name}} został połączony pomyślnie"
+      },
+      "serverRemoved": {
+        "title": "Serwer usunięty",
+        "message": "Serwer został pomyślnie usunięty"
+      },
+      "serverSynced": {
+        "title": "Serwer zsynchronizowany",
+        "message": "Dane serwera zostały zsynchronizowane"
+      },
+      "settingsUpdated": {
+        "title": "Zaktualizowano ustawienia",
+        "message": "Ustawienia zostały zapisane"
+      },
+      "tokenCopied": {
+        "title": "Token skopiowany",
+        "message": "Skopiowano token do schowka"
+      },
+      "violationAcknowledged": {
+        "title": "Potwierdzono naruszenie",
+        "message": "Naruszenie zostało oznaczone jako potwierdzone"
+      },
+      "violationDismissed": {
+        "title": "Naruszenie zostało odrzucone",
+        "message": "Naruszenie zostało odrzucone"
+      },
+      "deviceRemoved": {
+        "title": "Urządzenie usunięte",
+        "message": "Urządzenie zostało rozłączone"
+      },
+      "deviceRenamed": {
+        "title": "Nazwa urządzenia zmieniona",
+        "message": "Zaktualizowano nazwę urządzenia"
+      },
+      "sessionsRevoked": {
+        "title": "Sesje unieważnione",
+        "message": "Wszystkie sesje mobilne zostały anulowane"
+      },
+      "loggedIn": {
+        "title": "Powodzenie",
+        "message": "Zalogowano pomyślnie"
+      },
+      "webhookTest": {
+        "title": "Test zakończony powodzeniem",
+        "message": "Webhook działa prawidłowo"
+      },
+      "copiedToClipboard": {
+        "title": "Skopiowane do schowka"
+      },
+      "plexAccountLinked": {
+        "title": "Konto Plex powiązane",
+        "message": "Teraz możesz dodać serwery z konta Plex"
+      },
+      "plexAccountUnlinked": {
+        "title": "Konto Plex niepowiązane",
+        "message": "Twoje konto Plex zostało odłączone"
+      },
+      "plexAccountReauthorized": {
+        "title": "Konto Plex ponownie autoryzowane",
+        "message_one": "{{count}} serwer połączony ponownie",
+        "message_other": "{{count}} serwery połączone ponownie",
+        "messageNoServers": "Token konta zaktualizowany",
+        "partial": "Token został zaktualizowany, ale {{names}} nadal go odrzucił",
+        "unmatched": "Token został zaktualizowany, ale {{names}} nie mógł zostać ponownie połączony"
+      },
+      "agentAdded": {
+        "title": "Dodano agenta",
+        "message": "Agent powiadomień został dodany"
+      },
+      "agentUpdated": {
+        "title": "Agent zaktualizowany",
+        "message": "Agent powiadomień został zaktualizowany"
+      },
+      "agentRemoved": {
+        "title": "Agent został usunięty",
+        "message": "Agent powiadomień został usunięty"
+      },
+      "jobCompleted": {
+        "title": "Zadanie zakończone",
+        "message": "{{name}} zakończono pomyślnie"
+      },
+      "automationCreated": {
+        "title": "Automatyzacja została utworzona",
+        "message": "Automatyzacja została utworzona pomyślnie"
+      },
+      "automationUpdated": {
+        "title": "Zaktualizowano automatyzację",
+        "message": "Automatyzacja została pomyślnie zaktualizowana"
+      },
+      "automationDeleted": {
+        "title": "Automatyzacja usunięta",
+        "message": "Automatyzacja została pomyślnie usunięta"
+      },
+      "streamTerminated": {
+        "title": "Transmisja zakończona",
+        "message": "Sesja odtwarzania została wstrzymana"
+      },
+      "serverUrlUpdated": {
+        "title": "Adres URL serwera zaktualizowany",
+        "message": "Adres URL serwera został pomyślnie zaktualizowany"
+      },
+      "serverUpdated": {
+        "title": "Zaktualizowano Serwer",
+        "message": "Serwer został pomyślnie zaktualizowany"
+      },
+      "serverLocationSaved": {
+        "title": "Zapisano lokalizację serwera",
+        "queued": "Wcześniejsze lokalne sesje są aktualizowane w tle.",
+        "waiting": "Przeszłe lokalne sesje zostaną zaktualizowane po zakończeniu bieżącego zadania."
+      },
+      "syncCompletedWithErrors": {
+        "title": "Synchronizacja zakończona z błędami"
+      },
+      "sessionsDeleted": {
+        "title": "Sesje usunięte",
+        "message_one": "{{count}} sesja usunięta",
+        "message_other": "{{count}} sesje usunięta"
+      },
+      "violationsAcknowledged": {
+        "title": "Naruszenia potwierdzone",
+        "message_one": "{{count}} naruszenie potwierdzone",
+        "message_other": "{{count}} naruszenia potwierdzone"
+      },
+      "violationsDismissed": {
+        "title": "Naruszenia odrzucono",
+        "message_one": "{{count}} naruszenie odrzucono",
+        "message_other": "{{count}} naruszenia odrzucono"
+      },
+      "apiKeyGenerated": {
+        "title": "Wygenerowany klucz API",
+        "message": "Twój nowy klucz API jest gotowy do użycia"
+      },
+      "mobileAccessEnabled": {
+        "title": "Dostęp mobilny włączony",
+        "message": "Zeskanuj kod QR za pomocą aplikacji mobilnej Tracearr, aby się połączyć"
+      },
+      "mobileAccessDisabled": {
+        "title": "Dostęp mobilny wyłączony",
+        "message": "Wszystkie sesje mobilne zostały anulowane"
+      },
+      "pairTokenGenerated": {
+        "title": "Wygenerowano token parowania",
+        "message": "Zeskanuj kod QR za pomocą urządzenia mobilnego, aby sparować"
+      },
+      "identityUpdated": "Profil zaktualizowany",
+      "trustScoresReset": {
+        "title": "Zresetuj wyniki zaufania",
+        "message_one": "{{count}} użytkownik zresetowany do 100",
+        "message_other": "{{count}} użytkownicy zresetowani do 100"
+      },
+      "claimCodeValidated": {
+        "title": "Kod został poprawnie zweryfikowany",
+        "message": "Możesz kontynuować konfigurację"
+      },
+      "usersMerged": {
+        "title": "Użytkownicy zostali scaleni",
+        "automationsKept": "Zachowano wersję docelową: {{names}}"
+      },
+      "serverUserSplit": {
+        "title": "Konto podzielone na osobnych użytkowników"
+      },
+      "mergeSuggestionDismissed": "Oznaczono jako inne osoby",
+      "mergeSuggestionRestored": "Sugestia przywrócona",
+      "destinationSaved": "Miejsce docelowe zapisane",
+      "destinationDeleted": "Miejsce docelowe usunięte",
+      "destinationTestSent": "Wysłano testowe powiadomienie",
+      "destinationTestSentTo": "Wysłano testowe powiadomienie do {{address}}",
+      "newsletterSaved": "Newsletter zapisany",
+      "newsletterDeleted": "Newsletter usunięty",
+      "newsletterDuplicated": "Newsletter zduplikowany",
+      "newsletterTestQueued": "Test w kolejce do {{address}}",
+      "newsletterSendQueued": "Wyślij w kolejce",
+      "newsletterRetryQueued": "Ponawianie próby do {{count}} odbiorców",
+      "brandingSaved": "Branding e-mail zapisany",
+      "suppressionAdded": "Adres dodany do listy wyciszenia",
+      "suppressionRemoved": "Adres usunięty z listy wyciszenia"
+    },
+    "error": {
+      "serverAddFailed": "Nie udało się dodać serwera",
+      "serverRemoveFailed": "Nie udało się usunąć serwera",
+      "serverSyncFailed": "Nie udało się zsynchronizować serwera",
+      "settingsUpdateFailed": "Nie udało się zaktualizować ustawień",
+      "copyFailed": "Nie można skopiować do schowka",
+      "acknowledgeFailed": "Nieudane potwierdzenie naruszenia",
+      "dismissFailed": "Nie udało się odrzucić naruszenia",
+      "authFailed": "Uwierzytelnianie nie powiodło się",
+      "webhookTestFailed": "Test webhooka nie powiódł się",
+      "automationCreateFailed": "Nie udało się utworzyć automatyzacji",
+      "automationUpdateFailed": "Nie udało się zaktualizować automatyzacji",
+      "automationDeleteFailed": "Nie udało się usunąć automatyzacji",
+      "streamTerminateFailed": "Nie udało się zakończyć streamu",
+      "serverUrlUpdateFailed": "Nie udało się zaktualizować URL serwera",
+      "serverUpdateFailed": "Nie udało się zaktualizować serwera",
+      "serverLocationSaveFailed": "Nie udało się zapisać lokalizacji serwera",
+      "serverReorderFailed": "Nie udało się zmienić kolejności serwerów",
+      "sessionsDeleteFailed": "Nie udało się usunąć sesji",
+      "apiKeyGenerateFailed": "Nie udało się wygenerować klucza API",
+      "mobileAccessEnableFailed": "Nie udało się włączyć dostępu mobilnego",
+      "mobileAccessDisableFailed": "Nie udało się wyłączyć dostępu mobilnego",
+      "pairTokenGenerateFailed": "Nie udało się wygenerować tokenu parowania",
+      "deviceRemoveFailed": "Nie udało się usunąć urządzenia",
+      "deviceRenameFailed": "Nie udało się zmienić nazwy urządzenia",
+      "sessionsRevokeFailed": "Nie udało się anulować sesji",
+      "identityUpdateFailed": "Nie udało się zaktualizować profilu",
+      "trustScoresResetFailed": "Nie udało się zresetować punktów zaufania",
+      "routingUpdateFailed": "Nie udało się zaktualizować trasy",
+      "clipboardFailed": "Nie udało się skopiować do schowka",
+      "plexUnlinkFailed": "Nie udało się odłączyć konta Plex",
+      "plexReauthorizeFailed": "Nie udało się ponownie autoryzować konta Plex",
+      "agentAddFailed": "Nie udało się dodać agenta",
+      "agentUpdateFailed": "Nie udało się zaktualizować agenta",
+      "agentRemoveFailed": "Nie udało się usunąć agenta",
+      "agentTestFailed": "Test nie powiódł się",
+      "jobAlreadyRunning": "Zadanie jest już uruchomione",
+      "jobStartFailed": "Nie udało się uruchomić zadania",
+      "jobLoadFailed": "Nie udało się załadować zadań konserwacyjnych",
+      "invalidUrl": "Nieprawidłowy adres URL",
+      "plexDirectUrl": "plex.direct adresy URL są adresami, które nie mogą być tutaj użyte. Użyj bezpośredniego adresu IP lub nazwy hosta.",
+      "userMergeFailed": "Nie udało się scalić użytkowników",
+      "serverUserSplitFailed": "Nie udało się rozdzielić użytkowników",
+      "mergeSuggestionDismissFailed": "Nie udało się odrzucić sugestii",
+      "mergeSuggestionRestoreFailed": "Nie udało się przywrócić sugestii",
+      "invalidClaimCode": {
+        "title": "Niepoprawny kod żądania",
+        "message": "Proszę sprawdzić logi serwera"
+      },
+      "destinationSaveFailed": "Nie udało się zapisać miejsca docelowego: {{error}}",
+      "destinationDeleteFailed": "Nie udało się usunąć miejsca docelowego: {{error}}",
+      "destinationTestFailed": "Test zakończony niepowodzeniem: {{error}}",
+      "destinationInUse": "Nadal używane przez: {{rules}}",
+      "destinationUsedByNewsletters": "Nadal używane przez newslettery: {{names}}",
+      "newsletterSaveFailed": "Nie udało się zapisać newslettera: {{error}}",
+      "newsletterDeleteFailed": "Nie udało się usunąć newslettera: {{error}}",
+      "newsletterDuplicateFailed": "Nie udało się zduplikować newslettera: {{error}}",
+      "newsletterPreviewFailed": "Nie udało się wygenerować podglądu: {{error}}",
+      "newsletterTestFailed": "Nie udało się dodać testu do kolejki: {{error}}",
+      "newsletterSendFailed": "Nie udało się dodać wysyłki do kolejki: {{error}}",
+      "newsletterRetryFailed": "Ponowna próba wysyłki zakończona niepowodzeniem: {{error}}",
+      "newsletterSnapshotFailed": "Nie udało się załadować zrzutu: {{error}}",
+      "brandingSaveFailed": "Nie udało się zapisać brandingu: {{error}}",
+      "suppressionAddFailed": "Nie udało się dodać adresu: {{error}}",
+      "suppressionRemoveFailed": "Nie udało się usunąć adresu: {{error}}"
+    },
+    "warning": {
+      "jobFailed": {
+        "title": "Zadanie nie powiodło się",
+        "message": "{{name}} napotkał na błąd"
+      }
+    },
+    "info": {
+      "updateAvailable": {
+        "title": "Aktualizacja dostępna",
+        "message": "Tracearr {{version}} jest dostępny"
+      },
+      "violationDetected": {
+        "title": "Nowe naruszenie: {{ruleName}}",
+        "message": "{{user}} uruchomił {{ruleType}}"
+      }
+    }
+  },
+  "push": {
+    "violationDetected": "Wykryto naruszenie współdzielenia",
+    "streamStarted": "Transmisja Rozpoczęta",
+    "streamEnded": "Transmisja Zakończona",
+    "serverDown": "Utracono połączenie z serwerem",
+    "serverUp": "Serwer z powrotem Online",
+    "newDevice": "Nowe Urządzenie",
+    "trustScoreChanged": "Zmienił się poziom zaufania"
+  },
+  "settings": {
+    "title": "Ustawienia Powiadomień",
+    "allSeverity": "Wszystkie (Niskie, Ostrzeżenie, Wysokie)",
+    "warningAndHigh": "Tylko ostrzeżenie i wysokie",
+    "highOnly": "Tylko o wysokim priorytecie",
+    "allTypes": "Wszystkie rodzaje",
+    "rateLimit": "Aktualny status limitu zapytań",
+    "perMinute": "Na minutę",
+    "perHour": "Na godzinę",
+    "enablePushNotifications": "Włącz powiadomienia push",
+    "notificationEvents": "Powiadomienia o zdarzeniach",
+    "violationDetected": "Wykryto naruszenie",
+    "violationDetectedDesc": "Gdy naruszenie udostępniania jest wyzwalane",
+    "streamStarted": "Transmisja Rozpoczęta",
+    "streamStartedDesc": "Kiedy użytkownik zacznie obserwować",
+    "streamStopped": "Transmisja Wstrzymana",
+    "streamStoppedDesc": "Gdy użytkownik przestanie oglądać",
+    "concurrentStreams": "Równoległe Transmisje",
+    "concurrentStreamsDesc": "Po przekroczeniu maksymalnego limitu strumienia",
+    "newDevice": "Nowe Urządzenie",
+    "newDeviceDesc": "Gdy nowe urządzenie łączy",
+    "trustScoreChanged": "Zmieniono wynik zaufania",
+    "trustScoreChangedDesc": "Kiedy zmienia się wynik zaufania użytkownika",
+=======
   "push": {
     "newDevice": "Nowe Urządzenie",
     "serverDown": "Utracono połączenie z serwerem",
@@ -26,10 +324,19 @@
     "quietHours": "Godziny ciszy",
     "rateLimit": "Aktualny status limitu zapytań",
     "rateLimiting": "Ograniczanie liczby żądań",
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     "serverDown": "Serwer Nieaktywny",
     "serverDownDesc": "Kiedy serwer multimediów jest offline",
     "serverUp": "Serwer Aktywny",
     "serverUpDesc": "Kiedy serwer multimediów wróci do trybu online",
+<<<<<<< HEAD
+    "violationFilters": "Filtry naruszeń",
+    "minimumSeverity": "Minimalna waga",
+    "quietHours": "Godziny ciszy",
+    "enableQuietHours": "Włącz godziny ciszy",
+    "overrideForCritical": "Nadpisz dla krytycznych",
+    "rateLimiting": "Ograniczanie liczby żądań"
+=======
     "streamStarted": "Transmisja Rozpoczęta",
     "streamStartedDesc": "Kiedy użytkownik zacznie obserwować",
     "streamStopped": "Transmisja Wstrzymana",
@@ -295,5 +602,6 @@
         "title": "Zadanie nie powiodło się"
       }
     }
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   }
 }

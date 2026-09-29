@@ -40,7 +40,11 @@ const NULL_GEO = {
 
 function buildCreationInput(
   overrides: Partial<SessionCreationInput['processed']>,
+<<<<<<< HEAD
+  server: { id: string; name: string; type: 'plex' | 'jellyfin' | 'emby' },
+=======
   server: { id: string; name: string; type: 'plex' | 'jellyfin' | 'emby' | 'navidrome' },
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   serverUser: { id: string; userId: string; username: string; thumbUrl: string | null }
 ): SessionCreationInput {
   return {

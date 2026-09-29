@@ -62,10 +62,18 @@ async function fetchItemCounts(
 }
 
 /**
+<<<<<<< HEAD
+ * All-time alias-safe engagement per genre: cagg rows are pre-grouped per
+ * media (pm), then joined to their recorded media (pmr) and resolved to the
+ * canonical row (canon) via merged_into_id - a merged loser's plays land on
+ * the canonical row's genre buckets, never the loser's own (possibly
+ * different) genres.
+=======
  * All-time alias-safe engagement per genre: cagg rows join to their recorded
  * media (pm), then resolve to the canonical row (canon) via merged_into_id -
  * a merged loser's plays land on the canonical row's genre buckets, never
  * the loser's own (possibly different) genres.
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
  */
 async function fetchEngagement(
   type: 'movie' | 'show',
@@ -75,6 +83,28 @@ async function fetchEngagement(
   const showGuard = type === 'show' ? sql`AND p.show_media_id IS NOT NULL` : sql``;
   const serverFragmentP = buildMultiServerFragment(serverIds, 'p.server_id');
   const result = await db.execute(sql`
+<<<<<<< HEAD
+    WITH per_media AS (
+      SELECT ${mediaCol} AS media_id,
+             COUNT(DISTINCT p.chain_id) FILTER (WHERE p.counted) AS plays,
+             SUM(p.watched_ms) AS watch_time_ms
+      FROM user_media_plays_daily p
+      WHERE ${mediaCol} IN (
+        SELECT pmr.id FROM media pmr
+        JOIN media canon ON canon.id = COALESCE(pmr.merged_into_id, pmr.id)
+        WHERE canon.media_type = ${type}
+      ) ${showGuard} ${serverFragmentP}
+      GROUP BY ${mediaCol}
+    )
+    SELECT genre,
+           SUM(pm.plays)::bigint AS plays,
+           SUM(pm.watch_time_ms)::bigint AS watch_time_ms
+    FROM per_media pm
+    JOIN media pmr ON pmr.id = pm.media_id
+    LEFT JOIN media canon ON canon.id = COALESCE(pmr.merged_into_id, pmr.id)
+    , unnest(canon.genres) AS genre
+    WHERE canon.media_type = ${type}
+=======
     SELECT genre,
            SUM(p.plays)::bigint AS plays,
            SUM(p.watched_ms)::bigint AS watch_time_ms
@@ -83,6 +113,7 @@ async function fetchEngagement(
     LEFT JOIN media canon ON canon.id = COALESCE(pm.merged_into_id, pm.id)
     , unnest(canon.genres) AS genre
     WHERE canon.media_type = ${type} ${showGuard} ${serverFragmentP}
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     GROUP BY genre
   `);
   const engagement = new Map<string, { plays: number; watchTimeMs: number }>();

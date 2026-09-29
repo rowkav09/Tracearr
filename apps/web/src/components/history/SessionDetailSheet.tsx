@@ -4,6 +4,10 @@
  */
 
 import { lazy, memo, Suspense, useState } from 'react';
+<<<<<<< HEAD
+import { useTranslation } from 'react-i18next';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { Link } from 'react-router';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -38,6 +42,20 @@ import {
   ChevronRight,
   Clapperboard,
 } from 'lucide-react';
+<<<<<<< HEAD
+import { cn, getCountryName, getMediaDisplay, getSessionProgress } from '@/lib/utils';
+import { imageProxyUrl } from '@/lib/api';
+import { formatDuration } from '@/lib/formatters';
+import { getAvatarUrl } from '@/components/users/utils';
+import { LocalBadge } from '@/components/sessions/LocalBadge';
+import { StreamDetailsPanel } from './StreamDetailsPanel';
+
+import {
+  PLAYBACK_DECISION_LABEL_KEYS,
+  POSTER_IMAGE_SIZE,
+  playbackDecision,
+} from '@tracearr/shared';
+=======
 import { cn, getCountryName, getMediaDisplay } from '@/lib/utils';
 import { imageProxyUrl } from '@/lib/api';
 import { formatDuration } from '@/lib/formatters';
@@ -45,6 +63,7 @@ import { getAvatarUrl } from '@/components/users/utils';
 import { StreamDetailsPanel } from './StreamDetailsPanel';
 
 import { POSTER_IMAGE_SIZE } from '@tracearr/shared';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import type {
   SessionWithDetails,
   ActiveSession,
@@ -66,7 +85,10 @@ interface Props {
 
 // Server type configuration
 const SERVER_CONFIG: Record<ServerType, { label: string; color: string }> = {
+<<<<<<< HEAD
+=======
   navidrome: { label: 'Navidrome', color: 'text-sky-500' },
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   plex: { label: 'Plex', color: 'text-amber-500' },
   jellyfin: { label: 'Jellyfin', color: 'text-purple-500' },
   emby: { label: 'Emby', color: 'text-green-500' },
@@ -111,6 +133,8 @@ function getWatchTime(session: SessionWithDetails | ActiveSession): number | nul
   return null;
 }
 
+<<<<<<< HEAD
+=======
 // Get progress percentage (playback position)
 // Uses progressMs (where in the video) not durationMs (how long watched)
 function getProgress(session: SessionWithDetails): number {
@@ -119,6 +143,7 @@ function getProgress(session: SessionWithDetails): number {
   return Math.min(100, Math.round((progress / session.totalDurationMs) * 100));
 }
 
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 const LazyMiniMap = lazy(() =>
   import('@/components/map/MiniMap').then((m) => ({ default: m.MiniMap }))
 );
@@ -215,6 +240,10 @@ function SegmentTable({
 
 // Inner content component - keeps state hooks and derived values together
 function SessionContent({ session }: { session: SessionWithDetails | ActiveSession }) {
+<<<<<<< HEAD
+  const { t } = useTranslation();
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   const [locationOpen, setLocationOpen] = useState(false);
   const [segmentsOpen, setSegmentsOpen] = useState(false);
 
@@ -231,7 +260,11 @@ function SessionContent({ session }: { session: SessionWithDetails | ActiveSessi
   const mediaConfig = MEDIA_CONFIG[session.mediaType];
   const MediaIcon = mediaConfig.icon;
   const { title: primary, subtitle: secondary } = getMediaDisplay(session);
+<<<<<<< HEAD
+  const progress = getSessionProgress(session);
+=======
   const progress = getProgress(session);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   const hasLocation = session.geoLat !== null && session.geoLon !== null;
   const geoCountryName = getCountryName(session.geoCountry);
   const geoCoordinates =
@@ -303,11 +336,20 @@ function SessionContent({ session }: { session: SessionWithDetails | ActiveSessi
             {secondary && (
               <div className="text-muted-foreground mt-0.5 truncate text-sm">{secondary}</div>
             )}
+<<<<<<< HEAD
+            {progress !== null && (
+              <div className="mt-2 flex items-center gap-2">
+                <Progress value={progress} className="h-1.5 flex-1" />
+                <span className="text-muted-foreground w-8 text-xs">{progress}%</span>
+              </div>
+            )}
+=======
             {/* Progress inline */}
             <div className="mt-2 flex items-center gap-2">
               <Progress value={progress} className="h-1.5 flex-1" />
               <span className="text-muted-foreground w-8 text-xs">{progress}%</span>
             </div>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           </div>
         </div>
 
@@ -445,6 +487,10 @@ function SessionContent({ session }: { session: SessionWithDetails | ActiveSessi
               <div className="flex items-center gap-1.5 text-sm">
                 <Globe className="text-muted-foreground h-3.5 w-3.5 flex-shrink-0" />
                 <span>{locationString}</span>
+<<<<<<< HEAD
+                <LocalBadge isLocal={session.isLocal} country={session.geoCountry} />
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
               </div>
             )}
             <CollapsibleContent className="space-y-2">
@@ -544,7 +590,11 @@ function SessionContent({ session }: { session: SessionWithDetails | ActiveSessi
                         <TooltipTrigger asChild>
                           <span className="flex items-center gap-1">
                             <TranscodeIcon className="h-3 w-3" />
+<<<<<<< HEAD
+                            {t(PLAYBACK_DECISION_LABEL_KEYS.transcode)}
+=======
                             Transcode
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                           </span>
                         </TooltipTrigger>
                         <TooltipContent side="top" className="max-w-xs text-left">
@@ -555,7 +605,11 @@ function SessionContent({ session }: { session: SessionWithDetails | ActiveSessi
                   ) : (
                     <>
                       <TranscodeIcon className="h-3 w-3" />
+<<<<<<< HEAD
+                      {t(PLAYBACK_DECISION_LABEL_KEYS.transcode)}
+=======
                       Transcode
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                     </>
                   )}
                 </Badge>
@@ -565,9 +619,13 @@ function SessionContent({ session }: { session: SessionWithDetails | ActiveSessi
             return (
               <Badge variant="success" className="gap-1 text-xs">
                 <MonitorPlay className="h-3 w-3" />
+<<<<<<< HEAD
+                {t(PLAYBACK_DECISION_LABEL_KEYS[playbackDecision(session)])}
+=======
                 {session.videoDecision === 'copy' || session.audioDecision === 'copy'
                   ? 'Direct Stream'
                   : 'Direct Play'}
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
               </Badge>
             );
           })()}

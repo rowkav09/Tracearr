@@ -54,6 +54,10 @@ function AddEmailDestinationButton() {
           onOpenChange={setOpen}
           mode="create"
           initialKind="email"
+<<<<<<< HEAD
+          purpose="newsletter"
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           onCreated={(created) =>
             void navigate(`${NEWSLETTERS_PATH}/new`, { state: { destinationId: created.id } })
           }

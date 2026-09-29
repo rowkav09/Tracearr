@@ -1,13 +1,25 @@
+<<<<<<< HEAD
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+=======
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { useTranslation } from 'react-i18next';
 import type {
   CreateNewsletterInput,
   Newsletter,
   NewsletterPreviewDraftInput,
+<<<<<<< HEAD
+  NewsletterRecipientsDraftInput,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   NewsletterSendSummary,
   UpdateNewsletterInput,
 } from '@tracearr/shared';
 import { toast } from 'sonner';
+<<<<<<< HEAD
+import { useDebouncedValue } from '@/hooks/useDebouncedValue';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { api, ApiError } from '@/lib/api';
 
 export const NEWSLETTERS_KEY = ['newsletters'];
@@ -16,7 +28,15 @@ export const newsletterKeys = {
   detail: (id: string) => [...NEWSLETTERS_KEY, id],
   sendsAll: (id: string) => [...NEWSLETTERS_KEY, id, 'sends'],
   sends: (id: string, page: number) => [...NEWSLETTERS_KEY, id, 'sends', page],
+<<<<<<< HEAD
+  recipients: (draft: NewsletterRecipientsDraftInput | null) => [
+    ...NEWSLETTERS_KEY,
+    'recipients',
+    draft,
+  ],
+=======
   recipients: (id: string) => [...NEWSLETTERS_KEY, id, 'recipients'],
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   variants: (id: string) => [...NEWSLETTERS_KEY, id, 'variants'],
 };
 
@@ -69,6 +89,21 @@ export function useNewsletter(id: string | undefined) {
   });
 }
 
+<<<<<<< HEAD
+export const RECIPIENTS_SETTLE_MS = 400;
+
+/** Who the form as it stands would reach. A changed draft settles before it is posted and the last answer stays up meanwhile, so pass the same object while nothing changed or every render restarts the wait. */
+export function useNewsletterRecipients(draft: NewsletterRecipientsDraftInput | null) {
+  const settled = useDebouncedValue(draft, RECIPIENTS_SETTLE_MS);
+  return useQuery({
+    queryKey: newsletterKeys.recipients(settled),
+    queryFn: () => {
+      if (!settled) throw new Error('recipients draft required');
+      return api.newsletters.recipients(settled);
+    },
+    enabled: settled !== null,
+    placeholderData: keepPreviousData,
+=======
 export function useNewsletterRecipients(id: string | undefined) {
   return useQuery({
     queryKey: newsletterKeys.recipients(id ?? ''),
@@ -77,6 +112,7 @@ export function useNewsletterRecipients(id: string | undefined) {
       return api.newsletters.recipients(id);
     },
     enabled: !!id,
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     staleTime: 30_000,
     retry: false,
   });

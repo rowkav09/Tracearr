@@ -1,7 +1,11 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { getName as getCountryNameFromCode } from 'country-list';
+<<<<<<< HEAD
+import { formatEpisodeLabel } from '@tracearr/shared';
+=======
 import { formatEpisodeLabel, type MediaType } from '@tracearr/shared';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -37,7 +41,12 @@ export function formatLocationCompact(
  * Media display fields interface for formatting media titles
  */
 interface MediaDisplayFields {
+<<<<<<< HEAD
+  /** Sessions say episode/track; library items add show, artist and album */
+  mediaType: string | null;
+=======
   mediaType: MediaType | null;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   mediaTitle: string | null;
   grandparentTitle?: string | null;
   seasonNumber?: number | null;
@@ -48,6 +57,21 @@ interface MediaDisplayFields {
 }
 
 /**
+<<<<<<< HEAD
+ * Playback position as a percentage of the length. Null when either is
+ * unknown: an import can carry a length with no position, and that is not 0%.
+ */
+export function getSessionProgress(session: {
+  progressMs: number | null;
+  totalDurationMs: number | null;
+}): number | null {
+  if (!session.totalDurationMs || session.progressMs == null) return null;
+  return Math.min(100, Math.round((session.progressMs / session.totalDurationMs) * 100));
+}
+
+/**
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
  * Get display title for media (handles TV shows vs movies vs music)
  * Formats media information consistently across the application.
  *
@@ -88,6 +112,32 @@ export function getMediaDisplay(media: MediaDisplayFields): {
   };
 }
 
+<<<<<<< HEAD
+/**
+ * What a client calls itself, else the app and hardware it reports. Null when
+ * the server sent nothing identifying, so callers pick their own fallback.
+ */
+export function getDeviceDisplayName(device: {
+  playerName?: string | null;
+  product?: string | null;
+  device?: string | null;
+  platform?: string | null;
+}): string | null {
+  if (device.playerName) return device.playerName;
+
+  const hardware = device.device;
+  const parts: string[] = [];
+  if (device.product) parts.push(device.product);
+  if (hardware && !parts.some((part) => part.toLowerCase().includes(hardware.toLowerCase()))) {
+    parts.push(hardware);
+  }
+  if (parts.length > 0) return parts.join(' - ');
+
+  return device.platform ?? null;
+}
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 /** crypto.randomUUID needs a secure context; a LAN address over plain http only has getRandomValues. */
 export function randomUuid(): string {
   if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();

@@ -45,6 +45,10 @@ function createMockSession(overrides: Partial<Session> = {}): Session {
     geoLon: null,
     geoAsnNumber: null,
     geoAsnOrganization: null,
+<<<<<<< HEAD
+    isLocal: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     playerName: 'Living Room TV',
     deviceId: 'device-123',
     product: 'Plex Web',

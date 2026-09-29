@@ -1,10 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+<<<<<<< HEAD
+=======
 import { createRef } from 'react';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Newsletter, NewsletterPreview } from '@tracearr/shared';
 import { defaultFormState, type NewsletterFormState } from './newsletterForm';
+<<<<<<< HEAD
+import { NewsletterActions } from './NewsletterActions';
+=======
 import { NewsletterActions, type NewsletterActionsHandle } from './NewsletterActions';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -32,7 +39,10 @@ import { useNewsletterVariants } from '@/hooks/queries';
 
 const newsletter = { id: 'n-1', name: 'Weekly', timezone: 'UTC' } as Newsletter;
 const state: NewsletterFormState = { ...defaultFormState(), name: 'Weekly', timezone: 'UTC' };
+<<<<<<< HEAD
+=======
 const refuse = vi.fn();
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 const preview: NewsletterPreview = {
   window: {
     start: '2026-08-28T00:00:00.000Z',
@@ -81,6 +91,9 @@ const emptyUnion: NewsletterPreview = {
 
 function renderActions(over: Partial<Parameters<typeof NewsletterActions>[0]> = {}) {
   return render(
+<<<<<<< HEAD
+    <NewsletterActions newsletter={newsletter} state={state} dirty={false} valid {...over} />
+=======
     <NewsletterActions
       newsletter={newsletter}
       state={state}
@@ -89,6 +102,7 @@ function renderActions(over: Partial<Parameters<typeof NewsletterActions>[0]> = 
       onRefuse={refuse}
       {...over}
     />
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   );
 }
 
@@ -164,6 +178,8 @@ describe('NewsletterActions', () => {
     expect(await screen.findByRole('tooltip')).toHaveTextContent('newsletters.editor.fixFirst');
   });
 
+<<<<<<< HEAD
+=======
   it('hands an invalid form back to the page instead of previewing it', async () => {
     const ref = createRef<NewsletterActionsHandle>();
     renderActions({ valid: false, ref });
@@ -174,6 +190,7 @@ describe('NewsletterActions', () => {
     expect(refuse).toHaveBeenCalled();
   });
 
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   it('disables Send test and Send now while dirty, with the save-first reason, and sends nothing', async () => {
     renderActions({ dirty: true });
     const test = screen.getByRole('button', { name: 'newsletters.editor.actions.test' });

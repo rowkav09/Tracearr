@@ -1,6 +1,10 @@
 import { z } from 'zod';
 import { DYNAMIC_RANGE_TOKENS } from '../dynamicRange.js';
+<<<<<<< HEAD
+import { RESOLUTION_LABELS } from '../resolution.js';
+=======
 import { RESOLUTION_TIERS } from '../resolution.js';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { contextSupplies, type TriggerContext } from './triggers.js';
 
 // Operators
@@ -28,6 +32,11 @@ export const sessionBehaviorFieldSchema = z.enum([
 export const streamQualityFieldSchema = z.enum([
   'source_resolution',
   'output_resolution',
+<<<<<<< HEAD
+  'source_dynamic_range',
+  'source_video_codec',
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   'is_transcoding',
   'is_transcode_downgrade',
   'source_bitrate_mbps',
@@ -48,8 +57,19 @@ export const networkLocationFieldSchema = z.enum(['is_local_network', 'country',
 
 export const scopeFieldSchema = z.enum(['server_id', 'media_type']);
 
+<<<<<<< HEAD
+/**
+ * What is playing, plus what a library item ends a sync with (the `_after`
+ * fields). A session trigger reaches the first pair and a media trigger the
+ * rest, so the group never shows both at once.
+ */
+export const mediaFieldSchema = z.enum([
+  'season_number',
+  'episode_number',
+=======
 /** The `_after` fields read the value a library item ends the sync with. */
 export const mediaFieldSchema = z.enum([
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   'library_item_type',
   'library_name',
   'resolution_after',
@@ -70,7 +90,24 @@ export const conditionFieldSchema = z.union([
 ]);
 
 // Enums
+<<<<<<< HEAD
+export const videoResolutionSchema = z.enum([
+  '8K',
+  '4K',
+  '1440p',
+  '1080p',
+  '720p',
+  '480p',
+  'SD',
+  'unknown',
+]);
+// A server older than the release listed accepts the value, then ranks it as 0 and folds
+// the stream's own 1440p or 8K into 4K, so the condition matches the wrong streams.
+const RESOLUTION_INTRODUCED_IN = { '8K': '2.4.0', '1440p': '2.4.0' };
+
+=======
 export const videoResolutionSchema = z.enum(['4K', '1080p', '720p', '480p', 'SD', 'unknown']);
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 export const deviceTypeSchema = z.enum(['mobile', 'tablet', 'tv', 'desktop', 'browser', 'unknown']);
 export const platformSchema = z.enum([
   'ios',
@@ -104,8 +141,11 @@ export const libraryItemTypeSchema = z.enum([
   'track',
   'photo',
 ]);
+<<<<<<< HEAD
+=======
 const RESOLUTION_LABELS = Object.keys(RESOLUTION_TIERS);
 
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 // Condition value
 export const conditionValueSchema = z.union([
   z.string(),
@@ -326,6 +366,26 @@ export const CONDITION_FIELDS: Record<ConditionField, ConditionFieldDescriptor> 
     flags: {},
     identityAware: false,
   },
+<<<<<<< HEAD
+  source_dynamic_range: {
+    category: 'stream_quality',
+    requires: 'session',
+    operators: [...EQUALITY_OPERATORS, ...ARRAY_OPERATORS],
+    valueType: 'multiSelect',
+    options: DYNAMIC_RANGE_TOKENS,
+    flags: {},
+    identityAware: false,
+  },
+  source_video_codec: {
+    category: 'stream_quality',
+    requires: 'session',
+    operators: [...EQUALITY_OPERATORS, ...STRING_OPERATORS],
+    valueType: 'text',
+    flags: {},
+    identityAware: false,
+  },
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   is_transcoding: {
     category: 'stream_quality',
     requires: 'session',
@@ -454,6 +514,30 @@ export const CONDITION_FIELDS: Record<ConditionField, ConditionFieldDescriptor> 
     flags: {},
     identityAware: false,
   },
+<<<<<<< HEAD
+  season_number: {
+    category: 'media',
+    requires: 'session',
+    operators: COMPARISON_OPERATORS,
+    valueType: 'number',
+    // Plex and Jellyfin both file specials as season 0
+    min: 0,
+    step: 1,
+    flags: {},
+    identityAware: false,
+  },
+  episode_number: {
+    category: 'media',
+    requires: 'session',
+    operators: COMPARISON_OPERATORS,
+    valueType: 'number',
+    min: 0,
+    step: 1,
+    flags: {},
+    identityAware: false,
+  },
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   library_item_type: {
     category: 'media',
     requires: 'media',
@@ -522,6 +606,17 @@ export const CONDITION_FIELDS: Record<ConditionField, ConditionFieldDescriptor> 
   },
 };
 
+<<<<<<< HEAD
+/** Values a field gained after 2.2.0, by the release that first evaluates them. */
+export const CONDITION_VALUE_INTRODUCED_IN: Partial<
+  Record<ConditionField, Record<string, string>>
+> = {
+  source_resolution: RESOLUTION_INTRODUCED_IN,
+  output_resolution: RESOLUTION_INTRODUCED_IN,
+};
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 // Fields whose evaluators aggregate across every server_user id of the same identity.
 // One of them is enough for cross-server enforcement to make sense, so the builder
 // offers enforceAcrossServers as soon as any condition names one.

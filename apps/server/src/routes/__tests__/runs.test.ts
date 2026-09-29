@@ -69,6 +69,10 @@ const SESSION_CONTEXT = {
   ipAddress: '10.0.0.9',
   city: 'Boston',
   country: 'United States',
+<<<<<<< HEAD
+  isLocal: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 };
 
 /** The run query, then the session lookup the detail route makes when it has one. */
@@ -602,6 +606,10 @@ describe('Run routes', () => {
         ipAddress: '10.0.0.9',
         city: null,
         country: null,
+<<<<<<< HEAD
+        isLocal: false,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       });
       expect(body.subject.name).toBe('ada@plex');
     });

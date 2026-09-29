@@ -48,6 +48,18 @@ function ToggleGroup({
   );
 }
 
+<<<<<<< HEAD
+/** Keyed off the item's own data-variant and data-spacing, so any element carrying those attributes joins the segment. */
+function toggleGroupItemVariants(props: VariantProps<typeof toggleVariants>) {
+  return cn(
+    toggleVariants(props),
+    'w-auto min-w-0 shrink-0 px-3 focus:z-10 focus-visible:z-10',
+    'data-[spacing=0]:rounded-none data-[spacing=0]:shadow-none data-[spacing=0]:first:rounded-l-md data-[spacing=0]:last:rounded-r-md data-[spacing=0]:data-[variant=outline]:border-l-0 data-[spacing=0]:data-[variant=outline]:first:border-l'
+  );
+}
+
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 function ToggleGroupItem({
   className,
   children,
@@ -64,12 +76,19 @@ function ToggleGroupItem({
       data-size={context.size || size}
       data-spacing={context.spacing}
       className={cn(
+<<<<<<< HEAD
+        toggleGroupItemVariants({
+          variant: context.variant || variant,
+          size: context.size || size,
+        }),
+=======
         toggleVariants({
           variant: context.variant || variant,
           size: context.size || size,
         }),
         'w-auto min-w-0 shrink-0 px-3 focus:z-10 focus-visible:z-10',
         'data-[spacing=0]:rounded-none data-[spacing=0]:shadow-none data-[spacing=0]:first:rounded-l-md data-[spacing=0]:last:rounded-r-md data-[spacing=0]:data-[variant=outline]:border-l-0 data-[spacing=0]:data-[variant=outline]:first:border-l',
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         className
       )}
       {...props}
@@ -79,4 +98,8 @@ function ToggleGroupItem({
   );
 }
 
+<<<<<<< HEAD
+export { ToggleGroup, ToggleGroupItem, toggleGroupItemVariants };
+=======
 export { ToggleGroup, ToggleGroupItem };
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)

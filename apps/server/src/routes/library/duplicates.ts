@@ -9,7 +9,13 @@
  *
  * Matching hierarchy: imdb 100 > tmdb 95 > tvdb 90 > fuzzy 60-100;
  * single-item groups present as 'version' at 100. Reclaimable = deduped
+<<<<<<< HEAD
+ * total minus the best-quality file. An episode's key also carries its
+ * season and episode number: Plex's agents attach another episode's id to
+ * an item often enough that the id alone pairs two different episodes (#1223).
+=======
  * total minus the best-quality file.
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
  *
  * Grouping, the gate, and the summary run in one SQL statement and the route
  * hydrates one page only - building every group in Node exceeded postgres's
@@ -70,12 +76,22 @@ interface ItemDetailsRow {
   title: string;
   year: number | null;
   media_type: string;
+<<<<<<< HEAD
+  grandparent_title: string | null;
+  parent_index: number | null;
+  item_index: number | null;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   file_size: string | null;
   video_resolution: string | null;
 }
 
 interface VersionRow {
   library_item_id: string;
+<<<<<<< HEAD
+  server_version_key: string;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   video_resolution: string | null;
   video_codec: string | null;
   file_size: string | null;
@@ -174,13 +190,28 @@ export const libraryDuplicatesRoute: FastifyPluginAsync = async (app) => {
        * One statement: membership -> per-group distinct-file math -> gate ->
        * summary via window aggregates -> one ordered page. media_type is
        * folded into the id key so a show and an episode sharing a TVDB id
+<<<<<<< HEAD
+       * cannot collapse, and an episode's season and episode number are
+       * folded in so a foreign id on one episode cannot pair it with another;
+       * fuzzy only feeds items with no external IDs.
+=======
        * cannot collapse; fuzzy only feeds items with no external IDs.
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
        */
       const runGroupQuery = async (offset: number) => {
         const result = await db.execute(sql`
           WITH scoped AS (
             SELECT id, server_id, media_type, title, year,
+<<<<<<< HEAD
+                   imdb_id, tmdb_id, tvdb_id, file_size, video_resolution,
+                   CASE
+                     WHEN media_type = 'episode' AND parent_index IS NOT NULL AND item_index IS NOT NULL
+                       THEN ':s' || parent_index || 'e' || item_index
+                     ELSE ''
+                   END AS episode_key
+=======
                    imdb_id, tmdb_id, tvdb_id, file_size, video_resolution
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
             FROM library_items
             WHERE removed_at IS NULL
               AND media_type != 'season'
@@ -192,11 +223,19 @@ export const libraryDuplicatesRoute: FastifyPluginAsync = async (app) => {
               fuzzyEnabled
                 ? sql`
             SELECT a.id AS item_a_id, b.id AS item_b_id, a.title AS title_a,
+<<<<<<< HEAD
+                   a.episode_key AS episode_key_a,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                    ROUND(similarity(a.title, b.title) * 100)::int AS confidence
             FROM scoped a
             JOIN scoped b ON a.id < b.id
               AND a.media_type = b.media_type
               AND a.year = b.year
+<<<<<<< HEAD
+              AND a.episode_key = b.episode_key
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
             WHERE a.imdb_id IS NULL AND a.tmdb_id IS NULL AND a.tvdb_id IS NULL
               AND b.imdb_id IS NULL AND b.tmdb_id IS NULL AND b.tvdb_id IS NULL
               AND similarity(a.title, b.title) >= 0.6
@@ -204,7 +243,12 @@ export const libraryDuplicatesRoute: FastifyPluginAsync = async (app) => {
             LIMIT 100`
                 : sql`
             SELECT NULL::uuid AS item_a_id, NULL::uuid AS item_b_id,
+<<<<<<< HEAD
+                   NULL::text AS title_a, NULL::text AS episode_key_a,
+                   NULL::int AS confidence
+=======
                    NULL::text AS title_a, NULL::int AS confidence
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
             WHERE false`
             }
           ),
@@ -212,10 +256,17 @@ export const libraryDuplicatesRoute: FastifyPluginAsync = async (app) => {
             SELECT item_id, MIN(fuzzy_key) AS fuzzy_key, MAX(confidence) AS confidence
             FROM (
               SELECT item_a_id AS item_id,
+<<<<<<< HEAD
+                     'fuzzy:' || lower(left(title_a, 50)) || episode_key_a AS fuzzy_key, confidence
+              FROM fuzzy_pairs
+              UNION ALL
+              SELECT item_b_id, 'fuzzy:' || lower(left(title_a, 50)) || episode_key_a, confidence
+=======
                      'fuzzy:' || lower(left(title_a, 50)) AS fuzzy_key, confidence
               FROM fuzzy_pairs
               UNION ALL
               SELECT item_b_id, 'fuzzy:' || lower(left(title_a, 50)), confidence
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
               FROM fuzzy_pairs
             ) fp
             GROUP BY item_id
@@ -223,9 +274,15 @@ export const libraryDuplicatesRoute: FastifyPluginAsync = async (app) => {
           membership AS (
             SELECT s.id, s.server_id, s.file_size, s.video_resolution,
               CASE
+<<<<<<< HEAD
+                WHEN s.imdb_id IS NOT NULL THEN 'imdb:' || s.media_type || ':' || s.imdb_id || s.episode_key
+                WHEN s.tmdb_id IS NOT NULL THEN 'tmdb:' || s.media_type || ':' || s.tmdb_id::text || s.episode_key
+                WHEN s.tvdb_id IS NOT NULL THEN 'tvdb:' || s.media_type || ':' || s.tvdb_id::text || s.episode_key
+=======
                 WHEN s.imdb_id IS NOT NULL THEN 'imdb:' || s.media_type || ':' || s.imdb_id
                 WHEN s.tmdb_id IS NOT NULL THEN 'tmdb:' || s.media_type || ':' || s.tmdb_id::text
                 WHEN s.tvdb_id IS NOT NULL THEN 'tvdb:' || s.media_type || ':' || s.tvdb_id::text
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                 WHEN fk.fuzzy_key IS NOT NULL THEN fk.fuzzy_key
                 ELSE 'version:' || s.id::text
               END AS group_key,
@@ -342,6 +399,12 @@ export const libraryDuplicatesRoute: FastifyPluginAsync = async (app) => {
             li.title,
             li.year,
             li.media_type,
+<<<<<<< HEAD
+            li.grandparent_title,
+            li.parent_index,
+            li.item_index,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
             li.file_size::text AS file_size,
             li.video_resolution
           FROM library_items li
@@ -359,6 +422,10 @@ export const libraryDuplicatesRoute: FastifyPluginAsync = async (app) => {
         const versionsResult = await db.execute(sql`
           SELECT
             library_item_id,
+<<<<<<< HEAD
+            server_version_key,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
             video_resolution,
             video_codec,
             file_size::text AS file_size,
@@ -366,11 +433,19 @@ export const libraryDuplicatesRoute: FastifyPluginAsync = async (app) => {
           FROM library_item_versions
           WHERE library_item_id = ANY(${idsArray}::uuid[])
             AND removed_at IS NULL
+<<<<<<< HEAD
+          ORDER BY library_item_versions.file_size DESC NULLS LAST, library_item_versions.server_version_key ASC
+=======
           ORDER BY file_size DESC NULLS LAST
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         `);
         for (const row of versionsResult.rows as unknown as VersionRow[]) {
           const list = versionsByItem.get(row.library_item_id) ?? [];
           list.push({
+<<<<<<< HEAD
+            serverVersionKey: row.server_version_key,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
             resolution: row.video_resolution,
             videoCodec: row.video_codec,
             fileSize: row.file_size ? parseInt(row.file_size, 10) : null,
@@ -389,6 +464,12 @@ export const libraryDuplicatesRoute: FastifyPluginAsync = async (app) => {
         title: details.title,
         year: details.year,
         mediaType: details.media_type,
+<<<<<<< HEAD
+        grandparentTitle: details.grandparent_title,
+        seasonNumber: details.parent_index,
+        episodeNumber: details.item_index,
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         fileSize: details.file_size ? parseInt(details.file_size, 10) : null,
         resolution: details.video_resolution,
         versions: versionsByItem.get(details.id) ?? [],

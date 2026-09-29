@@ -29,7 +29,10 @@ vi.mock('@/hooks/queries', () => ({
   usePreviewDraftNewsletter: () => ({ mutate: vi.fn(), isPending: false }),
   useTestNewsletter: () => ({ mutate: vi.fn(), isPending: false }),
   useSendNewsletter: () => ({ mutate: vi.fn(), isPending: false }),
+<<<<<<< HEAD
+=======
   newsletterKeys: { recipients: (id: string) => ['newsletters', id, 'recipients'] },
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }));
 vi.mock('@/components/ui/rich-text-field', () => ({
   RichTextField: ({ id }: { id: string }) => <div data-testid={`rich-${id}`} />,

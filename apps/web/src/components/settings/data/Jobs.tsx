@@ -1,6 +1,17 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+<<<<<<< HEAD
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/components/ui/card';
+=======
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -40,10 +51,22 @@ import {
   Activity,
   ListTodo,
   Monitor,
+<<<<<<< HEAD
+  CopyMinus,
+  FingerprintPattern,
+  Link2,
+  MapPin,
+  type LucideIcon,
+} from 'lucide-react';
+import { api } from '@/lib/api';
+import { useSocket } from '@/hooks/useSocket';
+import type { MaintenanceJobProgress, MaintenanceJobType } from '@tracearr/shared';
+=======
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useSocket } from '@/hooks/useSocket';
 import type { MaintenanceJobProgress } from '@tracearr/shared';
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import {
@@ -74,6 +97,10 @@ interface JobDefinition {
   name: string;
   description: string;
   options?: JobOption[];
+<<<<<<< HEAD
+  destructive?: boolean;
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 interface JobHistoryItem {
@@ -92,6 +119,10 @@ interface JobHistoryItem {
     durationMs: number;
     message: string;
   };
+<<<<<<< HEAD
+  trigger: 'manual' | 'auto';
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }
 
 interface QueueStats {
@@ -103,7 +134,11 @@ interface QueueStats {
 }
 
 // Map job types to icons
+<<<<<<< HEAD
+const JOB_ICONS = {
+=======
 const JOB_ICONS: Record<string, typeof Database> = {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   normalize_players: Database,
   normalize_countries: Globe,
   normalize_codecs: ArrowUpDown,
@@ -116,7 +151,15 @@ const JOB_ICONS: Record<string, typeof Database> = {
   full_aggregate_rebuild: History,
   cleanup_old_chunks: Trash2,
   repair_corrupted_chunks: Wrench,
+<<<<<<< HEAD
+  backfill_session_identity: FingerprintPattern,
+  remove_import_duplicates: CopyMinus,
+  link_imported_history: Link2,
+  sync_server_locations: MapPin,
+} satisfies Partial<Record<MaintenanceJobType, LucideIcon>>;
+=======
 };
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 
 const CATEGORY_CONFIG = {
   normalization: { icon: CaseSensitive, labelKey: 'jobs.normalization' as const },
@@ -413,7 +456,11 @@ export function Jobs() {
 
           <ItemGroup className="gap-3">
             {filteredJobs.map((job) => {
+<<<<<<< HEAD
+              const JobIcon = JOB_ICONS[job.type as MaintenanceJobType] || Wrench;
+=======
               const JobIcon = JOB_ICONS[job.type] || Wrench;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
               const isRunning = runningJob === job.type;
 
               return (
@@ -435,7 +482,11 @@ export function Jobs() {
                   </ItemMedia>
                   <ItemContent>
                     <ItemTitle>{job.name}</ItemTitle>
+<<<<<<< HEAD
+                    <ItemDescription className="line-clamp-none">{job.description}</ItemDescription>
+=======
                     <ItemDescription>{job.description}</ItemDescription>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                   </ItemContent>
                   <ItemActions>
                     <Button
@@ -468,15 +519,33 @@ export function Jobs() {
                     <div className="w-full space-y-3 border-t pt-4">
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">{progress.message}</span>
+<<<<<<< HEAD
+                        {progress.totalRecords > 0 && (
+                          <span className="font-medium tabular-nums">{getProgressPercent()}%</span>
+                        )}
+                      </div>
+                      {progress.totalRecords > 0 ? (
+                        <Progress value={getProgressPercent()} className="h-1.5" />
+                      ) : (
+                        <Progress value={100} className="h-1.5 animate-pulse" />
+                      )}
+=======
                         <span className="font-medium tabular-nums">{getProgressPercent()}%</span>
                       </div>
                       <Progress value={getProgressPercent()} className="h-1.5" />
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                       <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
                         <span className="text-muted-foreground">
                           <span className="text-foreground font-medium">
                             {progress.processedRecords.toLocaleString()}
                           </span>{' '}
+<<<<<<< HEAD
+                          {progress.totalRecords > 0 &&
+                            `/ ${progress.totalRecords.toLocaleString()} `}
+                          {t('jobs.processed')}
+=======
                           / {progress.totalRecords.toLocaleString()} {t('jobs.processed')}
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                         </span>
                         {progress.updatedRecords > 0 && (
                           <span className="text-muted-foreground">
@@ -543,6 +612,14 @@ export function Jobs() {
       {/* Job History */}
       <Card>
         <CardHeader>
+<<<<<<< HEAD
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-5 w-5" />
+            {t('jobs.jobHistory')}
+          </CardTitle>
+          <CardDescription>{t('jobs.jobHistoryDesc')}</CardDescription>
+          <CardAction>
+=======
           <div className="flex items-center justify-between">
             <div>
               <CardTitle className="flex items-center gap-2">
@@ -551,6 +628,7 @@ export function Jobs() {
               </CardTitle>
               <CardDescription>{t('jobs.jobHistoryDesc')}</CardDescription>
             </div>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
             <Button
               variant="ghost"
               size="sm"
@@ -564,7 +642,11 @@ export function Jobs() {
               <RefreshCw className={cn('h-3.5 w-3.5', isLoadingHistory && 'animate-spin')} />
               {t('common:actions.refresh')}
             </Button>
+<<<<<<< HEAD
+          </CardAction>
+=======
           </div>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
         </CardHeader>
         <CardContent>
           {isLoadingHistory ? (
@@ -601,6 +683,12 @@ export function Jobs() {
                         <Badge variant={isSuccess ? 'success' : 'destructive'}>
                           {isSuccess ? t('common:states.success') : t('common:states.failed')}
                         </Badge>
+<<<<<<< HEAD
+                        {item.trigger === 'auto' && (
+                          <Badge variant="secondary">{t('jobs.automatic')}</Badge>
+                        )}
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
                       </ItemTitle>
                       {item.result && (
                         <ItemDescription className="tabular-nums">
@@ -668,16 +756,39 @@ export function Jobs() {
             </div>
           )}
 
+<<<<<<< HEAD
+          {confirmJob?.destructive ? (
+            <Alert variant="destructive">
+              <AlertTriangle />
+              <AlertTitle>{t('jobs.deletesData')}</AlertTitle>
+              <AlertDescription>{t('jobs.deletesDataDesc')}</AlertDescription>
+            </Alert>
+          ) : (
+            <Alert variant="warning">
+              <AlertTriangle />
+              <AlertTitle>{t('jobs.mayTakeAWhile')}</AlertTitle>
+              <AlertDescription>{t('jobs.mayTakeAWhileDesc')}</AlertDescription>
+            </Alert>
+          )}
+=======
           <Alert variant="warning">
             <AlertTriangle />
             <AlertTitle>{t('jobs.mayTakeAWhile')}</AlertTitle>
             <AlertDescription>{t('jobs.mayTakeAWhileDesc')}</AlertDescription>
           </Alert>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setConfirmJob(null)}>
               {t('common:actions.cancel')}
             </Button>
+<<<<<<< HEAD
+            <Button
+              variant={confirmJob?.destructive ? 'destructive' : 'default'}
+              onClick={() => confirmJob && handleStartJob(confirmJob.type, jobOptions)}
+            >
+=======
             <Button onClick={() => confirmJob && handleStartJob(confirmJob.type, jobOptions)}>
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
               <Play className="mr-1.5 h-3.5 w-3.5" />
               {t('jobs.startJob')}
             </Button>

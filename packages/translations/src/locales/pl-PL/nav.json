@@ -1,4 +1,37 @@
 {
+<<<<<<< HEAD
+  "dashboard": "Panel administracyjny",
+  "map": "Mapa",
+  "history": "Historia",
+  "stats": "Statystyki",
+  "activity": "Aktywność",
+  "library": "Biblioteka",
+  "users": "Użytkownicy",
+  "automations": "Automatyzacje",
+  "violations": "Naruszenia",
+  "requests": "Prośby",
+  "alerts": "Powiadomienia",
+  "settings": "Ustawienia",
+  "overview": "Przegląd",
+  "quality": "Jakość",
+  "storage": "Przestrzeń",
+  "watch": "Obejrzyj",
+  "performance": "Wydajność",
+  "devices": "Urządzenia",
+  "bandwidth": "Przepustowość",
+  "jobs": "Zadania",
+  "accessControl": "Kontrola dostępu",
+  "media": "Multimedia",
+  "mediaBrowse": "Przeglądaj",
+  "mediaGenres": "Gatunki",
+  "session": "Sesja",
+  "user": "Użytkownik",
+  "violation": "Naruszenie",
+  "monitor": "Monitorowanie",
+  "manage": "Zarządzanie",
+  "userStats": "Wg użytkownika",
+  "toggleSidebar": "Przełącz nawigację"
+=======
   "accessControl": "Kontrola dostępu",
   "activity": "Aktywność",
   "alerts": "Powiadomienia",
@@ -29,4 +62,5 @@
   "violation": "",
   "violations": "Naruszenia",
   "watch": "Obejrzyj"
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 }

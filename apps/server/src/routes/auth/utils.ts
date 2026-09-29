@@ -1,3 +1,8 @@
+<<<<<<< HEAD
+import { db } from '../../db/client.js';
+import { servers } from '../../db/schema.js';
+
+=======
 /**
  * Auth Route Utilities
  *
@@ -36,6 +41,7 @@ export function generateTempToken(): string {
   return randomBytes(24).toString('hex');
 }
 
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 /**
  * Get all server IDs for owner tokens
  */
@@ -43,6 +49,8 @@ export async function getAllServerIds(): Promise<string[]> {
   const allServers = await db.select({ id: servers.id }).from(servers);
   return allServers.map((s) => s.id);
 }
+<<<<<<< HEAD
+=======
 
 /**
  * Generate access and refresh tokens for a user
@@ -80,3 +88,4 @@ export async function generateTokens(
 
   return { accessToken, refreshToken, user: accessPayload };
 }
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)

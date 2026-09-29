@@ -1,5 +1,12 @@
 export interface EmailBranding {
+<<<<<<< HEAD
+  /** Who this send is about: the event's server, or the newsletter's sender. */
   senderName: string;
+  /** Header name beside the logo. Null falls back to senderName. */
+  systemTitle: string | null;
+=======
+  senderName: string;
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   /** Hex color for headings and links. */
   accentColor: string;
   footerText: string | null;

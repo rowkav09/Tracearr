@@ -104,24 +104,45 @@ describe('DestinationsManager', () => {
     expect(screen.getByRole('button', { name: 'settings.destinations.add' })).toBeInTheDocument();
   });
 
+<<<<<<< HEAD
+  it('lists destinations in the order the server sends and locks built-ins: no delete, no test', async () => {
+=======
   it('lists built-ins first and locks them: no delete, no test', async () => {
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     const user = userEvent.setup();
     setDestinations([destination(), pushRow]);
     render(<DestinationsManager />);
 
     const rows = screen.getAllByRole('listitem');
+<<<<<<< HEAD
+    expect(rows[0]).toHaveTextContent('Discord');
+    expect(rows[1]).toHaveTextContent('Mobile push');
+=======
     expect(rows[0]).toHaveTextContent('Mobile push');
     expect(rows[1]).toHaveTextContent('Discord');
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     expect(screen.getByText('pages:settings.destinations.builtinNote')).toBeInTheDocument();
     expect(screen.getByText('pages:settings.destinations.pushNote')).toBeInTheDocument();
 
     await user.click(rowMenus()[0]!);
     expect(
+<<<<<<< HEAD
+      screen.getByRole('menuitem', { name: 'pages:settings.destinations.test' })
+    ).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: 'common:actions.delete' })).toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+    await user.click(rowMenus()[1]!);
+    expect(
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
       screen.queryByRole('menuitem', { name: 'pages:settings.destinations.test' })
     ).not.toBeInTheDocument();
     expect(
       screen.queryByRole('menuitem', { name: 'common:actions.delete' })
     ).not.toBeInTheDocument();
+<<<<<<< HEAD
+=======
 
     await user.keyboard('{Escape}');
     await user.click(rowMenus()[1]!);
@@ -129,6 +150,7 @@ describe('DestinationsManager', () => {
       screen.getByRole('menuitem', { name: 'pages:settings.destinations.test' })
     ).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: 'common:actions.delete' })).toBeInTheDocument();
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   });
 
   it('flips enabled through the update mutation', async () => {

@@ -19,6 +19,11 @@ const CONDITION_FIELD_LABELS: Record<ConditionField, string> = {
   total_pause_minutes: 'Total Pause Duration',
   source_resolution: 'Source Resolution',
   output_resolution: 'Output Resolution',
+<<<<<<< HEAD
+  source_dynamic_range: 'Source Dynamic Range',
+  source_video_codec: 'Source Video Codec',
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   is_transcoding: 'Transcoding',
   is_transcode_downgrade: 'Transcode Downgrade',
   source_bitrate_mbps: 'Source Bitrate',
@@ -33,6 +38,11 @@ const CONDITION_FIELD_LABELS: Record<ConditionField, string> = {
   ip_in_range: 'IP Range',
   server_id: 'Server',
   media_type: 'Media Type',
+<<<<<<< HEAD
+  season_number: 'Season Number',
+  episode_number: 'Episode Number',
+=======
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
   library_item_type: 'Item Type',
   library_name: 'Library',
   resolution_after: 'Resolution',

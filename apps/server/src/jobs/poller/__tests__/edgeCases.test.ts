@@ -1,9 +1,12 @@
 /**
  * Session Edge Cases Tests
  *
+<<<<<<< HEAD
+=======
  * TDD tests for implementing robust session handling.
  * These tests are written BEFORE implementation (RED phase).
  *
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
  * HIGH Priority Edge Cases:
  * 1. Watch Completion - 85% threshold (configurable per media type)
  * 2. Stale Stream Force-Stop - 5 minute timeout
@@ -18,7 +21,10 @@ import { checkWatchCompletion, shouldGroupWithPreviousSession } from '../stateTr
 // Watch Completion Detection
 // ============================================================================
 // Industry standard uses 85% threshold (configurable per media type)
+<<<<<<< HEAD
+=======
 // Current implementation uses hardcoded 80%
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 describe('Watch Completion Detection', () => {
   describe('85% threshold (industry standard)', () => {
     it('should mark as watched at 85% progress', () => {
@@ -69,6 +75,8 @@ describe('Watch Completion Detection', () => {
       expect(result).toBe(true);
     });
   });
+<<<<<<< HEAD
+=======
 
   // Marker-based completion (future enhancement)
   describe.skip('marker-based completion', () => {
@@ -78,6 +86,7 @@ describe('Watch Completion Detection', () => {
       // This requires API integration to get markers
     });
   });
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
 });
 
 // ============================================================================
@@ -86,7 +95,10 @@ describe('Watch Completion Detection', () => {
 // Stop sessions after 5 minutes of no updates
 describe('Stale Stream Force-Stop', () => {
   describe('shouldForceStopStaleSession', () => {
+<<<<<<< HEAD
+=======
     // This function doesn't exist yet - tests will fail
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     it('should return true when session has no updates for 5+ minutes', async () => {
       const { shouldForceStopStaleSession } = await import('../stateTracker.js');
 
@@ -152,7 +164,10 @@ describe('Stale Stream Force-Stop', () => {
 // Use LOGGING_IGNORE_INTERVAL = 120 seconds
 describe('Minimum Play Time Filtering', () => {
   describe('shouldRecordSession', () => {
+<<<<<<< HEAD
+=======
     // This function doesn't exist yet - tests will fail
+>>>>>>> e10e89cd (Limit image ownership changes to writable data)
     it('should NOT record session with < 120 seconds play time', async () => {
       const { shouldRecordSession } = await import('../stateTracker.js');
 
