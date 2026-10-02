@@ -1,0 +1,1213 @@
+$ vitest run --config vitest.unit.config.ts
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - `__dirname` (vitest.shared.ts:26:35). Use `import.meta.dirname` instead
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90m/app/apps/server[39m
+
+(node:124591) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/services/mediaServer/__tests__/plex-parser.test.ts [2m([22m[2m89 tests[22m[2m)[22m[32m 205[2mms[22m[39m
+(node:124584) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/services/automations/__tests__/evaluators.test.ts [2m([22m[2m135 tests[22m[2m)[22m[32m 284[2mms[22m[39m
+(node:124587) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/services/automations/__tests__/subscribers.test.ts [2m([22m[2m81 tests[22m[2m)[22m[32m 201[2mms[22m[39m
+[90mstderr[2m | src/services/automations/__tests__/engine.test.ts[2m > [22m[2msession-less context[2m > [22m[2mruns inactive_days through the registry without a session
+[22m[39m[automations] Condition threshold outside the trigger range; node stamped disabled {
+  automationId: [1mnull[22m,
+  field: [32m'inactive_days'[39m,
+  operator: [32m'in'[39m,
+  value: [ [33m10[39m, [33m20[39m ]
+}
+
+(node:126137) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/services/automations/__tests__/engine.test.ts [2m([22m[2m41 tests[22m[2m)[22m[32m 87[2mms[22m[39m
+(node:126352) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/services/mediaServer/shared/__tests__/jellyfinEmbyUtils.test.ts [2m([22m[2m106 tests[22m[2m)[22m[32m 191[2mms[22m[39m
+(node:126102) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/services/automations/__tests__/executors.test.ts [2m([22m[2m70 tests[22m[2m)[22m[32m 205[2mms[22m[39m
+(node:126856) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/services/mediaServer/shared/__tests__/jellyfinEmbyParser.test.ts [2m([22m[2m99 tests[22m[2m)[22m[32m 187[2mms[22m[39m
+[90mstderr[2m | src/services/automations/__tests__/reverify.test.ts[2m > [22m[2mreverifyKillCondition[2m > [22m[2mreturns skipped_condition_cleared when the rule no longer matches current state
+[22m[39m[automations] Automation has no stored triggers and will never evaluate {
+  automationId: [32m'cf25f468-b378-4ae4-a1d6-89b5fb6c3d88'[39m,
+  name: [32m'Test Rule'[39m
+}
+
+[90mstderr[2m | src/services/automations/__tests__/reverify.test.ts[2m > [22m[2mreverifyKillCondition[2m > [22m[2mterminates and returns killed when the condition still matches
+[22m[39m[automations] Automation has no stored triggers and will never evaluate {
+  automationId: [32m'9abb6c02-ae79-4f29-a982-8d131191f1ef'[39m,
+  name: [32m'Test Rule'[39m
+}
+
+[90mstdout[2m | src/services/automations/__tests__/reverify.test.ts[2m > [22m[2mreverifyKillCondition[2m > [22m[2mterminates and returns killed when the condition still matches
+[22m[39m[automations] Kill queue: terminated session after re-verification {
+  triggeringSessionId: [32m'ae26c744-042b-4326-bc2c-0fbd210b61a4'[39m,
+  targetSessionId: [32m'ae26c744-042b-4326-bc2c-0fbd210b61a4'[39m,
+  serverId: [32m'efa8e72a-0326-41ea-b2ca-df558921de93'[39m,
+  ruleId: [32m'9abb6c02-ae79-4f29-a982-8d131191f1ef'[39m
+}
+
+[90mstderr[2m | src/services/automations/__tests__/reverify.test.ts[2m > [22m[2mreverifyKillCondition[2m > [22m[2mwidens recentSessions across the identity for enforceAcrossServers rules
+[22m[39m[automations] Automation has no stored triggers and will never evaluate {
+  automationId: [32m'fb9a0751-cb9b-4f2f-ac83-d11ab88ded7c'[39m,
+  name: [32m'Test Rule'[39m
+}
+
+[90mstdout[2m | src/services/automations/__tests__/reverify.test.ts[2m > [22m[2mreverifyKillCondition[2m > [22m[2mwidens recentSessions across the identity for enforceAcrossServers rules
+[22m[39m[automations] Kill queue: terminated session after re-verification {
+  triggeringSessionId: [32m'2e0e25c0-f3d7-4208-b260-e7b5511c9a1c'[39m,
+  targetSessionId: [32m'2e0e25c0-f3d7-4208-b260-e7b5511c9a1c'[39m,
+  serverId: [32m'0879ccfa-9fc7-4872-a54a-eeefe6966245'[39m,
+  ruleId: [32m'fb9a0751-cb9b-4f2f-ac83-d11ab88ded7c'[39m
+}
+
+[90mstderr[2m | src/services/automations/__tests__/reverify.test.ts[2m > [22m[2mreverifyKillCondition[2m > [22m[2mstill derives identity for rules without enforceAcrossServers, but does not widen a single-account identity
+[22m[39m[automations] Automation has no stored triggers and will never evaluate {
+  automationId: [32m'8161fb85-8e57-4159-927c-a5d88fdda5b5'[39m,
+  name: [32m'Test Rule'[39m
+}
+
+[90mstdout[2m | src/services/automations/__tests__/reverify.test.ts[2m > [22m[2mreverifyKillCondition[2m > [22m[2mstill derives identity for rules without enforceAcrossServers, but does not widen a single-account identity
+[22m[39m[automations] Kill queue: terminated session after re-verification {
+  triggeringSessionId: [32m'3bb16653-ca4e-4359-854f-250e943cd896'[39m,
+  targetSessionId: [32m'3bb16653-ca4e-4359-854f-250e943cd896'[39m,
+  serverId: [32m'ecf15b33-954c-40bb-9a20-dfd436b36cc3'[39m,
+  ruleId: [32m'8161fb85-8e57-4159-927c-a5d88fdda5b5'[39m
+}
+
+(node:126966) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+[90mstderr[2m | src/services/automations/__tests__/reverify.test.ts[2m > [22m[2mreverifyKillCondition[2m > [22m[2mkills a merged-identity user under a rule without enforceAcrossServers when both accounts together clear the condition
+[22m[39m[automations] Automation has no stored triggers and will never evaluate {
+  automationId: [32m'cceec1d2-e4a5-45a1-8c27-c5a339d84359'[39m,
+  name: [32m'Test Rule'[39m
+}
+
+[90mstdout[2m | src/services/automations/__tests__/reverify.test.ts[2m > [22m[2mreverifyKillCondition[2m > [22m[2mkills a merged-identity user under a rule without enforceAcrossServers when both accounts together clear the condition
+[22m[39m[automations] Kill queue: terminated session after re-verification {
+  triggeringSessionId: [32m'8106d4fb-b316-4b9a-89b5-ca2e4a107a25'[39m,
+  targetSessionId: [32m'8106d4fb-b316-4b9a-89b5-ca2e4a107a25'[39m,
+  serverId: [32m'd690bcae-27f3-40b6-aeb9-95c6f6b321e0'[39m,
+  ruleId: [32m'cceec1d2-e4a5-45a1-8c27-c5a339d84359'[39m
+}
+
+[90mstderr[2m | src/services/automations/__tests__/reverify.test.ts[2m > [22m[2mreverifyKillCondition[2m > [22m[2mkills the triggering session when it is absent from the cache and only it plus one other session clear concurrent_streams
+[22m[39m[automations] Automation has no stored triggers and will never evaluate {
+  automationId: [32m'd873d464-4fc6-4a64-b633-ffef1c46ad93'[39m,
+  name: [32m'Test Rule'[39m
+}
+
+[90mstdout[2m | src/services/automations/__tests__/reverify.test.ts[2m > [22m[2mreverifyKillCondition[2m > [22m[2mkills the triggering session when it is absent from the cache and only it plus one other session clear concurrent_streams
+[22m[39m[automations] Kill queue: terminated session after re-verification {
+  triggeringSessionId: [32m'c2abfdc3-dc11-442b-a186-be6a6b57cf99'[39m,
+  targetSessionId: [32m'c2abfdc3-dc11-442b-a186-be6a6b57cf99'[39m,
+  serverId: [32m'b74aa567-ca86-48c6-8201-c915578e1633'[39m,
+  ruleId: [32m'd873d464-4fc6-4a64-b633-ffef1c46ad93'[39m
+}
+
+[90mstderr[2m | src/services/automations/__tests__/reverify.test.ts[2m > [22m[2mreverifyKillCondition[2m > [22m[2mR1/R2: evaluates against the TRIGGER context, so a scoped enforceAcrossServers kill of a sibling-server target does not self-abort
+[22m[39m[automations] Automation has no stored triggers and will never evaluate {
+  automationId: [32m'29c3d7f6-53e2-41ae-9ecc-0d44307a4cef'[39m,
+  name: [32m'Test Rule'[39m
+}
+
+[90mstdout[2m | src/services/automations/__tests__/reverify.test.ts[2m > [22m[2mreverifyKillCondition[2m > [22m[2mR1/R2: evaluates against the TRIGGER context, so a scoped enforceAcrossServers kill of a sibling-server target does not self-abort
+[22m[39m[automations] Kill queue: terminated session after re-verification {
+  triggeringSessionId: [32m'e55b763f-a3b9-402e-95ee-0b67102b0dbe'[39m,
+  targetSessionId: [32m'8f3cb63f-1355-45d0-8a0a-3578541a33a0'[39m,
+  serverId: [32m'be6bf6b5-2132-4126-8df8-ed344431b6fd'[39m,
+  ruleId: [32m'29c3d7f6-53e2-41ae-9ecc-0d44307a4cef'[39m
+}
+
+[90mstderr[2m | src/services/automations/__tests__/reverify.test.ts[2m > [22m[2mreverifyKillCondition[2m > [22m[2mR3: does not self-compare the context session against its own recent-sessions row in travel_speed
+[22m[39m[automations] Automation has no stored triggers and will never evaluate {
+  automationId: [32m'c1c8d14d-2102-4b0a-8fcb-7e0cfe4122f2'[39m,
+  name: [32m'Test Rule'[39m
+}
+
+[90mstdout[2m | src/services/automations/__tests__/reverify.test.ts[2m > [22m[2mreverifyKillCondition[2m > [22m[2mR3: does not self-compare the context session against its own recent-sessions row in travel_speed
+[22m[39m[automations] Kill queue: terminated session after re-verification {
+  triggeringSessionId: [32m'b6adf300-4fad-4a48-900a-ed9dd351c2f3'[39m,
+  targetSessionId: [32m'b6adf300-4fad-4a48-900a-ed9dd351c2f3'[39m,
+  serverId: [32m'2dc345ca-2314-4d25-a8e2-ea72458b2990'[39m,
+  ruleId: [32m'c1c8d14d-2102-4b0a-8fcb-7e0cfe4122f2'[39m
+}
+
+[90mstderr[2m | src/services/automations/__tests__/reverify.test.ts[2m > [22m[2mreverifyKillCondition[2m > [22m[2mR6: threads violationId through to terminateSession
+[22m[39m[automations] Automation has no stored triggers and will never evaluate {
+  automationId: [32m'a69198af-8798-4bae-9672-ef980294335c'[39m,
+  name: [32m'Test Rule'[39m
+}
+
+[90mstdout[2m | src/services/automations/__tests__/reverify.test.ts[2m > [22m[2mreverifyKillCondition[2m > [22m[2mR6: threads violationId through to terminateSession
+[22m[39m[automations] Kill queue: terminated session after re-verification {
+  triggeringSessionId: [32m'4ef3056c-2006-48eb-8589-af76e5e32d9a'[39m,
+  targetSessionId: [32m'4ef3056c-2006-48eb-8589-af76e5e32d9a'[39m,
+  serverId: [32m'311bd146-5f31-484b-9573-58177dadfbc8'[39m,
+  ruleId: [32m'a69198af-8798-4bae-9672-ef980294335c'[39m
+}
+
+[90mstderr[2m | src/services/automations/__tests__/reverify.test.ts[2m > [22m[2mreverifyKillCondition[2m > [22m[2mreturns failed when termination reports failure
+[22m[39m[automations] Automation has no stored triggers and will never evaluate {
+  automationId: [32m'92e2ed47-620a-489b-b44a-a4e6ae090af1'[39m,
+  name: [32m'Test Rule'[39m
+}
+
+[90mstderr[2m | src/services/automations/__tests__/reverify.test.ts[2m > [22m[2mreverifyKillCondition[2m > [22m[2mreturns failed when termination throws
+[22m[39m[automations] Automation has no stored triggers and will never evaluate {
+  automationId: [32m'46cd1315-3982-4d6a-bfed-a16a3711c698'[39m,
+  name: [32m'Test Rule'[39m
+}
+
+[90mstderr[2m | src/services/automations/__tests__/reverify.test.ts[2m > [22m[2mreverifyKillCondition[2m > [22m[2mtrigger-gone fallback: an enforceAcrossServers identity-wide rule falls back to the target and can still kill
+[22m[39m[automations] Automation has no stored triggers and will never evaluate {
+  automationId: [32m'64ecd427-742b-4e65-b7ce-fa1d201156fa'[39m,
+  name: [32m'Test Rule'[39m
+}
+
+[90mstdout[2m | src/services/automations/__tests__/reverify.test.ts[2m > [22m[2mreverifyKillCondition[2m > [22m[2mtrigger-gone fallback: an enforceAcrossServers identity-wide rule falls back to the target and can still kill
+[22m[39m[automations] Kill queue: terminated session after re-verification {
+  triggeringSessionId: [32m'516c3bf4-e085-4e3d-8342-d074d4447318'[39m,
+  targetSessionId: [32m'840c954c-4d7b-4a07-8b47-136c682231be'[39m,
+  serverId: [32m'22b7d6a6-f5bb-41a8-89d1-de79e05aed7e'[39m,
+  ruleId: [32m'64ecd427-742b-4e65-b7ce-fa1d201156fa'[39m
+}
+
+[90mstderr[2m | src/services/automations/__tests__/reverify.test.ts[2m > [22m[2mreverifyKillCondition[2m > [22m[2mtrigger-gone abort: a non-identity rule aborts as skipped_condition_cleared when the trigger is gone
+[22m[39m[automations] Automation has no stored triggers and will never evaluate {
+  automationId: [32m'2dec621e-7e41-418e-ac42-eb7e3cd63c58'[39m,
+  name: [32m'Test Rule'[39m
+}
+
+[90mstdout[2m | src/services/automations/__tests__/reverify.test.ts[2m > [22m[2mreverifyKillCondition[2m > [22m[2mtrigger-gone abort: a non-identity rule aborts as skipped_condition_cleared when the trigger is gone
+[22m[39m[automations] Kill queue: trigger session gone, aborting kill {
+  triggeringSessionId: [32m'c2c5b325-394a-42dc-a20a-877950b83849'[39m,
+  targetSessionId: [32m'6d31550f-7c2b-40c5-b675-894626130589'[39m,
+  ruleId: [32m'2dec621e-7e41-418e-ac42-eb7e3cd63c58'[39m
+}
+
+[90mstderr[2m | src/services/automations/__tests__/reverify.test.ts[2m > [22m[2mreverifyKillCondition[2m > [22m[2mD3: trigger-gone fallback on a serverId-scoped enforceAcrossServers rule reports an unverifiable skipReason, not condition_cleared
+[22m[39m[automations] Automation has no stored triggers and will never evaluate {
+  automationId: [32m'c8ebba29-b0c0-4c0c-8e7e-12400740b274'[39m,
+  name: [32m'Test Rule'[39m
+}
+
+[90mstdout[2m | src/services/automations/__tests__/reverify.test.ts[2m > [22m[2mreverifyKillCondition[2m > [22m[2mD3: trigger-gone fallback on a serverId-scoped enforceAcrossServers rule reports an unverifiable skipReason, not condition_cleared
+[22m[39m[automations] Kill queue: trigger gone, target out of rule scope, cannot re-verify {
+  triggeringSessionId: [32m'ebec3a85-f550-454d-b0d1-1f4c4fbcc23f'[39m,
+  targetSessionId: [32m'c286bc4f-977e-41c0-94fe-18814b35212c'[39m,
+  ruleId: [32m'c8ebba29-b0c0-4c0c-8e7e-12400740b274'[39m
+}
+
+(node:126979) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/services/automations/__tests__/producers.test.ts [2m([22m[2m38 tests[22m[2m)[22m[32m 99[2mms[22m[39m
+[90mstderr[2m | src/services/automations/__tests__/reverify.test.ts[2m > [22m[2mreverifyKillCondition[2m > [22m[2mD1 (i) trigger-first: a sibling kill still fires when the trigger was already stopped BY THIS violation
+[22m[39m[automations] Automation has no stored triggers and will never evaluate {
+  automationId: [32m'95cac27a-ca12-430f-839b-ba0cdb96fe0b'[39m,
+  name: [32m'Test Rule'[39m
+}
+
+[90mstdout[2m | src/services/automations/__tests__/reverify.test.ts[2m > [22m[2mreverifyKillCondition[2m > [22m[2mD1 (i) trigger-first: a sibling kill still fires when the trigger was already stopped BY THIS violation
+[22m[39m[automations] Kill queue: terminated session after re-verification {
+  triggeringSessionId: [32m'53cdd70d-a3b8-490f-a848-d12e3792ef78'[39m,
+  targetSessionId: [32m'5b56e8ab-9682-4300-9248-59b52f6c2e84'[39m,
+  serverId: [32m'74a4026e-ca6f-473f-9c26-eaad2e5e6323'[39m,
+  ruleId: [32m'95cac27a-ca12-430f-839b-ba0cdb96fe0b'[39m
+}
+
+[90mstderr[2m | src/services/automations/__tests__/reverify.test.ts[2m > [22m[2mreverifyKillCondition[2m > [22m[2mD1 (ii) count-drop: a still-pending sibling kill fires even though an earlier sibling already left the cache
+[22m[39m[automations] Automation has no stored triggers and will never evaluate {
+  automationId: [32m'0ced850f-3593-4097-984e-7e3ea5e65208'[39m,
+  name: [32m'Test Rule'[39m
+}
+
+[90mstdout[2m | src/services/automations/__tests__/reverify.test.ts[2m > [22m[2mreverifyKillCondition[2m > [22m[2mD1 (ii) count-drop: a still-pending sibling kill fires even though an earlier sibling already left the cache
+[22m[39m[automations] Kill queue: terminated session after re-verification {
+  triggeringSessionId: [32m'24821e63-65ea-466f-ba85-5d1e3d557733'[39m,
+  targetSessionId: [32m'4601ffa0-fa4b-4f2d-a983-c634aa42b422'[39m,
+  serverId: [32m'12c6570e-775b-435f-8897-b76dde345332'[39m,
+  ruleId: [32m'0ced850f-3593-4097-984e-7e3ea5e65208'[39m
+}
+
+ [32m✓[39m [30m[42m unit [49m[39m src/services/automations/__tests__/reverify.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 206[2mms[22m[39m
+(node:127710) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/utils/__tests__/errors.test.ts [2m([22m[2m59 tests[22m[2m)[22m[33m 850[2mms[22m[39m
+     [33m[2m✓[22m[39m should handle AppError correctly [33m 387[2mms[22m[39m
+(node:127842) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/services/mediaServer/__tests__/plex-parser-internal.test.ts [2m([22m[2m55 tests[22m[2m)[22m[32m 214[2mms[22m[39m
+[90mstdout[2m | src/services/library/__tests__/mediaResolutionService.test.ts[2m > [22m[2mresolveMediaBatch[2m > [22m[2mid-bearing title probe[2m > [22m[2maccepts a candidate with no year against an input that has one
+[22m[39m[mediaResolutionService] title probe accepted media 57c0c5a6-321e-4875-a2c4-2a47ad36f7c6 (imdb tt0133093, tmdb -, tvdb -) for input ids (imdb -, tmdb 603, tvdb -) on a missing year, not an equal one
+
+(node:127813) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/services/library/__tests__/mediaResolutionService.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 181[2mms[22m[39m
+(node:128568) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/utils/__tests__/platformNormalizer.test.ts [2m([22m[2m72 tests[22m[2m)[22m[32m 216[2mms[22m[39m
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to connected when stream opens
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to connected when stream opens
+[22m[39m[PluginSSE] Connected to My JF
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtreats a single 404 as a normal reconnect, not proof the plugin is missing
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtreats a single 404 as a normal reconnect, not proof the plugin is missing
+[22m[39m[PluginSSE] 404 from My JF (1/3 before assuming plugin absent), retrying
+[PluginSSE] Reconnecting to My JF in 1918ms (attempt 1/10)
+[PluginSSE] Disconnecting from My JF
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to unsupported only after three consecutive 404s
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to unsupported only after three consecutive 404s
+[22m[39m[PluginSSE] 404 from My JF (1/3 before assuming plugin absent), retrying
+[PluginSSE] Reconnecting to My JF in 1037ms (attempt 1/10)
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to unsupported only after three consecutive 404s
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to unsupported only after three consecutive 404s
+[22m[39m[PluginSSE] 404 from My JF (2/3 before assuming plugin absent), retrying
+[PluginSSE] Reconnecting to My JF in 2782ms (attempt 2/10)
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to unsupported only after three consecutive 404s
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to unsupported only after three consecutive 404s
+[22m[39m[PluginSSE] Plugin endpoint 404 on My JF (3 consecutive), will re-probe in 180s
+[PluginSSE] Disconnecting from My JF
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mresets the 404 streak when a different error interleaves
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mresets the 404 streak when a different error interleaves
+[22m[39m[PluginSSE] 404 from My JF (1/3 before assuming plugin absent), retrying
+[PluginSSE] Reconnecting to My JF in 1327ms (attempt 1/10)
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mresets the 404 streak when a different error interleaves
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mresets the 404 streak when a different error interleaves
+[22m[39m[PluginSSE] 404 from My JF (2/3 before assuming plugin absent), retrying
+[PluginSSE] Reconnecting to My JF in 2262ms (attempt 2/10)
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mresets the 404 streak when a different error interleaves
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstderr[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mresets the 404 streak when a different error interleaves
+[22m[39m[PluginSSE] Error on My JF: TypeError: fetch failed
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mresets the 404 streak when a different error interleaves
+[22m[39m[PluginSSE] Reconnecting to My JF in 4685ms (attempt 3/10)
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mresets the 404 streak when a different error interleaves
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mresets the 404 streak when a different error interleaves
+[22m[39m[PluginSSE] 404 from My JF (1/3 before assuming plugin absent), retrying
+[PluginSSE] Reconnecting to My JF in 8616ms (attempt 4/10)
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mresets the 404 streak when a different error interleaves
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mresets the 404 streak when a different error interleaves
+[22m[39m[PluginSSE] 404 from My JF (2/3 before assuming plugin absent), retrying
+[PluginSSE] Reconnecting to My JF in 16868ms (attempt 5/10)
+[PluginSSE] Disconnecting from My JF
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mretries from unsupported when nudged, and recovers when the endpoint is back
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mretries from unsupported when nudged, and recovers when the endpoint is back
+[22m[39m[PluginSSE] 404 from My JF (1/3 before assuming plugin absent), retrying
+[PluginSSE] Reconnecting to My JF in 1662ms (attempt 1/10)
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mretries from unsupported when nudged, and recovers when the endpoint is back
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mretries from unsupported when nudged, and recovers when the endpoint is back
+[22m[39m[PluginSSE] 404 from My JF (2/3 before assuming plugin absent), retrying
+[PluginSSE] Reconnecting to My JF in 2180ms (attempt 2/10)
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mretries from unsupported when nudged, and recovers when the endpoint is back
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mretries from unsupported when nudged, and recovers when the endpoint is back
+[22m[39m[PluginSSE] Plugin endpoint 404 on My JF (3 consecutive), will re-probe in 180s
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mretries from unsupported when nudged, and recovers when the endpoint is back
+[22m[39m[PluginSSE] Poll reached My JF, retrying SSE from unsupported
+[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mretries from unsupported when nudged, and recovers when the endpoint is back
+[22m[39m[PluginSSE] Connected to My JF
+[PluginSSE] Disconnecting from My JF
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mschedules reconnect on non-404 error
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstderr[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mschedules reconnect on non-404 error
+[22m[39m[PluginSSE] Error on My JF: Non-200 status code (500)
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mschedules reconnect on non-404 error
+[22m[39m[PluginSSE] Connected to My JF
+[PluginSSE] Reconnecting to My JF in 1840ms (attempt 1/10)
+[PluginSSE] Disconnecting from My JF
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstderr[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Error on My JF: Non-200 status code (500)
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Reconnecting to My JF in 1676ms (attempt 1/10)
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Reconnecting to My JF in 2298ms (attempt 2/10)
+
+[90mstderr[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Error on My JF: Non-200 status code (500)
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Reconnecting to My JF in 4341ms (attempt 3/10)
+
+[90mstderr[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Error on My JF: Non-200 status code (500)
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Reconnecting to My JF in 8012ms (attempt 4/10)
+
+[90mstderr[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Error on My JF: Non-200 status code (500)
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Reconnecting to My JF in 16519ms (attempt 5/10)
+
+[90mstderr[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Error on My JF: Non-200 status code (500)
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Reconnecting to My JF in 30234ms (attempt 6/10)
+
+[90mstderr[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Error on My JF: Non-200 status code (500)
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Reconnecting to My JF in 30801ms (attempt 7/10)
+
+[90mstderr[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Error on My JF: Non-200 status code (500)
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Reconnecting to My JF in 30775ms (attempt 8/10)
+
+[90mstderr[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Error on My JF: Non-200 status code (500)
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Reconnecting to My JF in 30866ms (attempt 9/10)
+
+[90mstderr[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Error on My JF: Non-200 status code (500)
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Reconnecting to My JF in 30321ms (attempt 10/10)
+
+[90mstderr[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Error on My JF: Non-200 status code (500)
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstderr[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Error on My JF: Non-200 status code (500)
+[PluginSSE] Max retries reached for My JF, falling back to polling, retrying in 180s
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Retrying SSE for My JF from fallback
+[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Reconnecting to My JF in 1506ms (attempt 1/10)
+
+[90mstderr[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Error on My JF: Non-200 status code (500)
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Reconnecting to My JF in 2728ms (attempt 2/10)
+
+[90mstderr[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Error on My JF: Non-200 status code (500)
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Reconnecting to My JF in 4524ms (attempt 3/10)
+
+[90mstderr[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Error on My JF: Non-200 status code (500)
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Reconnecting to My JF in 8001ms (attempt 4/10)
+
+[90mstderr[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Error on My JF: Non-200 status code (500)
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Reconnecting to My JF in 16846ms (attempt 5/10)
+
+[90mstderr[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Error on My JF: Non-200 status code (500)
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Reconnecting to My JF in 30058ms (attempt 6/10)
+
+[90mstderr[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Error on My JF: Non-200 status code (500)
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Reconnecting to My JF in 30307ms (attempt 7/10)
+
+[90mstderr[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Error on My JF: Non-200 status code (500)
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Reconnecting to My JF in 30028ms (attempt 8/10)
+
+[90mstderr[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Error on My JF: Non-200 status code (500)
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Reconnecting to My JF in 30629ms (attempt 9/10)
+
+[90mstderr[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Error on My JF: Non-200 status code (500)
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Reconnecting to My JF in 30619ms (attempt 10/10)
+
+[90mstderr[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Error on My JF: Non-200 status code (500)
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstderr[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Error on My JF: Non-200 status code (500)
+[PluginSSE] Max retries reached for My JF, falling back to polling, retrying in 180s
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mtransitions to fallback after max retries
+[22m[39m[PluginSSE] Disconnecting from My JF
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2memits session:event when plugin events arrive
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2memits session:event when plugin events arrive
+[22m[39m[PluginSSE] Connected to My JF
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2memits library:event for library.item.added and library.item.removed
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2memits library:event for library.item.added and library.item.removed
+[22m[39m[PluginSSE] Connected to My JF
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mnever emits library:event when the plugin does not send library events
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mnever emits library:event when the plugin does not send library events
+[22m[39m[PluginSSE] Connected to My JF
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mignores a malformed library event payload without throwing
+[22m[39m[PluginSSE] Connecting to My JF at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mignores a malformed library event payload without throwing
+[22m[39m[PluginSSE] Connected to My JF
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mauth header injection[2m > [22m[2minjects Authorization header for jellyfin and preserves Accept
+[22m[39m[PluginSSE] Connecting to JF Server at http://jf.local:8096/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mauth header injection[2m > [22m[2minjects Authorization header for jellyfin and preserves Accept
+[22m[39m[PluginSSE] Disconnecting from JF Server
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mauth header injection[2m > [22m[2minjects X-Emby-Token header for emby and preserves Accept
+[22m[39m[PluginSSE] Connecting to Emby Server at http://emby.local:8096/emby/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mauth header injection[2m > [22m[2minjects X-Emby-Token header for emby and preserves Accept
+[22m[39m[PluginSSE] Disconnecting from Emby Server
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mgetStatus reflects current state
+[22m[39m[PluginSSE] Connecting to Test Server at http://jf.local/api/sse/events
+
+[90mstdout[2m | src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts[2m > [22m[2mJellyfinEmbyEventSource detection[2m > [22m[2mgetStatus reflects current state
+[22m[39m[PluginSSE] Connected to Test Server
+[PluginSSE] Disconnecting from Test Server
+
+(node:128663) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/services/mediaServer/shared/__tests__/jellyfinEmbyEventSource.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 199[2mms[22m[39m
+(node:128552) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/services/automations/__tests__/evaluate.test.ts [2m([22m[2m34 tests[22m[2m)[22m[32m 148[2mms[22m[39m
+[90mstderr[2m | src/services/automations/__tests__/migration.test.ts[2m > [22m[2mRule Migration[2m > [22m[2mconvertLegacyRule[2m > [22m[2mreturns null for unknown rule type
+[22m[39m[automations] Unknown rule type: unknown_type { ruleId: [32m'rule-1'[39m, type: [32m'unknown_type'[39m }
+
+(node:129480) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/services/automations/__tests__/migration.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 57[2mms[22m[39m
+(node:129322) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/services/automations/__tests__/pauseWakes.test.ts [2m([22m[2m24 tests[22m[2m)[22m[32m 119[2mms[22m[39m
+(node:129552) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/services/automations/__tests__/contextAssembly.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 44[2mms[22m[39m
+(node:130063) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/services/mediaServer/shared/__tests__/baseMediaServerClient.incremental.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 53[2mms[22m[39m
+(node:130070) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/services/mediaServer/__tests__/index.test.ts [2m([22m[2m45 tests[22m[2m)[22m[32m 94[2mms[22m[39m
+(node:130300) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/utils/__tests__/resolutionNormalizer.test.ts [2m([22m[2m62 tests[22m[2m)[22m[32m 115[2mms[22m[39m
+(node:130871) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/services/library/__tests__/mediaAnnounce.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 54[2mms[22m[39m
+(node:130754) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/services/automations/__tests__/dryRun.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 48[2mms[22m[39m
+(node:130990) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/test/schemas.test.ts [2m([22m[2m41 tests[22m[2m)[22m[32m 84[2mms[22m[39m
+(node:131444) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/services/mediaServer/plex/__tests__/client.incremental.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 72[2mms[22m[39m
+(node:131554) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/utils/__tests__/http.test.ts [2m([22m[2m28 tests[22m[2m)[22m[32m 125[2mms[22m[39m
+(node:131680) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/utils/__tests__/transcodeNormalizer.test.ts [2m([22m[2m26 tests[22m[2m)[22m[32m 57[2mms[22m[39m
+(node:132282) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/utils/__tests__/jwt.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 57[2mms[22m[39m
+(node:132140) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/utils/__tests__/serverFiltering.test.ts [2m([22m[2m38 tests[22m[2m)[22m[32m 72[2mms[22m[39m
+(node:132168) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/services/mediaServer/__tests__/emby-parser.test.ts [2m([22m[2m69 tests[22m[2m)[22m[32m 142[2mms[22m[39m
+(node:132825) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/utils/__tests__/unitConversion.test.ts [2m([22m[2m56 tests[22m[2m)[22m[32m 104[2mms[22m[39m
+(node:132955) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/services/automations/__tests__/triggers.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 41[2mms[22m[39m
+(node:132831) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/services/library/__tests__/mediaWatchedService.test.ts [2m([22m[2m29 tests[22m[2m)[22m[32m 55[2mms[22m[39m
+(node:133501) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/services/automations/__tests__/targeting.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 31[2mms[22m[39m
+(node:133526) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/utils/__tests__/parsing.test.ts [2m([22m[2m38 tests[22m[2m)[22m[32m 68[2mms[22m[39m
+(node:133983) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/services/automations/__tests__/crossings.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+(node:134160) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/services/library/__tests__/mediaMatchKey.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 54[2mms[22m[39m
+[90mstdout[2m | src/utils/__tests__/claimCode.test.ts[2m > [22m[2mClaim Code Utility[2m > [22m[2minitializeClaimCode[2m > [22m[2menables claim code and uses CLAIM_CODE from environment if set
+[22m[39mClaim code security enabled for first-time setup
+
+
+╔════════════════════════════════════════════════════════╗
+║                                                        ║
+║          TRACEARR FIRST-TIME SETUP CLAIM CODE          ║
+║                                                        ║
+║                      Claim Code:                       ║
+║                                                        ║
+║                     TEST-CODE-1234                     ║
+║                                                        ║
+║      Copy this code to complete first-time setup.      ║
+║   Required when creating the initial admin account.    ║
+║                                                        ║
+╚════════════════════════════════════════════════════════╝
+
+
+
+[90mstdout[2m | src/utils/__tests__/claimCode.test.ts[2m > [22m[2mClaim Code Utility[2m > [22m[2minitializeClaimCode[2m > [22m[2mnormalizes env claim code to uppercase
+[22m[39mClaim code security enabled for first-time setup
+
+
+╔════════════════════════════════════════════════════════╗
+║                                                        ║
+║          TRACEARR FIRST-TIME SETUP CLAIM CODE          ║
+║                                                        ║
+║                      Claim Code:                       ║
+║                                                        ║
+║                     TEST-CODE-1234                     ║
+║                                                        ║
+║      Copy this code to complete first-time setup.      ║
+║   Required when creating the initial admin account.    ║
+║                                                        ║
+╚════════════════════════════════════════════════════════╝
+
+
+
+[90mstdout[2m | src/utils/__tests__/claimCode.test.ts[2m > [22m[2mClaim Code Utility[2m > [22m[2minitializeClaimCode[2m > [22m[2mtrims whitespace from env claim code
+[22m[39mClaim code security enabled for first-time setup
+
+
+╔════════════════════════════════════════════════════════╗
+║                                                        ║
+║          TRACEARR FIRST-TIME SETUP CLAIM CODE          ║
+║                                                        ║
+║                      Claim Code:                       ║
+║                                                        ║
+║                     TEST-CODE-1234                     ║
+║                                                        ║
+║      Copy this code to complete first-time setup.      ║
+║   Required when creating the initial admin account.    ║
+║                                                        ║
+╚════════════════════════════════════════════════════════╝
+
+
+
+[90mstdout[2m | src/utils/__tests__/claimCode.test.ts[2m > [22m[2mClaim Code Utility[2m > [22m[2minitializeClaimCode[2m > [22m[2mdoes not reinitialize if already initialized
+[22m[39mClaim code security enabled for first-time setup
+
+
+╔════════════════════════════════════════════════════════╗
+║                                                        ║
+║          TRACEARR FIRST-TIME SETUP CLAIM CODE          ║
+║                                                        ║
+║                      Claim Code:                       ║
+║                                                        ║
+║                    FIRST-CODE-1234                     ║
+║                                                        ║
+║      Copy this code to complete first-time setup.      ║
+║   Required when creating the initial admin account.    ║
+║                                                        ║
+╚════════════════════════════════════════════════════════╝
+
+
+
+[90mstdout[2m | src/utils/__tests__/claimCode.test.ts[2m > [22m[2mClaim Code Utility[2m > [22m[2misClaimCodeEnabled[2m > [22m[2mreturns true when env var is set
+[22m[39mClaim code security enabled for first-time setup
+
+
+╔════════════════════════════════════════════════════════╗
+║                                                        ║
+║          TRACEARR FIRST-TIME SETUP CLAIM CODE          ║
+║                                                        ║
+║                      Claim Code:                       ║
+║                                                        ║
+║                     TEST-CODE-1234                     ║
+║                                                        ║
+║      Copy this code to complete first-time setup.      ║
+║   Required when creating the initial admin account.    ║
+║                                                        ║
+╚════════════════════════════════════════════════════════╝
+
+
+
+[90mstdout[2m | src/utils/__tests__/claimCode.test.ts[2m > [22m[2mClaim Code Utility[2m > [22m[2mvalidateClaimCode[2m > [22m[2mwhen claim code is enabled[2m > [22m[2mvalidates correct claim code
+[22m[39mClaim code security enabled for first-time setup
+
+
+╔════════════════════════════════════════════════════════╗
+║                                                        ║
+║          TRACEARR FIRST-TIME SETUP CLAIM CODE          ║
+║                                                        ║
+║                      Claim Code:                       ║
+║                                                        ║
+║                     ABCD-EFGH-JKLM                     ║
+║                                                        ║
+║      Copy this code to complete first-time setup.      ║
+║   Required when creating the initial admin account.    ║
+║                                                        ║
+╚════════════════════════════════════════════════════════╝
+
+
+
+[90mstdout[2m | src/utils/__tests__/claimCode.test.ts[2m > [22m[2mClaim Code Utility[2m > [22m[2mvalidateClaimCode[2m > [22m[2mwhen claim code is enabled[2m > [22m[2mvalidates claim code without dashes
+[22m[39mClaim code security enabled for first-time setup
+
+
+╔════════════════════════════════════════════════════════╗
+║                                                        ║
+║          TRACEARR FIRST-TIME SETUP CLAIM CODE          ║
+║                                                        ║
+║                      Claim Code:                       ║
+║                                                        ║
+║                     ABCD-EFGH-JKLM                     ║
+║                                                        ║
+║      Copy this code to complete first-time setup.      ║
+║   Required when creating the initial admin account.    ║
+║                                                        ║
+╚════════════════════════════════════════════════════════╝
+
+
+
+[90mstdout[2m | src/utils/__tests__/claimCode.test.ts[2m > [22m[2mClaim Code Utility[2m > [22m[2mvalidateClaimCode[2m > [22m[2mwhen claim code is enabled[2m > [22m[2mvalidates claim code with different case
+[22m[39mClaim code security enabled for first-time setup
+
+
+╔════════════════════════════════════════════════════════╗
+║                                                        ║
+║          TRACEARR FIRST-TIME SETUP CLAIM CODE          ║
+║                                                        ║
+║                      Claim Code:                       ║
+║                                                        ║
+║                     ABCD-EFGH-JKLM                     ║
+║                                                        ║
+║      Copy this code to complete first-time setup.      ║
+║   Required when creating the initial admin account.    ║
+║                                                        ║
+╚════════════════════════════════════════════════════════╝
+
+
+
+[90mstdout[2m | src/utils/__tests__/claimCode.test.ts[2m > [22m[2mClaim Code Utility[2m > [22m[2mvalidateClaimCode[2m > [22m[2mwhen claim code is enabled[2m > [22m[2mvalidates claim code with extra whitespace
+[22m[39mClaim code security enabled for first-time setup
+
+
+╔════════════════════════════════════════════════════════╗
+║                                                        ║
+║          TRACEARR FIRST-TIME SETUP CLAIM CODE          ║
+║                                                        ║
+║                      Claim Code:                       ║
+║                                                        ║
+║                     ABCD-EFGH-JKLM                     ║
+║                                                        ║
+║      Copy this code to complete first-time setup.      ║
+║   Required when creating the initial admin account.    ║
+║                                                        ║
+╚════════════════════════════════════════════════════════╝
+
+
+
+[90mstdout[2m | src/utils/__tests__/claimCode.test.ts[2m > [22m[2mClaim Code Utility[2m > [22m[2mvalidateClaimCode[2m > [22m[2mwhen claim code is enabled[2m > [22m[2mrejects incorrect claim code
+[22m[39mClaim code security enabled for first-time setup
+
+
+╔════════════════════════════════════════════════════════╗
+║                                                        ║
+║          TRACEARR FIRST-TIME SETUP CLAIM CODE          ║
+║                                                        ║
+║                      Claim Code:                       ║
+║                                                        ║
+║                     ABCD-EFGH-JKLM                     ║
+║                                                        ║
+║      Copy this code to complete first-time setup.      ║
+║   Required when creating the initial admin account.    ║
+║                                                        ║
+╚════════════════════════════════════════════════════════╝
+
+
+
+[90mstdout[2m | src/utils/__tests__/claimCode.test.ts[2m > [22m[2mClaim Code Utility[2m > [22m[2mvalidateClaimCode[2m > [22m[2mwhen claim code is enabled[2m > [22m[2mrejects empty string
+[22m[39mClaim code security enabled for first-time setup
+
+
+╔════════════════════════════════════════════════════════╗
+║                                                        ║
+║          TRACEARR FIRST-TIME SETUP CLAIM CODE          ║
+║                                                        ║
+║                      Claim Code:                       ║
+║                                                        ║
+║                     ABCD-EFGH-JKLM                     ║
+║                                                        ║
+║      Copy this code to complete first-time setup.      ║
+║   Required when creating the initial admin account.    ║
+║                                                        ║
+╚════════════════════════════════════════════════════════╝
+
+
+
+[90mstdout[2m | src/utils/__tests__/claimCode.test.ts[2m > [22m[2mClaim Code Utility[2m > [22m[2mvalidateClaimCode[2m > [22m[2mwhen claim code is enabled[2m > [22m[2mrejects null
+[22m[39mClaim code security enabled for first-time setup
+
+
+╔════════════════════════════════════════════════════════╗
+║                                                        ║
+║          TRACEARR FIRST-TIME SETUP CLAIM CODE          ║
+║                                                        ║
+║                      Claim Code:                       ║
+║                                                        ║
+║                     ABCD-EFGH-JKLM                     ║
+║                                                        ║
+║      Copy this code to complete first-time setup.      ║
+║   Required when creating the initial admin account.    ║
+║                                                        ║
+╚════════════════════════════════════════════════════════╝
+
+
+
+[90mstdout[2m | src/utils/__tests__/claimCode.test.ts[2m > [22m[2mClaim Code Utility[2m > [22m[2mvalidateClaimCode[2m > [22m[2mwhen claim code is enabled[2m > [22m[2mrejects undefined
+[22m[39mClaim code security enabled for first-time setup
+
+
+╔════════════════════════════════════════════════════════╗
+║                                                        ║
+║          TRACEARR FIRST-TIME SETUP CLAIM CODE          ║
+║                                                        ║
+║                      Claim Code:                       ║
+║                                                        ║
+║                     ABCD-EFGH-JKLM                     ║
+║                                                        ║
+║      Copy this code to complete first-time setup.      ║
+║   Required when creating the initial admin account.    ║
+║                                                        ║
+╚════════════════════════════════════════════════════════╝
+
+
+
+[90mstdout[2m | src/utils/__tests__/claimCode.test.ts[2m > [22m[2mClaim Code Utility[2m > [22m[2mvalidateClaimCode[2m > [22m[2mwhen claim code is enabled[2m > [22m[2mrejects partially correct code
+[22m[39mClaim code security enabled for first-time setup
+
+
+╔════════════════════════════════════════════════════════╗
+║                                                        ║
+║          TRACEARR FIRST-TIME SETUP CLAIM CODE          ║
+║                                                        ║
+║                      Claim Code:                       ║
+║                                                        ║
+║                     ABCD-EFGH-JKLM                     ║
+║                                                        ║
+║      Copy this code to complete first-time setup.      ║
+║   Required when creating the initial admin account.    ║
+║                                                        ║
+╚════════════════════════════════════════════════════════╝
+
+
+
+[90mstdout[2m | src/utils/__tests__/claimCode.test.ts[2m > [22m[2mClaim Code Utility[2m > [22m[2mvalidateClaimCode[2m > [22m[2mwhen claim code is enabled[2m > [22m[2mrejects a code of a different length without throwing
+[22m[39mClaim code security enabled for first-time setup
+
+
+╔════════════════════════════════════════════════════════╗
+║                                                        ║
+║          TRACEARR FIRST-TIME SETUP CLAIM CODE          ║
+║                                                        ║
+║                      Claim Code:                       ║
+║                                                        ║
+║                     ABCD-EFGH-JKLM                     ║
+║                                                        ║
+║      Copy this code to complete first-time setup.      ║
+║   Required when creating the initial admin account.    ║
+║                                                        ║
+╚════════════════════════════════════════════════════════╝
+
+
+
+[90mstdout[2m | src/utils/__tests__/claimCode.test.ts[2m > [22m[2mClaim Code Utility[2m > [22m[2mgetClaimCode[2m > [22m[2mreturns the initialized claim code when enabled
+[22m[39mClaim code security enabled for first-time setup
+
+
+╔════════════════════════════════════════════════════════╗
+║                                                        ║
+║          TRACEARR FIRST-TIME SETUP CLAIM CODE          ║
+║                                                        ║
+║                      Claim Code:                       ║
+║                                                        ║
+║                     TEST-CODE-1234                     ║
+║                                                        ║
+║      Copy this code to complete first-time setup.      ║
+║   Required when creating the initial admin account.    ║
+║                                                        ║
+╚════════════════════════════════════════════════════════╝
+
+
+
+[90mstdout[2m | src/utils/__tests__/claimCode.test.ts[2m > [22m[2mClaim Code Utility[2m > [22m[2mresetClaimCode[2m > [22m[2mresets the claim code and enabled flag
+[22m[39mClaim code security enabled for first-time setup
+
+
+╔════════════════════════════════════════════════════════╗
+║                                                        ║
+║          TRACEARR FIRST-TIME SETUP CLAIM CODE          ║
+║                                                        ║
+║                      Claim Code:                       ║
+║                                                        ║
+║                     TEST-CODE-1234                     ║
+║                                                        ║
+║      Copy this code to complete first-time setup.      ║
+║   Required when creating the initial admin account.    ║
+║                                                        ║
+╚════════════════════════════════════════════════════════╝
+
+
+
+(node:134710) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/utils/__tests__/claimCode.test.ts [2m([22m[2m23 tests[22m[2m)[22m[32m 69[2mms[22m[39m
+(node:134573) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/services/mediaServer/__tests__/jellyfin-parser.test.ts [2m([22m[2m65 tests[22m[2m)[22m[32m 171[2mms[22m[39m
+[90mstderr[2m | src/utils/__tests__/crypto.test.ts[2m > [22m[2mcrypto[2m > [22m[2minitializeEncryption[2m > [22m[2mshould return false when key is wrong length
+[22m[39mENCRYPTION_KEY has invalid length (32 chars, expected 64). Encrypted token migration will be skipped.
+
+ [32m✓[39m [30m[42m unit [49m[39m src/services/automations/__tests__/dispatcher.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 34[2mms[22m[39m
+(node:135306) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/utils/__tests__/crypto.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 59[2mms[22m[39m
+(node:135872) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/utils/__tests__/serverVersions.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 41[2mms[22m[39m
+[90mstdout[2m | src/services/mediaServer/plex/__tests__/eventSource.test.ts[2m > [22m[2mPlexEventSource library timeline parsing[2m > [22m[2memits library:added when a library TimelineEntry reaches state 5 (fully processed)
+[22m[39m[SSE] Connecting to My Plex at http://plex.local:32400/:/eventsource/notifications
+
+[90mstdout[2m | src/services/mediaServer/plex/__tests__/eventSource.test.ts[2m > [22m[2mPlexEventSource library timeline parsing[2m > [22m[2memits library:added when a library TimelineEntry reaches state 5 (fully processed)
+[22m[39m[SSE] Connected to My Plex
+
+[90mstdout[2m | src/services/mediaServer/plex/__tests__/eventSource.test.ts[2m > [22m[2mPlexEventSource library timeline parsing[2m > [22m[2memits library:removed when a library TimelineEntry reaches state 9 (deleted)
+[22m[39m[SSE] Connecting to My Plex at http://plex.local:32400/:/eventsource/notifications
+
+[90mstdout[2m | src/services/mediaServer/plex/__tests__/eventSource.test.ts[2m > [22m[2mPlexEventSource library timeline parsing[2m > [22m[2memits library:removed when a library TimelineEntry reaches state 9 (deleted)
+[22m[39m[SSE] Connected to My Plex
+
+[90mstdout[2m | src/services/mediaServer/plex/__tests__/eventSource.test.ts[2m > [22m[2mPlexEventSource library timeline parsing[2m > [22m[2mhandles an unwrapped TimelineEntry payload on the timeline event name
+[22m[39m[SSE] Connecting to My Plex at http://plex.local:32400/:/eventsource/notifications
+
+[90mstdout[2m | src/services/mediaServer/plex/__tests__/eventSource.test.ts[2m > [22m[2mPlexEventSource library timeline parsing[2m > [22m[2mhandles an unwrapped TimelineEntry payload on the timeline event name
+[22m[39m[SSE] Connected to My Plex
+
+[90mstdout[2m | src/services/mediaServer/plex/__tests__/eventSource.test.ts[2m > [22m[2mPlexEventSource library timeline parsing[2m > [22m[2mignores in-progress metadata states (0-4)
+[22m[39m[SSE] Connecting to My Plex at http://plex.local:32400/:/eventsource/notifications
+
+[90mstdout[2m | src/services/mediaServer/plex/__tests__/eventSource.test.ts[2m > [22m[2mPlexEventSource library timeline parsing[2m > [22m[2mignores in-progress metadata states (0-4)
+[22m[39m[SSE] Connected to My Plex
+
+[90mstdout[2m | src/services/mediaServer/plex/__tests__/eventSource.test.ts[2m > [22m[2mPlexEventSource library timeline parsing[2m > [22m[2mignores TimelineEntry from non-library identifiers
+[22m[39m[SSE] Connecting to My Plex at http://plex.local:32400/:/eventsource/notifications
+
+[90mstdout[2m | src/services/mediaServer/plex/__tests__/eventSource.test.ts[2m > [22m[2mPlexEventSource library timeline parsing[2m > [22m[2mignores TimelineEntry from non-library identifiers
+[22m[39m[SSE] Connected to My Plex
+
+[90mstdout[2m | src/services/mediaServer/plex/__tests__/eventSource.test.ts[2m > [22m[2mPlexEventSource library timeline parsing[2m > [22m[2mdoes not throw on malformed JSON
+[22m[39m[SSE] Connecting to My Plex at http://plex.local:32400/:/eventsource/notifications
+
+[90mstdout[2m | src/services/mediaServer/plex/__tests__/eventSource.test.ts[2m > [22m[2mPlexEventSource library timeline parsing[2m > [22m[2mdoes not throw on malformed JSON
+[22m[39m[SSE] Connected to My Plex
+
+[90mstderr[2m | src/services/mediaServer/plex/__tests__/eventSource.test.ts[2m > [22m[2mPlexEventSource library timeline parsing[2m > [22m[2mdoes not throw on malformed JSON
+[22m[39m[SSE] Failed to parse message from My Plex: SyntaxError: Expected property name or '}' in JSON at position 1 (line 1 column 2)
+    at JSON.parse (<anonymous>)
+    at PlexEventSource.handleMessage [90m(/app/apps/server/[39msrc/services/mediaServer/plex/eventSource.ts:297:25[90m)[39m
+    at notificationListener [90m(/app/apps/server/[39msrc/services/mediaServer/plex/eventSource.ts:205:71[90m)[39m
+    at Object._emit [90m(/app/apps/server/[39msrc/services/mediaServer/plex/__tests__/eventSource.test.ts:37:51[90m)[39m
+    at [90m/app/apps/server/[39msrc/services/mediaServer/plex/__tests__/eventSource.test.ts:176:23
+    at Proxy.assertThrows (file:///app/node_modules/[4m.pnpm[24m/chai@6.2.2/node_modules/[4mchai[24m/index.js:2798:5)
+    at Proxy.methodWrapper (file:///app/node_modules/[4m.pnpm[24m/chai@6.2.2/node_modules/[4mchai[24m/index.js:1700:25)
+    at Proxy.<anonymous> (file:///app/node_modules/[4m.pnpm[24m/@vitest+expect@4.1.11/node_modules/[4m@vitest/expect[24m/dist/index.js:1216:12)
+    at Proxy.overwritingMethodWrapper (file:///app/node_modules/[4m.pnpm[24m/chai@6.2.2/node_modules/[4mchai[24m/index.js:1750:33)
+    at Proxy.<anonymous> (file:///app/node_modules/[4m.pnpm[24m/@vitest+expect@4.1.11/node_modules/[4m@vitest/expect[24m/dist/index.js:1552:16)
+
+[90mstdout[2m | src/services/mediaServer/plex/__tests__/eventSource.test.ts[2m > [22m[2mPlexEventSource library timeline parsing[2m > [22m[2mdoes not emit library events for unrelated PlaySessionStateNotification payloads
+[22m[39m[SSE] Connecting to My Plex at http://plex.local:32400/:/eventsource/notifications
+
+[90mstdout[2m | src/services/mediaServer/plex/__tests__/eventSource.test.ts[2m > [22m[2mPlexEventSource library timeline parsing[2m > [22m[2mdoes not emit library events for unrelated PlaySessionStateNotification payloads
+[22m[39m[SSE] Connected to My Plex
+
+ [32m✓[39m [30m[42m unit [49m[39m src/services/mediaServer/plex/__tests__/eventSource.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 55[2mms[22m[39m
+(node:136471) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/lib/__tests__/authGuards.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 64[2mms[22m[39m
+[90mstderr[2m | src/websocket/__tests__/authMiddleware.test.ts[2m > [22m[2mcheckMobileBlacklist[2m > [22m[2mfails closed when the redis lookup rejects
+[22m[39m[WebSocket] Blacklist check error: Error: redis down
+    at Object.<anonymous> [90m(/app/apps/server/[39msrc/websocket/__tests__/authMiddleware.test.ts:145:13[90m)[39m
+    at Object.Mock [as get] (file:///app/node_modules/[4m.pnpm[24m/@vitest+spy@4.1.11/node_modules/[4m@vitest/spy[24m/dist/index.js:332:34)
+    at Module.checkMobileBlacklist [90m(/app/apps/server/[39msrc/websocket/index.ts:92:43[90m)[39m
+    at [90m/app/apps/server/[39msrc/websocket/__tests__/authMiddleware.test.ts:148:27
+    at file:///app/node_modules/[4m.pnpm[24m/@vitest+runner@4.1.11/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:302:11
+    at file:///app/node_modules/[4m.pnpm[24m/@vitest+runner@4.1.11/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:1903:26
+    at file:///app/node_modules/[4m.pnpm[24m/@vitest+runner@4.1.11/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2326:20
+    at new Promise (<anonymous>)
+    at runWithCancel (file:///app/node_modules/[4m.pnpm[24m/@vitest+runner@4.1.11/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2323:10)
+    at file:///app/node_modules/[4m.pnpm[24m/@vitest+runner@4.1.11/node_modules/[4m@vitest/runner[24m/dist/chunk-artifact.js:2305:20
+
+ [32m✓[39m [30m[42m unit [49m[39m src/websocket/__tests__/authMiddleware.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 69[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m src/services/mediaServer/shared/__tests__/playbackReportingApi.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 28[2mms[22m[39m
+[90mstdout[2m | src/services/automations/__tests__/v2Integration.test.ts[2m > [22m[2mcreateActionExecutorDeps - enqueueAutomationNotification[2m > [22m[2mhands the event straight to the queue with the destination ids and the source
+[22m[39m[automations] Notification enqueued: violation { to: [ [32m'd1'[39m, [32m'd2'[39m ], count: [33m2[39m }
+
+ [32m✓[39m [30m[42m unit [49m[39m src/services/automations/__tests__/v2Integration.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+(node:133574) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+[90mstderr[2m | src/lib/__tests__/auth.test.ts[2m > [22m[2mgetAuth construction[2m > [22m[2mconstructs the real auth instance without throwing
+[22m[39m[2m2026-10-02T04:53:47.098Z[0m [33mWARN[0m [1m[Better Auth]:[0m [better-auth] Base URL is not set. Set the baseURL option or BETTER_AUTH_URL env, or use a dynamic baseURL with allowedHosts for multi-host setups. Without it the origin is derived from the incoming request, and callbacks and redirects may not work correctly.
+
+[90mstderr[2m | src/lib/__tests__/auth.test.ts[2m > [22m[2mgetAuth construction[2m > [22m[2mregisters the expected plugins
+[22m[39m[2m2026-10-02T04:53:47.109Z[0m [33mWARN[0m [1m[Better Auth]:[0m [better-auth] Base URL is not set. Set the baseURL option or BETTER_AUTH_URL env, or use a dynamic baseURL with allowedHosts for multi-host setups. Without it the origin is derived from the incoming request, and callbacks and redirects may not work correctly.
+
+[90mstderr[2m | src/lib/__tests__/auth.test.ts[2m > [22m[2mgetAuth construction[2m > [22m[2mresolves the client ip only from the shim-stamped header
+[22m[39m[2m2026-10-02T04:53:47.113Z[0m [33mWARN[0m [1m[Better Auth]:[0m [better-auth] Base URL is not set. Set the baseURL option or BETTER_AUTH_URL env, or use a dynamic baseURL with allowedHosts for multi-host setups. Without it the origin is derived from the incoming request, and callbacks and redirects may not work correctly.
+
+[90mstderr[2m | src/lib/__tests__/auth.test.ts[2m > [22m[2mgetAuth construction[2m > [22m[2mexposes the atomic secondary storage operations
+[22m[39m[2m2026-10-02T04:53:47.116Z[0m [33mWARN[0m [1m[Better Auth]:[0m [better-auth] Base URL is not set. Set the baseURL option or BETTER_AUTH_URL env, or use a dynamic baseURL with allowedHosts for multi-host setups. Without it the origin is derived from the incoming request, and callbacks and redirects may not work correctly.
+
+[90mstderr[2m | src/lib/__tests__/auth.test.ts[2m > [22m[2mgetAuth construction[2m > [22m[2mconstructs the real auth instance with OIDC configured, alongside the default plugins
+[22m[39m[2m2026-10-02T04:53:47.167Z[0m [33mWARN[0m [1m[Better Auth]:[0m [better-auth] Base URL is not set. Set the baseURL option or BETTER_AUTH_URL env, or use a dynamic baseURL with allowedHosts for multi-host setups. Without it the origin is derived from the incoming request, and callbacks and redirects may not work correctly.
+
+ [32m✓[39m [30m[42m unit [49m[39m src/lib/__tests__/auth.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 97[2mms[22m[39m
+[90mstderr[2m | src/lib/__tests__/betterAuthBasePath.test.ts[2m > [22m[2mbetter auth BASE_PATH handling[2m > [22m[2mauth instance basePath[2m > [22m[2mincludes BASE_PATH so derived callback URLs keep the subpath
+[22m[39m[2m2026-10-02T04:53:47.395Z[0m [33mWARN[0m [1m[Better Auth]:[0m [better-auth] Base URL is not set. Set the baseURL option or BETTER_AUTH_URL env, or use a dynamic baseURL with allowedHosts for multi-host setups. Without it the origin is derived from the incoming request, and callbacks and redirects may not work correctly.
+
+[90mstderr[2m | src/lib/__tests__/betterAuthBasePath.test.ts[2m > [22m[2mbetter auth BASE_PATH handling[2m > [22m[2mauth instance basePath[2m > [22m[2mstays at the bare mount path with no BASE_PATH
+[22m[39m[2m2026-10-02T04:53:47.454Z[0m [33mWARN[0m [1m[Better Auth]:[0m [better-auth] Base URL is not set. Set the baseURL option or BETTER_AUTH_URL env, or use a dynamic baseURL with allowedHosts for multi-host setups. Without it the origin is derived from the incoming request, and callbacks and redirects may not work correctly.
+
+ [32m✓[39m [30m[42m unit [49m[39m src/lib/__tests__/betterAuthBasePath.test.ts [2m([22m[2m9 tests[22m[2m)[22m[33m 1371[2mms[22m[39m
+       [33m[2m✓[22m[39m re-prefixes BASE_PATH onto the rewritten request url [33m 840[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m src/services/mediaServer/jellyfin/__tests__/client.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+(node:139203) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/services/automations/__tests__/comparisons.test.ts [2m([22m[2m24 tests[22m[2m)[22m[32m 48[2mms[22m[39m
+(node:139684) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/utils/__tests__/sanitizeText.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 42[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m src/services/mediaServer/shared/__tests__/versionUtils.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 59[2mms[22m[39m
+(node:140221) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/utils/__tests__/ssrf.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 52[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m src/services/mediaServer/emby/__tests__/client.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 29[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m src/utils/__tests__/password.test.ts [2m([22m[2m16 tests[22m[2m)[22m[33m 13532[2mms[22m[39m
+       [33m[2m✓[22m[39m should return a bcrypt hash string [33m 323[2mms[22m[39m
+       [33m[2m✓[22m[39m should produce different hashes for same password (random salt) [33m 964[2mms[22m[39m
+       [33m[2m✓[22m[39m should handle empty string password [33m 615[2mms[22m[39m
+       [33m[2m✓[22m[39m should handle unicode passwords [33m 718[2mms[22m[39m
+       [33m[2m✓[22m[39m should handle very long passwords [33m 666[2mms[22m[39m
+       [33m[2m✓[22m[39m should handle special characters [33m 641[2mms[22m[39m
+       [33m[2m✓[22m[39m should return true for correct password [33m 642[2mms[22m[39m
+       [33m[2m✓[22m[39m should return false for incorrect password [33m 646[2mms[22m[39m
+       [33m[2m✓[22m[39m should return false for similar but different password [33m 1900[2mms[22m[39m
+       [33m[2m✓[22m[39m should reject empty password against non-empty hash [33m 633[2mms[22m[39m
+       [33m[2m✓[22m[39m should handle hash from different password correctly [33m 1280[2mms[22m[39m
+       [33m[2m✓[22m[39m should work for typical user registration/login flow [33m 1024[2mms[22m[39m
+       [33m[2m✓[22m[39m should work for password change flow [33m 1568[2mms[22m[39m
+       [33m[2m✓[22m[39m should handle multiple users with same password [33m 1255[2mms[22m[39m
+       [33m[2m✓[22m[39m should use cost factor of at least 10 [33m 320[2mms[22m[39m
+       [33m[2m✓[22m[39m should not expose password in hash [33m 325[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m src/services/mediaServer/shared/__tests__/terminateSession.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+(node:140952) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/utils/__tests__/ip.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 45[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m src/services/mediaServer/__tests__/navidrome.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 84[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m src/services/mediaServer/shared/__tests__/ssePluginProbe.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 66[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m src/lib/__tests__/env.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 36[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m src/utils/__tests__/publicApiTokenCache.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 41[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m src/utils/__tests__/violationHelpers.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m src/services/mediaServer/plex/__tests__/strongPin.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m src/services/mediaServer/__tests__/softwareVersion.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m src/utils/__tests__/publicApiRateLimitKey.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+[90mstdout[2m | src/websocket/__tests__/connectionRecovery.test.ts[2m > [22m[2mconnection state recovery[2m > [22m[2mrecovers the session after an abrupt transport drop and re-runs auth
+[22m[39m[WebSocket] Client connected: 6w3MjSmXjZ5VxRaKAAAB (user: owner)
+
+[90mstdout[2m | src/websocket/__tests__/connectionRecovery.test.ts[2m > [22m[2mconnection state recovery[2m > [22m[2mrecovers the session after an abrupt transport drop and re-runs auth
+[22m[39m[WebSocket] Client disconnected: 6w3MjSmXjZ5VxRaKAAAB, reason: transport close
+
+[90mstdout[2m | src/websocket/__tests__/connectionRecovery.test.ts[2m > [22m[2mconnection state recovery[2m > [22m[2mrecovers the session after an abrupt transport drop and re-runs auth
+[22m[39m[WebSocket] Client connected: 6w3MjSmXjZ5VxRaKAAAB (user: owner)
+
+[90mstdout[2m | src/websocket/__tests__/connectionRecovery.test.ts
+[22m[39m[WebSocket] Client disconnected: 6w3MjSmXjZ5VxRaKAAAB, reason: server shutting down
+
+ [32m✓[39m [30m[42m unit [49m[39m src/websocket/__tests__/connectionRecovery.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 103[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m src/services/mediaServer/plex/__tests__/clientIdentifier.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m src/utils/__tests__/cursor.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m src/utils/__tests__/resolutionBuckets.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 20[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m src/lib/__tests__/betterAuthRequest.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 41[2mms[22m[39m
+(node:144054) MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 modified listeners added to [EventEmitter]. MaxListeners is 10. Use emitter.setMaxListeners() to increase limit
+(Use `node --trace-warnings ...` to show where the warning was created)
+ [32m✓[39m [30m[42m unit [49m[39m src/services/library/__tests__/mediaRef.test.ts [2m([22m[2m11 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m src/services/mediaServer/plex/__tests__/parser.library.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 16[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m src/services/automations/__tests__/aliasFilter.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m src/utils/__tests__/pluginVersion.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 28[2mms[22m[39m
+[90mstdout[2m | src/websocket/__tests__/reinitialize.test.ts[2m > [22m[2minitializeWebSocket[2m > [22m[2mreuses the server on a second call so clients already attached keep getting broadcasts
+[22m[39m[WebSocket] Server initialized
+
+[90mstdout[2m | src/websocket/__tests__/reinitialize.test.ts[2m > [22m[2minitializeWebSocket[2m > [22m[2mreuses the server on a second call so clients already attached keep getting broadcasts
+[22m[39m[WebSocket] Client connected: 7dSF283NuYc4OAdtAAAB (user: owner)
+
+[90mstdout[2m | src/websocket/__tests__/reinitialize.test.ts[2m > [22m[2minitializeWebSocket[2m > [22m[2mreuses the server on a second call so clients already attached keep getting broadcasts
+[22m[39m[WebSocket] Client disconnected: 7dSF283NuYc4OAdtAAAB, reason: server shutting down
+
+ [32m✓[39m [30m[42m unit [49m[39m src/websocket/__tests__/reinitialize.test.ts [2m([22m[2m1 test[22m[2m)[22m[32m 83[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m src/utils/__tests__/webRoot.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 28[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m src/utils/__tests__/wallClock.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 255[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m src/utils/__tests__/codecNormalizer.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m src/lib/__tests__/redisShared.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 97[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m src/utils/__tests__/webRoot.win32.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m [30m[42m unit [49m[39m src/lib/__tests__/bootRecovery.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 13[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m82 passed[39m[22m[90m (82)[39m
+[2m      Tests [22m [1m[32m2021 passed[39m[22m[90m (2021)[39m
+[2m   Start at [22m 04:53:17
+[2m   Duration [22m 44.56s[2m (transform 7.61s, setup 70.17s, import 21.80s, tests 22.10s, environment 14ms)[22m
+

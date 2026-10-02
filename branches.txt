@@ -1,0 +1,30 @@
+  jules-16064012185222347812-bff6b2a6
+* main
+  remotes/origin/HEAD -> origin/main
+  remotes/origin/backup/main-before-upstream-20260911
+  remotes/origin/backup/main-before-upstream-20260911-2
+  remotes/origin/backup/main-before-upstream-20260911-3
+  remotes/origin/develop
+  remotes/origin/l10n_main
+  remotes/origin/main
+  remotes/origin/music-stats-navidrome-tailscale
+  remotes/origin/renovate/better-auth-monorepo
+  remotes/origin/renovate/docker-images
+  remotes/origin/renovate/expo-server-sdk-7.x
+  remotes/origin/renovate/lint-and-format
+  remotes/origin/renovate/patch-scalar-monorepo
+  remotes/origin/renovate/pnpm-11.x
+  remotes/origin/renovate/undici-8.10.x-lockfile
+  remotes/origin/sync/upstream-20260927
+  remotes/origin/sync/upstream-20260929
+  remotes/origin/sync/upstream-20260929-17267398912392940738
+  remotes/origin/upstream-main
+  remotes/upstream/HEAD -> upstream/main
+  remotes/upstream/develop
+  remotes/upstream/l10n_main
+  remotes/upstream/main
+  remotes/upstream/renovate/better-auth-monorepo
+  remotes/upstream/renovate/docker-images
+  remotes/upstream/renovate/github-actions
+  remotes/upstream/renovate/lint-and-format
+  remotes/upstream/renovate/turbo-monorepo
