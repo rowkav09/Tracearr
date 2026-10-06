@@ -1,7 +1,6 @@
 {
   "pair": {
-    "welcome": "Tracearへようこそ",
-    "addServer": "サーバーを追加",
+    "welcome": "Tracearrへようこそ",
     "connectToServer": "サーバーに接続",
     "enterServerDetails": "TracearrサーバーのURLとモバイルアクセストークンを入力してください",
     "serverUrl": "サーバー URL",
@@ -16,10 +15,7 @@
     "pleaseEnterToken": ""
   },
   "errors": {
-    "missingFields": "フィールドがありません",
-    "pleaseEnterBothFields": "サーバーのURLとトークンの両方を入力してください",
     "invalidUrl": "無効な URL",
-    "serverUrlMustStartWith": "サーバーのURLはhttp://またはhttps://で始まる必要があります",
     "pleaseEnterValidUrl": "サーバーURLを正しく入力してください",
     "pairingFailed": "ペアリングに失敗しました",
     "unableToPair": "",
@@ -28,12 +24,7 @@
     "invalidQrCodeFormat": "QRコード形式が無効です。新しいコードを生成してください。",
     "invalidQrCodeMissingUrl": "無効な QR コード: サーバーの URL がありません",
     "invalidQrCodeMissingToken": "QRコードが無効です: ペアリングトークンがありません",
-    "invalidServerUrlInQr": "QRコード内の無効なサーバーURLです",
-    "tooManyPairingAttempts": "ペアリングの試行回数が多すぎます。しばらくお待ちください。",
-    "invalidOrExpiredToken": "無効または期限切れのペアリングトークンです。",
-    "invalidPairingRequest": "ペアリングリクエストが無効です。トークンを確認してください。",
     "errorDetails": "",
-    "componentStack": "",
     "connectionLost": "",
     "failedToLoadSession": ""
   },
@@ -63,14 +54,16 @@
     "build": ""
   },
   "navigation": {
-    "home": "",
     "selectServer": "サーバーを選択",
-    "server": "サーバー",
-    "navigation": ""
+    "server": "サーバー"
   },
   "resources": {
     "cpu": "",
-    "ram": ""
+    "ram": "",
+    "item": "",
+    "noData": "",
+    "system": "",
+    "waiting": ""
   },
   "notifications": {
     "testSent": "テストを送信しました",
@@ -82,7 +75,6 @@
     "ruleViolationTriggered": "",
     "newPlaybackBegan": "",
     "playbackEnded": "",
-    "exceededStreamLimit": "",
     "newDeviceDetected": "",
     "trustScoreDegraded": "",
     "serverUnreachable": "",
@@ -98,11 +90,19 @@
     "criticalOverrideDescription": "",
     "rateLimitDescription": "",
     "sendTestNotification": "",
-    "testDescription": ""
-  },
-  "dashboard": {
-    "today": "",
-    "hrs": ""
+    "testDescription": "",
+    "pushNotifications": "",
+    "ruleTypes": {
+      "accountInactivity": "",
+      "deviceVelocity": "",
+      "geoRestriction": "",
+      "impossibleTravel": "",
+      "simultaneousLocations": ""
+    },
+    "severityAll": "",
+    "severityHighOnly": "",
+    "severityWarningUp": "",
+    "violationTypes": ""
   },
   "session": {
     "streamTerminated": "",
@@ -113,37 +113,57 @@
     "userMayBeRemoved": "",
     "noLocationsRecorded": "",
     "noDevicesRecorded": "",
-    "moreLocations": "",
-    "moreDevices": "",
     "noViolations": "",
     "noTerminations": "",
-    "trustLow": "",
-    "trustMedium": "",
-    "trustHigh": ""
+    "lastSeen": "",
+    "terminatedBy": "",
+    "trustScoreConfirm": "",
+    "trustScoreRange": "",
+    "moreLocations_other": "",
+    "moreDevices_other": ""
   },
   "violation": {
     "violationNotFoundDesc": "",
-    "customRule": "",
-    "streamComparison": "",
     "ips": ""
   },
   "alerts": {
-    "done": "",
-    "clearFilters": ""
+    "clearFilters": "",
+    "acknowledgeAll": "",
+    "acknowledgeAllBody": "",
+    "acknowledgeAllBodySeverity": "",
+    "all": "",
+    "allClear": "",
+    "allServers": "",
+    "noAlertsRecorded": "",
+    "noMatches": "",
+    "acknowledgeAllTitle_other": "",
+    "pendingCount_other": ""
   },
   "history": {
-    "noHistoryFound": "",
     "adjustFilters": "",
-    "historyWillAppear": ""
+    "historyWillAppear": "",
+    "filters": {
+      "clearCount": "",
+      "countries": "",
+      "filterBy": "",
+      "mediaType": "",
+      "noCountries": "",
+      "noPlatforms": "",
+      "noUsers": "",
+      "sectionSelected_other": ""
+    }
   },
   "users": {
     "owner": "",
     "noUsers": "",
     "usersWillAppear": "",
-    "noUsersMatch": ""
+    "noUsersMatch": "",
+    "joinedRelative": "",
+    "sortActive": "",
+    "sortTrust": ""
   },
   "activity": {
-    "playsOverTime": "再生時間",
+    "playsOverTime": "再生回数の推移",
     "concurrentStreams": "同時ストリーム",
     "platforms": "プラットフォーム",
     "playbackQuality": ""
@@ -151,7 +171,14 @@
   "unauthenticated": {
     "connectionLost": "",
     "accessRevoked": "",
+    "deviceRemoved": "",
+    "expired": "",
     "scanQrCode": ""
+  },
+  "clientTooOld": {
+    "title": "",
+    "body": "",
+    "update": ""
   },
   "serverSelector": {
     "servers": "",
@@ -160,19 +187,72 @@
     "allServers": ""
   },
   "reconnected": "",
-  "actionsExecuted": "",
-  "serverScope": {
-    "single": ""
-  },
   "a11y": {
     "selectServer": "",
     "alerts": "",
-    "alertsCount": "",
     "settings": "",
-    "trustScore": ""
+    "trustScore": "",
+    "decreaseTrustScore": "",
+    "increaseTrustScore": "",
+    "sortAscending": "",
+    "sortDescending": "",
+    "alertsCount_other": "",
+    "filtersActive_other": ""
   },
   "map": {
     "noData": "",
     "unavailable": ""
+  },
+  "automations": {
+    "editOnWeb": "",
+    "emptyDescription": "",
+    "kind": {
+      "notification": "",
+      "policy": ""
+    },
+    "lastRun": "",
+    "truncated": "",
+    "turnOffFailed": "",
+    "turnOnFailed": "",
+    "unsupportedDescription": "",
+    "unsupportedTitle": "",
+    "versionCheckFailed": "",
+    "conditions_other": ""
+  },
+  "charts": {
+    "weekOf": ""
+  },
+  "push": {
+    "violationTitle": ""
+  },
+  "streamDetails": {
+    "bitrate": "",
+    "channels": "",
+    "codec": "",
+    "color": "",
+    "container": "",
+    "forced": "",
+    "format": "",
+    "framerate": "",
+    "hwDecode": "",
+    "hwEncode": "",
+    "mono": "",
+    "noDetails": "",
+    "notAvailable": "",
+    "profile": "",
+    "sampleRate": "",
+    "source": "",
+    "speed": "",
+    "stereo": "",
+    "stream": "",
+    "subtitles": "",
+    "throttled": "",
+    "transcodeDetails": ""
+  },
+  "widget": {
+    "asOf": "",
+    "signedOut": "",
+    "serversDown_other": "",
+    "transcodes_other": ""
   }
 }

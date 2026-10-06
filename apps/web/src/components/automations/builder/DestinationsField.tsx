@@ -15,7 +15,6 @@ import { DestinationDialog } from '@/components/settings/destinations/Destinatio
 import { iconFor } from '@/components/settings/destinations/destinationIcons';
 import { useDestinations } from '@/hooks/queries/useDestinations';
 import { cn } from '@/lib/utils';
-import { SELECTED_TOGGLE } from './selection';
 
 interface DestinationsFieldProps {
   value: string[];
@@ -23,11 +22,6 @@ interface DestinationsFieldProps {
   label: string;
   /** Set when an enclosing Field supplies the label, so this renders none of its own. */
   labelledBy?: string;
-}
-
-function byBuiltinThenName(a: Destination, b: Destination): number {
-  if (a.builtin !== b.builtin) return Number(b.builtin) - Number(a.builtin);
-  return a.name.localeCompare(b.name);
 }
 
 function lacksAlertRecipients(row: Destination): boolean {
@@ -47,7 +41,7 @@ export function DestinationsField({ value, onChange, label, labelledBy }: Destin
     return <Skeleton className="h-8 w-64" />;
   }
 
-  const rows = [...(destinations ?? [])].sort(byBuiltinThenName);
+  const rows = destinations ?? [];
   // A rule can outlive the destination it sends to; keep those ids visible so they can be dropped.
   const missingIds = value.filter((id) => !rows.some((row) => row.id === id));
 
@@ -93,11 +87,7 @@ export function DestinationsField({ value, onChange, label, labelledBy }: Destin
                 <ToggleGroupItem
                   key={row.id}
                   value={row.id}
-                  className={cn(
-                    'rounded-full',
-                    SELECTED_TOGGLE,
-                    (!row.enabled || quiet) && 'opacity-60'
-                  )}
+                  className={cn('rounded-full', (!row.enabled || quiet) && 'opacity-60')}
                 >
                   {picked ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
                   {row.name}

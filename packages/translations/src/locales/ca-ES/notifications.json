@@ -1,299 +1,265 @@
 {
-  "push": {
-    "newDevice": "",
-    "serverDown": "",
-    "serverUp": "",
-    "streamEnded": "",
-    "streamStarted": "",
-    "trustScoreChanged": "",
-    "violationDetected": ""
-  },
-  "settings": {
-    "allSeverity": "",
-    "allTypes": "",
-    "concurrentStreams": "",
-    "concurrentStreamsDesc": "",
-    "enablePushNotifications": "",
-    "enableQuietHours": "",
-    "highOnly": "",
-    "minimumSeverity": "",
-    "newDevice": "",
-    "newDeviceDesc": "",
-    "notificationEvents": "",
-    "overrideForCritical": "",
-    "perHour": "",
-    "perMinute": "",
-    "quietHours": "",
-    "rateLimit": "",
-    "rateLimiting": "",
-    "serverDown": "",
-    "serverDownDesc": "",
-    "serverUp": "",
-    "serverUpDesc": "",
-    "streamStarted": "",
-    "streamStartedDesc": "",
-    "streamStopped": "",
-    "streamStoppedDesc": "",
-    "title": "",
-    "trustScoreChanged": "",
-    "trustScoreChangedDesc": "",
-    "violationDetected": "",
-    "violationDetectedDesc": "",
-    "violationFilters": "",
-    "warningAndHigh": ""
-  },
   "toast": {
-    "error": {
-      "acknowledgeFailed": "",
-      "agentAddFailed": "",
-      "agentRemoveFailed": "",
-      "agentTestFailed": "",
-      "agentUpdateFailed": "",
-      "apiKeyGenerateFailed": "",
-      "authFailed": "",
-      "automationCreateFailed": "",
-      "automationDeleteFailed": "",
-      "automationUpdateFailed": "",
-      "brandingSaveFailed": "",
-      "clipboardFailed": "",
-      "copyFailed": "",
-      "destinationDeleteFailed": "",
-      "destinationInUse": "",
-      "destinationSaveFailed": "",
-      "destinationTestFailed": "",
-      "destinationUsedByNewsletters": "",
-      "deviceRemoveFailed": "",
-      "deviceRenameFailed": "",
-      "dismissFailed": "",
-      "identityUpdateFailed": "",
-      "invalidClaimCode": {
-        "message": "",
-        "title": ""
-      },
-      "invalidUrl": "",
-      "jobAlreadyRunning": "",
-      "jobLoadFailed": "",
-      "jobStartFailed": "",
-      "mobileAccessDisableFailed": "",
-      "mobileAccessEnableFailed": "",
-      "newsletterDeleteFailed": "",
-      "newsletterDuplicateFailed": "",
-      "newsletterPreviewFailed": "",
-      "newsletterRetryFailed": "",
-      "newsletterSaveFailed": "",
-      "newsletterSendFailed": "",
-      "newsletterSnapshotFailed": "",
-      "newsletterTestFailed": "",
-      "pairTokenGenerateFailed": "",
-      "plexDirectUrl": "",
-      "plexReauthorizeFailed": "",
-      "plexUnlinkFailed": "",
-      "routingUpdateFailed": "",
-      "serverAddFailed": "",
-      "serverRemoveFailed": "",
-      "serverReorderFailed": "",
-      "serverSyncFailed": "",
-      "serverUpdateFailed": "",
-      "serverUrlUpdateFailed": "",
-      "serverUserSplitFailed": "",
-      "sessionsDeleteFailed": "",
-      "sessionsRevokeFailed": "",
-      "settingsUpdateFailed": "",
-      "streamTerminateFailed": "",
-      "suppressionAddFailed": "",
-      "suppressionRemoveFailed": "",
-      "trustScoresResetFailed": "",
-      "userMergeFailed": "",
-      "webhookTestFailed": ""
-    },
-    "info": {
-      "updateAvailable": {
-        "message": "",
-        "title": ""
-      },
-      "violationDetected": {
-        "message": "",
-        "title": ""
-      }
-    },
     "success": {
-      "agentAdded": {
-        "message": "",
-        "title": ""
-      },
-      "agentRemoved": {
-        "message": "",
-        "title": ""
-      },
-      "agentUpdated": {
-        "message": "",
-        "title": ""
-      },
-      "apiKeyGenerated": {
-        "message": "",
-        "title": ""
-      },
-      "automationCreated": {
-        "message": "",
-        "title": ""
-      },
-      "automationDeleted": {
-        "message": "",
-        "title": ""
-      },
-      "automationUpdated": {
-        "message": "",
-        "title": ""
-      },
-      "brandingSaved": "",
-      "claimCodeValidated": {
-        "message": "",
-        "title": ""
-      },
-      "copiedToClipboard": {
-        "title": ""
-      },
-      "destinationDeleted": "",
-      "destinationSaved": "",
-      "destinationTestSent": "",
-      "destinationTestSentTo": "",
-      "deviceRemoved": {
-        "message": "",
-        "title": ""
-      },
-      "deviceRenamed": {
-        "message": "",
-        "title": ""
-      },
-      "identityUpdated": "",
-      "jobCompleted": {
-        "message": "",
-        "title": ""
-      },
-      "loggedIn": {
-        "message": "",
-        "title": "Realitzat amb èxit"
-      },
-      "mobileAccessDisabled": {
-        "message": "",
-        "title": ""
-      },
-      "mobileAccessEnabled": {
-        "message": "",
-        "title": ""
-      },
-      "newsletterDeleted": "",
-      "newsletterDuplicated": "",
-      "newsletterRetryQueued": "",
-      "newsletterSaved": "",
-      "newsletterSendQueued": "",
-      "newsletterTestQueued": "",
-      "pairTokenGenerated": {
-        "message": "",
-        "title": ""
-      },
-      "plexAccountLinked": {
-        "message": "",
-        "title": ""
-      },
-      "plexAccountReauthorized": {
-        "messageNoServers": "",
-        "message_one": "",
-        "message_other": "",
-        "partial": "",
-        "title": "",
-        "unmatched": ""
-      },
-      "plexAccountUnlinked": {
-        "message": "",
-        "title": ""
-      },
       "serverAdded": {
-        "message": "",
-        "title": ""
+        "title": "Servidor afegit",
+        "message": "{{name}} s'ha connectat correctament"
       },
       "serverRemoved": {
-        "message": "",
-        "title": ""
+        "title": "Servidor suprimit",
+        "message": "El servidor s'ha suprimit correctament"
       },
       "serverSynced": {
-        "message": "",
-        "title": ""
+        "title": "Servidor sincronitzat"
       },
-      "serverUpdated": {
-        "message": "",
-        "title": ""
+      "serverMarkedHistorical": {
+        "title": "Servidor marcat com a arxivat",
+        "message": "Tracearr ja no contacta amb {{name}}. L'historial es conserva."
       },
-      "serverUrlUpdated": {
-        "message": "",
-        "title": ""
-      },
-      "serverUserSplit": {
-        "title": ""
-      },
-      "sessionsDeleted": {
-        "message_one": "",
-        "message_other": "",
-        "title": ""
-      },
-      "sessionsRevoked": {
-        "message": "",
-        "title": ""
+      "serverResumed": {
+        "title": "Servidor représ",
+        "message": "Tracearr torna a contactar amb {{name}}."
       },
       "settingsUpdated": {
-        "message": "",
-        "title": ""
-      },
-      "streamTerminated": {
-        "message": "",
-        "title": ""
-      },
-      "suppressionAdded": "",
-      "suppressionRemoved": "",
-      "syncCompletedWithErrors": {
-        "title": ""
-      },
-      "tokenCopied": {
-        "message": "",
-        "title": ""
-      },
-      "trustScoresReset": {
-        "message_one": "",
-        "message_other": "",
-        "title": ""
-      },
-      "usersMerged": {
-        "automationsKept": "",
-        "title": ""
+        "title": "Configuració actualitzada",
+        "message": "S'ha desat la configuració"
       },
       "violationAcknowledged": {
-        "message": "",
-        "title": ""
+        "title": "Incompliment confirmat",
+        "message": "L'incompliment s'ha marcat com a confirmat"
       },
       "violationDismissed": {
-        "message": "",
-        "title": ""
+        "title": "Incompliment descartat",
+        "message": "S'ha descartat l'incompliment"
+      },
+      "deviceRemoved": {
+        "title": "Dispositiu suprimit",
+        "message": "El dispositiu s'ha desconnectat"
+      },
+      "deviceRenamed": {
+        "title": "Dispositiu reanomenat",
+        "message": "S'ha actualitzat el nom del dispositiu"
+      },
+      "sessionsRevoked": {
+        "title": "Sessions revocades"
+      },
+      "loggedIn": {
+        "title": "Realitzat amb èxit",
+        "message": "S'ha iniciat la sessió correctament"
+      },
+      "plexAccountLinked": {
+        "title": "Compte de Plex enllaçat",
+        "message": "Ja podeu afegir servidors des del vostre compte de Plex"
+      },
+      "plexAccountUnlinked": {
+        "title": "Compte de Plex desenllaçat",
+        "message": "El vostre compte de Plex s'ha desconnectat"
+      },
+      "plexAccountReauthorized": {
+        "title": "Compte de Plex reautoritzat",
+        "messageNoServers": "S'ha actualitzat el testimoni del compte",
+        "partial": "S'ha actualitzat el testimoni, però {{names}} l'han rebutjat igualment",
+        "unmatched": "S'ha actualitzat el testimoni, però {{names}} no s'han pogut tornar a enllaçar",
+        "message_one": "{{count}} servidor reconnectat",
+        "message_other": "{{count}} servidors reconnectats"
+      },
+      "jobCompleted": {
+        "title": "Tasca completada"
+      },
+      "automationCreated": {
+        "title": "Automatització creada",
+        "message": "L'automatització s'ha creat correctament"
+      },
+      "automationUpdated": {
+        "title": "Automatització actualitzada",
+        "message": "L'automatització s'ha actualitzat correctament"
+      },
+      "automationDeleted": {
+        "title": "Automatització suprimida",
+        "message": "L'automatització s'ha suprimit correctament"
+      },
+      "streamTerminated": {
+        "title": "Transmissió finalitzada",
+        "message": "S'ha aturat la sessió de reproducció"
+      },
+      "serverUrlUpdated": {
+        "title": "URL del servidor actualitzat",
+        "message": "L'URL del servidor s'ha actualitzat correctament"
+      },
+      "serverUpdated": {
+        "title": "Servidor actualitzat",
+        "message": "El servidor s'ha actualitzat correctament"
+      },
+      "serverLocationSaved": {
+        "title": "S'ha desat la ubicació del servidor",
+        "queued": "S'estan actualitzant les sessions locals anteriors en segon pla.",
+        "waiting": "Les sessions locals anteriors s'actualitzaran quan acabi la tasca actual."
+      },
+      "syncCompletedWithErrors": {
+        "title": "Sincronització completada amb errors"
+      },
+      "sessionsDeleted": {
+        "title": "Sessions suprimides",
+        "message_one": "{{count}} sessió suprimida",
+        "message_other": "{{count}} sessions suprimides"
       },
       "violationsAcknowledged": {
-        "message_one": "",
-        "message_other": "",
-        "title": ""
+        "title": "Incompliments confirmats",
+        "message_one": "{{count}} incompliment confirmat",
+        "message_other": "{{count}} incompliments confirmats"
       },
       "violationsDismissed": {
-        "message_one": "",
-        "message_other": "",
-        "title": ""
+        "title": "Incompliments descartats",
+        "message_one": "{{count}} incompliment descartat",
+        "message_other": "{{count}} incompliments descartats"
       },
-      "webhookTest": {
-        "message": "",
-        "title": ""
-      }
+      "apiKeyGenerated": {
+        "title": "Clau d'API generada",
+        "message": "La vostra clau d'API nova ja es pot fer servir"
+      },
+      "mobileAccessEnabled": {
+        "title": "Accés mòbil habilitat",
+        "message": "Escanegeu el codi QR amb l'aplicació mòbil de Tracearr per connectar-vos"
+      },
+      "mobileAccessDisabled": {
+        "title": "Accés mòbil deshabilitat",
+        "message": "S'han revocat totes les sessions mòbils"
+      },
+      "pairTokenGenerated": {
+        "title": "Testimoni d'aparellament generat",
+        "message": "Escanegeu el codi QR amb el dispositiu mòbil per aparellar-lo"
+      },
+      "identityUpdated": "Perfil actualitzat",
+      "trustScoresReset": {
+        "title": "Puntuacions de confiança restablertes",
+        "message_one": "{{count}} usuari restablert a 100",
+        "message_other": "{{count}} usuaris restablerts a 100"
+      },
+      "claimCodeValidated": {
+        "title": "Codi de vinculació validat",
+        "message": "Ja podeu continuar amb la configuració inicial"
+      },
+      "usersMerged": {
+        "title": "Usuaris fusionats",
+        "automationsKept": "S'ha conservat la versió de l'usuari de destinació de: {{names}}"
+      },
+      "serverUserSplit": {
+        "title": "El compte s'ha separat en un usuari independent"
+      },
+      "mergeSuggestionDismissed": "S'ha marcat com que no és la mateixa persona",
+      "mergeSuggestionRestored": "S'ha restaurat el suggeriment",
+      "destinationSaved": "Destinació desada",
+      "destinationDeleted": "Destinació suprimida",
+      "destinationTestSent": "S'ha enviat la notificació de prova",
+      "destinationTestSentTo": "S'ha enviat la prova a {{address}}",
+      "newsletterSaved": "Butlletí desat",
+      "newsletterDeleted": "Butlletí suprimit",
+      "newsletterDuplicated": "Butlletí duplicat",
+      "newsletterTestQueued": "S'ha posat la prova a la cua cap a {{address}}",
+      "newsletterSendQueued": "Enviament posat a la cua",
+      "brandingSaved": "S'ha desat la imatge de marca del correu",
+      "suppressionAdded": "S'ha afegit l'adreça a la llista de supressió",
+      "suppressionRemoved": "S'ha tret l'adreça de la llista de supressió",
+      "newsletterRetryQueued_one": "S'està reintentant amb {{count}} destinatari",
+      "newsletterRetryQueued_other": "S'està reintentant amb {{count}} destinataris"
+    },
+    "error": {
+      "serverAddFailed": "No s'ha pogut afegir el servidor",
+      "serverRemoveFailed": "No s'ha pogut suprimir el servidor",
+      "serverSyncFailed": "No s'ha pogut sincronitzar el servidor",
+      "serverHistoricalFailed": "No s'ha pogut canviar l'estat del servidor",
+      "settingsUpdateFailed": "No s'ha pogut actualitzar la configuració",
+      "copyFailed": "No s'ha pogut copiar al porta-retalls",
+      "acknowledgeFailed": "No s'ha pogut confirmar l'incompliment",
+      "dismissFailed": "No s'ha pogut descartar l'incompliment",
+      "authFailed": "Ha fallat l'autenticació",
+      "automationCreateFailed": "No s'ha pogut crear l'automatització",
+      "automationUpdateFailed": "No s'ha pogut actualitzar l'automatització",
+      "automationDeleteFailed": "No s'ha pogut suprimir l'automatització",
+      "streamTerminateFailed": "No s'ha pogut finalitzar la transmissió",
+      "serverUrlUpdateFailed": "No s'ha pogut actualitzar l'URL del servidor",
+      "serverUpdateFailed": "No s'ha pogut actualitzar el servidor",
+      "serverLocationSaveFailed": "No s'ha pogut desar la ubicació del servidor",
+      "serverReorderFailed": "No s'han pogut reordenar els servidors",
+      "sessionsDeleteFailed": "No s'han pogut suprimir les sessions",
+      "apiKeyGenerateFailed": "No s'ha pogut generar la clau d'API",
+      "mobileAccessEnableFailed": "No s'ha pogut habilitar l'accés mòbil",
+      "mobileAccessDisableFailed": "No s'ha pogut deshabilitar l'accés mòbil",
+      "pairTokenGenerateFailed": "No s'ha pogut generar el testimoni d'aparellament",
+      "deviceRemoveFailed": "No s'ha pogut suprimir el dispositiu",
+      "deviceRenameFailed": "No s'ha pogut reanomenar el dispositiu",
+      "sessionsRevokeFailed": "No s'han pogut revocar les sessions",
+      "identityUpdateFailed": "No s'ha pogut actualitzar el perfil",
+      "trustScoresResetFailed": "No s'han pogut restablir les puntuacions de confiança",
+      "plexUnlinkFailed": "No s'ha pogut desenllaçar el compte de Plex",
+      "plexReauthorizeFailed": "No s'ha pogut reautoritzar el compte de Plex",
+      "jobAlreadyRunning": "La tasca ja s'està executant",
+      "jobStartFailed": "No s'ha pogut iniciar la tasca",
+      "jobLoadFailed": "No s'han pogut carregar les tasques de manteniment",
+      "invalidUrl": "URL no vàlid",
+      "plexDirectUrl": "Els URL plex.direct són adreces de reenviament i no es poden fer servir aquí. Feu servir una adreça IP o un nom d'hoste directes.",
+      "userMergeFailed": "No s'han pogut fusionar els usuaris",
+      "serverUserSplitFailed": "No s'ha pogut separar el compte",
+      "mergeSuggestionDismissFailed": "No s'ha pogut descartar el suggeriment",
+      "mergeSuggestionRestoreFailed": "No s'ha pogut restaurar el suggeriment",
+      "invalidClaimCode": {
+        "title": "El codi de vinculació no és vàlid",
+        "message": "Comproveu els registres del servidor"
+      },
+      "destinationSaveFailed": "No s'ha pogut desar la destinació: {{error}}",
+      "destinationDeleteFailed": "No s'ha pogut suprimir la destinació: {{error}}",
+      "destinationTestFailed": "La prova ha fallat: {{error}}",
+      "destinationInUse": "Encara la fan servir: {{rules}}",
+      "destinationUsedByNewsletters": "Encara la fan servir els butlletins: {{names}}",
+      "newsletterSaveFailed": "No s'ha pogut desar el butlletí: {{error}}",
+      "newsletterDeleteFailed": "No s'ha pogut suprimir el butlletí: {{error}}",
+      "newsletterDuplicateFailed": "No s'ha pogut duplicar el butlletí: {{error}}",
+      "newsletterPreviewFailed": "No s'ha pogut generar la previsualització: {{error}}",
+      "newsletterTestFailed": "No s'ha pogut posar la prova a la cua: {{error}}",
+      "newsletterSendFailed": "No s'ha pogut posar l'enviament a la cua: {{error}}",
+      "newsletterRetryFailed": "No s'ha pogut reintentar amb els destinataris fallits: {{error}}",
+      "newsletterSnapshotFailed": "No s'ha pogut carregar la instantània: {{error}}",
+      "brandingSaveFailed": "No s'ha pogut desar la imatge de marca del correu: {{error}}",
+      "suppressionAddFailed": "No s'ha pogut afegir l'adreça: {{error}}",
+      "suppressionRemoveFailed": "No s'ha pogut treure l'adreça: {{error}}"
     },
     "warning": {
       "jobFailed": {
-        "message": "",
-        "title": ""
+        "title": "La tasca ha fallat"
+      }
+    },
+    "info": {
+      "updateAvailable": {
+        "title": "Actualització disponible",
+        "message": "Tracearr {{version}} ja està disponible"
+      },
+      "violationDetected": {
+        "title": "Incompliment nou: {{ruleName}}",
+        "message": "{{user}} ha activat {{ruleType}}"
       }
     }
+  },
+  "settings": {
+    "allSeverity": "Totes (Reduïda, Avís, Alta)",
+    "warningAndHigh": "Només Avís i Alta",
+    "highOnly": "Només severitat Alta",
+    "rateLimit": "Estat actual del límit de freqüència",
+    "perMinute": "Per minut",
+    "perHour": "Per hora",
+    "enablePushNotifications": "Habilita les notificacions push",
+    "notificationEvents": "Esdeveniments de notificació",
+    "violationDetected": "Incompliment detectat",
+    "streamStarted": "Transmissió iniciada",
+    "streamStopped": "Transmissió aturada",
+    "concurrentStreams": "Transmissions simultànies",
+    "newDevice": "Dispositiu nou",
+    "trustScoreChanged": "La puntuació de confiança ha canviat",
+    "serverDown": "Servidor caigut",
+    "serverUp": "Servidor actiu",
+    "minimumSeverity": "Severitat mínima",
+    "quietHours": "Hores de silenci",
+    "enableQuietHours": "Habilita les hores de silenci",
+    "overrideForCritical": "Excepció per als casos crítics",
+    "rateLimiting": "Límit de freqüència"
   }
 }

@@ -9,6 +9,8 @@ import { useTranslation } from 'react-i18next';
 import type { LocationStats } from '@tracearr/shared';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/components/theme-provider';
+import { LocalBadge } from '@/components/sessions/LocalBadge';
+import type { FitPoint } from './autoFitBounds';
 import { MapUnavailable } from './MapUnavailable';
 import {
   buildBaseStyle,
@@ -19,6 +21,7 @@ import {
   hsl,
   isWebglSupported,
   locationsGeojson,
+  readLocationFeature,
   type LocationFeatureProps,
 } from './maplibre';
 import {
@@ -133,8 +136,8 @@ export function StreamMap({
   const webglOk = isWebglSupported();
   const map = useMapLibre(containerRef, style);
 
-  const points = useMemo<[number, number][]>(
-    () => locations.filter((l) => l.lat && l.lon).map((l) => [l.lon, l.lat]),
+  const points = useMemo<FitPoint[]>(
+    () => locations.filter((l) => l.lat && l.lon).map((l) => [l.lon, l.lat, l.count]),
     [locations]
   );
   useAutoFit(map, points, { maxZoom: 8, filterKey, isLoading, suspend: popup !== null });
@@ -144,7 +147,7 @@ export function StreamMap({
     if (!f) return;
     setPopup({
       lngLat: [e.lngLat.lng, e.lngLat.lat],
-      props: f.properties as LocationFeatureProps,
+      props: readLocationFeature(f.properties),
     });
   }, []);
 
@@ -228,6 +231,11 @@ function LocationPopupContent({
       <div className="font-semibold">
         {props.city ? `${props.city}, ` : ''}
         {props.country || 'Unknown'}
+        <LocalBadge
+          isLocal={props.isLocal}
+          country={props.country}
+          className="ml-1.5 align-middle"
+        />
       </div>
       <div className="text-muted-foreground">
         {props.count.toLocaleString()} stream{props.count !== 1 ? 's' : ''}

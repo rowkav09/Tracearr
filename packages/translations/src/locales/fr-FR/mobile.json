@@ -1,7 +1,6 @@
 {
   "pair": {
     "welcome": "Bienvenue sur Tracearr",
-    "addServer": "Ajouter un serveur",
     "connectToServer": "Se connecter au serveur",
     "enterServerDetails": "Entrez l'URL de votre serveur Tracearr et le jeton d'accès mobile",
     "serverUrl": "URL du serveur",
@@ -16,10 +15,7 @@
     "pleaseEnterToken": "Veuillez entrer votre jeton d'accès"
   },
   "errors": {
-    "missingFields": "Champs manquants",
-    "pleaseEnterBothFields": "Veuillez entrer à la fois l'URL du serveur et le jeton",
     "invalidUrl": "URL invalide",
-    "serverUrlMustStartWith": "L'URL du serveur doit commencer par http:// ou https://",
     "pleaseEnterValidUrl": "Veuillez entrer une URL de serveur valide",
     "pairingFailed": "Échec de l'appairage",
     "unableToPair": "Impossible d'appairer avec le serveur",
@@ -28,12 +24,7 @@
     "invalidQrCodeFormat": "Format du code QR invalide : veuillez générer un nouveau code.",
     "invalidQrCodeMissingUrl": "Code QR invalide : URL du serveur manquante",
     "invalidQrCodeMissingToken": "Code QR invalide : jeton d'appairage manquant",
-    "invalidServerUrlInQr": "URL du serveur invalide dans le code QR",
-    "tooManyPairingAttempts": "Trop de tentatives d'appairage. Veuillez patienter quelques minutes.",
-    "invalidOrExpiredToken": "Jeton d'appairage invalide ou expiré.",
-    "invalidPairingRequest": "Requête d'appairage invalide. Vérifiez votre jeton.",
     "errorDetails": "Détails de l'erreur :",
-    "componentStack": "Pile de composants :",
     "connectionLost": "Connexion perdue",
     "failedToLoadSession": "Échec du chargement de la session"
   },
@@ -63,14 +54,16 @@
     "build": "Version {{build}}"
   },
   "navigation": {
-    "home": "Accueil",
     "selectServer": "Sélectionner un serveur",
-    "server": "Serveur",
-    "navigation": "Navigation"
+    "server": "Serveur"
   },
   "resources": {
     "cpu": "CPU",
-    "ram": "RAM"
+    "ram": "RAM",
+    "item": "",
+    "noData": "",
+    "system": "Système",
+    "waiting": ""
   },
   "notifications": {
     "testSent": "Test envoyé",
@@ -82,7 +75,6 @@
     "ruleViolationTriggered": "Violation de règle déclenchée",
     "newPlaybackBegan": "Nouvelle lecture commencée",
     "playbackEnded": "Lecture terminée",
-    "exceededStreamLimit": "Un utilisateur a dépassé la limite de diffusions",
     "newDeviceDetected": "Nouvel appareil détecté pour un utilisateur",
     "trustScoreDegraded": "Le score de confiance d'un utilisateur a été dégradé",
     "serverUnreachable": "Serveur multimédia inaccessible",
@@ -98,14 +90,22 @@
     "criticalOverrideDescription": "Les violations de gravité élevée continuent de déclencher des notifications pendant les heures silencieuses",
     "rateLimitDescription": "Les limites de débit empêchent le spam de notifications. Limites actuelles : {{perMinute}}/min, {{perHour}}/h.",
     "sendTestNotification": "Envoyer une notification de test",
-    "testDescription": "Vérifier que les notifications push fonctionnent correctement"
-  },
-  "dashboard": {
-    "today": "AUJOURD'HUI",
-    "hrs": "heures"
+    "testDescription": "Vérifier que les notifications push fonctionnent correctement",
+    "pushNotifications": "",
+    "ruleTypes": {
+      "accountInactivity": "",
+      "deviceVelocity": "",
+      "geoRestriction": "",
+      "impossibleTravel": "",
+      "simultaneousLocations": ""
+    },
+    "severityAll": "",
+    "severityHighOnly": "",
+    "severityWarningUp": "",
+    "violationTypes": ""
   },
   "session": {
-    "streamTerminated": "Diffusion interrompue",
+    "streamTerminated": "Lecture interrompue",
     "sessionStopped": "La session de lecture a été interrompue.",
     "failedToTerminate": "Échec de l'interruption"
   },
@@ -113,45 +113,77 @@
     "userMayBeRemoved": "Cet utilisateur a peut-être été supprimé.",
     "noLocationsRecorded": "Aucun emplacement enregistré",
     "noDevicesRecorded": "Aucun appareil enregistré",
-    "moreLocations": "+{{count}} emplacements en plus",
-    "moreDevices": "+{{count}} appareils en plus",
     "noViolations": "Aucune violation",
     "noTerminations": "Aucune interruption de lecture",
-    "trustLow": "Basse",
-    "trustMedium": "Moyenne",
-    "trustHigh": "Élevée"
+    "lastSeen": "",
+    "terminatedBy": "Par @{{username}}",
+    "trustScoreConfirm": "",
+    "trustScoreRange": "",
+    "moreLocations_one": "",
+    "moreLocations_other": "+{{count}} emplacements en plus",
+    "moreDevices_one": "",
+    "moreDevices_other": "+{{count}} appareils en plus"
   },
   "violation": {
     "violationNotFoundDesc": "Cette violation a peut-être été ignorée ou n'est plus disponible.",
-    "customRule": "Règle personnalisée",
-    "streamComparison": "Comparaison de diffusion",
     "ips": "IP"
   },
   "alerts": {
-    "done": "Terminé",
-    "clearFilters": "Effacer les filtres"
+    "clearFilters": "Effacer les filtres",
+    "acknowledgeAll": "",
+    "acknowledgeAllBody": "",
+    "acknowledgeAllBodySeverity": "",
+    "all": "",
+    "allClear": "",
+    "allServers": "",
+    "noAlertsRecorded": "",
+    "noMatches": "",
+    "acknowledgeAllTitle_one": "",
+    "acknowledgeAllTitle_other": "",
+    "pendingCount_one": "",
+    "pendingCount_other": ""
   },
   "history": {
-    "noHistoryFound": "Aucun historique trouvé",
     "adjustFilters": "Essayez d'ajuster vos filtres",
-    "historyWillAppear": "L'historique des sessions apparaîtra ici lorsque les utilisateurs commenceront à lancer des lectures"
+    "historyWillAppear": "L'historique des sessions apparaîtra ici lorsque les utilisateurs commenceront à lancer des lectures",
+    "filters": {
+      "clearCount": "",
+      "countries": "Pays",
+      "filterBy": "Filtrer par",
+      "mediaType": "Type de média",
+      "noCountries": "Aucun pays disponible",
+      "noPlatforms": "Aucune plateforme disponible",
+      "noUsers": "Aucun utilisateur disponible",
+      "sectionSelected_one": "",
+      "sectionSelected_other": ""
+    }
   },
   "users": {
     "owner": "Propriétaire",
     "noUsers": "Aucun utilisateur",
     "usersWillAppear": "Les utilisateurs apparaîtront ici après la synchronisation avec votre serveur multimédia",
-    "noUsersMatch": "Aucun utilisateur ne correspond à « {{query}} »"
+    "noUsersMatch": "Aucun utilisateur ne correspond à « {{query}} »",
+    "joinedRelative": "",
+    "sortActive": "",
+    "sortTrust": ""
   },
   "activity": {
     "playsOverTime": "Lectures au fil du temps",
-    "concurrentStreams": "Lectures simultanées",
+    "concurrentStreams": "Flux simultanés",
     "platforms": "Plateformes",
     "playbackQuality": "Qualité de lecture"
   },
   "unauthenticated": {
     "connectionLost": "Connexion perdue",
     "accessRevoked": "Votre accès à {{serverName}} a été révoqué. Demandez un nouveau code d'appairage au propriétaire du serveur.",
+    "deviceRemoved": "",
+    "expired": "",
     "scanQrCode": "Scanner le code QR"
+  },
+  "clientTooOld": {
+    "title": "",
+    "body": "",
+    "update": ""
   },
   "serverSelector": {
     "servers": "Serveurs",
@@ -160,19 +192,77 @@
     "allServers": "Tous les serveurs"
   },
   "reconnected": "Reconnecté",
-  "actionsExecuted": "Actions exécutées",
-  "serverScope": {
-    "single": "Affichage de {{name}} uniquement"
-  },
   "a11y": {
     "selectServer": "Sélectionner le serveur",
     "alerts": "Alertes",
-    "alertsCount": "{{count}} alertes non lues",
     "settings": "Paramètres",
-    "trustScore": "Score de confiance : {{score}}"
+    "trustScore": "Score de confiance : {{score}}",
+    "decreaseTrustScore": "",
+    "increaseTrustScore": "",
+    "sortAscending": "",
+    "sortDescending": "",
+    "alertsCount_one": "",
+    "alertsCount_other": "{{count}} alertes non lues",
+    "filtersActive_one": "",
+    "filtersActive_other": ""
   },
   "map": {
     "noData": "Aucune donnée d'emplacement disponible",
     "unavailable": "Carte indisponible"
+  },
+  "automations": {
+    "editOnWeb": "",
+    "emptyDescription": "",
+    "kind": {
+      "notification": "Notification",
+      "policy": ""
+    },
+    "lastRun": "",
+    "truncated": "",
+    "turnOffFailed": "",
+    "turnOnFailed": "",
+    "unsupportedDescription": "",
+    "unsupportedTitle": "",
+    "versionCheckFailed": "",
+    "conditions_one": "",
+    "conditions_other": ""
+  },
+  "charts": {
+    "weekOf": ""
+  },
+  "push": {
+    "violationTitle": ""
+  },
+  "streamDetails": {
+    "bitrate": "",
+    "channels": "",
+    "codec": "",
+    "color": "",
+    "container": "",
+    "forced": "",
+    "format": "Format :",
+    "framerate": "",
+    "hwDecode": "",
+    "hwEncode": "",
+    "mono": "",
+    "noDetails": "",
+    "notAvailable": "",
+    "profile": "Profil",
+    "sampleRate": "",
+    "source": "Source",
+    "speed": "Vitesse",
+    "stereo": "Stéréo",
+    "stream": "",
+    "subtitles": "Sous-titres",
+    "throttled": "",
+    "transcodeDetails": "Détails du transcodage"
+  },
+  "widget": {
+    "asOf": "",
+    "signedOut": "",
+    "serversDown_one": "{{count}} serveur hors ligne",
+    "serversDown_other": "{{count}} serveurs hors ligne",
+    "transcodes_one": "{{count}} transcodage",
+    "transcodes_other": "{{count}} transcodages"
   }
 }

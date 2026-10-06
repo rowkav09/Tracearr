@@ -34,6 +34,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { SeverityBadge } from '@/components/violations/SeverityBadge';
 import { ActionResultsList } from '@/components/violations/ActionResultsList';
 import { getAvatarUrl } from '@/components/users/utils';
+import { LocalBadge } from '@/components/sessions/LocalBadge';
 import { fieldLabel, operatorLabel } from '@/lib/automations';
 import { getCountryName, getMediaDisplay } from '@/lib/utils';
 import { ServerBadge } from '@/components/server';
@@ -230,7 +231,7 @@ export function ViolationDetail() {
 
     for (const session of allSessions) {
       if (session.geoLat == null || session.geoLon == null) continue;
-      const key = `${session.geoLat},${session.geoLon}`;
+      const key = `${session.geoLat},${session.geoLon},${session.isLocal}`;
       const existing = locationMap.get(key);
       if (existing) {
         existing.count += 1;
@@ -239,6 +240,7 @@ export function ViolationDetail() {
           city: session.geoCity,
           region: session.geoRegion,
           country: session.geoCountry,
+          isLocal: session.isLocal,
           lat: session.geoLat,
           lon: session.geoLon,
           count: 1,
@@ -255,7 +257,8 @@ export function ViolationDetail() {
   const sessionColumns = useMemo(
     () =>
       sessionColumn.columns([
-        sessionColumn.accessor('mediaTitle', {
+        sessionColumn.accessor((session) => getMediaDisplay(session).title, {
+          id: 'media',
           header: t('common:labels.media'),
           cell: ({ row }) => {
             const session = row.original;
@@ -287,22 +290,33 @@ export function ViolationDetail() {
           header: t('common:labels.ipAddress'),
           cell: ({ row }) => <span className="font-mono text-sm">{row.original.ipAddress}</span>,
         }),
-        sessionColumn.accessor('geoCity', {
-          header: t('common:labels.location'),
-          cell: ({ row }) => {
-            const session = row.original;
-            if (!session.geoCity && !session.geoCountry) {
-              return <span className="text-muted-foreground">—</span>;
-            }
-            return (
-              <span className="text-sm">
-                {session.geoCity && `${session.geoCity}, `}
-                {getCountryName(session.geoCountry) ?? ''}
-              </span>
-            );
-          },
-        }),
-        sessionColumn.accessor('device', {
+        sessionColumn.accessor(
+          (session) =>
+            [session.geoCity, getCountryName(session.geoCountry)].filter(Boolean).join(', '),
+          {
+            id: 'location',
+            header: t('common:labels.location'),
+            cell: ({ row }) => {
+              const session = row.original;
+              if (!session.geoCity && !session.geoCountry) {
+                return <span className="text-muted-foreground">—</span>;
+              }
+              return (
+                <span className="text-sm">
+                  {session.geoCity && `${session.geoCity}, `}
+                  {getCountryName(session.geoCountry) ?? ''}
+                  <LocalBadge
+                    isLocal={session.isLocal}
+                    country={session.geoCountry}
+                    className="ml-1.5 align-middle"
+                  />
+                </span>
+              );
+            },
+          }
+        ),
+        sessionColumn.accessor((session) => session.device || session.platform || '', {
+          id: 'device',
           header: t('common:labels.device'),
           cell: ({ row }) => {
             const session = row.original;
@@ -603,6 +617,7 @@ export function ViolationDetail() {
                 />
               </DataTableViewport>
               <DataTablePager
+                variant="footer"
                 {...sessionsPager}
                 labels={{
                   navigation: t('common:table.pagination'),

@@ -1,4 +1,10 @@
-import { BYTES_PER_GB, TIME_MS, resolutionTierRank } from '@tracearr/shared';
+import {
+  BYTES_PER_GB,
+  TIME_MS,
+  isSubtitleBurnIn,
+  normalizeDynamicRange,
+  resolutionTierRank,
+} from '@tracearr/shared';
 import type {
   Condition,
   ConditionField,
@@ -11,6 +17,7 @@ import type {
 import { isIpInCidr, toNetworkKey, unmapIpv4Mapped } from '../../../utils/ip.js';
 import { automationsLogger } from '../../../utils/logger.js';
 import { LOCAL_NETWORK_COUNTRY, normalizeToCountryCode } from '../../../utils/country.js';
+import { isLocalSession } from '../../../utils/localSession.js';
 import { normalizeResolution } from '../../../utils/resolutionNormalizer.js';
 import { geoipService } from '../../geoip.js';
 import { compare } from '../comparisons.js';
@@ -57,26 +64,31 @@ function calculateDistanceKm(
   return EARTH_RADIUS_KM * c;
 }
 
-/**
- * Get normalized resolution from dimensions using the standard normalizer.
- * Returns 'unknown' if dimensions are missing.
- *
- * The rule condition vocabulary (VideoResolution) tops out at "4K"; the
- * shared classifier can now also return "1440p"/"8K", so fold those into
- * "4K" here rather than widening the rule-facing enum.
- */
-function getResolution(width: number | null, height: number | null): VideoResolution {
-  const result = normalizeResolution({ width: width ?? undefined, height: height ?? undefined });
-  if (result === '1440p' || result === '8K') return '4K';
-  return (result as VideoResolution) ?? 'unknown';
+/** Rules give a local session no location, even when its server's location is on the row. */
+function sessionDistanceKm(a: Session, b: Session): number | null {
+  if (isLocalSession(a) || isLocalSession(b)) return null;
+  return calculateDistanceKm(a.geoLat, a.geoLon, b.geoLat, b.geoLon);
 }
 
 /**
- * Convert resolution string to numeric value for comparison.
+ * Get normalized resolution from dimensions using the standard normalizer.
+ * Returns 'unknown' if dimensions are missing.
+ */
+function getResolution(width: number | null, height: number | null): VideoResolution {
+  return (
+    normalizeResolution({ width: width ?? undefined, height: height ?? undefined }) ?? 'unknown'
+  );
+}
+
+/**
+ * Convert resolution string to numeric value for comparison. Line counts, not
+ * tier ranks: a numeric condition value is a height.
  */
 function resolutionToNumber(resolution: VideoResolution): number {
   const map: Record<VideoResolution, number> = {
+    '8K': 4320,
     '4K': 2160,
+    '1440p': 1440,
     '1080p': 1080,
     '720p': 720,
     '480p': 480,
@@ -323,12 +335,7 @@ const evaluateActiveSessionDistanceKm: ConditionEvaluator = (
   let maxDistance = 0;
   const distances: Record<string, number> = {};
   for (const other of otherSessions) {
-    const distance = calculateDistanceKm(
-      session.geoLat,
-      session.geoLon,
-      other.geoLat,
-      other.geoLon
-    );
+    const distance = sessionDistanceKm(session, other);
     if (distance !== null) {
       distances[other.id] = Math.round(distance * 100) / 100;
       if (distance > maxDistance) {
@@ -381,12 +388,7 @@ const evaluateTravelSpeedKmh: ConditionEvaluator = (
     };
   }
 
-  const distance = calculateDistanceKm(
-    session.geoLat,
-    session.geoLon,
-    previous.geoLat,
-    previous.geoLon
-  );
+  const distance = sessionDistanceKm(session, previous);
 
   if (distance === null) {
     return {
@@ -647,6 +649,47 @@ const evaluateOutputResolution: ConditionEvaluator = (
   };
 };
 
+/** Sessions store the server's own label ("Dolby Vision"); the picker offers tokens. */
+const evaluateSourceDynamicRange: ConditionEvaluator = (
+  context: SessionEvaluationContext,
+  condition: Condition
+): EvaluatorResult => {
+  const actual = normalizeDynamicRange(context.session.sourceVideoDetails?.dynamicRange);
+  if (actual === null) return { matched: false, actual };
+  return { matched: compare(actual, condition.operator, condition.value), actual };
+};
+
+/** Both parsers upper-case the codec, so the comparison folds case on both sides. */
+const evaluateSourceVideoCodec: ConditionEvaluator = (
+  context: SessionEvaluationContext,
+  condition: Condition
+): EvaluatorResult => {
+  const actual = context.session.sourceVideoCodec;
+  if (actual === null) return { matched: false, actual };
+  const value =
+    typeof condition.value === 'string' ? condition.value.toLowerCase() : condition.value;
+  return { matched: compare(actual.toLowerCase(), condition.operator, value), actual };
+};
+
+/** A movie has no season or episode, and must not answer "is not 1" with a match. */
+const evaluateSeasonNumber: ConditionEvaluator = (
+  context: SessionEvaluationContext,
+  condition: Condition
+): EvaluatorResult => {
+  const actual = context.session.seasonNumber;
+  if (actual === null) return { matched: false, actual };
+  return { matched: compare(actual, condition.operator, condition.value), actual };
+};
+
+const evaluateEpisodeNumber: ConditionEvaluator = (
+  context: SessionEvaluationContext,
+  condition: Condition
+): EvaluatorResult => {
+  const actual = context.session.episodeNumber;
+  if (actual === null) return { matched: false, actual };
+  return { matched: compare(actual, condition.operator, condition.value), actual };
+};
+
 const evaluateIsTranscoding: ConditionEvaluator = (
   context: SessionEvaluationContext,
   condition: Condition
@@ -742,6 +785,14 @@ const evaluateIsTranscodeDowngrade: ConditionEvaluator = (
     actual: isDowngrade,
     details: { sourceResolution: sourceRes, outputResolution: outputRes },
   };
+};
+
+const evaluateIsSubtitleBurnIn: ConditionEvaluator = (
+  context: SessionEvaluationContext,
+  condition: Condition
+): EvaluatorResult => {
+  const burnIn = isSubtitleBurnIn(context.session);
+  return { matched: compare(burnIn, condition.operator, condition.value), actual: burnIn };
 };
 
 const evaluateSourceBitrateMbps: ConditionEvaluator = (
@@ -912,10 +963,10 @@ const evaluateCountry: ConditionEvaluator = (
   const { session } = context;
   const raw = session.geoCountry;
 
-  // LAN sessions store the 'Local Network' sentinel and sessions without geo
-  // data store null; neither has a meaningful country, so never match - a
-  // "country neq US" rule must not fire on them regardless of operator.
-  if (!raw || raw === LOCAL_NETWORK_COUNTRY) {
+  // Local sessions (flagged, or still carrying the Local Network sentinel) and sessions without
+  // geo data have no meaningful country, so never match: a "country neq US" rule must not fire
+  // on them regardless of operator.
+  if (!raw || raw === LOCAL_NETWORK_COUNTRY || isLocalSession(session)) {
     if (!raw) {
       automationsLogger.debug(
         `country condition skipped: session ${session.id} has no geo data (ip: ${session.ipAddress ?? 'unknown'})`
@@ -1118,8 +1169,11 @@ export const evaluatorRegistry: Record<ConditionField, ConditionEvaluator> = {
   // Stream quality
   source_resolution: evaluateSourceResolution,
   output_resolution: evaluateOutputResolution,
+  source_dynamic_range: evaluateSourceDynamicRange,
+  source_video_codec: evaluateSourceVideoCodec,
   is_transcoding: evaluateIsTranscoding,
   is_transcode_downgrade: evaluateIsTranscodeDowngrade,
+  is_subtitle_burn_in: evaluateIsSubtitleBurnIn,
   source_bitrate_mbps: evaluateSourceBitrateMbps,
 
   // User attributes
@@ -1142,6 +1196,8 @@ export const evaluatorRegistry: Record<ConditionField, ConditionEvaluator> = {
   media_type: evaluateMediaType,
 
   // Media
+  season_number: evaluateSeasonNumber,
+  episode_number: evaluateEpisodeNumber,
   library_item_type: evaluateLibraryItemType,
   library_name: evaluateLibraryName,
   resolution_after: evaluateResolutionAfter,

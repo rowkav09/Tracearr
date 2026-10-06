@@ -3,28 +3,34 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify';
-import { eq, inArray, and, asc } from 'drizzle-orm';
+import { eq, inArray, and } from 'drizzle-orm';
 import {
   createServerSchema,
   serverIdParamSchema,
   reorderServersSchema,
   updateServerSchema,
   pickServerColor,
+  setServerHistoricalSchema,
   PUBLIC_URL_PLEX_MESSAGE,
   type ServerConnectionStatus,
+  type ServerDownReason,
 } from '@tracearr/shared';
 import { db } from '../db/client.js';
 import { servers, plexAccounts } from '../db/schema.js';
-// Token encryption removed - tokens now stored in plain text (DB is localhost-only)
 import { PlexClient, JellyfinClient, EmbyClient } from '../services/mediaServer/index.js';
 import { NavidromeClient } from '../services/mediaServer/navidrome/client.js';
 import { getServerLiveStats, getServerResourceStats } from '../services/serverLiveStats.js';
 import { syncServer } from '../services/sync.js';
 import { sseManager } from '../services/sseManager.js';
 import { getCacheService } from '../services/cache.js';
-import { enqueueLibrarySync } from '../jobs/librarySyncQueue.js';
+import { markServerHistorical, resumeServer } from '../services/historicalServers.js';
+import { liveServerCondition, HISTORICAL_EDIT_MESSAGE } from '../services/liveServers.js';
+import { rebuildAutoSyncSchedules, enqueueLibrarySync } from '../jobs/librarySyncQueue.js';
 import { publishServersChanged } from '../jobs/poller/database.js';
-import { buildServerAccessCondition } from '../utils/serverFiltering.js';
+import { readServerIdentity } from '../services/serverIdentity.js';
+import { rearmImportedHistoryLink } from '../services/settings.js';
+import { buildServerAccessCondition, hasServerAccess } from '../utils/serverFiltering.js';
+import { serverOrderBy } from '../utils/serverOrder.js';
 
 export const serverRoutes: FastifyPluginAsync = async (app) => {
   /**
@@ -47,12 +53,13 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
         color: servers.color,
         version: servers.version,
         latestVersion: servers.latestVersion,
+        historicalAt: servers.historicalAt,
         createdAt: servers.createdAt,
         updatedAt: servers.updatedAt,
       })
       .from(servers)
       .where(buildServerAccessCondition(authUser, servers.id))
-      .orderBy(asc(servers.displayOrder));
+      .orderBy(...serverOrderBy());
 
     // Backfill colors for any servers missing them
     const uncolored = serverList.filter((s) => !s.color);
@@ -144,7 +151,7 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
             return reply.serviceUnavailable(adminCheck.message);
           }
           if (adminCheck.code === JellyfinClient.AdminVerifyError.INVALID_KEY) {
-            return reply.unauthorized(adminCheck.message);
+            return reply.badRequest(adminCheck.message);
           }
           return reply.forbidden(adminCheck.message);
         }
@@ -157,7 +164,7 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
             return reply.serviceUnavailable(adminCheck.message);
           }
           if (adminCheck.code === EmbyClient.AdminVerifyError.INVALID_KEY) {
-            return reply.unauthorized(adminCheck.message);
+            return reply.badRequest(adminCheck.message);
           }
           return reply.forbidden(adminCheck.message);
         }
@@ -193,6 +200,7 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
         url: servers.url,
         publicUrl: servers.publicUrl,
         color: servers.color,
+        historicalAt: servers.historicalAt,
         createdAt: servers.createdAt,
         updatedAt: servers.updatedAt,
       });
@@ -203,6 +211,16 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
     }
 
     await publishServersChanged();
+    rebuildAutoSyncSchedules().catch((error: unknown) => {
+      app.log.error(
+        { err: error, serverId: server.id },
+        'Auto-sync schedule failed for new server'
+      );
+    });
+
+    if (server.type === 'plex') {
+      await rearmImportedHistoryLink({ keepProviderPass: false });
+    }
 
     // Auto-sync users and libraries in background
     syncServer(server.id, { syncUsers: true, syncLibraries: true })
@@ -229,9 +247,9 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
   });
 
   /**
-   * PATCH /servers/:id - Update server name and/or URL
-   * Accepts optional name and/or url; at least one is required.
-   * When url is provided, verifies the new URL is reachable with existing token before updating.
+   * PATCH /servers/:id - Update a server's name, URL, color, public address or API key
+   * At least one is required. A URL or API key change is verified against the server, and
+   * refused when it reaches a different server than the one the row belongs to.
    *
    * For Plex servers with clientIdentifier:
    * - Validates that the clientIdentifier matches the server's machineIdentifier
@@ -255,6 +273,7 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
       clientIdentifier,
       color: newColor,
       publicUrl: newPublicUrl,
+      apiKey: newApiKey,
     } = body.data;
     const newUrl = bodyUrl !== undefined ? bodyUrl.replace(/\/$/, '') : undefined;
     const authUser = request.user;
@@ -276,13 +295,18 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
       return reply.badRequest(PUBLIC_URL_PLEX_MESSAGE);
     }
 
+    if (server.type === 'plex' && newApiKey !== undefined) {
+      return reply.badRequest('Plex servers sign in through plex.tv and have no API key to change');
+    }
+
     const same = <T>(next: T | undefined, current: T): boolean =>
       next === undefined || next === current;
     if (
       same(newName, server.name) &&
       same(newUrl, server.url) &&
       same(newColor, server.color) &&
-      same(newPublicUrl, server.publicUrl)
+      same(newPublicUrl, server.publicUrl) &&
+      same(newApiKey, server.token)
     ) {
       return {
         id: server.id,
@@ -291,13 +315,23 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
         url: server.url,
         publicUrl: server.publicUrl,
         color: server.color,
+        historicalAt: server.historicalAt,
         createdAt: server.createdAt,
         updatedAt: server.updatedAt,
       };
     }
 
-    // Only verify when the URL is actually changing
-    if (newUrl !== undefined && server.url !== newUrl) {
+    const urlChanging = newUrl !== undefined && server.url !== newUrl;
+    const keyChanging = newApiKey !== undefined && server.token !== newApiKey;
+    if (server.historicalAt && (urlChanging || keyChanging)) {
+      return reply.conflict(HISTORICAL_EDIT_MESSAGE);
+    }
+    const targetUrl = newUrl ?? server.url;
+    const token = newApiKey ?? server.token;
+
+    let backfilledIdentity: string | undefined;
+
+    if (urlChanging || keyChanging) {
       // For Plex servers: Validate machineIdentifier if provided
       if (server.type === 'plex' && clientIdentifier) {
         if (server.machineIdentifier && server.machineIdentifier !== clientIdentifier) {
@@ -308,10 +342,9 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
         }
       }
 
-      // Verify the new URL works with the existing token
       try {
         if (server.type === 'plex') {
-          const adminCheck = await PlexClient.verifyServerAdmin(server.token, newUrl);
+          const adminCheck = await PlexClient.verifyServerAdmin(token, targetUrl);
           if (!adminCheck.success) {
             if (adminCheck.code === PlexClient.AdminVerifyError.CONNECTION_FAILED) {
               return reply.serviceUnavailable(adminCheck.message);
@@ -319,36 +352,66 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
             return reply.forbidden(adminCheck.message);
           }
         } else if (server.type === 'jellyfin') {
-          const adminCheck = await JellyfinClient.verifyServerAdmin(server.token, newUrl);
+          const adminCheck = await JellyfinClient.verifyServerAdmin(token, targetUrl);
           if (!adminCheck.success) {
             if (adminCheck.code === JellyfinClient.AdminVerifyError.CONNECTION_FAILED) {
               return reply.serviceUnavailable(adminCheck.message);
             }
             if (adminCheck.code === JellyfinClient.AdminVerifyError.INVALID_KEY) {
-              return reply.unauthorized(adminCheck.message);
+              return reply.badRequest(adminCheck.message);
             }
             return reply.forbidden(adminCheck.message);
           }
         } else if (server.type === 'navidrome') {
-          await new NavidromeClient({ url: newUrl, token: server.token }).testConnection();
+          await new NavidromeClient({ url: targetUrl, token }).testConnection();
         } else if (server.type === 'emby') {
-          const adminCheck = await EmbyClient.verifyServerAdmin(server.token, newUrl);
+          const adminCheck = await EmbyClient.verifyServerAdmin(token, targetUrl);
           if (!adminCheck.success) {
             if (adminCheck.code === EmbyClient.AdminVerifyError.CONNECTION_FAILED) {
               return reply.serviceUnavailable(adminCheck.message);
             }
             if (adminCheck.code === EmbyClient.AdminVerifyError.INVALID_KEY) {
-              return reply.unauthorized(adminCheck.message);
+              return reply.badRequest(adminCheck.message);
             }
             return reply.forbidden(adminCheck.message);
           }
         }
       } catch (error) {
-        app.log.error({ err: error, serverId: id, newUrl }, 'Failed to verify new server URL');
+        app.log.error({ err: error, serverId: id, url: targetUrl }, 'Failed to verify server');
         return reply.badRequest(
-          'Failed to connect to server at new URL. Please verify the URL is correct.'
+          'Failed to connect to the server. Please verify the URL and API key are correct.'
         );
       }
+
+      const expectedIdentity =
+        server.machineIdentifier ?? (await readServerIdentity(server).catch(() => null));
+      if (!expectedIdentity) {
+        return reply.badRequest(
+          'Tracearr has no record of which server this is and cannot reach it with the saved address and key, so it cannot confirm the change points at the same server.'
+        );
+      }
+
+      const reachedIdentity = await readServerIdentity({
+        id,
+        type: server.type,
+        url: targetUrl,
+        token,
+      }).catch((error: unknown) => {
+        app.log.error(
+          { err: error, serverId: id, url: targetUrl },
+          'Failed to read server identity'
+        );
+        return null;
+      });
+      if (reachedIdentity === null) {
+        return reply.badRequest('Could not read which server answers at that address.');
+      }
+      if (reachedIdentity !== expectedIdentity) {
+        return reply.badRequest(
+          'That address or API key reaches a different server. A server can only be pointed at itself.'
+        );
+      }
+      if (!server.machineIdentifier) backfilledIdentity = expectedIdentity;
     }
 
     const updatePayload: {
@@ -356,12 +419,16 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
       url?: string;
       color?: string | null;
       publicUrl?: string | null;
+      token?: string;
+      machineIdentifier?: string;
       updatedAt: Date;
     } = { updatedAt: new Date() };
+    if (backfilledIdentity !== undefined) updatePayload.machineIdentifier = backfilledIdentity;
     if (newName !== undefined) updatePayload.name = newName;
     if (newUrl !== undefined) updatePayload.url = newUrl;
     if (newColor !== undefined) updatePayload.color = newColor;
     if (newPublicUrl !== undefined) updatePayload.publicUrl = newPublicUrl;
+    if (newApiKey !== undefined) updatePayload.token = newApiKey;
 
     const updated = await db
       .update(servers)
@@ -374,6 +441,7 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
         url: servers.url,
         publicUrl: servers.publicUrl,
         color: servers.color,
+        historicalAt: servers.historicalAt,
         createdAt: servers.createdAt,
         updatedAt: servers.updatedAt,
       });
@@ -394,6 +462,14 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
         .catch((error: unknown) => {
           app.log.error({ err: error, serverId: id }, 'SSE refresh failed after URL update');
         });
+    }
+    if (keyChanging) {
+      app.log.info({ serverId: id }, 'Server API key updated');
+      if (newUrl === undefined) {
+        sseManager.refresh().catch((error: unknown) => {
+          app.log.error({ err: error, serverId: id }, 'SSE refresh failed after API key update');
+        });
+      }
     }
     if (newName !== undefined) {
       app.log.info({ serverId: id, oldName: server.name, newName }, 'Server name updated');
@@ -526,6 +602,10 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
       return reply.notFound('Server not found');
     }
 
+    if (serverRows[0]?.historicalAt) {
+      return reply.conflict('Resume this server to sync it');
+    }
+
     try {
       const result = await syncServer(id, { syncUsers: true, syncLibraries: true });
 
@@ -561,9 +641,54 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
   });
 
   /**
+   * POST /servers/:id/historical - Stop contacting a server (historical: true) or resume it.
+   * Marking force-stops its streams; history, users and libraries stay.
+   */
+  app.post('/:id/historical', { preHandler: [app.authenticate] }, async (request, reply) => {
+    const params = serverIdParamSchema.safeParse(request.params);
+    if (!params.success) {
+      return reply.badRequest('Invalid server ID');
+    }
+
+    const body = setServerHistoricalSchema.safeParse(request.body);
+    if (!body.success) {
+      return reply.badRequest(body.error.issues[0]?.message ?? 'Invalid request body');
+    }
+
+    if (request.user.role !== 'owner') {
+      return reply.forbidden('Only server owners can change whether a server is historical');
+    }
+
+    const [server] = await db.select().from(servers).where(eq(servers.id, params.data.id)).limit(1);
+    if (!server) {
+      return reply.notFound('Server not found');
+    }
+
+    const updated = body.data.historical
+      ? await markServerHistorical(server)
+      : await resumeServer(server);
+
+    return {
+      id: updated.id,
+      name: updated.name,
+      type: updated.type,
+      url: updated.url,
+      publicUrl: updated.publicUrl,
+      machineIdentifier: updated.machineIdentifier,
+      displayOrder: updated.displayOrder,
+      color: updated.color,
+      version: updated.version,
+      latestVersion: updated.latestVersion,
+      historicalAt: updated.historicalAt,
+      createdAt: updated.createdAt,
+      updatedAt: updated.updatedAt,
+    };
+  });
+
+  /**
    * GET /servers/:id/statistics - Get server resource statistics (CPU, RAM)
    * On-demand endpoint for dashboard - data is not stored
-   * Currently only supported for Plex servers (undocumented /statistics/resources endpoint)
+   * Plex only (undocumented /statistics/resources endpoint). /live-stats covers every server type.
    */
   app.get('/:id/statistics', { preHandler: [app.authenticate] }, async (request, reply) => {
     const params = serverIdParamSchema.safeParse(request.params);
@@ -573,6 +698,10 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
 
     const { id } = params.data;
 
+    if (!hasServerAccess(request.user, id)) {
+      return reply.forbidden('You do not have access to this server');
+    }
+
     // Get server with token
     const serverRows = await db.select().from(servers).where(eq(servers.id, id)).limit(1);
 
@@ -581,9 +710,13 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
       return reply.notFound('Server not found');
     }
 
-    // Only Plex is supported for now (Jellyfin/Emby don't have equivalent endpoint)
+    // Reads Plex's own statistics endpoint; Jellyfin and Emby are served by /live-stats
     if (server.type !== 'plex') {
       return reply.badRequest('Server statistics are only available for Plex servers');
+    }
+
+    if (server.historicalAt) {
+      return { serverId: id, data: [], fetchedAt: new Date().toISOString() };
     }
 
     const data = await getServerResourceStats(app.redis, server);
@@ -611,11 +744,27 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
 
     const { id } = params.data;
 
+    if (!hasServerAccess(request.user, id)) {
+      return reply.forbidden('You do not have access to this server');
+    }
+
     const serverRows = await db.select().from(servers).where(eq(servers.id, id)).limit(1);
 
     const server = serverRows[0];
     if (!server) {
       return reply.notFound('Server not found');
+    }
+
+    if (server.historicalAt) {
+      return {
+        serverId: id,
+        statistics: [],
+        bandwidth: [],
+        bandwidthSamples: [],
+        bandwidthAccounts: [],
+        bandwidthDevices: [],
+        fetchedAt: new Date().toISOString(),
+      };
     }
 
     const stats = await getServerLiveStats(app.redis, server);
@@ -635,85 +784,6 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
   });
 
   /**
-   * GET /servers/:id/image/* - Proxy images from Plex/Jellyfin servers
-   * This endpoint fetches images without exposing server tokens to the client
-   *
-   * For Plex: /servers/:id/image/library/metadata/123/thumb/456
-   * For Jellyfin: /servers/:id/image/Items/123/Images/Primary?tag=abc
-   *
-   * Note: Accepts auth via header OR query param (?token=xxx) since browser
-   * <img> tags don't send Authorization headers
-   */
-  app.get('/:id/image/*', async (request, reply) => {
-    // Custom auth: try header first, fall back to query param for <img> tags
-    const queryToken = (request.query as { token?: string }).token;
-    if (queryToken) {
-      // Manually set authorization header for jwtVerify to work
-      request.headers.authorization = `Bearer ${queryToken}`;
-    }
-
-    // Shared guard rather than a bare jwtVerify: it also enforces the
-    // post-restore revocation timestamp and the mobile device blacklist.
-    await app.authenticate(request, reply);
-    if (reply.sent) return;
-
-    const { id } = request.params as { id: string; '*': string };
-    const imagePath = (request.params as { '*': string })['*'];
-
-    if (!imagePath) {
-      return reply.badRequest('Image path is required');
-    }
-
-    // Get server with token
-    const serverRows = await db.select().from(servers).where(eq(servers.id, id)).limit(1);
-
-    const server = serverRows[0];
-    if (!server) {
-      return reply.notFound('Server not found');
-    }
-
-    const baseUrl = server.url.replace(/\/$/, '');
-    const token = server.token;
-
-    try {
-      let imageUrl: string;
-      let headers: Record<string, string>;
-
-      if (server.type === 'plex') {
-        // Plex uses X-Plex-Token query param
-        const separator = imagePath.includes('?') ? '&' : '?';
-        imageUrl = `${baseUrl}/${imagePath}${separator}X-Plex-Token=${token}`;
-        headers = { Accept: 'image/*' };
-      } else {
-        imageUrl = `${baseUrl}/${imagePath}`;
-        const authValue = `MediaBrowser Client="Tracearr", Device="Tracearr Server", DeviceId="tracearr-server", Version="1.0.0", Token="${token}"`;
-        const authHeaderName =
-          server.type === 'jellyfin' ? 'Authorization' : 'X-Emby-Authorization';
-        headers = {
-          [authHeaderName]: authValue,
-          Accept: 'image/*',
-        };
-      }
-
-      const response = await fetch(imageUrl, { headers });
-
-      if (!response.ok) {
-        return reply.notFound('Image not found');
-      }
-
-      const contentType = response.headers.get('content-type') ?? 'image/jpeg';
-      const buffer = await response.arrayBuffer();
-
-      reply.header('Content-Type', contentType);
-      reply.header('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
-      return reply.send(Buffer.from(buffer));
-    } catch (error) {
-      app.log.error({ err: error, serverId: id, imagePath }, 'Failed to fetch image from server');
-      return reply.internalServerError('Failed to fetch image');
-    }
-  });
-
-  /**
    * GET /servers/health - Get health status for all servers
    * Returns which servers are currently unreachable based on cached health state
    */
@@ -727,10 +797,12 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
         name: servers.name,
       })
       .from(servers)
-      .where(buildServerAccessCondition(authUser, servers.id));
+      .where(and(buildServerAccessCondition(authUser, servers.id), liveServerCondition))
+      .orderBy(...serverOrderBy());
 
     const cacheService = getCacheService();
-    const unhealthyServers: { serverId: string; serverName: string }[] = [];
+    const unhealthyServers: { serverId: string; serverName: string; reason?: ServerDownReason }[] =
+      [];
 
     if (cacheService) {
       for (const server of serverList) {
@@ -738,7 +810,12 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
         // null means unknown (not yet checked), true means healthy
         // Only include servers explicitly marked as unhealthy (false)
         if (isHealthy === false) {
-          unhealthyServers.push({ serverId: server.id, serverName: server.name });
+          const reason = await cacheService.getServerDownReason(server.id);
+          unhealthyServers.push({
+            serverId: server.id,
+            serverName: server.name,
+            ...(reason && { reason }),
+          });
         }
       }
     }
@@ -763,7 +840,7 @@ export const serverRoutes: FastifyPluginAsync = async (app) => {
         type: servers.type,
       })
       .from(servers)
-      .where(buildServerAccessCondition(authUser, servers.id));
+      .where(and(buildServerAccessCondition(authUser, servers.id), liveServerCondition));
 
     const cacheService = getCacheService();
     const result: ServerConnectionStatus[] = [];

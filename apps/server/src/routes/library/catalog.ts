@@ -52,6 +52,7 @@ import {
   type CatalogRow,
   type CatalogLetterBucket,
   type CatalogLettersResponse,
+  type CatalogCodecOptionsResponse,
   type WatchedState,
 } from '@tracearr/shared';
 import { db } from '../../db/client.js';
@@ -59,11 +60,21 @@ import { resolutionBucketPredicate, resolutionRankSql } from '../../utils/resolu
 import { resolveServerIds, buildMultiServerFragment } from '../../utils/serverFiltering.js';
 import { uuidArraySql } from '../../utils/sqlArrays.js';
 import { normalizeTitle } from '../../services/library/mediaMatchKey.js';
-import { resolveWatchedStates } from '../../services/library/mediaWatchedService.js';
+import {
+  fetchEpisodeCounts,
+  resolveWatchedStates,
+} from '../../services/library/mediaWatchedService.js';
 import { buildProxyUrl, posterVersionFor } from '../../services/imageProxy.js';
 import { getSetting } from '../../services/settings.js';
 import type { DateRange } from '../stats/utils.js';
 import { mediaSizeSubquery, buildLibraryCacheKey, withComputeSingleFlight } from './utils.js';
+import {
+  codecPredicate,
+  fetchCodecOptions,
+  resolveRawCodecs,
+  type CodecKind,
+  type RawCodec,
+} from './codecFilter.js';
 
 /** Sane upper bound for the size-on-disk filter inputs, in GB. */
 const CATALOG_SIZE_GB_MAX = 10000;
@@ -85,8 +96,13 @@ const catalogQuerySchema = z.object({
   // `${serverId}:${libraryId}` - a library id is only unique within its server.
   libraryKey: libraryKeySchema.optional(),
   hdr: booleanStringSchema.default(false),
+  atmos: booleanStringSchema.default(false),
   sizeGbMin: z.coerce.number().min(0).max(CATALOG_SIZE_GB_MAX).optional(),
   sizeGbMax: z.coerce.number().min(0).max(CATALOG_SIZE_GB_MAX).optional(),
+  /** Display names as the codec charts show them ('HEVC', 'EAC3'). */
+  videoCodec: z.string().max(50).optional(),
+  audioCodec: z.string().max(50).optional(),
+  audioChannels: z.string().max(20).optional(),
 });
 
 type CatalogQueryInput = z.infer<typeof catalogQuerySchema>;
@@ -94,6 +110,12 @@ type CatalogQueryInput = z.infer<typeof catalogQuerySchema>;
 // Same filter fields as catalogQuerySchema, minus the window params -
 // letters is an unpaginated aggregate over the whole filtered set.
 const catalogLettersQuerySchema = catalogQuerySchema.omit({ offset: true, pageSize: true });
+
+const catalogCodecsQuerySchema = catalogQuerySchema.pick({
+  type: true,
+  serverId: true,
+  serverIds: true,
+});
 
 export type CatalogSort = CatalogQueryInput['sort'];
 
@@ -119,8 +141,12 @@ export interface CatalogPageQueryParams {
   libraryServerId: string | null;
   libraryId: string | null;
   hdr: boolean;
+  atmos: boolean;
   sizeGbMin: number | null;
   sizeGbMax: number | null;
+  videoCodecs?: RawCodec[] | null;
+  audioCodecs?: RawCodec[] | null;
+  audioChannels?: RawCodec[] | null;
   serverIds: string[] | undefined;
   pageSize: number;
   preferredPosterServerId?: string | null;
@@ -137,8 +163,12 @@ export interface CatalogTotalsQueryParams {
   libraryServerId: string | null;
   libraryId: string | null;
   hdr: boolean;
+  atmos: boolean;
   sizeGbMin: number | null;
   sizeGbMax: number | null;
+  videoCodecs?: RawCodec[] | null;
+  audioCodecs?: RawCodec[] | null;
+  audioChannels?: RawCodec[] | null;
   serverIds: string[] | undefined;
 }
 
@@ -248,7 +278,7 @@ export function buildValueRollupCte(
   return sql`
     value_rollup AS (
       SELECT COALESCE(am.merged_into_id, ${mediaCol}) AS canonical_id,
-             SUM(p.plays)::bigint AS plays,
+             COUNT(DISTINCT p.chain_id) FILTER (WHERE p.counted)::bigint AS plays,
              SUM(p.watched_ms)::bigint AS watch_time_ms,
              COUNT(DISTINCT su.user_id)::bigint AS viewers
       FROM user_media_plays_daily p
@@ -291,8 +321,12 @@ function buildCommonWhere(params: {
   libraryServerId: string | null;
   libraryId: string | null;
   hdr: boolean;
+  atmos: boolean;
   sizeGbMin: number | null;
   sizeGbMax: number | null;
+  videoCodecs?: RawCodec[] | null;
+  audioCodecs?: RawCodec[] | null;
+  audioChannels?: RawCodec[] | null;
   serverFragmentLi: SQL;
 }): SQL {
   const {
@@ -305,8 +339,12 @@ function buildCommonWhere(params: {
     libraryServerId,
     libraryId,
     hdr,
+    atmos,
     sizeGbMin,
     sizeGbMax,
+    videoCodecs,
+    audioCodecs,
+    audioChannels,
     serverFragmentLi,
   } = params;
   const sizeMinBytes = sizeGbMin !== null ? Math.round(sizeGbMin * BYTES_PER_GB) : null;
@@ -341,6 +379,29 @@ function buildCommonWhere(params: {
           WHERE livh.library_item_id = li.id AND livh.removed_at IS NULL
             AND livh.video_dynamic_range IS NOT NULL AND livh.video_dynamic_range <> 'sdr'
         )`;
+  const atmosFilter = !atmos
+    ? sql``
+    : type === 'show'
+      ? sql`AND EXISTS (
+          SELECT 1 ${episodeVersionsScope('m.id')}
+            AND v.audio_atmos
+        )`
+      : sql`AND EXISTS (
+          SELECT 1 FROM library_item_versions liva
+          WHERE liva.library_item_id = li.id AND liva.removed_at IS NULL
+            AND liva.audio_atmos
+        )`;
+  // "Has any file in": a title with an HEVC and an H.264 copy matches both.
+  const codecFilter = (kind: CodecKind, rawCodecs: RawCodec[] | null | undefined): SQL => {
+    if (!rawCodecs) return sql``;
+    return type === 'show'
+      ? sql`AND EXISTS (SELECT 1 ${episodeVersionsScope('m.id')} ${codecPredicate(kind, 'v', rawCodecs)})`
+      : sql`AND EXISTS (
+          SELECT 1 FROM library_item_versions livc
+          WHERE livc.library_item_id = li.id AND livc.removed_at IS NULL
+            ${codecPredicate(kind, 'livc', rawCodecs)}
+        )`;
+  };
   // Per-copy grain either way: a movie copy matches on its version-summed
   // rollup, a show copy on its episode total for that server + library - the
   // same figure the detail view reports for the copy.
@@ -364,6 +425,10 @@ function buildCommonWhere(params: {
         AND (${libraryServerId}::uuid IS NULL OR li.server_id = ${libraryServerId}::uuid)
         AND (${libraryId}::text IS NULL OR li.library_id = ${libraryId})
         ${hdrFilter}
+        ${atmosFilter}
+        ${codecFilter('video', videoCodecs)}
+        ${codecFilter('audio', audioCodecs)}
+        ${codecFilter('channels', audioChannels)}
         ${sizeFilter}
     )
   `;
@@ -494,40 +559,10 @@ function withRowDecorations(pageCte: SQL, serverFragmentLi: SQL, posterOrderFrag
  * it's the only mode that can serve a letter jump into an arbitrary depth.
  */
 export function buildCatalogPageQuery(params: CatalogPageQueryParams): SQL {
-  const {
-    type,
-    sort,
-    offset,
-    genre,
-    yearFrom,
-    yearTo,
-    searchNormalized,
-    resolution,
-    libraryServerId,
-    libraryId,
-    hdr,
-    sizeGbMin,
-    sizeGbMax,
-    serverIds,
-    pageSize,
-    preferredPosterServerId,
-  } = params;
+  const { type, sort, offset, serverIds, pageSize, preferredPosterServerId } = params;
   const posterOrderFragment = buildPosterOrderFragment(preferredPosterServerId);
   const serverFragmentLi = buildMultiServerFragment(serverIds, 'li.server_id');
-  const commonWhere = buildCommonWhere({
-    type,
-    genre,
-    yearFrom,
-    yearTo,
-    searchNormalized,
-    resolution,
-    libraryServerId,
-    libraryId,
-    hdr,
-    sizeGbMin,
-    sizeGbMax,
-    serverFragmentLi,
-  });
+  const commonWhere = buildCommonWhere({ ...params, serverFragmentLi });
   const { body, needsRollup } = buildSortedBody({
     type,
     sort,
@@ -551,40 +586,13 @@ export function buildCatalogPageQuery(params: CatalogPageQueryParams): SQL {
  * runs per matching row); callers cache the result, never run it per page.
  */
 export function buildCatalogTotalsQuery(params: CatalogTotalsQueryParams): SQL {
-  const {
-    type,
-    sort,
-    genre,
-    yearFrom,
-    yearTo,
-    searchNormalized,
-    resolution,
-    libraryServerId,
-    libraryId,
-    hdr,
-    sizeGbMin,
-    sizeGbMax,
-    serverIds,
-  } = params;
+  const { type, sort, serverIds } = params;
   const serverFragmentLi = buildMultiServerFragment(serverIds, 'li.server_id');
   // The file-size subquery aliases library_items as li2, not li - it needs its
   // own fragment, or a server-scoped request 500s on a missing FROM-clause
   // entry for li.server_id.
   const serverFragmentLi2 = buildMultiServerFragment(serverIds, 'li2.server_id');
-  const commonWhere = buildCommonWhere({
-    type,
-    genre,
-    yearFrom,
-    yearTo,
-    searchNormalized,
-    resolution,
-    libraryServerId,
-    libraryId,
-    hdr,
-    sizeGbMin,
-    sizeGbMax,
-    serverFragmentLi,
-  });
+  const commonWhere = buildCommonWhere({ ...params, serverFragmentLi });
   const sortGuard =
     sort === 'added'
       ? sql`AND m.latest_added_at IS NOT NULL`
@@ -635,20 +643,7 @@ async function getCatalogTotals(
 ): Promise<CatalogTotals> {
   const serverKey = params.serverIds !== undefined ? [...params.serverIds].sort().join(',') : 'all';
   const guardClass = params.sort === 'added' ? 'added' : params.sort === 'year' ? 'year' : 'none';
-  const filterKey = [
-    params.type,
-    guardClass,
-    params.genre ?? '',
-    params.yearFrom ?? '',
-    params.yearTo ?? '',
-    params.resolution ?? '',
-    params.searchNormalized ?? '',
-    params.libraryServerId ?? '',
-    params.libraryId ?? '',
-    params.hdr ? 'hdr' : '',
-    params.sizeGbMin ?? '',
-    params.sizeGbMax ?? '',
-  ].join('|');
+  const filterKey = [guardClass, ...filterKeyParts(params)].join('|');
   const cacheKey = buildLibraryCacheKey(REDIS_KEYS.LIBRARY_CATALOG_TOTALS, serverKey, filterKey);
   const cached = await redis.get(cacheKey);
   if (cached) {
@@ -697,42 +692,45 @@ export interface CatalogFilterParams {
   libraryServerId: string | null;
   libraryId: string | null;
   hdr: boolean;
+  atmos: boolean;
   sizeGbMin: number | null;
   sizeGbMax: number | null;
+  /** Raw stored codec values from resolveRawCodecs; null or absent means no filter. */
+  videoCodecs?: RawCodec[] | null;
+  audioCodecs?: RawCodec[] | null;
+  audioChannels?: RawCodec[] | null;
   serverIds: string[] | undefined;
+}
+
+/** Cache-key segment for every filter predicate, shared by the totals,
+ * letters and watched-candidates caches so a new filter can't be left out of
+ * one of them. An empty codec list (a name matching nothing) keys apart from
+ * no codec filter. */
+function filterKeyParts(params: CatalogFilterParams): (string | number)[] {
+  return [
+    params.type,
+    params.genre ?? '',
+    params.yearFrom ?? '',
+    params.yearTo ?? '',
+    params.resolution ?? '',
+    params.searchNormalized ?? '',
+    params.libraryServerId ?? '',
+    params.libraryId ?? '',
+    params.hdr ? 'hdr' : '',
+    params.atmos ? 'atmos' : '',
+    params.sizeGbMin ?? '',
+    params.sizeGbMax ?? '',
+    params.videoCodecs ? `v:${params.videoCodecs.join(',')}` : '',
+    params.audioCodecs ? `a:${params.audioCodecs.join(',')}` : '',
+    params.audioChannels ? `c:${params.audioChannels.join(',')}` : '',
+  ];
 }
 
 /** Per-letter counts straight from SQL, for the no-watched-filter path. */
 export function buildLetterCountsQuery(params: CatalogFilterParams): SQL {
-  const {
-    type,
-    genre,
-    yearFrom,
-    yearTo,
-    searchNormalized,
-    resolution,
-    libraryServerId,
-    libraryId,
-    hdr,
-    sizeGbMin,
-    sizeGbMax,
-    serverIds,
-  } = params;
+  const { type, serverIds } = params;
   const serverFragmentLi = buildMultiServerFragment(serverIds, 'li.server_id');
-  const commonWhere = buildCommonWhere({
-    type,
-    genre,
-    yearFrom,
-    yearTo,
-    searchNormalized,
-    resolution,
-    libraryServerId,
-    libraryId,
-    hdr,
-    sizeGbMin,
-    sizeGbMax,
-    serverFragmentLi,
-  });
+  const commonWhere = buildCommonWhere({ ...params, serverFragmentLi });
   return sql`
     SELECT ${buildLetterBucketCase()} AS letter, COUNT(*)::int AS count
     FROM media m
@@ -752,36 +750,9 @@ export function buildLetterCountsQuery(params: CatalogFilterParams): SQL {
 export function buildCatalogCandidatesQuery(
   params: CatalogFilterParams & { sort: CatalogSort }
 ): SQL {
-  const {
-    type,
-    sort,
-    genre,
-    yearFrom,
-    yearTo,
-    searchNormalized,
-    resolution,
-    libraryServerId,
-    libraryId,
-    hdr,
-    sizeGbMin,
-    sizeGbMax,
-    serverIds,
-  } = params;
+  const { type, sort, serverIds } = params;
   const serverFragmentLi = buildMultiServerFragment(serverIds, 'li.server_id');
-  const commonWhere = buildCommonWhere({
-    type,
-    genre,
-    yearFrom,
-    yearTo,
-    searchNormalized,
-    resolution,
-    libraryServerId,
-    libraryId,
-    hdr,
-    sizeGbMin,
-    sizeGbMax,
-    serverFragmentLi,
-  });
+  const commonWhere = buildCommonWhere({ ...params, serverFragmentLi });
   const { body, needsRollup } = buildSortedBody({
     type,
     sort,
@@ -803,27 +774,6 @@ export function buildLetterBuckets(counts: Map<string, number>): CatalogLetterBu
     letter,
     count: counts.get(letter) ?? 0,
   }));
-}
-
-export async function fetchEpisodeCounts(
-  showIds: string[],
-  serverIds: string[] | undefined
-): Promise<Map<string, number>> {
-  const result = new Map<string, number>();
-  if (showIds.length === 0) return result;
-  const serverFragmentLi = buildMultiServerFragment(serverIds, 'li.server_id');
-  const rows = await db.execute(sql`
-    SELECT m.show_media_id AS show_id, COUNT(*) FILTER (WHERE m.media_type = 'episode')::int AS episode_count
-    FROM media m
-    WHERE m.show_media_id = ANY(${uuidArraySql(showIds)})
-      AND m.media_type = 'episode'
-      AND EXISTS (SELECT 1 FROM library_items li WHERE li.media_id = m.id AND li.removed_at IS NULL ${serverFragmentLi})
-    GROUP BY m.show_media_id
-  `);
-  for (const row of rows.rows as unknown as { show_id: string; episode_count: number }[]) {
-    result.set(row.show_id, row.episode_count);
-  }
-  return result;
 }
 
 async function fetchPageEngagement(
@@ -933,22 +883,9 @@ interface WatchedCandidatesArgs extends CatalogFilterParams {
 
 function watchedCandidatesCacheKey(args: WatchedCandidatesArgs): string {
   const serverKey = args.serverIds !== undefined ? [...args.serverIds].sort().join(',') : 'all';
-  const filterKey = [
-    args.type,
-    args.sort,
-    args.genre ?? '',
-    args.yearFrom ?? '',
-    args.yearTo ?? '',
-    args.resolution ?? '',
-    args.searchNormalized ?? '',
-    args.libraryServerId ?? '',
-    args.libraryId ?? '',
-    args.hdr ? 'hdr' : '',
-    args.sizeGbMin ?? '',
-    args.sizeGbMax ?? '',
-    args.watched,
-    args.lensUserId ?? '',
-  ].join('|');
+  const filterKey = [args.sort, ...filterKeyParts(args), args.watched, args.lensUserId ?? ''].join(
+    '|'
+  );
   return buildLibraryCacheKey(REDIS_KEYS.LIBRARY_CATALOG_WATCHED, serverKey, filterKey);
 }
 
@@ -1087,6 +1024,40 @@ function toCatalogRow(
   };
 }
 
+/** The request's filters in builder form: library key split, search
+ * normalized, codec display names expanded to their raw stored values. */
+async function toFilterParams(
+  data: z.infer<typeof catalogLettersQuerySchema>,
+  serverIds: string[] | undefined
+): Promise<CatalogFilterParams> {
+  const library = parseLibraryKey(data.libraryKey);
+  const [videoCodecs, audioCodecs, audioChannels] = await Promise.all([
+    resolveRawCodecs('video', data.videoCodec),
+    resolveRawCodecs('audio', data.audioCodec),
+    resolveRawCodecs('channels', data.audioChannels),
+  ]);
+  return {
+    type: data.type,
+    genre: data.genre ?? null,
+    yearFrom: data.yearFrom ?? null,
+    yearTo: data.yearTo ?? null,
+    // A punctuation-only search (e.g. "...") normalizes to '' - treat that
+    // the same as no search rather than a LIKE '%%' that matches everything.
+    searchNormalized: data.search ? normalizeTitle(data.search) || null : null,
+    resolution: data.resolution ?? null,
+    libraryServerId: library?.serverId ?? null,
+    libraryId: library?.libraryId ?? null,
+    hdr: data.hdr,
+    atmos: data.atmos,
+    sizeGbMin: data.sizeGbMin ?? null,
+    sizeGbMax: data.sizeGbMax ?? null,
+    videoCodecs,
+    audioCodecs,
+    audioChannels,
+    serverIds,
+  };
+}
+
 export const libraryCatalogRoute: FastifyPluginAsync = async (app) => {
   /**
    * GET /catalog - Offset-windowed canonical-media browse feed.
@@ -1099,25 +1070,7 @@ export const libraryCatalogRoute: FastifyPluginAsync = async (app) => {
       if (!query.success) {
         return reply.badRequest('Invalid query parameters');
       }
-      const {
-        type,
-        serverId,
-        serverIds,
-        resolution,
-        genre,
-        yearFrom,
-        yearTo,
-        watched,
-        lens,
-        search,
-        sort,
-        offset,
-        pageSize,
-        libraryKey,
-        hdr,
-        sizeGbMin,
-        sizeGbMax,
-      } = query.data;
+      const { type, serverId, serverIds, watched, lens, sort, offset, pageSize } = query.data;
       const authUser = request.user;
 
       // Guard 1: server scope, fail-closed (throws ForbiddenError on an
@@ -1144,25 +1097,8 @@ export const libraryCatalogRoute: FastifyPluginAsync = async (app) => {
         }
       }
 
-      // A punctuation-only search (e.g. "...") normalizes to '' - treat that
-      // the same as no search rather than a LIKE '%%' that matches everything.
-      const searchNormalized = search ? normalizeTitle(search) || null : null;
       const preferredPosterServerId = await getSetting('preferredPosterServerId');
-      const library = parseLibraryKey(libraryKey);
-      const filterParams: CatalogFilterParams = {
-        type,
-        genre: genre ?? null,
-        yearFrom: yearFrom ?? null,
-        yearTo: yearTo ?? null,
-        searchNormalized,
-        resolution: resolution ?? null,
-        libraryServerId: library?.serverId ?? null,
-        libraryId: library?.libraryId ?? null,
-        hdr,
-        sizeGbMin: sizeGbMin ?? null,
-        sizeGbMax: sizeGbMax ?? null,
-        serverIds: resolvedIds,
-      };
+      const filterParams = await toFilterParams(query.data, resolvedIds);
 
       let rows: RawCatalogRow[];
       let watchedStates: Map<string, WatchedState>;
@@ -1302,23 +1238,7 @@ export const libraryCatalogRoute: FastifyPluginAsync = async (app) => {
       if (!query.success) {
         return reply.badRequest('Invalid query parameters');
       }
-      const {
-        type,
-        serverId,
-        serverIds,
-        resolution,
-        genre,
-        yearFrom,
-        yearTo,
-        watched,
-        lens,
-        search,
-        sort,
-        libraryKey,
-        hdr,
-        sizeGbMin,
-        sizeGbMax,
-      } = query.data;
+      const { serverId, serverIds, watched, lens, sort } = query.data;
       const authUser = request.user;
 
       // Same server-scope and lens-access guards as GET /catalog.
@@ -1352,24 +1272,7 @@ export const libraryCatalogRoute: FastifyPluginAsync = async (app) => {
         return response;
       }
 
-      // A punctuation-only search (e.g. "...") normalizes to '' - treat that
-      // the same as no search rather than a LIKE '%%' that matches everything.
-      const searchNormalized = search ? normalizeTitle(search) || null : null;
-      const library = parseLibraryKey(libraryKey);
-      const filterParams: CatalogFilterParams = {
-        type,
-        genre: genre ?? null,
-        yearFrom: yearFrom ?? null,
-        yearTo: yearTo ?? null,
-        searchNormalized,
-        resolution: resolution ?? null,
-        libraryServerId: library?.serverId ?? null,
-        libraryId: library?.libraryId ?? null,
-        hdr,
-        sizeGbMin: sizeGbMin ?? null,
-        sizeGbMax: sizeGbMax ?? null,
-        serverIds: resolvedIds,
-      };
+      const filterParams = await toFilterParams(query.data, resolvedIds);
 
       if (watched) {
         // Shares the exact cached candidate list the catalog windows slice,
@@ -1389,19 +1292,7 @@ export const libraryCatalogRoute: FastifyPluginAsync = async (app) => {
       }
 
       const serverCacheKey = resolvedIds !== undefined ? [...resolvedIds].sort().join(',') : 'all';
-      const filterKey = [
-        type,
-        genre ?? '',
-        yearFrom ?? '',
-        yearTo ?? '',
-        resolution ?? '',
-        searchNormalized ?? '',
-        library?.serverId ?? '',
-        library?.libraryId ?? '',
-        hdr ? 'hdr' : '',
-        sizeGbMin ?? '',
-        sizeGbMax ?? '',
-      ].join('|');
+      const filterKey = filterKeyParts(filterParams).join('|');
       const cacheKey = buildLibraryCacheKey(
         REDIS_KEYS.LIBRARY_CATALOG_LETTERS,
         serverCacheKey,
@@ -1426,6 +1317,25 @@ export const libraryCatalogRoute: FastifyPluginAsync = async (app) => {
       const response: CatalogLettersResponse = { letters: buildLetterBuckets(counts) };
       await app.redis.setex(cacheKey, CACHE_TTL.LIBRARY_CATALOG_LETTERS, JSON.stringify(response));
 
+      return response;
+    }
+  );
+
+  /**
+   * GET /catalog/codecs - Video and audio codecs present among the browse
+   * type's files in scope, as the codec charts name them, for the filters.
+   */
+  app.get<{ Querystring: Record<string, unknown> }>(
+    '/catalog/codecs',
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const query = catalogCodecsQuerySchema.safeParse(request.query);
+      if (!query.success) {
+        return reply.badRequest('Invalid query parameters');
+      }
+      const { type, serverId, serverIds } = query.data;
+      const resolvedIds = resolveServerIds(request.user, serverId, serverIds);
+      const response: CatalogCodecOptionsResponse = await fetchCodecOptions(type, resolvedIds);
       return response;
     }
   );

@@ -47,8 +47,13 @@ import { PRIMARY_MEDIA_TYPES_SQL_LITERAL } from '../constants/mediaTypes.js';
  *       repairs a legacy plex owner. Every per-user aggregate groups by
  *       server_user_id, so buckets materialized before the repair still credit
  *       the deleted account.
+ * - 16: Added count_8k, count_1440p and count_480p to library_stats_daily and
+ *       content_quality_daily; every resolution tier has its own bucket.
+ * - 17: user_media_plays_daily is grouped by resume chain (chain_id) and the
+ *       plays count became a counted flag. A chain counts when any segment
+ *       passes the 120s gate, once, instead of only when its head does.
  */
-export const AGGREGATE_SCHEMA_VERSION = 15;
+export const AGGREGATE_SCHEMA_VERSION = 17;
 
 /** Config for a continuous aggregate view */
 interface AggregateDefinition {
@@ -114,7 +119,9 @@ function getAggregateDefinitions(): AggregateDefinition[] {
       },
     },
     {
-      // Identity-aware plays: one row per user-media-day actually watched
+      // Identity-aware plays: one row per user, media, resume chain and UTC day.
+      // Readers count DISTINCT chain_id FILTER (WHERE counted); a chain that
+      // crosses UTC midnight is two rows and one play.
       name: 'user_media_plays_daily',
       sql: `
         CREATE MATERIALIZED VIEW IF NOT EXISTS user_media_plays_daily
@@ -124,16 +131,17 @@ function getAggregateDefinitions(): AggregateDefinition[] {
           server_user_id,
           server_id,
           media_id,
+          COALESCE(reference_id, id) AS chain_id,
           MAX(show_media_id::text)::uuid AS show_media_id,
           MAX(media_type) AS media_type,
-          COUNT(*) FILTER (WHERE reference_id IS NULL AND COALESCE(duration_ms, 0) >= 120000) AS plays,
+          BOOL_OR(COALESCE(duration_ms, 0) >= 120000) AS counted,
           SUM(CASE WHEN duration_ms >= 120000 THEN duration_ms ELSE 0 END) AS watched_ms,
           MAX(progress_ms) AS max_progress_ms,
           MAX(total_duration_ms) AS content_duration_ms,
           BOOL_OR(watched) AS any_watched
         FROM sessions
         WHERE media_id IS NOT NULL
-        GROUP BY day, server_user_id, server_id, media_id
+        GROUP BY day, server_user_id, server_id, media_id, COALESCE(reference_id, id)
         WITH NO DATA
       `,
       refreshPolicy: {
@@ -189,9 +197,12 @@ function getAggregateDefinitions(): AggregateDefinition[] {
           MAX(episode_count) AS episode_count,
           MAX(show_count) AS show_count,
           MAX(music_count) AS music_count,
+          MAX(count_8k) AS count_8k,
           MAX(count_4k) AS count_4k,
+          MAX(count_1440p) AS count_1440p,
           MAX(count_1080p) AS count_1080p,
           MAX(count_720p) AS count_720p,
+          MAX(count_480p) AS count_480p,
           MAX(count_sd) AS count_sd,
           MAX(count_high_quality) AS count_high_quality,
           MAX(version_count) AS version_count
@@ -217,9 +228,12 @@ function getAggregateDefinitions(): AggregateDefinition[] {
           time_bucket('1 day', snapshot_time) AS day,
           server_id,
           MAX(item_count) AS total_items,
+          MAX(count_8k) AS count_8k,
           MAX(count_4k) AS count_4k,
+          MAX(count_1440p) AS count_1440p,
           MAX(count_1080p) AS count_1080p,
           MAX(count_720p) AS count_720p,
+          MAX(count_480p) AS count_480p,
           MAX(count_sd) AS count_sd,
           MAX(hevc_count) AS hevc_count,
           MAX(h264_count) AS h264_count,
@@ -1066,14 +1080,31 @@ export async function getCompressedSessionChunkRanges(): Promise<ChunkTimeRange[
     WHERE hypertable_name = 'sessions' AND is_compressed = true
     ORDER BY range_end DESC
   `);
+  return toChunkTimeRanges(result.rows);
+}
+
+/**
+ * Time ranges of every sessions chunk, compressed or not, newest first. Empty
+ * when TimescaleDB is absent.
+ */
+export async function getSessionChunkRanges(): Promise<ChunkTimeRange[]> {
+  if (!(await isTimescaleInstalled())) return [];
+  const result = await db.execute(sql`
+    SELECT range_start, range_end
+    FROM timescaledb_information.chunks
+    WHERE hypertable_name = 'sessions'
+    ORDER BY range_end DESC
+  `);
+  return toChunkTimeRanges(result.rows);
+}
+
+function toChunkTimeRanges(rows: unknown[]): ChunkTimeRange[] {
   // node-postgres parses timestamptz to Date, but a raw execute can hand back
   // either depending on the driver path - new Date() accepts both.
-  return (result.rows as Array<{ range_start: string | Date; range_end: string | Date }>).map(
-    (r) => ({
-      start: new Date(r.range_start),
-      end: new Date(r.range_end),
-    })
-  );
+  return (rows as Array<{ range_start: string | Date; range_end: string | Date }>).map((r) => ({
+    start: new Date(r.range_start),
+    end: new Date(r.range_end),
+  }));
 }
 
 /**
@@ -2282,12 +2313,12 @@ async function engagementViewsExist(): Promise<boolean> {
 // media_id-leading composite for per-item watched probes; the cagg's default (media_id, day) can't serve it
 async function ensureUserMediaPlaysIndex(): Promise<void> {
   await db.execute(sql`
-    CREATE INDEX IF NOT EXISTS idx_user_media_plays_media_user
-    ON user_media_plays_daily (media_id, server_user_id)
+    CREATE INDEX IF NOT EXISTS idx_user_media_plays_media_user_chain
+    ON user_media_plays_daily (media_id, server_user_id, chain_id)
   `);
   await db.execute(sql`
-    CREATE INDEX IF NOT EXISTS idx_user_media_plays_show_user
-    ON user_media_plays_daily (show_media_id, server_user_id)
+    CREATE INDEX IF NOT EXISTS idx_user_media_plays_show_user_chain
+    ON user_media_plays_daily (show_media_id, server_user_id, chain_id)
     WHERE show_media_id IS NOT NULL
   `);
 }
@@ -2359,7 +2390,7 @@ async function ensureEngagementViews(): Promise<void> {
       media_id,
       MAX(show_media_id::text)::uuid AS show_media_id,
       MAX(media_type) AS media_type,
-      SUM(plays) AS plays,
+      COUNT(DISTINCT chain_id) FILTER (WHERE counted) AS plays,
       SUM(watched_ms) AS watched_ms,
       COUNT(DISTINCT server_user_id) AS unique_users
     FROM user_media_plays_daily

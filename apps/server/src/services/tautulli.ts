@@ -6,17 +6,26 @@ import type { TautulliImportProgress, TautulliImportResult } from '@tracearr/sha
 import { and, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../db/client.js';
-import { serverUsers, sessions, users } from '../db/schema.js';
+import { servers, serverUsers, sessions, users } from '../db/schema.js';
 import {
   checkAggregateNeedsRebuild,
   refreshAggregates,
   uncapDecompressionForTx,
 } from '../db/timescale.js';
-import { enqueueMaintenanceJob } from '../jobs/maintenanceQueue.js';
-import { batchGetLibraryItemIdentity } from '../jobs/poller/database.js';
+import { deleteSessionsRepointingChildren, importForm } from '../jobs/importDuplicateCleanup.js';
+import {
+  enqueueMaintenanceJob,
+  enqueueServerLocationSyncIfBehind,
+} from '../jobs/maintenanceQueue.js';
+import {
+  batchGetLibraryItemIdentity,
+  batchResolveMediaByPlexGuid,
+} from '../jobs/poller/database.js';
+import { ts } from '../jobs/sessionWalk.js';
 import { sanitizeCodec } from '../utils/codecNormalizer.js';
 import { extractIpFromEndpoint } from '../utils/parsing.js';
 import { normalizeClient } from '../utils/platformNormalizer.js';
+import { normalizePlexGuid } from '../utils/plexGuid.js';
 import { normalizeStreamDecisions } from '../utils/transcodeNormalizer.js';
 import type { PubSubService } from './cache.js';
 import { geoasnService } from './geoasn.js';
@@ -28,18 +37,50 @@ import {
   createUserMapping,
   flushInsertBatch,
   flushUpdateBatch,
+  getServerTrackingStart,
   queryExistingByExternalIds,
   queryExistingByTimeKeys,
   type SessionUpdate,
   type TimeBounds,
 } from './import/index.js';
-import { getSettings } from './settings.js';
+import { markImportedServerLocations } from './serverLocations.js';
+import { getSettings, rearmImportedHistoryLink } from './settings.js';
 
+const GUID_HISTORY_LENGTH = 100000;
 const PAGE_SIZE = 5000; // Larger batches = fewer API calls (tested up to 10k, scales linearly)
 const REQUEST_TIMEOUT_MS = 30000; // 30 seconds
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 1000; // Base delay, will be multiplied by attempt number
 const ERROR_BODY_MAX_CHARS = 500;
+const ABSORBED_GROUPS_PER_TX = 250;
+
+/** A group whose group_ids name plays other than its own root */
+interface AbsorbingGroup {
+  rootExternalId: string;
+  serverUserId: string;
+  started: Date;
+  stopped: Date;
+  absorbedIds: string[];
+}
+
+function absorbingGroup(
+  record: TautulliHistoryRecord,
+  serverUserId: string
+): AbsorbingGroup | null {
+  const rootExternalId = String(record.reference_id);
+  const absorbedIds = (record.group_ids ?? '')
+    .split(',')
+    .map((id) => id.trim())
+    .filter((id) => id !== '' && id !== rootExternalId);
+  if (absorbedIds.length === 0) return null;
+  return {
+    rootExternalId,
+    serverUserId,
+    started: new Date(record.started * 1000),
+    stopped: new Date(record.stopped * 1000),
+    absorbedIds,
+  };
+}
 
 export class TautulliApiError extends Error {
   readonly status: number;
@@ -56,6 +97,14 @@ export class TautulliApiError extends Error {
 export function isFatalImportError(err: unknown): boolean {
   if (err instanceof TautulliApiError) return err.status === 401 || err.status === 403;
   return err instanceof Error && err.message.startsWith('Invalid Tautulli API response');
+}
+
+async function rearmLinking(): Promise<void> {
+  try {
+    await rearmImportedHistoryLink({ keepProviderPass: false });
+  } catch (err) {
+    console.warn('Failed to re-arm imported history linking:', err);
+  }
 }
 
 async function readErrorBody(response: Response): Promise<string> {
@@ -82,6 +131,17 @@ export function parseHistoryGuid(guid: string | null): {
   if (agent === 'thetvdb') return { tvdbId: numeric };
   if (agent === 'themoviedb') return { tmdbId: numeric };
   return {};
+}
+
+// Live content reports its actual type in media_type too, so the live flag wins.
+function mapTautulliMediaType(record: {
+  live: number | null;
+  media_type: string;
+}): 'movie' | 'episode' | 'track' | 'live' {
+  if (record.live === 1) return 'live';
+  if (record.media_type === 'episode') return 'episode';
+  if (record.media_type === 'track') return 'track';
+  return 'movie';
 }
 
 // Helper for fields that can be number or empty string (Tautulli API inconsistency)
@@ -171,6 +231,36 @@ export const TautulliHistoryResponseSchema = z.object({
       filter_duration: z.string(),
       total_duration: z.string(),
     }),
+  }),
+});
+
+// Unlike TautulliHistoryResponseSchema, an error response (data: null) parses here.
+const TautulliGuidHistoryResponseSchema = z.object({
+  response: z.object({
+    result: z.string(),
+    data: z
+      .object({
+        recordsFiltered: z.number(),
+        data: z.array(z.unknown()),
+      })
+      .nullish(),
+  }),
+});
+
+const TautulliGuidHistoryRowSchema = z.object({
+  rating_key: z
+    .union([z.number(), z.string(), z.null()])
+    .transform((v) => (v === null ? null : String(v))),
+  live: z.number().nullable(),
+  media_type: z.string(),
+  guid: z.string().nullable(),
+  reference_id: z.number().nullable(),
+});
+
+const TautulliServerInfoResponseSchema = z.object({
+  response: z.object({
+    result: z.string(),
+    data: z.object({ pms_identifier: z.string().nullish() }).nullish(),
   }),
 });
 
@@ -499,6 +589,9 @@ export class TautulliService {
         length,
         order_column: 'date',
         order_dir: 'desc',
+        grouping: 1,
+        include_activity: 0,
+        include_archived: 1,
       },
       TautulliHistoryResponseSchema
     );
@@ -508,6 +601,64 @@ export class TautulliService {
       // Use recordsFiltered (not recordsTotal) - Tautulli applies grouping/filtering by default
       total: result.response.data?.recordsFiltered ?? 0,
     };
+  }
+
+  /**
+   * The machine identifier of the Plex server this Tautulli monitors
+   */
+  async getPmsIdentifier(): Promise<string | null> {
+    const result = await this.request('get_server_info', {}, TautulliServerInfoResponseSchema);
+    const identifier = result.response.data?.pms_identifier;
+    return result.response.result === 'success' && identifier ? identifier : null;
+  }
+
+  /**
+   * Raw guids and reference ids Tautulli recorded for each rating key, from
+   * non-live movie and episode history rows. Null when the answer may be
+   * incomplete: an error result, a row that does not parse, or a full page,
+   * which may have been cut.
+   */
+  async getGuidsByRatingKey(
+    ratingKeys: string[]
+  ): Promise<Map<string, { guids: Set<string>; referenceIds: Set<string> }> | null> {
+    const result = await this.request(
+      'get_history',
+      {
+        rating_key: ratingKeys.join(','),
+        grouping: 0,
+        include_activity: 0,
+        include_archived: 1,
+        length: GUID_HISTORY_LENGTH,
+      },
+      TautulliGuidHistoryResponseSchema
+    );
+    const { data } = result.response;
+    if (result.response.result !== 'success' || !data) return null;
+    if (data.data.length >= GUID_HISTORY_LENGTH) return null;
+
+    const requested = new Set(ratingKeys);
+    const history = new Map<string, { guids: Set<string>; referenceIds: Set<string> }>();
+    for (const raw of data.data) {
+      const row = TautulliGuidHistoryRowSchema.safeParse(raw);
+      if (!row.success) return null;
+      const {
+        rating_key: ratingKey,
+        live,
+        media_type: mediaType,
+        guid,
+        reference_id: referenceId,
+      } = row.data;
+      // Tautulli filters on session_history.rating_key but reports
+      // session_history_metadata.rating_key, so check the key it reports.
+      if (ratingKey === null || !requested.has(ratingKey)) continue;
+      if (live !== 0 || (mediaType !== 'movie' && mediaType !== 'episode')) continue;
+      const entry = history.get(ratingKey) ?? { guids: new Set(), referenceIds: new Set() };
+      // A row without a guid still counts, so its key cannot look unanimous.
+      entry.guids.add(guid ?? '');
+      if (referenceId !== null) entry.referenceIds.add(String(referenceId));
+      history.set(ratingKey, entry);
+    }
+    return history;
   }
 
   /**
@@ -549,6 +700,39 @@ export class TautulliService {
   }
 
   /**
+   * The guid fallback resolves against this server's library, so it applies
+   * only when Tautulli reports the same Plex machine identifier as the server row.
+   */
+  private static async monitorsServer(
+    tautulli: TautulliService,
+    serverId: string
+  ): Promise<boolean> {
+    const [server] = await db
+      .select({ machineIdentifier: servers.machineIdentifier })
+      .from(servers)
+      .where(eq(servers.id, serverId))
+      .limit(1);
+    let pmsIdentifier: string | null = null;
+    try {
+      pmsIdentifier = await tautulli.getPmsIdentifier();
+    } catch (err) {
+      console.warn(
+        `[Import] Tautulli server info failed: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
+    const matches =
+      pmsIdentifier !== null &&
+      !!server?.machineIdentifier &&
+      pmsIdentifier === server.machineIdentifier;
+    if (!matches) {
+      console.log(
+        '[Import] Tautulli reports a different or unknown Plex server; skipping the Plex guid fallback'
+      );
+    }
+    return matches;
+  }
+
+  /**
    * Import all history from Tautulli into Tracearr (OPTIMIZED)
    *
    * Performance improvements over original:
@@ -563,10 +747,30 @@ export class TautulliService {
     serverId: string,
     pubSubService?: PubSubService,
     onProgress?: (progress: TautulliImportProgress) => Promise<void>,
-    options?: { overwriteFriendlyNames?: boolean; skipRefresh?: boolean }
+    options?: { overwriteFriendlyNames?: boolean }
+  ): Promise<TautulliImportResult> {
+    const changes = { imported: 0, updated: 0, complete: false };
+    try {
+      return await TautulliService.runImportHistory(
+        serverId,
+        pubSubService,
+        onProgress,
+        options,
+        changes
+      );
+    } finally {
+      if (changes.complete || changes.imported > 0 || changes.updated > 0) await rearmLinking();
+    }
+  }
+
+  private static async runImportHistory(
+    serverId: string,
+    pubSubService: PubSubService | undefined,
+    onProgress: ((progress: TautulliImportProgress) => Promise<void>) | undefined,
+    options: { overwriteFriendlyNames?: boolean } | undefined,
+    changes: { imported: number; updated: number; complete: boolean }
   ): Promise<TautulliImportResult> {
     const overwriteFriendlyNames = options?.overwriteFriendlyNames ?? false;
-    const skipRefresh = options?.skipRefresh ?? false;
 
     // Get Tautulli settings
     const config = await getSettings(['tautulliUrl', 'tautulliApiKey']);
@@ -576,7 +780,6 @@ export class TautulliService {
         success: false,
         imported: 0,
         updated: 0,
-        linked: 0,
         skipped: 0,
         errors: 0,
         message: 'Tautulli is not configured. Please add URL and API key in Settings.',
@@ -592,12 +795,25 @@ export class TautulliService {
         success: false,
         imported: 0,
         updated: 0,
-        linked: 0,
         skipped: 0,
         errors: 0,
         message: 'Failed to connect to Tautulli. Please check URL and API key.',
       };
     }
+
+    const cutoff = await getServerTrackingStart(serverId);
+    if (!cutoff) {
+      return {
+        success: false,
+        imported: 0,
+        updated: 0,
+        skipped: 0,
+        errors: 0,
+        message: 'Server not found; cannot determine import cutoff.',
+      };
+    }
+
+    const guidFallback = await TautulliService.monitorsServer(tautulli, serverId);
 
     // Initialize progress with detailed tracking
     const progress: TautulliImportProgress = {
@@ -668,14 +884,11 @@ export class TautulliService {
     let minImportDate: Date | null = null;
     let maxImportDate: Date | null = null;
 
-    // Track sessions that need referenceId linking (child → parent external IDs)
-    // group_ids from Tautulli contains comma-separated session IDs in the same viewing chain
-    // startedAt is stored to enable time-bounded queries in the linking phase
-    const sessionGroupLinks: Array<{
-      childExternalId: string;
-      parentExternalId: string;
-      startedAt: Date;
-    }> = [];
+    const absorbingGroups: AbsorbingGroup[] = [];
+    const collectAbsorbed = (record: TautulliHistoryRecord, serverUserId: string) => {
+      const group = absorbingGroup(record, serverUserId);
+      if (group) absorbingGroups.push(group);
+    };
 
     // Track skipped users using shared module
     const skippedUserTracker = createSkippedUserTracker();
@@ -689,10 +902,11 @@ export class TautulliService {
     const insertBatch: (typeof sessions.$inferInsert)[] = [];
     const updateBatch: SessionUpdate[] = [];
 
-    let imported = 0;
-    let updated = 0;
     let skipped = 0;
     let errors = 0;
+    let alreadyTracked = 0;
+    let ungrouped = 0;
+    let noMetadata = 0;
     let page = 0;
     const failedPages: number[] = [];
 
@@ -742,6 +956,13 @@ export class TautulliService {
       // Validate records individually - skip bad records instead of failing entire page
       const validRecords: TautulliHistoryRecord[] = [];
       for (const raw of rawRecords) {
+        if ((raw as { full_title?: unknown } | null)?.full_title === null) {
+          skipped++;
+          noMetadata++;
+          progress.skippedRecords++;
+          progress.processedRecords++;
+          continue;
+        }
         const parsed = TautulliHistoryRecordSchema.safeParse(raw);
         if (parsed.success) {
           validRecords.push(parsed.data);
@@ -800,6 +1021,31 @@ export class TautulliService {
         .filter((k): k is string => k !== null);
       const identityByRatingKey = await batchGetLibraryItemIdentity(serverId, pageRatingKeys);
 
+      // Records whose rating key resolved no library_items row at all get a second
+      // chance by guid: it survives a Plex re-key that leaves the rating key
+      // pointing at nothing. A rating key that DID resolve, even to a row not yet
+      // linked to canonical media, keeps its own (possibly partial) identity as-is
+      // rather than mixing in a second, independently-matched guid identity.
+      let identityByGuid: Awaited<ReturnType<typeof batchResolveMediaByPlexGuid>> = new Map();
+      if (guidFallback) {
+        const pageGuidLookups: Array<{ guid: string; mediaType: 'movie' | 'episode' }> = [];
+        for (const record of validRecords) {
+          const ratingKeyStr =
+            typeof record.rating_key === 'number' ? String(record.rating_key) : null;
+          const identity = ratingKeyStr ? identityByRatingKey.get(ratingKeyStr) : undefined;
+          if (identity !== undefined) continue;
+
+          const mappedType = mapTautulliMediaType(record);
+          if (mappedType !== 'movie' && mappedType !== 'episode') continue;
+
+          const normalizedGuid = normalizePlexGuid(record.guid);
+          if (normalizedGuid && normalizedGuid.mediaType === mappedType) {
+            pageGuidLookups.push(normalizedGuid);
+          }
+        }
+        identityByGuid = await batchResolveMediaByPlexGuid(serverId, pageGuidLookups);
+      }
+
       for (const record of validRecords) {
         progress.processedRecords++;
 
@@ -817,11 +1063,10 @@ export class TautulliService {
             continue;
           }
 
-          // Skip records without reference_id (active/in-progress sessions)
           if (record.reference_id === null) {
             skipped++;
             progress.skippedRecords++;
-            progress.activeSessionRecords++;
+            ungrouped += record.group_count ?? 1;
             continue;
           }
 
@@ -859,53 +1104,56 @@ export class TautulliService {
             continue;
           }
 
+          // Tracearr already tracks anything at or after the server's cutoff.
+          if (record.started * 1000 >= cutoff.getTime()) {
+            skipped++;
+            progress.skippedRecords++;
+            alreadyTracked++;
+            continue;
+          }
+
           // Check if exists in database (per-page query result)
           const existingByRef = sessionByExternalId.get(referenceIdStr);
           if (existingByRef) {
-            // Calculate new values
+            // A reference_id match whose recorded start has drifted isn't the same
+            // play Tracearr stored; leave it alone rather than overwrite it.
+            const startsMatch = existingByRef.startedAt?.getTime() === record.started * 1000;
             const newStoppedAt = new Date((record.started + record.duration) * 1000);
             const newDurationMs = record.duration * 1000;
             const newPausedDurationMs = record.paused_counter * 1000;
             const newWatched = record.watched_status === 1;
-            const newProgressMs = Math.round(
-              (record.percent_complete / 100) * (existingByRef.totalDurationMs ?? 0)
-            );
+            const hasChanges =
+              existingByRef.stoppedAt?.getTime() !== newStoppedAt.getTime() ||
+              existingByRef.durationMs !== newDurationMs ||
+              existingByRef.pausedDurationMs !== newPausedDurationMs ||
+              existingByRef.watched !== newWatched;
 
-            // Only update if something actually changed
-            const stoppedAtChanged = existingByRef.stoppedAt?.getTime() !== newStoppedAt.getTime();
-            const durationChanged = existingByRef.durationMs !== newDurationMs;
-            const pausedChanged = existingByRef.pausedDurationMs !== newPausedDurationMs;
-            const watchedChanged = existingByRef.watched !== newWatched;
-
-            if (stoppedAtChanged || durationChanged || pausedChanged || watchedChanged) {
+            if (startsMatch && hasChanges) {
               updateBatch.push({
                 id: existingByRef.id,
                 stoppedAt: newStoppedAt,
                 durationMs: newDurationMs,
                 pausedDurationMs: newPausedDurationMs,
                 watched: newWatched,
-                progressMs: newProgressMs,
+                progressMs: Math.round(
+                  (record.percent_complete / 100) * (existingByRef.totalDurationMs ?? 0)
+                ),
               });
-              updated++;
+              changes.updated++;
               progress.updatedRecords++;
+
+              const recordStartedAt = new Date(record.started * 1000);
+              if (!minImportDate || recordStartedAt < minImportDate)
+                minImportDate = recordStartedAt;
+              if (!maxImportDate || recordStartedAt > maxImportDate)
+                maxImportDate = recordStartedAt;
             } else {
               skipped++;
               progress.skippedRecords++;
               progress.duplicateRecords++;
             }
 
-            // Still collect group links for existing records (to fix historical data)
-            if (record.group_count && record.group_count > 1 && record.group_ids) {
-              const groupIds = record.group_ids.split(',').map((id) => id.trim());
-              const parentExternalId = groupIds[0];
-              if (parentExternalId && parentExternalId !== referenceIdStr) {
-                sessionGroupLinks.push({
-                  childExternalId: referenceIdStr,
-                  parentExternalId,
-                  startedAt: new Date(record.started * 1000),
-                });
-              }
-            }
+            if (startsMatch) collectAbsorbed(record, serverUserId);
             continue;
           }
 
@@ -951,7 +1199,7 @@ export class TautulliService {
                   pausedDurationMs: newPausedDurationMs,
                   watched: newWatched,
                 });
-                updated++;
+                changes.updated++;
                 progress.updatedRecords++;
               } else {
                 skipped++;
@@ -959,18 +1207,7 @@ export class TautulliService {
                 progress.duplicateRecords++;
               }
 
-              // Still collect group links for existing records (to fix historical data)
-              if (record.group_count && record.group_count > 1 && record.group_ids) {
-                const groupIds = record.group_ids.split(',').map((id) => id.trim());
-                const parentExternalId = groupIds[0];
-                if (parentExternalId && parentExternalId !== referenceIdStr) {
-                  sessionGroupLinks.push({
-                    childExternalId: referenceIdStr,
-                    parentExternalId,
-                    startedAt,
-                  });
-                }
-              }
+              collectAbsorbed(record, serverUserId);
               continue;
             }
           }
@@ -989,15 +1226,7 @@ export class TautulliService {
             geoCache.set(ipForLookup, geo);
           }
 
-          // Map media type - check live flag FIRST (live content reports as movie/episode)
-          let mediaType: 'movie' | 'episode' | 'track' | 'live' = 'movie';
-          if (record.live === 1) {
-            mediaType = 'live';
-          } else if (record.media_type === 'episode') {
-            mediaType = 'episode';
-          } else if (record.media_type === 'track') {
-            mediaType = 'track';
-          }
+          const mediaType = mapTautulliMediaType(record);
 
           // Music-specific fields (only for tracks)
           const isMusic = record.media_type === 'track';
@@ -1019,6 +1248,11 @@ export class TautulliService {
           insertedThisRun.add(referenceIdStr);
 
           const identity = ratingKeyStr ? identityByRatingKey.get(ratingKeyStr) : undefined;
+          const normalizedGuid = identity !== undefined ? null : normalizePlexGuid(record.guid);
+          const guidIdentity =
+            normalizedGuid && normalizedGuid.mediaType === mediaType
+              ? identityByGuid.get(normalizedGuid.guid)
+              : undefined;
           // Legacy episode guids carry the series' external ID, so trust guid IDs for movies only.
           const guidIds = record.media_type === 'movie' ? parseHistoryGuid(record.guid) : {};
           const parentRatingKeyStr =
@@ -1037,11 +1271,11 @@ export class TautulliService {
             externalSessionId: referenceIdStr,
             parentRatingKey: parentRatingKeyStr,
             grandparentRatingKey: grandparentRatingKeyStr,
-            mediaId: identity?.mediaId ?? null,
-            showMediaId: identity?.showMediaId ?? null,
-            imdbId: identity?.imdbId ?? guidIds.imdbId ?? null,
-            tmdbId: identity?.tmdbId ?? guidIds.tmdbId ?? null,
-            tvdbId: identity?.tvdbId ?? guidIds.tvdbId ?? null,
+            mediaId: identity?.mediaId ?? guidIdentity?.mediaId ?? null,
+            showMediaId: identity?.showMediaId ?? guidIdentity?.showMediaId ?? null,
+            imdbId: identity?.imdbId ?? guidIdentity?.imdbId ?? guidIds.imdbId ?? null,
+            tmdbId: identity?.tmdbId ?? guidIdentity?.tmdbId ?? guidIds.tmdbId ?? null,
+            tvdbId: identity?.tvdbId ?? guidIdentity?.tvdbId ?? guidIds.tvdbId ?? null,
             state: 'stopped',
             mediaType,
             mediaTitle: record.title,
@@ -1076,6 +1310,7 @@ export class TautulliService {
             geoLon: geo.lon,
             geoAsnNumber: geo.asnNumber,
             geoAsnOrganization: geo.asnOrganization,
+            isLocal: geoipService.isPrivateIP(extractIpFromEndpoint(record.ip_address)),
             playerName: (record.player || record.product)?.slice(0, 255) ?? null,
             deviceId: record.machine_id?.slice(0, 255) || null,
             product: record.product?.slice(0, 255) || null,
@@ -1117,23 +1352,9 @@ export class TautulliService {
             channelThumb: null,
           });
 
-          // Track session grouping for referenceId linking
-          // group_ids contains comma-separated Tautulli row IDs (e.g., "12351,12362")
-          // The first ID is the "parent" session in the resume chain
-          if (record.group_count && record.group_count > 1 && record.group_ids) {
-            const groupIds = record.group_ids.split(',').map((id) => id.trim());
-            const parentExternalId = groupIds[0];
-            // Only link if this session is NOT the parent (avoid self-reference)
-            if (parentExternalId && parentExternalId !== referenceIdStr) {
-              sessionGroupLinks.push({
-                childExternalId: referenceIdStr,
-                parentExternalId,
-                startedAt,
-              });
-            }
-          }
+          collectAbsorbed(record, serverUserId);
 
-          imported++;
+          changes.imported++;
           progress.importedRecords++;
         } catch (error) {
           console.error('Error processing record:', record.reference_id, error);
@@ -1158,101 +1379,74 @@ export class TautulliService {
     // Final flush for any remaining records
     await flushBatches();
 
-    // Link sessions using group_ids data (referenceId linking pass)
-    // Process in mega-chunks to avoid lock exhaustion from querying all IDs at once
-    let linkedSessions = 0;
-    if (sessionGroupLinks.length > 0) {
-      progress.message = `Linking ${sessionGroupLinks.length} resume sessions...`;
+    // A regroup in Tautulli folds plays an earlier import stored as their own
+    // group into another group, whose root the loop above just rewrote with the
+    // merged total. The old rows would count that watch time twice.
+    let mergedAway = 0;
+    if (absorbingGroups.length > 0) {
+      progress.message = 'Removing plays Tautulli merged into another play...';
       publishProgress(progress);
-
-      // Process links in chunks to spread lock acquisition and reduce memory pressure
-      // Each mega-chunk queries only the parent/child IDs it needs
-      const LINK_MEGA_CHUNK_SIZE = 500;
-      const UPDATE_BATCH_SIZE = 50;
-
-      for (let i = 0; i < sessionGroupLinks.length; i += LINK_MEGA_CHUNK_SIZE) {
-        const megaChunk = sessionGroupLinks.slice(i, i + LINK_MEGA_CHUNK_SIZE);
-
-        // Get unique parent/child IDs for this mega-chunk only
-        const chunkParentIds = [...new Set(megaChunk.map((l) => l.parentExternalId))];
-        const chunkChildIds = megaChunk.map((l) => l.childExternalId);
-
-        // Compute time bounds for this chunk to enable TimescaleDB chunk exclusion
-        const chunkTimestamps = megaChunk.map((l) => l.startedAt.getTime());
-        const chunkTimeBounds: TimeBounds = {
-          minTime: new Date(Math.min(...chunkTimestamps)),
-          maxTime: new Date(Math.max(...chunkTimestamps)),
-        };
-
-        const parentMap = await queryExistingByExternalIds(
+      for (let i = 0; i < absorbingGroups.length; i += ABSORBED_GROUPS_PER_TX) {
+        const deletedStarts = await TautulliService.deleteAbsorbedImports(
           serverId,
-          chunkParentIds,
-          chunkTimeBounds
+          absorbingGroups.slice(i, i + ABSORBED_GROUPS_PER_TX)
         );
-        const childMap = await queryExistingByExternalIds(serverId, chunkChildIds, chunkTimeBounds);
-
-        // Batch updates within this mega-chunk
-        for (let j = 0; j < megaChunk.length; j += UPDATE_BATCH_SIZE) {
-          const updateBatch = megaChunk.slice(j, j + UPDATE_BATCH_SIZE);
-          await Promise.all(
-            updateBatch.map(async ({ childExternalId, parentExternalId }) => {
-              const parent = parentMap.get(parentExternalId);
-              const child = childMap.get(childExternalId);
-              if (parent && child) {
-                await db
-                  .update(sessions)
-                  .set({ referenceId: parent.id })
-                  .where(eq(sessions.id, child.id));
-                linkedSessions++;
-              }
-            })
-          );
+        mergedAway += deletedStarts.length;
+        for (const started of deletedStarts) {
+          const startedAt = new Date(started);
+          if (!minImportDate || startedAt < minImportDate) minImportDate = startedAt;
+          if (!maxImportDate || startedAt > maxImportDate) maxImportDate = startedAt;
         }
       }
-
-      if (linkedSessions > 0) {
-        console.log(`[Import] Linked ${linkedSessions} sessions via group_ids`);
+      if (mergedAway > 0) {
+        console.log(`[Import] Removed ${mergedAway} plays Tautulli merged into another play`);
       }
     }
 
-    // Refresh TimescaleDB aggregates so imported data appears in stats immediately
-    // Skip if enrichment will follow (it will refresh after updating bitrate data)
-    if (!skipRefresh) {
-      progress.message = 'Refreshing aggregates...';
-      publishProgress(progress);
-      try {
-        // Use bounded refresh based on actual import date range (memory-efficient)
-        // Add 1 day buffer on each side for timezone edge cases
-        if (minImportDate && maxImportDate) {
-          const startTime = new Date(minImportDate.getTime() - 24 * 60 * 60 * 1000);
-          const endTime = new Date(maxImportDate.getTime() + 24 * 60 * 60 * 1000);
-          console.log(
-            `[Import] Refreshing aggregates for date range: ${startTime.toISOString()} to ${endTime.toISOString()}`
-          );
-          await refreshAggregates({ startTime, endTime });
-        } else {
-          // Fallback to default 7-day bounded refresh if no dates tracked
-          await refreshAggregates();
-        }
-
-        // Check if this is a fresh install that needs full aggregate rebuild
-        // (aggregates missing >7 days of historical data)
-        const rebuildStatus = await checkAggregateNeedsRebuild();
-        if (rebuildStatus.needsRebuild) {
-          console.log(
-            `[Import] Fresh install detected - queueing safe aggregate rebuild: ${rebuildStatus.reason}`
-          );
-          try {
-            await enqueueMaintenanceJob('full_aggregate_rebuild', 'system');
-            console.log('[Import] Safe aggregate rebuild job queued');
-          } catch {
-            // Job might already be running/queued - that's fine
-            console.log('[Import] Could not queue aggregate rebuild (may already be running)');
-          }
-        }
-      } catch (err) {
-        console.warn('Failed to refresh aggregates after import:', err);
+    // An imported day only reaches the aggregates if a refresh covers it: once the
+    // refresh policy advances the watermark past it, the real-time union stops
+    // reading raw sessions for that day and the plays are invisible to every
+    // aggregate-backed read (watchers, watched state, request lenses).
+    progress.message = 'Refreshing aggregates...';
+    publishProgress(progress);
+    try {
+      // Use bounded refresh based on actual import date range (memory-efficient)
+      // Add 1 day buffer on each side for timezone edge cases
+      if (minImportDate && maxImportDate) {
+        const startTime = new Date(minImportDate.getTime() - 24 * 60 * 60 * 1000);
+        const endTime = new Date(maxImportDate.getTime() + 24 * 60 * 60 * 1000);
+        console.log(
+          `[Import] Refreshing aggregates for date range: ${startTime.toISOString()} to ${endTime.toISOString()}`
+        );
+        await refreshAggregates({ startTime, endTime });
+      } else {
+        // Fallback to default 7-day bounded refresh if no dates tracked
+        await refreshAggregates();
       }
+
+      // Check if this is a fresh install that needs full aggregate rebuild
+      // (aggregates missing >7 days of historical data)
+      const rebuildStatus = await checkAggregateNeedsRebuild();
+      if (rebuildStatus.needsRebuild) {
+        console.log(
+          `[Import] Fresh install detected - queueing safe aggregate rebuild: ${rebuildStatus.reason}`
+        );
+        try {
+          await enqueueMaintenanceJob('full_aggregate_rebuild', 'system');
+          console.log('[Import] Safe aggregate rebuild job queued');
+        } catch {
+          // Job might already be running/queued - that's fine
+          console.log('[Import] Could not queue aggregate rebuild (may already be running)');
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to refresh aggregates after import:', err);
+    }
+    try {
+      await markImportedServerLocations(serverId);
+      await enqueueServerLocationSyncIfBehind();
+    } catch (err) {
+      console.error('[Import] Could not queue the server location sync:', err);
     }
 
     // Update joinedAt for users based on their earliest session
@@ -1286,12 +1480,30 @@ export class TautulliService {
       console.warn('Failed to update user join dates:', err);
     }
 
+    changes.complete = true;
+
     // Build final message with detailed breakdown
     const parts: string[] = [];
-    if (imported > 0) parts.push(`${imported} new`);
-    if (updated > 0) parts.push(`${updated} updated`);
-    if (linkedSessions > 0) parts.push(`${linkedSessions} linked`);
-    if (skipped > 0) parts.push(`${skipped} skipped`);
+    if (changes.imported > 0) parts.push(`${changes.imported} new`);
+    if (changes.updated > 0) parts.push(`${changes.updated} updated`);
+    if (mergedAway > 0) {
+      parts.push(`${mergedAway} plays Tautulli merged into another play since the last import`);
+    }
+    if (skipped > 0) {
+      parts.push(
+        alreadyTracked > 0
+          ? `${skipped} skipped (${alreadyTracked} started after this server was added to Tracearr)`
+          : `${skipped} skipped`
+      );
+    }
+    if (ungrouped > 0) {
+      parts.push(
+        `${ungrouped} plays Tautulli never grouped (fixed in Tautulli after 2.18.2; re-import once upgraded)`
+      );
+    }
+    if (noMetadata > 0) {
+      parts.push(`${noMetadata} without metadata in Tautulli`);
+    }
     if (errors > 0) parts.push(`${errors} errors`);
     if (failedPages.length > 0) {
       parts.push(`${failedPages.length} pages not fetched (${failedPages.join(', ')})`);
@@ -1318,9 +1530,8 @@ export class TautulliService {
 
     return {
       success: true,
-      imported,
-      updated,
-      linked: linkedSessions,
+      imported: changes.imported,
+      updated: changes.updated,
       skipped,
       errors,
       message,
@@ -1333,6 +1544,82 @@ export class TautulliService {
             }))
           : undefined,
     };
+  }
+
+  /**
+   * Delete the imported rows of plays these groups absorbed, returning the
+   * started_at of each row deleted. Only a row in the Tautulli import form,
+   * for the group's user and inside the group's span, can match: a tracked
+   * row, or a play a reset Tautulli database reused the id of, never does.
+   */
+  private static async deleteAbsorbedImports(
+    serverId: string,
+    groups: AbsorbingGroup[]
+  ): Promise<string[]> {
+    const plays = groups.flatMap((g) => g.absorbedIds.map((externalId) => ({ externalId, g })));
+    const minStart = new Date(Math.min(...groups.map((g) => g.started.getTime())));
+    const maxStop = new Date(Math.max(...groups.map((g) => g.stopped.getTime())));
+    const imported = sql`s.server_id = ${serverId}::uuid AND s.started_at >= ${ts(minStart)} AND ${importForm('s', 'plex')}`;
+
+    return db.transaction(async (tx) => {
+      await uncapDecompressionForTx(tx);
+      const found = await tx.execute(sql`
+        SELECT DISTINCT ON (s.id) s.id, s.started_at, s.server_user_id,
+          r.id AS r_id, r.started_at AS r_started, r.reference_id AS r_ref
+        FROM unnest(
+          ${sql.param(plays.map((p) => p.externalId))}::text[],
+          ${sql.param(plays.map((p) => p.g.rootExternalId))}::text[],
+          ${sql.param(plays.map((p) => p.g.serverUserId))}::uuid[],
+          ${sql.param(plays.map((p) => p.g.started.toISOString()))}::timestamptz[],
+          ${sql.param(plays.map((p) => p.g.stopped.toISOString()))}::timestamptz[]
+        ) AS g(external_id, root_external_id, server_user_id, started, stopped)
+        JOIN sessions s
+          ON ${imported} AND s.started_at <= ${ts(maxStop)}
+          AND s.server_user_id = g.server_user_id
+          AND s.started_at >= g.started AND s.started_at <= g.stopped
+          AND s.external_session_id = g.external_id
+        JOIN sessions r
+          ON r.server_id = ${serverId}::uuid AND r.started_at >= ${ts(minStart)} AND r.started_at <= ${ts(maxStop)}
+          AND r.server_user_id = g.server_user_id AND r.started_at = g.started
+          AND r.external_session_id = g.root_external_id
+        ORDER BY s.id, r.id
+      `);
+      const rows = found.rows as Array<{
+        id: string;
+        started_at: string;
+        server_user_id: string;
+        r_id: string;
+        r_started: string;
+        r_ref: string | null;
+      }>;
+      if (rows.length === 0) return [];
+
+      const doomedIds = new Set(rows.map((r) => r.id));
+      // The removed group_ids link pass could point a root at a play it absorbed.
+      // That root starts before the play, below the children lookup's bound.
+      const detached = rows.filter((r) => r.r_ref !== null && doomedIds.has(r.r_ref));
+      if (detached.length > 0) {
+        await tx.execute(sql`
+          UPDATE sessions r SET reference_id = NULL
+          FROM unnest(${sql.param(detached.map((d) => d.r_id))}::uuid[], ${sql.param(detached.map((d) => d.r_started))}::timestamptz[]) AS d(id, started_at)
+          WHERE r.id = d.id AND r.started_at = d.started_at
+            AND r.server_id = ${serverId}::uuid AND r.started_at >= ${ts(minStart)}
+            AND r.reference_id = ANY(${sql.param([...doomedIds])}::uuid[])
+        `);
+      }
+
+      return deleteSessionsRepointingChildren(
+        tx,
+        serverId,
+        rows.map((r) => ({
+          id: r.id,
+          started_at: r.started_at,
+          server_user_id: r.server_user_id,
+          root_id: r.r_ref !== null && !doomedIds.has(r.r_ref) ? r.r_ref : r.r_id,
+        })),
+        imported
+      );
+    });
   }
 
   /**
@@ -1397,6 +1684,8 @@ export class TautulliService {
     let totalEnriched = 0;
     let totalFailed = 0;
     let totalSkipped = 0;
+    let minEnrichedDate: Date | null = null;
+    let maxEnrichedDate: Date | null = null;
     let lastProgressTime = Date.now();
     let chunkNumber = 0;
     let cursor: number | undefined;
@@ -1414,6 +1703,7 @@ export class TautulliService {
           id: sessions.id,
           externalSessionId: sessions.externalSessionId,
           sessionKey: sessions.sessionKey,
+          startedAt: sessions.startedAt,
         })
         .from(sessions)
         .where(
@@ -1442,6 +1732,7 @@ export class TautulliService {
         // Process batch with concurrency limit
         const pendingUpdates: Array<{
           id: string;
+          startedAt: Date;
           data: ReturnType<typeof mapStreamDataToSession>;
         }> = [];
 
@@ -1479,7 +1770,12 @@ export class TautulliService {
                 mappedData.sourceAudioCodec ||
                 mappedData.bitrate
               ) {
-                return { status: 'enriched' as const, id: session.id, data: mappedData };
+                return {
+                  status: 'enriched' as const,
+                  id: session.id,
+                  startedAt: session.startedAt,
+                  data: mappedData,
+                };
               }
               return { status: 'skipped' as const, id: session.id };
             })
@@ -1492,7 +1788,11 @@ export class TautulliService {
             if (result.status === 'fulfilled') {
               const value = result.value;
               if (value.status === 'enriched' && value.data) {
-                pendingUpdates.push({ id: value.id, data: value.data });
+                pendingUpdates.push({
+                  id: value.id,
+                  startedAt: value.startedAt,
+                  data: value.data,
+                });
               } else {
                 totalSkipped++;
                 progress.skippedRecords++;
@@ -1518,6 +1818,12 @@ export class TautulliService {
               await tx.update(sessions).set(update.data).where(eq(sessions.id, update.id));
             }
           });
+          for (const update of pendingUpdates) {
+            if (!minEnrichedDate || update.startedAt < minEnrichedDate)
+              minEnrichedDate = update.startedAt;
+            if (!maxEnrichedDate || update.startedAt > maxEnrichedDate)
+              maxEnrichedDate = update.startedAt;
+          }
           totalEnriched += pendingUpdates.length;
           progress.updatedRecords += pendingUpdates.length;
         }
@@ -1544,14 +1850,20 @@ export class TautulliService {
       }
     }
 
-    // Refresh aggregates so updated bitrate data appears in bandwidth stats
-    // Enrichment only updates existing sessions, doesn't add new dates, so default bounded refresh is fine
+    // Bitrate lands on sessions that are already years old, so the refresh has to
+    // cover the days it just rewrote - a 7-day window leaves every older bucket
+    // holding the pre-enrichment bitrate.
     if (totalEnriched > 0) {
       progress.message = 'Refreshing aggregates...';
       publishProgress(progress);
       try {
-        // Default 7-day bounded refresh is sufficient for enrichment updates
-        await refreshAggregates();
+        if (minEnrichedDate && maxEnrichedDate) {
+          const startTime = new Date(minEnrichedDate.getTime() - 24 * 60 * 60 * 1000);
+          const endTime = new Date(maxEnrichedDate.getTime() + 24 * 60 * 60 * 1000);
+          await refreshAggregates({ startTime, endTime });
+        } else {
+          await refreshAggregates();
+        }
       } catch (err) {
         console.warn('[Tautulli] Failed to refresh aggregates after enrichment:', err);
       }
@@ -1658,6 +1970,9 @@ export function mapStreamDataToSession(
     streamAudioCodec: sanitizeCodec(streamData.stream_audio_codec),
     bitrate: streamData.bandwidth ?? streamData.stream_bitrate ?? streamData.bitrate ?? null,
     quality: streamData.quality_profile ?? null,
+    // get_history only has the combined transcode_decision; these split it per stream
+    ...((streamData.video_decision || streamData.audio_decision) &&
+      normalizeStreamDecisions(streamData.video_decision, streamData.audio_decision)),
 
     // JSONB fields (only set if they have content)
     ...(Object.keys(sourceVideoDetails).length > 0 && { sourceVideoDetails }),

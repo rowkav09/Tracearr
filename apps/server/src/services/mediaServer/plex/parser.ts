@@ -10,12 +10,15 @@ import {
   parseNumber,
   parseBoolean,
   parseOptionalString,
+  parseOptionalBoundedString,
   parseOptionalNumber,
   parseArray,
   parseSelectedArrayElement,
   findSelectedElement,
 } from '../../../utils/parsing.js';
 import { normalizeStreamDecisions } from '../../../utils/transcodeNormalizer.js';
+import { normalizePlexGuid } from '../../../utils/plexGuid.js';
+import { isAtmos } from '../../../utils/codecNormalizer.js';
 import type {
   MediaSession,
   MediaUser,
@@ -40,7 +43,7 @@ import type {
   BandwidthDevice,
   BandwidthSample,
 } from '@tracearr/shared';
-import { normalizeResolutionLabel, normalizeDynamicRange } from '@tracearr/shared';
+import { normalizeResolution, normalizeDynamicRange } from '@tracearr/shared';
 import { calculateProgress } from '../shared/parserUtils.js';
 import { extractPlexLiveTvMetadata, extractPlexMusicMetadata } from './plexUtils.js';
 
@@ -153,7 +156,6 @@ export function findStreamByType(
 
 /**
  * Derive dynamic range from video stream color attributes
- * Following Tautulli's approach for HDR detection
  * @internal Exported for unit testing
  */
 export function deriveDynamicRange(stream: Record<string, unknown>): string {
@@ -283,6 +285,10 @@ function extractSourceAudioDetails(stream: Record<string, unknown> | undefined):
 
   const sampleRate = parseOptionalNumber(stream.samplingRate);
   if (sampleRate) details.sampleRate = sampleRate;
+
+  const profile = parseOptionalString(stream.profile);
+  if (profile) details.profile = profile;
+  if (isAtmos(profile)) details.atmos = true;
 
   return { codec, channels, details };
 }
@@ -609,6 +615,10 @@ export function parseMediaMetadataResponse(
 
     const sampleRate = parseOptionalNumber(audioStream.samplingRate);
     if (sampleRate) sourceAudioDetails.sampleRate = sampleRate;
+
+    const profile = parseOptionalString(audioStream.profile);
+    if (profile) sourceAudioDetails.profile = profile;
+    if (isAtmos(profile)) sourceAudioDetails.atmos = true;
   }
 
   return {
@@ -867,6 +877,20 @@ export function parseSession(
 }
 
 /**
+ * Theme music plays as a library:// track, and extras other than trailers
+ * (featurettes, deleted scenes) carry an extraType other than 1. Neither is a
+ * view; Jellyfin and Emby drop the same items. Prerolls and clips with no
+ * extraType stay and map to 'trailer'.
+ */
+function isUntrackedItem(item: Record<string, unknown>): boolean {
+  const guid = parseString(item.guid);
+  if (guid.startsWith('library://')) return true;
+  if (parseString(item.type) !== 'clip' || guid.startsWith('prerolls://')) return false;
+  const extraType = parseOptionalNumber(item.extraType);
+  return extraType !== undefined && extraType !== 1;
+}
+
+/**
  * Parse Plex sessions API response
  *
  * @param data - Raw response from /status/sessions
@@ -886,7 +910,10 @@ export function parseSessionsResponse(
     throw new Error('Unexpected Plex sessions response: missing MediaContainer');
   }
   const metadata = container.MediaContainer.Metadata;
-  return parseArray(metadata, (item) => {
+  const tracked = Array.isArray(metadata)
+    ? metadata.filter((item) => !isUntrackedItem(item as Record<string, unknown>))
+    : metadata;
+  return parseArray(tracked, (item) => {
     const session = item as Record<string, unknown>;
     const ratingKey = parseString(session.ratingKey);
 
@@ -901,6 +928,22 @@ export function parseSessionsResponse(
 
     return parseSession(session, originalMedia);
   });
+}
+
+/** Narrow a /status/sessions response to one sessionKey, leaving the input untouched. */
+export function keepSession(data: unknown, sessionKey: string): unknown {
+  const container = data as { MediaContainer?: { Metadata?: unknown[] } };
+  const metadata = container?.MediaContainer?.Metadata;
+  if (!Array.isArray(metadata)) return data;
+  return {
+    ...container,
+    MediaContainer: {
+      ...container.MediaContainer,
+      Metadata: metadata.filter(
+        (item) => parseString((item as Record<string, unknown>).sessionKey) === sessionKey
+      ),
+    },
+  };
 }
 
 /**
@@ -1497,6 +1540,10 @@ export function parseStatisticsBandwidthResponse(data: unknown): PlexBandwidthSt
  * External IDs (IMDB, TMDB, TVDB) are in nested Guid elements requiring `includeGuids=1`.
  *
  * Guid array format: [{ id: "imdb://tt1234567" }, { id: "tmdb://12345" }, ...]
+ *
+ * The first id per provider wins. Plex's agents sometimes append a second id
+ * for the same provider that belongs to a different item (another episode of
+ * the show, or another show entirely); the first is the one the agent matched.
  */
 function parseExternalIds(guids: Array<{ id: string }> | undefined): {
   imdbId?: string;
@@ -1511,15 +1558,15 @@ function parseExternalIds(guids: Array<{ id: string }> | undefined): {
   for (const guid of guids) {
     const id = guid.id;
     if (id?.startsWith('imdb://')) {
-      result.imdbId = id.replace('imdb://', '');
+      result.imdbId ??= id.replace('imdb://', '');
     } else if (id?.startsWith('tmdb://')) {
       const parsed = parseInt(id.replace('tmdb://', ''), 10);
-      if (!isNaN(parsed)) result.tmdbId = parsed;
+      if (!isNaN(parsed)) result.tmdbId ??= parsed;
     } else if (id?.startsWith('tvdb://')) {
       const parsed = parseInt(id.replace('tvdb://', ''), 10);
-      if (!isNaN(parsed)) result.tvdbId = parsed;
+      if (!isNaN(parsed)) result.tvdbId ??= parsed;
     } else if (id?.startsWith('mbid://')) {
-      result.musicBrainzId = id.replace('mbid://', '');
+      result.musicBrainzId ??= id.replace('mbid://', '');
     }
   }
 
@@ -1532,14 +1579,13 @@ function parseGenres(genre: Array<{ tag?: string }> | undefined): string[] | und
   return tags.length > 0 ? tags : undefined;
 }
 
-/**
- * Normalize video resolution string
- * Plex returns "4k", "1080", "720", "480", "sd"
- * Normalize to consistent format with 'p' suffix for numeric resolutions
- */
-function normalizeVideoResolution(resolution: string | undefined): string | undefined {
-  const normalized = normalizeResolutionLabel(resolution);
-  return normalized ? normalized.toLowerCase() : undefined;
+/** Plex labels 2160x1080 "2k", so a version's tier comes from its pixels; stored lowercase. */
+function versionResolution(media: Record<string, unknown>): string | undefined {
+  return normalizeResolution({
+    label: parseOptionalString(media.videoResolution),
+    width: parseOptionalNumber(media.width),
+    height: parseOptionalNumber(media.height),
+  })?.toLowerCase();
 }
 
 /**
@@ -1589,12 +1635,14 @@ function parseLibraryItem(item: Record<string, unknown>): MediaLibraryItem {
       // Media.id is always present in practice; the index form only guards
       // malformed payloads so a version is never silently dropped
       serverVersionKey: media.id != null ? String(media.id) : `idx:${index}`,
-      videoResolution: normalizeVideoResolution(parseOptionalString(media.videoResolution)),
+      videoResolution: versionResolution(media),
       videoDynamicRange:
         normalizeDynamicRange(parseOptionalString(media.videoDynamicRange)) ?? undefined,
       videoCodec: parseOptionalString(media.videoCodec)?.toUpperCase(),
       audioCodec: parseOptionalString(media.audioCodec)?.toUpperCase(),
       audioChannels: parseOptionalNumber(media.audioChannels),
+      audioAtmos: isAtmos(parseOptionalString(media.audioProfile)),
+      editionTitle: parseOptionalBoundedString(item.editionTitle, 100) || undefined,
       container: parseOptionalString(media.container)?.toLowerCase(),
       bitrate: parseOptionalNumber(media.bitrate),
       fileSize: versionSize,
@@ -1664,6 +1712,9 @@ function parseLibraryItem(item: Record<string, unknown>): MediaLibraryItem {
     // External IDs
     ...externalIds,
 
+    // Main guid attribute (NOT the Guid array), normalized for cross-server linking
+    plexGuid: normalizePlexGuid(parseOptionalString(item.guid))?.guid ?? null,
+
     genres: parseGenres(item.Genre as Array<{ tag?: string }> | undefined),
 
     // File path (debug only)
@@ -1710,4 +1761,61 @@ export function parseLibraryItemsResponse(data: unknown): MediaLibraryItem[] {
   const container = data as { MediaContainer?: { Metadata?: unknown[] } };
   const metadata = container?.MediaContainer?.Metadata;
   return parseArray(metadata, (item) => parseLibraryItem(item as Record<string, unknown>));
+}
+
+/**
+ * Rating keys from a batched /library/metadata/{keys} response that still
+ * belong to the section. Items in Plex's trash keep resolving by key with
+ * deletedAt set, and an item moved to another section answers with that
+ * section's id; neither counts as present here.
+ */
+export function parseRatingKeys(data: unknown, sectionId: string): string[] {
+  const container = data as { MediaContainer?: { Metadata?: unknown[] } };
+  const keys: string[] = [];
+  for (const raw of container?.MediaContainer?.Metadata ?? []) {
+    const item = raw as Record<string, unknown>;
+    const key = parseString(item.ratingKey);
+    if (key === '' || item.deletedAt != null) continue;
+    if (item.librarySectionID != null && String(item.librarySectionID) !== sectionId) continue;
+    keys.push(key);
+  }
+  return keys;
+}
+
+/**
+ * Per-version file existence from a batched /library/metadata/{keys}?checkFiles=1
+ * response. Version keys match parseLibraryItem's, so the two join. A version
+ * whose parts carry neither attribute reads as present: servers that skip the
+ * check must not make every file look missing.
+ */
+export function parseFileExistence(data: unknown): Map<string, Map<string, boolean>> {
+  const container = data as { MediaContainer?: { Metadata?: unknown[] } };
+  const byRatingKey = new Map<string, Map<string, boolean>>();
+  for (const raw of container?.MediaContainer?.Metadata ?? []) {
+    const item = raw as Record<string, unknown>;
+    const key = parseString(item.ratingKey);
+    if (key === '') continue;
+    const versions = new Map<string, boolean>();
+    const mediaArray = (item.Media as Array<Record<string, unknown>> | undefined) ?? [];
+    for (const [index, media] of mediaArray.entries()) {
+      if (media == null || typeof media !== 'object') continue;
+      const parts = (media.Part as Array<Record<string, unknown>> | undefined) ?? [];
+      const exists = parts.every((part) => part?.exists !== false && part?.accessible !== false);
+      versions.set(media.id != null ? String(media.id) : `idx:${index}`, exists);
+    }
+    byRatingKey.set(key, versions);
+  }
+  return byRatingKey;
+}
+
+/** Full genre lists keyed by ratingKey, from a batched /library/metadata/{keys} response. */
+export function parseGenresByRatingKey(data: unknown): Map<string, string[]> {
+  const container = data as { MediaContainer?: { Metadata?: unknown[] } };
+  const genres = new Map<string, string[]>();
+  for (const raw of container?.MediaContainer?.Metadata ?? []) {
+    const item = raw as Record<string, unknown>;
+    const tags = parseGenres(item.Genre as Array<{ tag?: string }> | undefined);
+    if (tags) genres.set(parseString(item.ratingKey), tags);
+  }
+  return genres;
 }

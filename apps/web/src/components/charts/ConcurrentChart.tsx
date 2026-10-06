@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import Highcharts from 'highcharts';
 import { HighchartsReact } from 'highcharts-react-official';
+import { PLAYBACK_DECISION_LABEL_KEYS } from '@tracearr/shared';
 import { getHour12 } from '@/lib/timeFormat';
 import { ChartSkeleton } from '@/components/ui/skeleton';
 import { ChartEmpty } from './ChartEmpty';
@@ -12,6 +14,7 @@ interface ConcurrentData {
   direct: number;
   directStream: number;
   transcode: number;
+  audioTranscode: number;
 }
 
 interface ConcurrentChartProps {
@@ -27,12 +30,14 @@ export function ConcurrentChart({
   height = 250,
   period = 'month',
 }: ConcurrentChartProps) {
+  const { t } = useTranslation();
   const options = useMemo<Highcharts.Options>(() => {
     if (!data || data.length === 0) {
       return {};
     }
 
-    const timestamps = data.map((d) => parseChartDate(d.hour));
+    const points = (value: (d: ConcurrentData) => number): [number, number][] =>
+      data.map((d) => [parseChartDate(d.hour), value(d)]);
 
     return {
       chart: {
@@ -157,8 +162,8 @@ export function ConcurrentChart({
       series: [
         {
           type: 'area',
-          name: 'Direct Play',
-          data: data.map((d, i) => [timestamps[i]!, d.direct]),
+          name: t(PLAYBACK_DECISION_LABEL_KEYS.directplay),
+          data: points((d) => d.direct),
           color: 'hsl(var(--chart-2))',
           fillColor: {
             linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
@@ -170,8 +175,8 @@ export function ConcurrentChart({
         },
         {
           type: 'area',
-          name: 'Direct Stream',
-          data: data.map((d, i) => [timestamps[i]!, d.directStream]),
+          name: t(PLAYBACK_DECISION_LABEL_KEYS.copy),
+          data: points((d) => d.directStream),
           color: 'hsl(210, 76%, 50%)',
           fillColor: {
             linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
@@ -183,8 +188,21 @@ export function ConcurrentChart({
         },
         {
           type: 'area',
-          name: 'Transcode',
-          data: data.map((d, i) => [timestamps[i]!, d.transcode]),
+          name: t(PLAYBACK_DECISION_LABEL_KEYS.audio_transcode),
+          data: points((d) => d.audioTranscode),
+          color: 'hsl(262, 60%, 58%)',
+          fillColor: {
+            linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
+            stops: [
+              [0, 'hsl(262 60% 58% / 0.4)'],
+              [1, 'hsl(262 60% 58% / 0.1)'],
+            ],
+          },
+        },
+        {
+          type: 'area',
+          name: t(PLAYBACK_DECISION_LABEL_KEYS.transcode),
+          data: points((d) => d.transcode - d.audioTranscode),
           color: 'hsl(var(--chart-4))',
           fillColor: {
             linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
@@ -228,7 +246,7 @@ export function ConcurrentChart({
         ],
       },
     };
-  }, [data, height, period]);
+  }, [data, height, period, t]);
 
   if (isLoading) {
     return <ChartSkeleton height={height} />;

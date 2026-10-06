@@ -4,6 +4,7 @@
  */
 
 import { lazy, memo, Suspense, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -22,9 +23,6 @@ import {
   Play,
   Pause,
   Square,
-  MonitorPlay,
-  Zap,
-  Cpu,
   Globe,
   Eye,
   Server,
@@ -37,14 +35,17 @@ import {
   ChevronLeft,
   ChevronRight,
   Clapperboard,
+  Subtitles,
 } from 'lucide-react';
-import { cn, getCountryName, getMediaDisplay } from '@/lib/utils';
+import { cn, getCountryName, getMediaDisplay, getSessionProgress } from '@/lib/utils';
 import { imageProxyUrl } from '@/lib/api';
 import { formatDuration } from '@/lib/formatters';
+import { playbackBadge } from '@/lib/playbackBadge';
 import { getAvatarUrl } from '@/components/users/utils';
+import { LocalBadge } from '@/components/sessions/LocalBadge';
 import { StreamDetailsPanel } from './StreamDetailsPanel';
 
-import { POSTER_IMAGE_SIZE } from '@tracearr/shared';
+import { PLAYBACK_DECISION_LABEL_KEYS, POSTER_IMAGE_SIZE } from '@tracearr/shared';
 import type {
   SessionWithDetails,
   ActiveSession,
@@ -109,14 +110,6 @@ function getWatchTime(session: SessionWithDetails | ActiveSession): number | nul
   }
 
   return null;
-}
-
-// Get progress percentage (playback position)
-// Uses progressMs (where in the video) not durationMs (how long watched)
-function getProgress(session: SessionWithDetails): number {
-  if (!session.totalDurationMs || session.totalDurationMs === 0) return 0;
-  const progress = session.progressMs ?? 0;
-  return Math.min(100, Math.round((progress / session.totalDurationMs) * 100));
 }
 
 const LazyMiniMap = lazy(() =>
@@ -215,6 +208,7 @@ function SegmentTable({
 
 // Inner content component - keeps state hooks and derived values together
 function SessionContent({ session }: { session: SessionWithDetails | ActiveSession }) {
+  const { t } = useTranslation();
   const [locationOpen, setLocationOpen] = useState(false);
   const [segmentsOpen, setSegmentsOpen] = useState(false);
 
@@ -231,7 +225,7 @@ function SessionContent({ session }: { session: SessionWithDetails | ActiveSessi
   const mediaConfig = MEDIA_CONFIG[session.mediaType];
   const MediaIcon = mediaConfig.icon;
   const { title: primary, subtitle: secondary } = getMediaDisplay(session);
-  const progress = getProgress(session);
+  const progress = getSessionProgress(session);
   const hasLocation = session.geoLat !== null && session.geoLon !== null;
   const geoCountryName = getCountryName(session.geoCountry);
   const geoCoordinates =
@@ -303,11 +297,12 @@ function SessionContent({ session }: { session: SessionWithDetails | ActiveSessi
             {secondary && (
               <div className="text-muted-foreground mt-0.5 truncate text-sm">{secondary}</div>
             )}
-            {/* Progress inline */}
-            <div className="mt-2 flex items-center gap-2">
-              <Progress value={progress} className="h-1.5 flex-1" />
-              <span className="text-muted-foreground w-8 text-xs">{progress}%</span>
-            </div>
+            {progress !== null && (
+              <div className="mt-2 flex items-center gap-2">
+                <Progress value={progress} className="h-1.5 flex-1" />
+                <span className="text-muted-foreground w-8 text-xs">{progress}%</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -445,6 +440,7 @@ function SessionContent({ session }: { session: SessionWithDetails | ActiveSessi
               <div className="flex items-center gap-1.5 text-sm">
                 <Globe className="text-muted-foreground h-3.5 w-3.5 flex-shrink-0" />
                 <span>{locationString}</span>
+                <LocalBadge isLocal={session.isLocal} country={session.geoCountry} />
               </div>
             )}
             <CollapsibleContent className="space-y-2">
@@ -530,45 +526,42 @@ function SessionContent({ session }: { session: SessionWithDetails | ActiveSessi
           icon={Gauge}
           title="Stream Details"
           badge={(() => {
-            const isHwTranscode =
-              session.isTranscode &&
-              !!(session.transcodeInfo?.hwEncoding || session.transcodeInfo?.hwDecoding);
-            const TranscodeIcon = isHwTranscode ? Cpu : Zap;
+            const { decision, Icon, variant, isBurnIn } = playbackBadge(session);
+            const content = (
+              <>
+                <Icon className="h-3 w-3" />
+                {t(PLAYBACK_DECISION_LABEL_KEYS[decision])}
+              </>
+            );
 
-            if (session.isTranscode) {
-              return (
-                <Badge variant="warning" className="gap-1 text-xs">
-                  {hasTranscodeReason ? (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <span className="flex items-center gap-1">
-                            <TranscodeIcon className="h-3 w-3" />
-                            Transcode
-                          </span>
-                        </TooltipTrigger>
-                        <TooltipContent side="top" className="max-w-xs text-left">
-                          <span className="text-[11px]">{transcodeReasonText}</span>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  ) : (
-                    <>
-                      <TranscodeIcon className="h-3 w-3" />
-                      Transcode
-                    </>
-                  )}
-                </Badge>
-              );
-            }
-
-            return (
-              <Badge variant="success" className="gap-1 text-xs">
-                <MonitorPlay className="h-3 w-3" />
-                {session.videoDecision === 'copy' || session.audioDecision === 'copy'
-                  ? 'Direct Stream'
-                  : 'Direct Play'}
+            const decisionBadge = (
+              <Badge variant={variant} className="gap-1 text-xs">
+                {session.isTranscode && hasTranscodeReason ? (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="flex items-center gap-1">{content}</span>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-xs text-left">
+                        <span className="text-[11px]">{transcodeReasonText}</span>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ) : (
+                  content
+                )}
               </Badge>
+            );
+
+            if (!isBurnIn) return decisionBadge;
+            return (
+              <span className="flex items-center gap-1">
+                {decisionBadge}
+                <Badge variant="warning" className="gap-1 text-xs">
+                  <Subtitles className="h-3 w-3" />
+                  {t('playback.burnIn')}
+                </Badge>
+              </span>
             );
           })()}
         >

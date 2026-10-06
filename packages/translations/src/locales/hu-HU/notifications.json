@@ -1,299 +1,265 @@
 {
-  "push": {
-    "newDevice": "",
-    "serverDown": "",
-    "serverUp": "",
-    "streamEnded": "",
-    "streamStarted": "",
-    "trustScoreChanged": "",
-    "violationDetected": ""
-  },
-  "settings": {
-    "allSeverity": "",
-    "allTypes": "",
-    "concurrentStreams": "",
-    "concurrentStreamsDesc": "",
-    "enablePushNotifications": "",
-    "enableQuietHours": "",
-    "highOnly": "",
-    "minimumSeverity": "",
-    "newDevice": "",
-    "newDeviceDesc": "",
-    "notificationEvents": "",
-    "overrideForCritical": "",
-    "perHour": "",
-    "perMinute": "",
-    "quietHours": "",
-    "rateLimit": "",
-    "rateLimiting": "",
-    "serverDown": "",
-    "serverDownDesc": "",
-    "serverUp": "",
-    "serverUpDesc": "",
-    "streamStarted": "",
-    "streamStartedDesc": "",
-    "streamStopped": "",
-    "streamStoppedDesc": "",
-    "title": "",
-    "trustScoreChanged": "",
-    "trustScoreChangedDesc": "",
-    "violationDetected": "",
-    "violationDetectedDesc": "",
-    "violationFilters": "",
-    "warningAndHigh": ""
-  },
   "toast": {
-    "error": {
-      "acknowledgeFailed": "",
-      "agentAddFailed": "",
-      "agentRemoveFailed": "",
-      "agentTestFailed": "",
-      "agentUpdateFailed": "",
-      "apiKeyGenerateFailed": "",
-      "authFailed": "",
-      "automationCreateFailed": "",
-      "automationDeleteFailed": "",
-      "automationUpdateFailed": "",
-      "brandingSaveFailed": "",
-      "clipboardFailed": "",
-      "copyFailed": "",
-      "destinationDeleteFailed": "",
-      "destinationInUse": "",
-      "destinationSaveFailed": "",
-      "destinationTestFailed": "",
-      "destinationUsedByNewsletters": "",
-      "deviceRemoveFailed": "",
-      "deviceRenameFailed": "",
-      "dismissFailed": "",
-      "identityUpdateFailed": "",
-      "invalidClaimCode": {
-        "message": "",
-        "title": ""
-      },
-      "invalidUrl": "",
-      "jobAlreadyRunning": "",
-      "jobLoadFailed": "",
-      "jobStartFailed": "",
-      "mobileAccessDisableFailed": "",
-      "mobileAccessEnableFailed": "",
-      "newsletterDeleteFailed": "",
-      "newsletterDuplicateFailed": "",
-      "newsletterPreviewFailed": "",
-      "newsletterRetryFailed": "",
-      "newsletterSaveFailed": "",
-      "newsletterSendFailed": "",
-      "newsletterSnapshotFailed": "",
-      "newsletterTestFailed": "",
-      "pairTokenGenerateFailed": "",
-      "plexDirectUrl": "",
-      "plexReauthorizeFailed": "",
-      "plexUnlinkFailed": "",
-      "routingUpdateFailed": "",
-      "serverAddFailed": "",
-      "serverRemoveFailed": "",
-      "serverReorderFailed": "",
-      "serverSyncFailed": "",
-      "serverUpdateFailed": "",
-      "serverUrlUpdateFailed": "",
-      "serverUserSplitFailed": "",
-      "sessionsDeleteFailed": "",
-      "sessionsRevokeFailed": "",
-      "settingsUpdateFailed": "",
-      "streamTerminateFailed": "",
-      "suppressionAddFailed": "",
-      "suppressionRemoveFailed": "",
-      "trustScoresResetFailed": "",
-      "userMergeFailed": "",
-      "webhookTestFailed": ""
-    },
-    "info": {
-      "updateAvailable": {
-        "message": "",
-        "title": ""
-      },
-      "violationDetected": {
-        "message": "",
-        "title": ""
-      }
-    },
     "success": {
-      "agentAdded": {
-        "message": "",
+      "serverAdded": {
+        "title": "",
+        "message": ""
+      },
+      "serverRemoved": {
+        "title": "",
+        "message": ""
+      },
+      "serverSynced": {
         "title": ""
       },
-      "agentRemoved": {
-        "message": "",
-        "title": ""
+      "serverMarkedHistorical": {
+        "title": "",
+        "message": ""
       },
-      "agentUpdated": {
-        "message": "",
-        "title": ""
+      "serverResumed": {
+        "title": "",
+        "message": ""
       },
-      "apiKeyGenerated": {
-        "message": "",
-        "title": ""
+      "settingsUpdated": {
+        "title": "",
+        "message": ""
       },
-      "automationCreated": {
-        "message": "",
-        "title": ""
+      "violationAcknowledged": {
+        "title": "",
+        "message": ""
       },
-      "automationDeleted": {
-        "message": "",
-        "title": ""
+      "violationDismissed": {
+        "title": "",
+        "message": ""
       },
-      "automationUpdated": {
-        "message": "",
-        "title": ""
-      },
-      "brandingSaved": "",
-      "claimCodeValidated": {
-        "message": "",
-        "title": ""
-      },
-      "copiedToClipboard": {
-        "title": ""
-      },
-      "destinationDeleted": "",
-      "destinationSaved": "",
-      "destinationTestSent": "",
-      "destinationTestSentTo": "",
       "deviceRemoved": {
-        "message": "",
-        "title": ""
+        "title": "",
+        "message": ""
       },
       "deviceRenamed": {
-        "message": "",
-        "title": ""
+        "title": "",
+        "message": ""
       },
-      "identityUpdated": "",
-      "jobCompleted": {
-        "message": "",
+      "sessionsRevoked": {
         "title": ""
       },
       "loggedIn": {
-        "message": "",
-        "title": "Siker"
-      },
-      "mobileAccessDisabled": {
-        "message": "",
-        "title": ""
-      },
-      "mobileAccessEnabled": {
-        "message": "",
-        "title": ""
-      },
-      "newsletterDeleted": "",
-      "newsletterDuplicated": "",
-      "newsletterRetryQueued": "",
-      "newsletterSaved": "",
-      "newsletterSendQueued": "",
-      "newsletterTestQueued": "",
-      "pairTokenGenerated": {
-        "message": "",
-        "title": ""
+        "title": "Siker",
+        "message": ""
       },
       "plexAccountLinked": {
-        "message": "",
-        "title": ""
-      },
-      "plexAccountReauthorized": {
-        "messageNoServers": "",
-        "message_one": "",
-        "message_other": "",
-        "partial": "",
         "title": "",
-        "unmatched": ""
+        "message": ""
       },
       "plexAccountUnlinked": {
-        "message": "",
+        "title": "",
+        "message": ""
+      },
+      "plexAccountReauthorized": {
+        "title": "",
+        "messageNoServers": "",
+        "partial": "",
+        "unmatched": "",
+        "message_one": "",
+        "message_other": ""
+      },
+      "jobCompleted": {
         "title": ""
       },
-      "serverAdded": {
-        "message": "",
-        "title": ""
+      "automationCreated": {
+        "title": "",
+        "message": ""
       },
-      "serverRemoved": {
-        "message": "",
-        "title": ""
+      "automationUpdated": {
+        "title": "",
+        "message": ""
       },
-      "serverSynced": {
-        "message": "",
-        "title": ""
+      "automationDeleted": {
+        "title": "",
+        "message": ""
       },
-      "serverUpdated": {
-        "message": "",
-        "title": ""
+      "streamTerminated": {
+        "title": "",
+        "message": ""
       },
       "serverUrlUpdated": {
-        "message": "",
+        "title": "",
+        "message": ""
+      },
+      "serverUpdated": {
+        "title": "",
+        "message": ""
+      },
+      "serverLocationSaved": {
+        "title": "",
+        "queued": "",
+        "waiting": ""
+      },
+      "syncCompletedWithErrors": {
         "title": ""
+      },
+      "sessionsDeleted": {
+        "title": "",
+        "message_one": "",
+        "message_other": ""
+      },
+      "violationsAcknowledged": {
+        "title": "",
+        "message_one": "",
+        "message_other": ""
+      },
+      "violationsDismissed": {
+        "title": "",
+        "message_one": "",
+        "message_other": ""
+      },
+      "apiKeyGenerated": {
+        "title": "",
+        "message": ""
+      },
+      "mobileAccessEnabled": {
+        "title": "",
+        "message": ""
+      },
+      "mobileAccessDisabled": {
+        "title": "",
+        "message": ""
+      },
+      "pairTokenGenerated": {
+        "title": "",
+        "message": ""
+      },
+      "identityUpdated": "",
+      "trustScoresReset": {
+        "title": "",
+        "message_one": "",
+        "message_other": ""
+      },
+      "claimCodeValidated": {
+        "title": "",
+        "message": ""
+      },
+      "usersMerged": {
+        "title": "",
+        "automationsKept": ""
       },
       "serverUserSplit": {
         "title": ""
       },
-      "sessionsDeleted": {
-        "message_one": "",
-        "message_other": "",
-        "title": ""
-      },
-      "sessionsRevoked": {
-        "message": "",
-        "title": ""
-      },
-      "settingsUpdated": {
-        "message": "",
-        "title": ""
-      },
-      "streamTerminated": {
-        "message": "",
-        "title": ""
-      },
+      "mergeSuggestionDismissed": "",
+      "mergeSuggestionRestored": "",
+      "destinationSaved": "",
+      "destinationDeleted": "",
+      "destinationTestSent": "",
+      "destinationTestSentTo": "",
+      "newsletterSaved": "",
+      "newsletterDeleted": "",
+      "newsletterDuplicated": "",
+      "newsletterTestQueued": "",
+      "newsletterSendQueued": "",
+      "brandingSaved": "",
       "suppressionAdded": "",
       "suppressionRemoved": "",
-      "syncCompletedWithErrors": {
-        "title": ""
+      "newsletterRetryQueued_one": "",
+      "newsletterRetryQueued_other": ""
+    },
+    "error": {
+      "serverAddFailed": "",
+      "serverRemoveFailed": "",
+      "serverSyncFailed": "",
+      "serverHistoricalFailed": "",
+      "settingsUpdateFailed": "",
+      "copyFailed": "",
+      "acknowledgeFailed": "",
+      "dismissFailed": "",
+      "authFailed": "",
+      "automationCreateFailed": "",
+      "automationUpdateFailed": "",
+      "automationDeleteFailed": "",
+      "streamTerminateFailed": "",
+      "serverUrlUpdateFailed": "",
+      "serverUpdateFailed": "",
+      "serverLocationSaveFailed": "",
+      "serverReorderFailed": "",
+      "sessionsDeleteFailed": "",
+      "apiKeyGenerateFailed": "",
+      "mobileAccessEnableFailed": "",
+      "mobileAccessDisableFailed": "",
+      "pairTokenGenerateFailed": "",
+      "deviceRemoveFailed": "",
+      "deviceRenameFailed": "",
+      "sessionsRevokeFailed": "",
+      "identityUpdateFailed": "",
+      "trustScoresResetFailed": "",
+      "plexUnlinkFailed": "",
+      "plexReauthorizeFailed": "",
+      "jobAlreadyRunning": "",
+      "jobStartFailed": "",
+      "jobLoadFailed": "",
+      "invalidUrl": "",
+      "plexDirectUrl": "",
+      "userMergeFailed": "",
+      "serverUserSplitFailed": "",
+      "mergeSuggestionDismissFailed": "",
+      "mergeSuggestionRestoreFailed": "",
+      "invalidClaimCode": {
+        "title": "",
+        "message": ""
       },
-      "tokenCopied": {
-        "message": "",
-        "title": ""
-      },
-      "trustScoresReset": {
-        "message_one": "",
-        "message_other": "",
-        "title": ""
-      },
-      "usersMerged": {
-        "automationsKept": "",
-        "title": ""
-      },
-      "violationAcknowledged": {
-        "message": "",
-        "title": ""
-      },
-      "violationDismissed": {
-        "message": "",
-        "title": ""
-      },
-      "violationsAcknowledged": {
-        "message_one": "",
-        "message_other": "",
-        "title": ""
-      },
-      "violationsDismissed": {
-        "message_one": "",
-        "message_other": "",
-        "title": ""
-      },
-      "webhookTest": {
-        "message": "",
-        "title": ""
-      }
+      "destinationSaveFailed": "",
+      "destinationDeleteFailed": "",
+      "destinationTestFailed": "",
+      "destinationInUse": "",
+      "destinationUsedByNewsletters": "",
+      "newsletterSaveFailed": "",
+      "newsletterDeleteFailed": "",
+      "newsletterDuplicateFailed": "",
+      "newsletterPreviewFailed": "",
+      "newsletterTestFailed": "",
+      "newsletterSendFailed": "",
+      "newsletterRetryFailed": "",
+      "newsletterSnapshotFailed": "",
+      "brandingSaveFailed": "",
+      "suppressionAddFailed": "",
+      "suppressionRemoveFailed": ""
     },
     "warning": {
       "jobFailed": {
-        "message": "",
         "title": ""
       }
+    },
+    "info": {
+      "updateAvailable": {
+        "title": "",
+        "message": ""
+      },
+      "violationDetected": {
+        "title": "",
+        "message": ""
+      }
     }
+  },
+  "settings": {
+    "allSeverity": "",
+    "warningAndHigh": "",
+    "highOnly": "",
+    "rateLimit": "",
+    "perMinute": "",
+    "perHour": "",
+    "enablePushNotifications": "",
+    "notificationEvents": "",
+    "violationDetected": "",
+    "streamStarted": "",
+    "streamStopped": "",
+    "concurrentStreams": "",
+    "newDevice": "",
+    "trustScoreChanged": "",
+    "serverDown": "",
+    "serverUp": "",
+    "minimumSeverity": "",
+    "quietHours": "",
+    "enableQuietHours": "",
+    "overrideForCritical": "",
+    "rateLimiting": ""
   }
 }

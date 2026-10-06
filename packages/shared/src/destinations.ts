@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import { isEmailAddress } from './emailAddress.js';
+import { SEND_BODY_MAX, SEND_TITLE_MAX } from './automations/actions.js';
+import type { TextLimit } from './automations/template.js';
 import type { NotificationEventType, ViolationSeverity } from './types.js';
 
 export const DESTINATION_KINDS = [
@@ -52,7 +55,8 @@ export interface DestinationFieldDescriptor {
   key: string;
   /** i18n key under pages:settings.destinations.fields */
   label: string;
-  input: 'text' | 'url' | 'secret' | 'select' | 'number' | 'email' | 'emails';
+  /** toggle stores 'true' or 'false' so the config blob stays all strings; absent reads as the default */
+  input: 'text' | 'url' | 'secret' | 'select' | 'number' | 'email' | 'emails' | 'toggle';
   required: boolean;
   /** Masked on read, kept on omit; every url is secret because webhook urls embed credentials */
   secret: boolean;
@@ -249,6 +253,20 @@ const emails = (
   placeholder,
   hint,
 });
+const toggle = (
+  key: string,
+  label: string,
+  def: 'true' | 'false',
+  hint: string
+): DestinationFieldDescriptor => ({
+  key,
+  label,
+  input: 'toggle',
+  required: false,
+  secret: false,
+  default: def,
+  hint,
+});
 const grouped = (
   group: string,
   fields: readonly DestinationFieldDescriptor[]
@@ -339,6 +357,7 @@ export const DESTINATION_TYPES = {
         text('host', 'host', true, 'smtp.example.com'),
         number('port', 'port', '587', 1, 65535),
         select('security', 'security', SECURITY_OPTIONS, 'starttls'),
+        toggle('verifyCertificate', 'verifyCertificate', 'true', 'smtpVerifyCertificate'),
         { ...text('username', 'username', false), hint: 'smtpUsernameOptional' },
         secret('password', 'password', false),
         number('messagesPerSecond', 'messagesPerSecond', '2', 1, 50, 'smtpRate'),
@@ -354,9 +373,7 @@ export const DESTINATION_TYPES = {
         email('fromAddress', 'fromAddress', true, 'tracearr@example.com'),
         email('replyTo', 'replyTo', false),
       ]),
-      ...grouped('alerts', [
-        emails('to', 'to', false, 'you@example.com, admin@example.com', 'smtpTo'),
-      ]),
+      ...grouped('alerts', [emails('to', 'to', false, 'you@example.com', 'smtpTo')]),
     ],
   },
   push: {
@@ -377,16 +394,59 @@ export const DESTINATION_TYPES = {
   },
 } as const satisfies Record<DestinationKind, DestinationDescriptor>;
 
+export interface DestinationTextProfile {
+  escape: 'none' | 'discordMarkdown';
+  title: TextLimit | null;
+  body: TextLimit | null;
+}
+
+const plain = (
+  title: TextLimit = { max: SEND_TITLE_MAX, unit: 'chars' },
+  body: TextLimit = { max: SEND_BODY_MAX, unit: 'chars' }
+): DestinationTextProfile => ({ escape: 'none', title, body });
+
+export const DESTINATION_TEXT_PROFILES: Readonly<Record<DestinationKind, DestinationTextProfile>> =
+  {
+    discord: {
+      escape: 'discordMarkdown',
+      title: { max: 256, unit: 'chars' },
+      body: { max: 4096, unit: 'chars' },
+    },
+    json_webhook: { escape: 'none', title: null, body: null },
+    ntfy: plain(undefined, { max: 4096, unit: 'bytes' }),
+    gotify: plain(),
+    apprise: plain(),
+    pushover: plain({ max: 250, unit: 'chars' }, { max: 1024, unit: 'chars' }),
+    email: plain(),
+    push: plain(undefined, { max: 1024, unit: 'chars' }),
+    web_toast: plain(),
+  };
+
+const DISCORD_SPECIAL = /[\\*_~`|>#\-[\]()]/g;
+const URL_RUN = /https?:\/\/\S+/g;
+
+/** Backslashes inside a URL turn into slashes in Discord's autolink, so URLs pass through. */
+export function escapeDiscordMarkdown(value: string): string {
+  let out = '';
+  let last = 0;
+  for (const match of value.matchAll(URL_RUN)) {
+    out += value.slice(last, match.index).replace(DISCORD_SPECIAL, '\\$&');
+    out += match[0];
+    last = match.index + match[0].length;
+  }
+  return out + value.slice(last).replace(DISCORD_SPECIAL, '\\$&');
+}
+
+const identity = (value: string): string => value;
+
+export function escapeFor(profile: DestinationTextProfile): (value: string) => string {
+  return profile.escape === 'discordMarkdown' ? escapeDiscordMarkdown : identity;
+}
+
 const httpUrl = z
   .string()
   .trim()
   .refine((v) => /^https?:\/\/\S+$/i.test(v), 'Must be an http(s) URL');
-
-const address = z.email();
-
-function isAddress(value: string): boolean {
-  return address.safeParse(value).success;
-}
 
 export function addressList(value: string): string[] {
   return value
@@ -403,14 +463,14 @@ function fieldSchema(f: DestinationFieldDescriptor): z.ZodString {
     case 'url':
       return httpUrl;
     case 'email':
-      return z.string().trim().max(254).refine(blankOk(isAddress), 'Must be an email address');
+      return z.string().trim().max(254).refine(blankOk(isEmailAddress), 'Must be an email address');
     case 'emails':
       return z
         .string()
         .trim()
         .max(2000)
         .refine(
-          blankOk((v) => addressList(v).length > 0 && addressList(v).every(isAddress)),
+          blankOk((v) => addressList(v).length > 0 && addressList(v).every(isEmailAddress)),
           'Must be one or more comma-separated email addresses'
         );
     case 'number': {
@@ -431,6 +491,11 @@ function fieldSchema(f: DestinationFieldDescriptor): z.ZodString {
         'Must be one of the listed options'
       );
     }
+    case 'toggle':
+      return z.string().refine(
+        blankOk((v) => v === 'true' || v === 'false'),
+        'Must be true or false'
+      );
     case 'text':
     case 'secret': {
       const { pattern } = f;

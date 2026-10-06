@@ -10,6 +10,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import Fastify, { type FastifyInstance } from 'fastify';
 import sensible from '@fastify/sensible';
 import { randomUUID } from 'node:crypto';
+import { existsSync } from 'node:fs';
+import { readFile, rm } from 'node:fs/promises';
 import type { AuthUser } from '@tracearr/shared';
 
 // Mock class for TautulliService
@@ -74,6 +76,7 @@ vi.mock('../../services/mediaServer/index.js', () => {
 vi.mock('../../jobs/importQueue.js', () => ({
   enqueueImport: vi.fn().mockRejectedValue(new Error('Queue not available')),
   enqueuePlaybackReportingImport: vi.fn().mockRejectedValue(new Error('Queue not available')),
+  enqueueJellystatImport: vi.fn().mockRejectedValue(new Error('Queue not available')),
   getImportStatus: vi.fn().mockResolvedValue(null),
   cancelImport: vi.fn().mockResolvedValue(false),
   getImportQueueStats: vi.fn().mockResolvedValue(null),
@@ -88,6 +91,7 @@ import { db } from '../../db/client.js';
 import {
   enqueueImport,
   enqueuePlaybackReportingImport,
+  enqueueJellystatImport,
   getImportStatus,
   cancelImport,
   getImportQueueStats,
@@ -177,6 +181,25 @@ describe('Import Routes', () => {
 
   describe('POST /import/tautulli', () => {
     const validServerId = randomUUID();
+
+    beforeEach(() => {
+      mockDbSelectLimit([{ id: validServerId, historicalAt: null }]);
+    });
+
+    it('refuses to import into a historical server', async () => {
+      app = await buildTestApp(ownerUser);
+      mockDbSelectLimit([{ id: validServerId, historicalAt: new Date('2026-09-01T00:00:00Z') }]);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/import/tautulli',
+        payload: { serverId: validServerId },
+      });
+
+      expect(response.statusCode).toBe(409);
+      expect(response.json().message).toBe('Resume this server to import into it');
+      expect(syncServer).not.toHaveBeenCalled();
+    });
 
     it('starts import for owner user', async () => {
       app = await buildTestApp(ownerUser);
@@ -590,6 +613,10 @@ describe('Import Routes', () => {
   describe('POST /import/tautulli with queue', () => {
     const validServerId = randomUUID();
 
+    beforeEach(() => {
+      mockDbSelectLimit([{ id: validServerId, historicalAt: null }]);
+    });
+
     it('returns queued status when queue is available', async () => {
       app = await buildTestApp(ownerUser);
 
@@ -635,6 +662,20 @@ describe('Import Routes', () => {
       token: 'tok123',
       name: 'My Jellyfin',
     };
+
+    it('refuses a historical server before syncing it', async () => {
+      app = await buildTestApp(ownerUser);
+      mockDbSelectLimit([{ ...jellyfinServerRow, historicalAt: new Date('2026-09-01T00:00:00Z') }]);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/import/playback-reporting',
+        payload: { serverId: jellyfinServerRow.id, timezone: 'UTC' },
+      });
+
+      expect(response.statusCode).toBe(409);
+      expect(syncServer).not.toHaveBeenCalled();
+    });
 
     it('queues an import for an owner and applies schema defaults', async () => {
       app = await buildTestApp(ownerUser);
@@ -825,6 +866,19 @@ describe('Import Routes', () => {
 
       expect(response.statusCode).toBe(400);
     });
+
+    it('refuses a historical server', async () => {
+      app = await buildTestApp(ownerUser);
+      mockDbSelectLimit([{ ...jellyfinServerRow, historicalAt: new Date('2026-09-01T00:00:00Z') }]);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/import/playback-reporting/test',
+        payload: { serverId: validServerId },
+      });
+
+      expect(response.statusCode).toBe(409);
+    });
   });
 
   describe('GET /import/playback-reporting/active/:serverId', () => {
@@ -921,6 +975,74 @@ describe('Import Routes', () => {
       });
 
       expect(response.statusCode).toBe(403);
+    });
+  });
+
+  describe('POST /import/jellystat', () => {
+    const validServerId = randomUUID();
+    const backup = '[{"jf_playback_activity":[]}]';
+
+    function multipartUpload() {
+      const boundary = 'tracearr-test-boundary';
+      const payload = [
+        `--${boundary}`,
+        'Content-Disposition: form-data; name="serverId"',
+        '',
+        validServerId,
+        `--${boundary}`,
+        'Content-Disposition: form-data; name="file"; filename="backup.json"',
+        'Content-Type: application/json',
+        '',
+        backup,
+        `--${boundary}--`,
+        '',
+      ].join('\r\n');
+      return {
+        method: 'POST' as const,
+        url: '/import/jellystat',
+        headers: { 'content-type': `multipart/form-data; boundary=${boundary}` },
+        payload,
+      };
+    }
+
+    it('queues the path of the saved upload, not its contents', async () => {
+      app = await buildTestApp(ownerUser);
+      mockDbSelectLimit([{ id: validServerId, type: 'jellyfin' }]);
+      vi.mocked(enqueueJellystatImport).mockResolvedValueOnce('job-js-1');
+
+      const response = await app.inject(multipartUpload());
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({ status: 'queued', jobId: 'job-js-1' });
+      const backupPath = vi.mocked(enqueueJellystatImport).mock.calls[0]?.[2] ?? '';
+      expect(await readFile(backupPath, 'utf-8')).toBe(backup);
+      await rm(backupPath);
+    });
+
+    it('removes the upload when an import is already running', async () => {
+      app = await buildTestApp(ownerUser);
+      mockDbSelectLimit([{ id: validServerId, type: 'jellyfin' }]);
+      vi.mocked(enqueueJellystatImport).mockRejectedValueOnce(
+        new Error(`Import already in progress for server ${validServerId} (job job-js-1)`)
+      );
+
+      const response = await app.inject(multipartUpload());
+
+      expect(response.statusCode).toBe(409);
+      const backupPath = vi.mocked(enqueueJellystatImport).mock.calls[0]?.[2] ?? '';
+      expect(existsSync(backupPath)).toBe(false);
+    });
+
+    it('refuses a historical server without queuing the upload', async () => {
+      app = await buildTestApp(ownerUser);
+      mockDbSelectLimit([
+        { id: validServerId, type: 'jellyfin', historicalAt: new Date('2026-09-01T00:00:00Z') },
+      ]);
+
+      const response = await app.inject(multipartUpload());
+
+      expect(response.statusCode).toBe(409);
+      expect(enqueueJellystatImport).not.toHaveBeenCalled();
     });
   });
 });

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   DESTINATION_KINDS,
+  DESTINATION_TEXT_PROFILES,
+  escapeDiscordMarkdown,
+  escapeFor,
   DESTINATION_TYPES,
   NOTIFICATION_EVENT_TYPES,
   SUBSCRIBABLE_EVENTS,
@@ -166,6 +169,14 @@ describe('configSchemaForFields', () => {
     { key: 'from', label: 'from', input: 'email', required: true, secret: false },
     { key: 'cc', label: 'cc', input: 'email', required: false, secret: false },
     { key: 'to', label: 'to', input: 'emails', required: true, secret: false },
+    {
+      key: 'verify',
+      label: 'verify',
+      input: 'toggle',
+      required: false,
+      secret: false,
+      default: 'true',
+    },
   ];
   const schema = configSchemaForFields(fields);
 
@@ -173,8 +184,16 @@ describe('configSchemaForFields', () => {
     const parsed = schema.safeParse({ from: 'a@example.com', to: 'b@example.com, c@example.org' });
     expect(parsed.success).toBe(true);
     if (!parsed.success) return;
-    expect(parsed.data).toMatchObject({ mode: 'a', port: '587' });
+    expect(parsed.data).toMatchObject({ mode: 'a', port: '587', verify: 'true' });
     expect(parsed.data.port).toBe('587');
+  });
+
+  it('keeps a toggle as the string true or false', () => {
+    const parse = (verify: string) =>
+      schema.safeParse({ from: 'a@example.com', to: 'b@example.com', verify });
+    expect(parse('false').data?.verify).toBe('false');
+    expect(parse('true').success).toBe(true);
+    expect(parse('yes').success).toBe(false);
   });
 
   it.each([
@@ -262,6 +281,7 @@ describe('email destination', () => {
     expect(parsed.data).toMatchObject({
       port: '587',
       security: 'starttls',
+      verifyCertificate: 'true',
       fromName: 'Tracearr',
       preset: 'custom',
       messagesPerSecond: '2',
@@ -324,6 +344,7 @@ describe('email destination', () => {
       ['host', 'connection'],
       ['port', 'connection'],
       ['security', 'connection'],
+      ['verifyCertificate', 'connection'],
       ['username', 'connection'],
       ['password', 'connection'],
       ['messagesPerSecond', 'connection'],
@@ -345,5 +366,41 @@ describe('email destination', () => {
   it('marks only the password as secret', () => {
     const secrets = DESTINATION_TYPES.email.fields.filter((f) => f.secret).map((f) => f.key);
     expect(secrets).toEqual(['password']);
+  });
+});
+
+describe('destination text profiles', () => {
+  it('backslash-escapes Discord markdown in a value', () => {
+    expect(escapeDiscordMarkdown('**a_b** ~c~ `d` |e| > # - [f](g) \\')).toBe(
+      '\\*\\*a\\_b\\*\\* \\~c\\~ \\`d\\` \\|e\\| \\> \\# \\- \\[f\\]\\(g\\) \\\\'
+    );
+  });
+
+  it('leaves URL runs unescaped and escapes the text around them', () => {
+    expect(
+      escapeDiscordMarkdown('see https://example.com/release_notes/v2.5.2-beta(1) for _it_')
+    ).toBe('see https://example.com/release_notes/v2.5.2-beta(1) for \\_it\\_');
+  });
+
+  it('leaves mentions as text; allowed_mentions stops them pinging', () => {
+    expect(escapeDiscordMarkdown('@everyone')).toBe('@everyone');
+  });
+
+  it('gives every destination kind a profile with the spec limits', () => {
+    expect(DESTINATION_TEXT_PROFILES.discord).toEqual({
+      escape: 'discordMarkdown',
+      title: { max: 256, unit: 'chars' },
+      body: { max: 4096, unit: 'chars' },
+    });
+    expect(DESTINATION_TEXT_PROFILES.ntfy.body).toEqual({ max: 4096, unit: 'bytes' });
+    expect(DESTINATION_TEXT_PROFILES.pushover.title).toEqual({ max: 250, unit: 'chars' });
+    expect(DESTINATION_TEXT_PROFILES.pushover.body).toEqual({ max: 1024, unit: 'chars' });
+    expect(DESTINATION_TEXT_PROFILES.push.body).toEqual({ max: 1024, unit: 'chars' });
+    expect(DESTINATION_TEXT_PROFILES.json_webhook).toEqual({
+      escape: 'none',
+      title: null,
+      body: null,
+    });
+    expect(escapeFor(DESTINATION_TEXT_PROFILES.gotify)('**x**')).toBe('**x**');
   });
 });

@@ -1,7 +1,7 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { getName as getCountryNameFromCode } from 'country-list';
-import { formatEpisodeLabel, type MediaType } from '@tracearr/shared';
+import { formatEpisodeLabel, type TranscodeInfo } from '@tracearr/shared';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -37,7 +37,8 @@ export function formatLocationCompact(
  * Media display fields interface for formatting media titles
  */
 interface MediaDisplayFields {
-  mediaType: MediaType | null;
+  /** Sessions say episode/track; library items add show, artist and album */
+  mediaType: string | null;
   mediaTitle: string | null;
   grandparentTitle?: string | null;
   seasonNumber?: number | null;
@@ -45,6 +46,34 @@ interface MediaDisplayFields {
   year?: number | null;
   artistName?: string | null;
   albumName?: string | null;
+}
+
+/**
+ * Playback position as a percentage of the length. Null when either is
+ * unknown: an import can carry a length with no position, and that is not 0%.
+ */
+export function getSessionProgress(session: {
+  progressMs: number | null;
+  totalDurationMs: number | null;
+}): number | null {
+  if (!session.totalDurationMs || session.progressMs == null) return null;
+  return Math.min(100, Math.round((session.progressMs / session.totalDurationMs) * 100));
+}
+
+/** Percent of the file the transcoder has ready; null for direct play or when the server sent nothing. */
+export function getBufferedPercent(session: {
+  transcodeInfo: TranscodeInfo | null;
+  totalDurationMs: number | null;
+}): number | null {
+  const info = session.transcodeInfo;
+  if (!info) return null;
+  if (info.maxOffsetAvailable != null && session.totalDurationMs) {
+    return Math.min(
+      100,
+      Math.round(((info.maxOffsetAvailable * 1000) / session.totalDurationMs) * 100)
+    );
+  }
+  return info.progress != null ? Math.min(100, Math.round(info.progress)) : null;
 }
 
 /**
@@ -86,6 +115,29 @@ export function getMediaDisplay(media: MediaDisplayFields): {
     title: media.mediaTitle ?? '',
     subtitle: media.year ? `${media.year}` : null,
   };
+}
+
+/**
+ * What a client calls itself, else the app and hardware it reports. Null when
+ * the server sent nothing identifying, so callers pick their own fallback.
+ */
+export function getDeviceDisplayName(device: {
+  playerName?: string | null;
+  product?: string | null;
+  device?: string | null;
+  platform?: string | null;
+}): string | null {
+  if (device.playerName) return device.playerName;
+
+  const hardware = device.device;
+  const parts: string[] = [];
+  if (device.product) parts.push(device.product);
+  if (hardware && !parts.some((part) => part.toLowerCase().includes(hardware.toLowerCase()))) {
+    parts.push(hardware);
+  }
+  if (parts.length > 0) return parts.join(' - ');
+
+  return device.platform ?? null;
 }
 
 /** crypto.randomUUID needs a secure context; a LAN address over plain http only has getRandomValues. */

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
-import { SERVER_COLOR_PALETTE, pickServerColor } from '@tracearr/shared';
+import { SERVER_COLOR_PALETTE, pickServerColor, serverLocationsSchema } from '@tracearr/shared';
 import type { Server } from '@tracearr/shared';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,8 +17,15 @@ import { Input } from '@/components/ui/input';
 import { ColorSwatchPicker } from '@/components/settings/shared/ColorSwatchPicker';
 import { PlexServerSelector } from '@/components/auth/PlexServerSelector';
 import { api } from '@/lib/api';
-import { usePlexServerConnections } from '@/hooks/queries';
+import { cn } from '@/lib/utils';
+import {
+  usePlexServerConnections,
+  useServerLocations,
+  useUpdateServerLocations,
+} from '@/hooks/queries';
 import { SERVER_DIALOG_CONTENT_CLASS } from './dialogClasses';
+import { ServerLocationEditor } from './ServerLocationEditor';
+import { draftsKey, toDrafts, toEntries, type LocationDraft } from './serverLocationDrafts';
 
 const SERVER_COLOR_OPTIONS = SERVER_COLOR_PALETTE.map((preset) => ({
   id: preset.hex,
@@ -33,6 +40,7 @@ export interface ServerPatch {
   clientIdentifier?: string;
   color?: string | null;
   publicUrl?: string | null;
+  apiKey?: string;
 }
 
 export function EditServerDialog({
@@ -52,12 +60,23 @@ export function EditServerDialog({
   const [editName, setEditName] = useState('');
   const [manualUrl, setManualUrl] = useState('');
   const [manualPublicUrl, setManualPublicUrl] = useState('');
+  const [editApiKey, setEditApiKey] = useState('');
   const [editColor, setEditColor] = useState<string>(SERVER_COLOR_OPTIONS[3]?.hex ?? '#3B82F6');
   const [seededServer, setSeededServer] = useState<Server | null>(null);
   const isPlexServer = server?.type === 'plex';
+  const locked = !!server?.historicalAt;
+  const {
+    data: locationData,
+    isFetchedAfterMount: locationsFetched,
+    isError: locationsFailed,
+  } = useServerLocations(server?.id);
+  const updateLocations = useUpdateServerLocations();
+  const [drafts, setDrafts] = useState<LocationDraft[]>([]);
+  const [locationBaseline, setLocationBaseline] = useState('');
+  const [locationsSeededFor, setLocationsSeededFor] = useState<string | null>(null);
 
   const { data: connectionsData, isLoading: isLoadingConnections } = usePlexServerConnections(
-    isPlexServer ? server?.id : undefined
+    isPlexServer && !locked ? server?.id : undefined
   );
 
   // Re-seed from the server prop each time the dialog opens for one, rather than in an
@@ -65,29 +84,75 @@ export function EditServerDialog({
   // whenever the server list refetches in the background while the dialog is open.
   if (server !== seededServer) {
     setSeededServer(server);
+    setLocationsSeededFor(null);
     if (server) {
       setEditName(server.name);
       setManualUrl(server.url);
       setManualPublicUrl(server.publicUrl ?? '');
+      setEditApiKey('');
       const otherColors = servers.filter((s) => s.id !== server.id).map((s) => s.color);
       setEditColor(server.color ?? pickServerColor(server.type, otherColors));
     }
   }
 
+  // Seeded once per open, like the fields above: a background refetch must not discard edits.
+  if (
+    server &&
+    locationData &&
+    locationsFetched &&
+    !locationsFailed &&
+    locationsSeededFor !== server.id
+  ) {
+    const seeded = toDrafts(locationData.entries);
+    setLocationsSeededFor(server.id);
+    setDrafts(seeded);
+    setLocationBaseline(draftsKey(seeded));
+  }
+
+  const locationsSeeded = server !== null && locationsSeededFor === server.id;
+  const locationEntries = toEntries(drafts);
+  const locationIssue = locationEntries
+    ? serverLocationsSchema.safeParse({ entries: locationEntries }).error?.issues[0]?.message
+    : undefined;
+  const locationError = !locationEntries
+    ? t('servers.location.incomplete')
+    : (locationIssue ?? null);
+  const hasLocationChange = locationsSeeded && draftsKey(drafts) !== locationBaseline;
+
   const hasNameChange = server ? editName.trim() !== server.name : false;
-  const hasUrlChange = server ? manualUrl.trim() !== server.url : false;
+  const hasUrlChange = server && !locked ? manualUrl.trim() !== server.url : false;
   const hasPublicUrlChange =
     server && !isPlexServer ? manualPublicUrl.trim() !== (server.publicUrl ?? '') : false;
   const hasColorChange = server ? editColor !== (server.color ?? '') : false;
+  const hasApiKeyChange = server && !isPlexServer && !locked ? editApiKey.trim().length > 0 : false;
+  const hasServerChange =
+    hasNameChange || hasUrlChange || hasPublicUrlChange || hasColorChange || hasApiKeyChange;
   const canSave =
-    (hasNameChange || hasUrlChange || hasPublicUrlChange || hasColorChange) &&
-    editName.trim().length > 0;
+    (hasServerChange || hasLocationChange) &&
+    editName.trim().length > 0 &&
+    (!hasLocationChange || locationError === null);
+  const isSaving = isUpdating || updateLocations.isPending;
 
   if (!server) return null;
 
+  const saveLocations = async () => {
+    if (!hasLocationChange) return true;
+    if (!locationEntries || locationError !== null) return false;
+    const savedKey = draftsKey(drafts);
+    try {
+      await updateLocations.mutateAsync({ id: server.id, entries: locationEntries });
+    } catch {
+      return false;
+    }
+    setLocationBaseline(savedKey);
+    return true;
+  };
+
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className={SERVER_DIALOG_CONTENT_CLASS}>
+    <Dialog open onOpenChange={(open) => !open && !isSaving && onClose()}>
+      <DialogContent
+        className={cn(SERVER_DIALOG_CONTENT_CLASS, 'max-h-[calc(100dvh-2rem)] overflow-y-auto')}
+      >
         <DialogHeader>
           <DialogTitle>{t('servers.editServer')}</DialogTitle>
           <DialogDescription>{t('servers.editServerDesc')}</DialogDescription>
@@ -115,11 +180,12 @@ export function EditServerDialog({
                     {t('servers.discoveringConnections')}
                   </span>
                 </div>
-              ) : connectionsData?.server ? (
+              ) : connectionsData?.server && !locked ? (
                 <>
                   <PlexServerSelector
                     servers={[connectionsData.server]}
-                    onSelect={(uri, _name, clientIdentifier) => {
+                    onSelect={async (uri, _name, clientIdentifier) => {
+                      if (!(await saveLocations())) return;
                       onUpdate({
                         name: hasNameChange ? editName : undefined,
                         url: uri,
@@ -127,7 +193,7 @@ export function EditServerDialog({
                         color: hasColorChange ? editColor : undefined,
                       });
                     }}
-                    connecting={isUpdating}
+                    connecting={isSaving || (hasLocationChange && locationError !== null)}
                     connectingToServer={isUpdating ? server.name : null}
                     onCancel={onClose}
                     showCancel
@@ -139,12 +205,16 @@ export function EditServerDialog({
                   {hasNameChange && <FieldDescription>{t('servers.updateHint')}</FieldDescription>}
                 </>
               ) : (
-                <Input
-                  id="edit-url"
-                  value={manualUrl}
-                  onChange={(e) => setManualUrl(e.target.value)}
-                  placeholder={t('servers.plexServerUrlPlaceholder')}
-                />
+                <>
+                  <Input
+                    id="edit-url"
+                    value={manualUrl}
+                    onChange={(e) => setManualUrl(e.target.value)}
+                    placeholder={t('servers.plexServerUrlPlaceholder')}
+                    disabled={locked}
+                  />
+                  {locked && <FieldDescription>{t('servers.resumeFirst')}</FieldDescription>}
+                </>
               )}
             </Field>
           ) : (
@@ -156,7 +226,9 @@ export function EditServerDialog({
                   value={manualUrl}
                   onChange={(e) => setManualUrl(e.target.value)}
                   placeholder="http://192.168.1.100:8096"
+                  disabled={locked}
                 />
+                {locked && <FieldDescription>{t('servers.resumeFirst')}</FieldDescription>}
               </Field>
               <Field>
                 <FieldLabel htmlFor="edit-public-url">{t('servers.publicUrl')}</FieldLabel>
@@ -167,6 +239,25 @@ export function EditServerDialog({
                   placeholder="https://jellyfin.example.com"
                 />
                 <FieldDescription>{t('servers.publicUrlHint')}</FieldDescription>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="edit-api-key">{t('common:labels.apiKey')}</FieldLabel>
+                <Input
+                  id="edit-api-key"
+                  type="password"
+                  autoComplete="off"
+                  value={editApiKey}
+                  onChange={(e) => setEditApiKey(e.target.value)}
+                  placeholder={t('servers.apiKeyKeepCurrent')}
+                  disabled={locked}
+                />
+                <FieldDescription>
+                  {locked
+                    ? t('servers.resumeFirst')
+                    : server.type === 'jellyfin'
+                      ? t('servers.apiKeyHelpJellyfin')
+                      : t('servers.apiKeyHelpEmby')}
+                </FieldDescription>
               </Field>
             </>
           )}
@@ -182,24 +273,39 @@ export function EditServerDialog({
             />
             <FieldDescription>{t('servers.serverColorDesc')}</FieldDescription>
           </Field>
+
+          {locationsSeeded && (
+            <ServerLocationEditor
+              drafts={drafts}
+              onChange={setDrafts}
+              syncPending={locationData?.syncPending ?? false}
+              error={drafts.length > 0 ? locationError : null}
+            />
+          )}
         </FieldGroup>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={onClose} disabled={isSaving}>
             {t('common:actions.cancel')}
           </Button>
           <Button
-            disabled={isUpdating || !canSave}
-            onClick={() => {
-              onUpdate({
-                name: hasNameChange ? editName.trim() : undefined,
-                url: hasUrlChange ? manualUrl.trim() : undefined,
-                color: hasColorChange ? editColor : undefined,
-                publicUrl: hasPublicUrlChange ? manualPublicUrl.trim() || null : undefined,
-              });
+            disabled={isSaving || !canSave}
+            onClick={async () => {
+              if (!(await saveLocations())) return;
+              if (hasServerChange) {
+                onUpdate({
+                  name: hasNameChange ? editName.trim() : undefined,
+                  url: hasUrlChange ? manualUrl.trim() : undefined,
+                  color: hasColorChange ? editColor : undefined,
+                  publicUrl: hasPublicUrlChange ? manualPublicUrl.trim() || null : undefined,
+                  apiKey: hasApiKeyChange ? editApiKey.trim() : undefined,
+                });
+              } else {
+                onClose();
+              }
             }}
           >
-            {isUpdating ? (
+            {isSaving ? (
               <>
                 <Loader2 className="animate-spin" />
                 {t('servers.updating')}

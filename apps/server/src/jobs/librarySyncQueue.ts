@@ -13,14 +13,21 @@ import { getBullPrefix, queueConnectionOptions } from './queueConnection.js';
 import { isMaintenance } from '../serverState.js';
 import { getRedisPrefix, LEGACY_VERSION_SENTINEL } from '@tracearr/shared';
 import { Redis } from 'ioredis';
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { WS_EVENTS, REDIS_KEYS } from '@tracearr/shared';
 import type { LibrarySyncProgress } from '@tracearr/shared';
 import { db } from '../db/client.js';
 import { getSetting, setSetting } from '../services/settings.js';
 import { servers } from '../db/schema.js';
-import { librarySyncService, initLibrarySyncRedis } from '../services/librarySync.js';
+import {
+  librarySyncService,
+  initLibrarySyncRedis,
+  maybeEnqueueImportedHistoryLink,
+  type SyncResult,
+} from '../services/librarySync.js';
+import { syncServer } from '../services/sync.js';
 import { getPubSubService } from '../services/cache.js';
+import { isLiveServer, liveServers, type ServerRow } from '../services/liveServers.js';
 import { enqueueMaintenanceJob, maybeEnqueueMaintenanceJob } from './maintenanceQueue.js';
 import { enqueueImagePrecache } from './imagePrecacheQueue.js';
 import { resolvePrecachePass } from './precachePassPolicy.js';
@@ -228,10 +235,28 @@ export function startLibrarySyncWorker(): void {
         return { skipped: true, reason: 'sync already in progress' };
       }
 
+      if (!(await isLiveServer(serverId))) {
+        console.log(`[LibrarySync] Skipping job ${job.id} - server ${serverId} is historical`);
+        return { skipped: true, reason: 'server historical' };
+      }
+
       // Mark as active
       activeSyncs.set(serverId, true);
 
       try {
+        // Nothing else re-reads a server's user list, so the cron and boot runs
+        // refresh it. Event runs fire every 30s during a scan and are left out.
+        if (job.name.startsWith('auto-sync-') || job.name.startsWith('boot-sync-')) {
+          try {
+            const userSync = await syncServer(serverId, { syncUsers: true, syncLibraries: false });
+            if (userSync.errors.length > 0) {
+              console.warn(`[LibrarySync] User sync for server ${serverId}:`, userSync.errors);
+            }
+          } catch (err) {
+            console.error(`[LibrarySync] User sync failed for server ${serverId}:`, err);
+          }
+        }
+
         // Progress callback for WebSocket updates
         const onProgress = (progress: LibrarySyncProgress) => {
           // Update job progress percentage
@@ -351,6 +376,7 @@ export function startLibrarySyncWorker(): void {
       void checkAndTriggerSnapshotBackfill();
     }
     void stampVersionsBackfillComplete();
+    void handOffImportedHistoryLink(job);
   });
 
   console.log('Library sync worker started');
@@ -379,6 +405,27 @@ export function startLibrarySyncWorker(): void {
  * chase the snapshot normalization until its marker lands.
  */
 let normalizationConfirmed = false;
+
+/**
+ * BullMQ emits `completed` only after moving the job out of `active`, so the
+ * link job's readiness check never finds the sync that handed it off.
+ */
+async function handOffImportedHistoryLink(job: Job<LibrarySyncJobData>): Promise<void> {
+  try {
+    const [server] = await db
+      .select({ type: servers.type })
+      .from(servers)
+      .where(eq(servers.id, job.data.serverId));
+    if (server?.type !== 'plex') return;
+    const results = (job.returnvalue as { results?: SyncResult[] } | undefined)?.results ?? [];
+    await maybeEnqueueImportedHistoryLink(
+      results.some((r) => r.itemsAdded > 0),
+      hasPendingLibrarySync
+    );
+  } catch (error) {
+    console.error('[LibrarySync] Imported history link hand-off failed:', error);
+  }
+}
 
 async function stampVersionsBackfillComplete(): Promise<void> {
   try {
@@ -515,27 +562,20 @@ async function checkAndTriggerSnapshotBackfill(): Promise<void> {
   }
 }
 
-/**
- * Schedule auto-sync for all servers every 12 hours at :10 past the hour (UTC)
- * Offset from :00 to avoid collision with aggregate auto-refresh
- */
-export async function scheduleAutoSync(): Promise<void> {
+async function applyAutoSyncSchedules(allServers: ServerRow[]): Promise<void> {
   if (!librarySyncQueue) {
     throw new Error('Library sync queue not initialized');
-  }
-
-  // Query all servers from database
-  const allServers = await db.select({ id: servers.id, name: servers.name }).from(servers);
-
-  if (allServers.length === 0) {
-    console.log('[LibrarySync] No servers found - skipping auto-sync scheduling');
-    return;
   }
 
   // Remove existing job schedulers first (in case servers changed)
   const schedulers = await librarySyncQueue.getJobSchedulers();
   for (const scheduler of schedulers) {
     await librarySyncQueue.removeJobScheduler(scheduler.key);
+  }
+
+  if (allServers.length === 0) {
+    console.log('[LibrarySync] No live servers found - no auto-sync scheduled');
+    return;
   }
 
   // Add repeatable job for each server with staggered cron times
@@ -563,6 +603,32 @@ export async function scheduleAutoSync(): Promise<void> {
   console.log(
     `[LibrarySync] Scheduled auto-sync for ${allServers.length} server(s) every 12 hours (staggered)`
   );
+}
+
+/**
+ * Rebuild the 12-hourly schedulers from the live servers, queuing nothing else.
+ * Used when the set of live servers changes at runtime.
+ */
+export async function rebuildAutoSyncSchedules(): Promise<void> {
+  if (!librarySyncQueue) {
+    throw new Error('Library sync queue not initialized');
+  }
+  await applyAutoSyncSchedules(await liveServers());
+}
+
+/**
+ * Boot: rebuild the schedulers (every 12 hours at :10 past the hour UTC, offset from
+ * :00 to avoid collision with aggregate auto-refresh) and queue a staggered sync
+ * for each live server that has none pending.
+ */
+export async function scheduleAutoSync(): Promise<void> {
+  if (!librarySyncQueue) {
+    throw new Error('Library sync queue not initialized');
+  }
+
+  const allServers = await liveServers();
+  await applyAutoSyncSchedules(allServers);
+  if (allServers.length === 0) return;
 
   // Queue an immediate sync on boot (non-blocking, staggered to avoid overwhelming startup)
   // Check for any pending/delayed jobs first to avoid duplicates after rapid restarts.
@@ -672,6 +738,25 @@ export async function enqueueLibrarySync(serverId: string, userId?: string): Pro
 }
 
 /**
+ * True when a library sync for the server is active, waiting or delayed, and
+ * when the queue is not initialized, since nothing then says there is none. A
+ * job SCHEDULER's parked delayed job (id "repeat:...") is a placeholder for
+ * the next cron slot - possibly hours out - not pending work, so it does not
+ * count. Scheduler jobs that reached waiting/active ARE real work and do.
+ */
+export async function hasPendingLibrarySync(serverId: string): Promise<boolean> {
+  if (!librarySyncQueue) return true;
+  const [runningJobs, delayedJobs] = await Promise.all([
+    librarySyncQueue.getJobs(['active', 'waiting']),
+    librarySyncQueue.getJobs(['delayed']),
+  ]);
+  return (
+    runningJobs.some((job) => job.data.serverId === serverId) ||
+    delayedJobs.some((job) => job.data.serverId === serverId && !isSchedulerJob(job))
+  );
+}
+
+/**
  * Enqueue a targeted sync triggered by a real-time library event (Plex SSE or
  * the Jellyfin/Emby plugin SSE). Uses triggeredBy 'scheduled' so the incremental
  * path stays eligible - unlike a manual sync, an event doesn't warrant forcing
@@ -686,18 +771,8 @@ export async function enqueueLibrarySyncFromEvent(serverId: string): Promise<voi
   if (!librarySyncQueue) return;
 
   // One pending sync per server is all that's ever needed: a sync job reads
-  // the server's current state when it runs. But a job SCHEDULER's parked
-  // delayed job (id "repeat:...") is a placeholder for the next cron slot -
-  // possibly hours out - not pending work, so it must not suppress event
-  // syncs. Scheduler jobs that reached waiting/active ARE real work and do.
-  const [runningJobs, delayedJobs] = await Promise.all([
-    librarySyncQueue.getJobs(['active', 'waiting']),
-    librarySyncQueue.getJobs(['delayed']),
-  ]);
-  const covered =
-    runningJobs.some((job) => job.data.serverId === serverId) ||
-    delayedJobs.some((job) => job.data.serverId === serverId && !isSchedulerJob(job));
-  if (covered) return;
+  // the server's current state when it runs.
+  if (await hasPendingLibrarySync(serverId)) return;
 
   const bucket = Math.floor(Date.now() / EVENT_SYNC_JOB_BUCKET_MS);
   await librarySyncQueue.add(

@@ -706,6 +706,7 @@ export function Violations() {
                   />
                 </DataTableViewport>
                 <DataTablePager
+                  variant="footer"
                   {...pager}
                   labels={{
                     navigation: t('common:table.pagination'),
@@ -715,6 +716,7 @@ export function Violations() {
                     }),
                     previous: t('common:actions.previous'),
                     next: t('common:actions.next'),
+                    goToPage: t('common:table.goToPage'),
                   }}
                 />
               </DataTableRoot>
@@ -748,9 +750,9 @@ export function Violations() {
       <ConfirmDialog
         open={bulkDismissConfirmOpen}
         onOpenChange={setBulkDismissConfirmOpen}
-        title={t('pages:violations.dismissViolation', { count: dismissCount })}
+        title={t('pages:violations.dismissViolations', { count: dismissCount })}
         description={t('pages:violations.dismissViolationsConfirm')}
-        confirmLabel={t('pages:violations.dismissViolation', { count: dismissCount })}
+        confirmLabel={t('pages:violations.dismissViolations', { count: dismissCount })}
         confirmLoadingLabel={t('common:states.dismissing')}
         cancelLabel={t('common:actions.cancel')}
         onConfirm={handleBulkDismiss}

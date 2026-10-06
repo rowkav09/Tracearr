@@ -5,7 +5,6 @@ import { Activity } from 'lucide-react';
 import type { Automation, AutomationRunSummary, RunOutcome } from '@tracearr/shared';
 import { contextOf, contextSupplies, listPageCount } from '@tracearr/shared';
 import { EvaluationsList } from '@/components/automations/EvaluationsList';
-import { SELECTED_TOGGLE } from '@/components/automations/builder/selection';
 import {
   createDataTableColumnHelper,
   DataTableBody,
@@ -84,6 +83,7 @@ export function ActivityList({ automation, onSelectRun }: ActivityListProps) {
       columnHelper.columns([
         columnHelper.accessor('outcome', {
           header: t('pages:automations.activity.outcome'),
+          enableSorting: false,
           cell: ({ row }) => (
             <span className="flex items-center gap-2 whitespace-nowrap">
               <span
@@ -96,6 +96,7 @@ export function ActivityList({ automation, onSelectRun }: ActivityListProps) {
         }),
         columnHelper.accessor('humanSummary', {
           header: t('pages:automations.activity.summary'),
+          enableSorting: false,
           cell: ({ row }) => <SummaryCell run={row.original} />,
         }),
         ...(subjectColumn === 'who'
@@ -103,6 +104,7 @@ export function ActivityList({ automation, onSelectRun }: ActivityListProps) {
               columnHelper.accessor('subject', {
                 id: 'who',
                 header: t('pages:automations.activity.who'),
+                enableSorting: false,
                 cell: ({ row }) => (
                   <UserCell
                     serverUserId={row.original.serverUserId}
@@ -121,6 +123,7 @@ export function ActivityList({ automation, onSelectRun }: ActivityListProps) {
               columnHelper.accessor('subject', {
                 id: 'item',
                 header: t('pages:automations.activity.item'),
+                enableSorting: false,
                 cell: ({ row }) => <Named name={runWho(row.original.subject)} />,
               }),
             ]
@@ -128,12 +131,14 @@ export function ActivityList({ automation, onSelectRun }: ActivityListProps) {
         columnHelper.accessor('subject', {
           id: 'where',
           header: t('pages:automations.activity.where'),
+          enableSorting: false,
           cell: ({ row }) => <Named name={runWhere(row.original.subject)} />,
         }),
         ...(kind === 'policy'
           ? [
               columnHelper.accessor('severity', {
                 header: t('common:labels.severity'),
+                enableSorting: false,
                 cell: ({ row }) =>
                   row.original.severity ? (
                     <SeverityBadge severity={row.original.severity} />
@@ -145,6 +150,7 @@ export function ActivityList({ automation, onSelectRun }: ActivityListProps) {
           : []),
         columnHelper.accessor('startedAt', {
           header: t('pages:automations.activity.started'),
+          enableSorting: false,
           cell: ({ row }) => (
             <span className="text-muted-foreground whitespace-nowrap">
               {formatDistanceToNow(new Date(row.original.startedAt), { addSuffix: true })}
@@ -180,7 +186,7 @@ export function ActivityList({ automation, onSelectRun }: ActivityListProps) {
         }}
       >
         {OUTCOME_TABS.map((value) => (
-          <ToggleGroupItem key={value} value={value} className={SELECTED_TOGGLE}>
+          <ToggleGroupItem key={value} value={value}>
             {t(`pages:automations.activity.tabs.${value}`)}
             {counts && (
               <span className="text-muted-foreground text-xs tabular-nums">
@@ -220,6 +226,7 @@ export function ActivityList({ automation, onSelectRun }: ActivityListProps) {
           />
         </DataTableViewport>
         <DataTablePager
+          variant="footer"
           {...pager}
           labels={{
             navigation: t('common:table.pagination'),

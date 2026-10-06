@@ -11,7 +11,7 @@
  *   pnpm check                  # Check all languages against en
  *   pnpm check --strict         # Also report extra keys
  *   pnpm check --lang=de-DE     # Check only German
- *   pnpm check --fix            # Add absent keys as empty placeholders
+ *   pnpm check --fix            # Add absent keys as empty placeholders, in en key order
  *   pnpm check --fix --dry-run  # Preview fixes without writing files
  */
 
@@ -38,6 +38,7 @@ interface CheckResult {
 interface FixResult {
   filesCreated: string[];
   keysAdded: { file: string; count: number }[];
+  filesReordered: string[];
 }
 
 function getAllKeys(obj: TranslationObject, prefix = ''): string[] {
@@ -94,20 +95,85 @@ function setValueAtPath(
   current[parts[parts.length - 1]] = value;
 }
 
-function sortObjectKeys(obj: TranslationObject): TranslationObject {
-  const sorted: TranslationObject = {};
-  const keys = Object.keys(obj).sort();
-
-  for (const key of keys) {
+/**
+ * Crowdin exports every locale in the en file's key order (plural groups last, see
+ * withLocalePlurals), so writing any other order
+ * turns each sync into a rewrite of the whole file. Keys en lacks stay after the rest.
+ */
+function orderLikeBase(obj: TranslationObject, base: TranslationObject): TranslationObject {
+  const ordered: TranslationObject = {};
+  const place = (key: string) => {
     const value = obj[key];
-    if (typeof value === 'object' && value !== null) {
-      sorted[key] = sortObjectKeys(value as TranslationObject);
-    } else {
-      sorted[key] = value;
-    }
+    const baseValue = base[key];
+    ordered[key] =
+      typeof value === 'object' && value !== null
+        ? orderLikeBase(value, typeof baseValue === 'object' && baseValue !== null ? baseValue : {})
+        : value;
+  };
+
+  for (const key of Object.keys(base)) {
+    if (key in obj) place(key);
+  }
+  for (const key of Object.keys(obj)) {
+    if (!(key in ordered)) place(key);
   }
 
-  return sorted;
+  return ordered;
+}
+
+const PLURAL_KEY = /^(.*)_(zero|one|two|few|many|other)$/;
+const PLURAL_ORDER = ['zero', 'one', 'two', 'few', 'many', 'other'];
+
+/**
+ * Crowdin's i18next export writes each plural group with the target language's own
+ * categories in CLDR order (pl gets `_few` and `_many`, ja has no `_one`), and puts every
+ * plural group after the object's other keys. Laying en out the same way keeps those
+ * from reading as missing or extra keys and keeps --fix from reordering Crowdin's output.
+ */
+function withLocalePlurals(base: TranslationObject, lang: string): TranslationObject {
+  const categories = new Intl.PluralRules(lang).resolvedOptions().pluralCategories as string[];
+
+  const expand = (node: TranslationObject): TranslationObject => {
+    const out: TranslationObject = {};
+    const groups: TranslationObject = {};
+    const stems = new Set<string>();
+    for (const [key, value] of Object.entries(node)) {
+      if (typeof value === 'object') {
+        out[key] = expand(value);
+        continue;
+      }
+      const stem = PLURAL_KEY.exec(key)?.[1];
+      const other = stem === undefined ? undefined : node[`${stem}_other`];
+      if (stem === undefined || typeof other !== 'string') {
+        out[key] = value;
+        continue;
+      }
+      if (stems.has(stem)) continue;
+      stems.add(stem);
+      for (const category of PLURAL_ORDER) {
+        if (category !== 'other' && !categories.includes(category)) continue;
+        const own = node[`${stem}_${category}`];
+        groups[`${stem}_${category}`] = typeof own === 'string' ? own : other;
+      }
+    }
+    return { ...out, ...groups };
+  };
+
+  return expand(base);
+}
+
+/**
+ * Only `_other` is required of a plural group. Crowdin's plural rules can lag the
+ * runtime's (fr has a `many` form in current CLDR that Crowdin does not export), and
+ * the runtime fills any missing form from `_other`.
+ */
+function isOptionalPluralForm(key: string, keys: Set<string>): boolean {
+  const match = PLURAL_KEY.exec(key);
+  return match !== null && match[2] !== 'other' && keys.has(`${match[1]}_other`);
+}
+
+function serialize(translations: TranslationObject, base: TranslationObject): string {
+  return JSON.stringify(orderLikeBase(translations, base), null, 2) + '\n';
 }
 
 function getLanguages(): string[] {
@@ -148,10 +214,8 @@ function loadTranslations(lang: string, namespace: string): TranslationObject | 
   }
 }
 
-function saveTranslations(lang: string, namespace: string, translations: TranslationObject): void {
-  const filePath = path.join(LOCALES_DIR, lang, `${namespace}.json`);
-  const content = JSON.stringify(sortObjectKeys(translations), null, 2) + '\n';
-  fs.writeFileSync(filePath, content, 'utf-8');
+function saveTranslations(lang: string, namespace: string, content: string): void {
+  fs.writeFileSync(path.join(LOCALES_DIR, lang, `${namespace}.json`), content, 'utf-8');
 }
 
 function checkLanguage(targetLang: string, strict: boolean): CheckResult {
@@ -173,29 +237,30 @@ function checkLanguage(targetLang: string, strict: boolean): CheckResult {
       continue;
     }
 
-    const baseTranslations = loadTranslations(BASE_LANG, namespace);
+    const sourceTranslations = loadTranslations(BASE_LANG, namespace);
     const targetTranslations = loadTranslations(targetLang, namespace);
 
-    if (!baseTranslations || !targetTranslations) continue;
+    if (!sourceTranslations || !targetTranslations) continue;
 
-    const baseKeys = getAllKeys(baseTranslations);
+    const baseKeys = getAllKeys(withLocalePlurals(sourceTranslations, targetLang));
     const targetKeySet = new Set(getAllKeys(targetTranslations));
+    const baseKeySet = new Set(baseKeys);
+    const requiredKeys = baseKeys.filter((key) => !isOptionalPluralForm(key, baseKeySet));
 
-    for (const key of baseKeys) {
+    for (const key of requiredKeys) {
       result.total++;
       const value = getValueAtPath(targetTranslations, key);
       if (typeof value === 'string' && value !== '') result.translated++;
     }
 
     // Find missing keys (O(n) with Set)
-    const missingKeys = baseKeys.filter((key) => !targetKeySet.has(key));
+    const missingKeys = requiredKeys.filter((key) => !targetKeySet.has(key));
     if (missingKeys.length > 0) {
       result.missingKeys.push({ file: `${namespace}.json`, keys: missingKeys });
     }
 
     // Find extra keys (only in strict mode)
     if (strict) {
-      const baseKeySet = new Set(baseKeys);
       const extraKeys = [...targetKeySet].filter((key) => !baseKeySet.has(key));
       if (extraKeys.length > 0) {
         result.extraKeys.push({ file: `${namespace}.json`, keys: extraKeys });
@@ -223,6 +288,7 @@ function fixLanguage(targetLang: string, dryRun: boolean): FixResult {
   const result: FixResult = {
     filesCreated: [],
     keysAdded: [],
+    filesReordered: [],
   };
 
   const baseNamespaces = getNamespaceFiles(BASE_LANG);
@@ -235,8 +301,9 @@ function fixLanguage(targetLang: string, dryRun: boolean): FixResult {
   }
 
   for (const namespace of baseNamespaces) {
-    const baseTranslations = loadTranslations(BASE_LANG, namespace);
-    if (!baseTranslations) continue;
+    const sourceTranslations = loadTranslations(BASE_LANG, namespace);
+    if (!sourceTranslations) continue;
+    const baseTranslations = withLocalePlurals(sourceTranslations, targetLang);
 
     let targetTranslations = loadTranslations(targetLang, namespace);
     const isNewFile = !targetNamespaces.has(namespace);
@@ -253,8 +320,11 @@ function fixLanguage(targetLang: string, dryRun: boolean): FixResult {
     } else if (targetTranslations) {
       // Add missing keys to existing file
       const baseKeys = getAllKeys(baseTranslations);
+      const baseKeySet = new Set(baseKeys);
       const targetKeySet = new Set(getAllKeys(targetTranslations));
-      const missingKeys = baseKeys.filter((key) => !targetKeySet.has(key));
+      const missingKeys = baseKeys.filter(
+        (key) => !targetKeySet.has(key) && !isOptionalPluralForm(key, baseKeySet)
+      );
 
       if (missingKeys.length > 0) {
         for (const key of missingKeys) {
@@ -269,12 +339,22 @@ function fixLanguage(targetLang: string, dryRun: boolean): FixResult {
       }
     }
 
-    if (
-      targetTranslations &&
-      (isNewFile || result.keysAdded.some((k) => k.file === `${namespace}.json`))
-    ) {
-      if (!dryRun) {
-        saveTranslations(targetLang, namespace, targetTranslations);
+    if (targetTranslations) {
+      const file = `${namespace}.json`;
+      const keysAdded = isNewFile || result.keysAdded.some((k) => k.file === file);
+      const current = isNewFile
+        ? null
+        : fs.readFileSync(path.join(LOCALES_DIR, targetLang, file), 'utf-8');
+      // Crowdin's i18next export ends files without a newline; match whatever is there.
+      const serialized = serialize(targetTranslations, baseTranslations);
+      const content =
+        current !== null && !current.endsWith('\n') ? serialized.trimEnd() : serialized;
+
+      if (keysAdded || content !== current) {
+        if (!keysAdded) result.filesReordered.push(file);
+        if (!dryRun) {
+          saveTranslations(targetLang, namespace, content);
+        }
       }
     }
   }
@@ -282,7 +362,7 @@ function fixLanguage(targetLang: string, dryRun: boolean): FixResult {
   return result;
 }
 
-function printResult(lang: string, result: CheckResult): boolean {
+function printResult(result: CheckResult): boolean {
   let hasIssues = false;
 
   if (result.missingFiles.length > 0) {
@@ -317,7 +397,7 @@ function printResult(lang: string, result: CheckResult): boolean {
   return hasIssues;
 }
 
-function printFixResult(lang: string, result: FixResult, dryRun: boolean): void {
+function printFixResult(result: FixResult, dryRun: boolean): void {
   const prefix = dryRun ? '(dry-run) ' : '';
 
   if (result.filesCreated.length > 0) {
@@ -334,7 +414,18 @@ function printFixResult(lang: string, result: FixResult, dryRun: boolean): void 
     }
   }
 
-  if (result.filesCreated.length === 0 && result.keysAdded.length === 0) {
+  if (result.filesReordered.length > 0) {
+    console.log(`\n  ${prefix}Reordered to match ${BASE_LANG}:`);
+    for (const file of result.filesReordered) {
+      console.log(`    ~ ${file}`);
+    }
+  }
+
+  if (
+    result.filesCreated.length === 0 &&
+    result.keysAdded.length === 0 &&
+    result.filesReordered.length === 0
+  ) {
     console.log(`\n  Nothing to fix - all translations complete!`);
   }
 }
@@ -379,19 +470,21 @@ function main() {
       console.log('='.repeat(50));
 
       const result = fixLanguage(lang, dryRun);
-      printFixResult(lang, result, dryRun);
+      printFixResult(result, dryRun);
 
       totalFixed +=
-        result.filesCreated.length + result.keysAdded.reduce((sum, { count }) => sum + count, 0);
+        result.filesCreated.length +
+        result.filesReordered.length +
+        result.keysAdded.reduce((sum, { count }) => sum + count, 0);
     }
 
     console.log(`\n${'='.repeat(50)}`);
     if (totalFixed > 0) {
       if (dryRun) {
-        console.log(`\x1b[33mWould fix ${totalFixed} missing translation(s)\x1b[0m`);
+        console.log(`\x1b[33mWould apply ${totalFixed} fix(es)\x1b[0m`);
         console.log(`Run without --dry-run to apply changes`);
       } else {
-        console.log(`\x1b[32mFixed ${totalFixed} missing translation(s)\x1b[0m`);
+        console.log(`\x1b[32mApplied ${totalFixed} fix(es)\x1b[0m`);
       }
     } else {
       console.log(`\x1b[32mAll translations were already complete!\x1b[0m`);
@@ -420,7 +513,7 @@ function main() {
     console.log('='.repeat(50));
 
     const result = checkLanguage(lang, strict);
-    const hasIssues = printResult(lang, result);
+    const hasIssues = printResult(result);
 
     const missingCount =
       result.missingFiles.length +

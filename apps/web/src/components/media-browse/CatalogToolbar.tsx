@@ -1,8 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Search, SlidersHorizontal, X } from 'lucide-react';
-import type { GenreRow, LibraryOption, WatchedState } from '@tracearr/shared';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import {
+  RESOLUTION_LABELS,
+  formatMediaTech,
+  type GenreRow,
+  type LibraryOption,
+  type WatchedState,
+} from '@tracearr/shared';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -24,9 +29,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { MediaTypeToggle } from '@/components/media-browse/MediaTypeToggle';
 import { stableSerialize, type CatalogSort } from '@/hooks/queries';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { formatBytes } from '@/lib/formatters';
+import { liveFirst } from '@/lib/servers';
 import { cn } from '@/lib/utils';
 
 export type { CatalogSort };
@@ -41,13 +48,37 @@ export interface PersistedGridFilters {
   /** `${serverId}:${libraryId}` - a library id is only unique within its server. */
   libraryKey?: string;
   hdr?: boolean;
+  atmos?: boolean;
   sizeGbMin?: number;
   sizeGbMax?: number;
+  /** Codec display names as the Quality page charts show them ('HEVC', 'EAC3'). */
+  videoCodec?: string;
+  audioCodec?: string;
+  /** Channel layout as the charts name it ('Stereo', '5.1'). */
+  audioChannels?: string;
   sort: CatalogSort;
 }
 
 export const DEFAULT_GRID_FILTERS: PersistedGridFilters = { sort: 'title' };
-export const RESOLUTION_OPTIONS = ['4K', '1080p', '720p', 'SD'] as const;
+
+export function activeFilterCount(filters: PersistedGridFilters): number {
+  return [
+    filters.watched,
+    filters.resolution,
+    filters.genre,
+    filters.yearFrom,
+    filters.yearTo,
+    filters.serverId,
+    filters.libraryKey,
+    filters.hdr,
+    filters.atmos,
+    filters.sizeGbMin,
+    filters.sizeGbMax,
+    filters.videoCodec,
+    filters.audioCodec,
+    filters.audioChannels,
+  ].filter((value) => value !== undefined).length;
+}
 const SORT_OPTIONS: CatalogSort[] = ['title', 'added', 'year', 'plays', 'watch_time', 'viewers'];
 const WATCHED_OPTIONS: WatchedState[] = ['unwatched', 'partial', 'watched'];
 
@@ -147,6 +178,40 @@ function parseSizeGbInput(raw: string): number | undefined {
   return Math.min(value, SIZE_GB_MAX);
 }
 
+interface CodecSelectProps {
+  label: string;
+  allLabel: string;
+  value: string | undefined;
+  options: string[];
+  onChange: (value: string | undefined) => void;
+}
+
+function CodecSelect({ label, allLabel, value, options, onChange }: CodecSelectProps) {
+  // A codec arriving from a Quality page link may be absent from this type's list; keep it selectable.
+  const items = value && !options.includes(value) ? [value, ...options] : options;
+  return (
+    <div className="space-y-1.5">
+      <span className="text-muted-foreground block text-xs">{label}</span>
+      <Select
+        value={value ?? ALL_SENTINEL}
+        onValueChange={(next) => onChange(next === ALL_SENTINEL ? undefined : next)}
+      >
+        <SelectTrigger aria-label={label}>
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={ALL_SENTINEL}>{allLabel}</SelectItem>
+          {items.map((codec) => (
+            <SelectItem key={codec} value={codec}>
+              {formatMediaTech(codec)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
 interface FilterChipProps {
   label: string;
   removeLabel: string;
@@ -177,8 +242,11 @@ interface CatalogToolbarProps {
   filters: PersistedGridFilters;
   onFiltersChange: (next: PersistedGridFilters) => void;
   genres: GenreRow[];
-  servers: { id: string; name: string }[];
+  servers: { id: string; name: string; historicalAt?: string | null }[];
   libraries: LibraryOption[];
+  videoCodecs: string[];
+  audioCodecs: string[];
+  audioChannelOptions: string[];
   totalItems: number | undefined;
   totalFileSize: number | undefined;
   /** The letter-scrubber Select, rendered inside the mobile filter Sheet only. */
@@ -196,12 +264,15 @@ export function CatalogToolbar({
   genres,
   servers,
   libraries,
+  videoCodecs,
+  audioCodecs,
+  audioChannelOptions,
   totalItems,
   totalFileSize,
   mobileScrubber,
   className,
 }: CatalogToolbarProps) {
-  const { t } = useTranslation('pages');
+  const { t } = useTranslation(['pages', 'common']);
   const isMobile = useIsMobile();
   const [searchInput, setSearchInput] = useState(search);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -309,18 +380,7 @@ export function CatalogToolbar({
   const showLibraryGroups = librariesByServer.size > 1;
   const selectedLibrary = gridLibraries.find((lib) => libraryKeyFor(lib) === filters.libraryKey);
 
-  const activeFilterCount = [
-    filters.watched,
-    filters.resolution,
-    filters.genre,
-    filters.yearFrom,
-    filters.yearTo,
-    filters.serverId,
-    filters.libraryKey,
-    filters.hdr,
-    filters.sizeGbMin,
-    filters.sizeGbMax,
-  ].filter((v) => v !== undefined).length;
+  const filterCount = activeFilterCount(filters);
 
   const chips = useMemo(() => {
     const list: { key: string; label: string; onRemove: () => void }[] = [];
@@ -379,6 +439,34 @@ export function CatalogToolbar({
         key: 'hdr',
         label: t('media.grid.toolbar.hdrChip'),
         onRemove: () => onFiltersChange({ ...filters, hdr: undefined }),
+      });
+    }
+    if (filters.atmos) {
+      list.push({
+        key: 'atmos',
+        label: t('media.grid.toolbar.atmosChip'),
+        onRemove: () => onFiltersChange({ ...filters, atmos: undefined }),
+      });
+    }
+    if (filters.videoCodec) {
+      list.push({
+        key: 'videoCodec',
+        label: formatMediaTech(filters.videoCodec),
+        onRemove: () => onFiltersChange({ ...filters, videoCodec: undefined }),
+      });
+    }
+    if (filters.audioCodec) {
+      list.push({
+        key: 'audioCodec',
+        label: formatMediaTech(filters.audioCodec),
+        onRemove: () => onFiltersChange({ ...filters, audioCodec: undefined }),
+      });
+    }
+    if (filters.audioChannels) {
+      list.push({
+        key: 'audioChannels',
+        label: formatMediaTech(filters.audioChannels),
+        onRemove: () => onFiltersChange({ ...filters, audioChannels: undefined }),
       });
     }
     if (filters.sizeGbMin !== undefined || filters.sizeGbMax !== undefined) {
@@ -455,7 +543,7 @@ export function CatalogToolbar({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL_SENTINEL}>{t('media.grid.toolbar.resolutionAll')}</SelectItem>
-            {RESOLUTION_OPTIONS.map((resolution) => (
+            {RESOLUTION_LABELS.map((resolution) => (
               <SelectItem key={resolution} value={resolution}>
                 {resolution}
               </SelectItem>
@@ -463,6 +551,14 @@ export function CatalogToolbar({
           </SelectContent>
         </Select>
       </div>
+
+      <CodecSelect
+        label={t('media.grid.toolbar.videoCodecLabel')}
+        allLabel={t('media.grid.toolbar.videoCodecAll')}
+        value={filters.videoCodec}
+        options={videoCodecs}
+        onChange={(videoCodec) => onFiltersChange({ ...filters, videoCodec })}
+      />
 
       <div className="space-y-1.5">
         <span className="text-muted-foreground block text-xs">
@@ -480,6 +576,42 @@ export function CatalogToolbar({
           <SelectContent>
             <SelectItem value={ALL_SENTINEL}>{t('media.grid.toolbar.hdrAll')}</SelectItem>
             <SelectItem value="hdr">{t('media.grid.toolbar.hdrOnly')}</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <CodecSelect
+        label={t('media.grid.toolbar.audioCodecLabel')}
+        allLabel={t('media.grid.toolbar.audioCodecAll')}
+        value={filters.audioCodec}
+        options={audioCodecs}
+        onChange={(audioCodec) => onFiltersChange({ ...filters, audioCodec })}
+      />
+
+      <CodecSelect
+        label={t('media.grid.toolbar.audioChannelsLabel')}
+        allLabel={t('media.grid.toolbar.audioChannelsAll')}
+        value={filters.audioChannels}
+        options={audioChannelOptions}
+        onChange={(audioChannels) => onFiltersChange({ ...filters, audioChannels })}
+      />
+
+      <div className="space-y-1.5">
+        <span className="text-muted-foreground block text-xs">
+          {t('media.grid.toolbar.atmosLabel')}
+        </span>
+        <Select
+          value={filters.atmos ? 'atmos' : ALL_SENTINEL}
+          onValueChange={(value) =>
+            onFiltersChange({ ...filters, atmos: value === 'atmos' ? true : undefined })
+          }
+        >
+          <SelectTrigger aria-label={t('media.grid.toolbar.atmosLabel')}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_SENTINEL}>{t('media.grid.toolbar.atmosAll')}</SelectItem>
+            <SelectItem value="atmos">{t('media.grid.toolbar.atmosOnly')}</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -555,9 +687,14 @@ export function CatalogToolbar({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL_SENTINEL}>{t('media.grid.toolbar.serverAll')}</SelectItem>
-            {servers.map((server) => (
+            {liveFirst(servers).map((server) => (
               <SelectItem key={server.id} value={server.id}>
                 {server.name}
+                {server.historicalAt && (
+                  <Badge variant="outline" className="ml-auto">
+                    {t('common:serverSelector.historical')}
+                  </Badge>
+                )}
               </SelectItem>
             ))}
           </SelectContent>
@@ -650,9 +787,9 @@ export function CatalogToolbar({
     <Button variant="outline" size="sm" className="h-9 gap-1.5">
       <SlidersHorizontal className="h-3.5 w-3.5" />
       {t('media.grid.toolbar.filtersLabel')}
-      {activeFilterCount > 0 && (
+      {filterCount > 0 && (
         <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-[10px]">
-          {activeFilterCount}
+          {filterCount}
         </Badge>
       )}
     </Button>
@@ -667,28 +804,7 @@ export function CatalogToolbar({
       aria-label={t('media.grid.toolbar.ariaLabel')}
     >
       <div className="flex flex-wrap items-center gap-2.5">
-        <ToggleGroup
-          type="single"
-          value={type}
-          onValueChange={(value) => value && onTypeChange(value as 'movie' | 'show')}
-          variant="outline"
-          aria-label={t('media.grid.toolbar.typeLabel')}
-        >
-          <ToggleGroupItem
-            value="movie"
-            aria-label={t('media.grid.toolbar.moviesToggle')}
-            className="data-[state=on]:bg-primary/15 data-[state=on]:text-primary"
-          >
-            {t('media.grid.toolbar.moviesToggle')}
-          </ToggleGroupItem>
-          <ToggleGroupItem
-            value="show"
-            aria-label={t('media.grid.toolbar.showsToggle')}
-            className="data-[state=on]:bg-primary/15 data-[state=on]:text-primary"
-          >
-            {t('media.grid.toolbar.showsToggle')}
-          </ToggleGroupItem>
-        </ToggleGroup>
+        <MediaTypeToggle value={type} onChange={onTypeChange} />
 
         <div className="relative max-w-[240px] min-w-[160px] flex-1">
           <Search className="text-muted-foreground absolute top-1/2 left-2.5 h-4 w-4 -translate-y-1/2" />
@@ -760,7 +876,7 @@ export function CatalogToolbar({
             <FilterChip
               key={chip.key}
               label={chip.label}
-              removeLabel={t('media.grid.toolbar.removeFilter', { label: chip.label })}
+              removeLabel={t('common:filters.remove', { label: chip.label })}
               onRemove={chip.onRemove}
             />
           ))}

@@ -4,18 +4,22 @@
  */
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Film,
   Tv,
   Music,
   Radio,
+  Clapperboard,
   MonitorPlay,
+  Subtitles,
   Zap,
   X,
   Search,
   ListFilter,
   User,
   Globe,
+  Wifi,
   Monitor,
   ChevronDown,
   Columns3,
@@ -39,7 +43,12 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { TimeRangePicker, type TimeRangeValue } from '@/components/ui/time-range-picker';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { HistoryFilters } from '@/hooks/queries/useHistory';
-import type { HistoryFilterOptions } from '@tracearr/shared';
+import { PLAYBACK_DECISION_ICONS } from '@/lib/playbackBadge';
+import {
+  PLAYBACK_DECISIONS,
+  PLAYBACK_DECISION_LABEL_KEYS,
+  type HistoryFilterOptions,
+} from '@tracearr/shared';
 
 // Column definitions for visibility toggle
 export const HISTORY_COLUMNS = [
@@ -163,6 +172,7 @@ export function HistoryFiltersBar({
   onColumnVisibilityChange,
   isMultiServer = false,
 }: Props) {
+  const { t } = useTranslation();
   const [searchInput, setSearchInput] = useState(filters.search ?? '');
 
   // Sync search input with filters
@@ -240,6 +250,7 @@ export function HistoryFiltersBar({
         episode: 'TV Shows',
         track: 'Music',
         live: 'Live TV',
+        trailer: 'Trailers',
       };
       const typeLabels = filters.mediaTypes.map((t) => labels[t] || t);
       active.push({
@@ -250,12 +261,9 @@ export function HistoryFiltersBar({
       });
     }
     if (filters.transcodeDecisions?.length) {
-      const labels = {
-        directplay: 'Direct Play',
-        copy: 'Direct Stream',
-        transcode: 'Transcode',
-      };
-      const decisionLabels = filters.transcodeDecisions.map((d) => labels[d]);
+      const decisionLabels = filters.transcodeDecisions.map((d) =>
+        t(PLAYBACK_DECISION_LABEL_KEYS[d])
+      );
       active.push({
         key: 'transcodeDecisions',
         label: 'Quality',
@@ -266,9 +274,25 @@ export function HistoryFiltersBar({
         icon: filters.transcodeDecisions.includes('transcode') ? Zap : MonitorPlay,
       });
     }
+    if (filters.subtitleBurnIn) {
+      active.push({
+        key: 'subtitleBurnIn',
+        label: 'Quality',
+        value: t('playback.burnIn'),
+        icon: Subtitles,
+      });
+    }
+    if (filters.network) {
+      active.push({
+        key: 'network',
+        label: 'Network',
+        value: filters.network === 'local' ? 'Local' : 'Remote',
+        icon: filters.network === 'local' ? Wifi : Globe,
+      });
+    }
 
     return active;
-  }, [filters, filterOptions?.users]);
+  }, [filters, filterOptions?.users, t]);
 
   // Debounced search effect
   useEffect(() => {
@@ -548,6 +572,7 @@ export function HistoryFiltersBar({
               { value: 'episode' as const, label: 'TV Shows', icon: Tv },
               { value: 'track' as const, label: 'Music', icon: Music },
               { value: 'live' as const, label: 'Live TV', icon: Radio },
+              { value: 'trailer' as const, label: 'Trailers', icon: Clapperboard },
             ].map(({ value, label, icon: Icon }) => {
               const isSelected = filters.mediaTypes?.includes(value) ?? false;
               return (
@@ -583,11 +608,9 @@ export function HistoryFiltersBar({
                 </Badge>
               ) : null}
             </DropdownMenuLabel>
-            {[
-              { value: 'directplay' as const, label: 'Direct Play', icon: MonitorPlay },
-              { value: 'copy' as const, label: 'Direct Stream', icon: MonitorPlay },
-              { value: 'transcode' as const, label: 'Transcode', icon: Zap },
-            ].map(({ value, label, icon: Icon }) => {
+            {PLAYBACK_DECISIONS.map((value) => {
+              const Icon = PLAYBACK_DECISION_ICONS[value];
+              const label = t(PLAYBACK_DECISION_LABEL_KEYS[value]);
               const isSelected = filters.transcodeDecisions?.includes(value) ?? false;
               return (
                 <DropdownMenuCheckboxItem
@@ -610,6 +633,37 @@ export function HistoryFiltersBar({
                 </DropdownMenuCheckboxItem>
               );
             })}
+            <DropdownMenuCheckboxItem
+              checked={filters.subtitleBurnIn === true}
+              onCheckedChange={(checked) =>
+                onFiltersChange({ ...filters, subtitleBurnIn: checked ? true : undefined })
+              }
+              onSelect={(e) => e.preventDefault()}
+            >
+              <Subtitles className="mr-2 h-4 w-4" />
+              {t('playback.burnIn')}
+            </DropdownMenuCheckboxItem>
+
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Network</DropdownMenuLabel>
+            {(['local', 'remote'] as const).map((value) => (
+              <DropdownMenuCheckboxItem
+                key={value}
+                checked={filters.network === value}
+                onCheckedChange={(checked) => {
+                  const { network: _, ...rest } = filters;
+                  onFiltersChange(checked ? { ...rest, network: value } : rest);
+                }}
+                onSelect={(e) => e.preventDefault()}
+              >
+                {value === 'local' ? (
+                  <Wifi className="mr-2 h-4 w-4" />
+                ) : (
+                  <Globe className="mr-2 h-4 w-4" />
+                )}
+                {value === 'local' ? 'Local' : 'Remote'}
+              </DropdownMenuCheckboxItem>
+            ))}
 
             {/* Clear all button */}
             {hasActiveFilters && (

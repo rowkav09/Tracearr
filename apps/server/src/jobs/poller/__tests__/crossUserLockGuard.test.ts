@@ -57,6 +57,11 @@ vi.mock('../../../services/plexGeoip.js', () => ({
   lookupGeoIP: vi.fn().mockResolvedValue({ city: null, country: null }),
 }));
 
+vi.mock('../../../services/serverLocations.js', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  resolveSessionGeo: vi.fn().mockResolvedValue({ city: null, country: null, isLocal: true }),
+}));
+
 vi.mock('../../../services/serviceTracker.js', () => ({
   registerService: vi.fn(),
   unregisterService: vi.fn(),
@@ -165,6 +170,7 @@ function createMockProcessedSession(overrides: Partial<ProcessedSession> = {}): 
     audioDecision: 'directplay',
     bitrate: 20000,
     state: 'playing',
+    buffering: false,
     totalDurationMs: 7200000,
     progressMs: 0,
     sourceVideoCodec: 'hevc',

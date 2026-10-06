@@ -1,7 +1,6 @@
 {
   "pair": {
     "welcome": "Velkommen til Tracearr",
-    "addServer": "Tilføj Server",
     "connectToServer": "Opret forbindelse til server",
     "enterServerDetails": "Indtast din Tracearr server URL og mobil adgangstoken",
     "serverUrl": "",
@@ -16,10 +15,7 @@
     "pleaseEnterToken": ""
   },
   "errors": {
-    "missingFields": "Manglende Felter",
-    "pleaseEnterBothFields": "Indtast venligst både server URL og token",
     "invalidUrl": "Ugyldig URL",
-    "serverUrlMustStartWith": "Server URL skal starte med http:// eller https://",
     "pleaseEnterValidUrl": "Angiv en gyldig server URL",
     "pairingFailed": "Parring Mislykkedes",
     "unableToPair": "",
@@ -28,12 +24,7 @@
     "invalidQrCodeFormat": "Ugyldig QR kode format. Opret venligst en ny kode.",
     "invalidQrCodeMissingUrl": "Ugyldig QR-kode: manglende server-URL",
     "invalidQrCodeMissingToken": "Ugyldig QR-kode: manglende parringstoken",
-    "invalidServerUrlInQr": "Ugyldig server-URL i QR-kode",
-    "tooManyPairingAttempts": "For mange parringsforsøg. Vent et par minutter.",
-    "invalidOrExpiredToken": "Ugyldigt eller udløbet parringstoken.",
-    "invalidPairingRequest": "Ugyldig parringsanmodning. Tjek dit token.",
     "errorDetails": "",
-    "componentStack": "",
     "connectionLost": "",
     "failedToLoadSession": ""
   },
@@ -63,14 +54,16 @@
     "build": ""
   },
   "navigation": {
-    "home": "",
     "selectServer": "Vælg Server",
-    "server": "",
-    "navigation": ""
+    "server": ""
   },
   "resources": {
     "cpu": "",
-    "ram": ""
+    "ram": "",
+    "item": "",
+    "noData": "",
+    "system": "",
+    "waiting": ""
   },
   "notifications": {
     "testSent": "Test Sendt",
@@ -82,7 +75,6 @@
     "ruleViolationTriggered": "",
     "newPlaybackBegan": "",
     "playbackEnded": "",
-    "exceededStreamLimit": "",
     "newDeviceDetected": "",
     "trustScoreDegraded": "",
     "serverUnreachable": "",
@@ -98,11 +90,19 @@
     "criticalOverrideDescription": "",
     "rateLimitDescription": "",
     "sendTestNotification": "",
-    "testDescription": ""
-  },
-  "dashboard": {
-    "today": "",
-    "hrs": ""
+    "testDescription": "",
+    "pushNotifications": "",
+    "ruleTypes": {
+      "accountInactivity": "",
+      "deviceVelocity": "",
+      "geoRestriction": "",
+      "impossibleTravel": "",
+      "simultaneousLocations": ""
+    },
+    "severityAll": "",
+    "severityHighOnly": "",
+    "severityWarningUp": "",
+    "violationTypes": ""
   },
   "session": {
     "streamTerminated": "",
@@ -113,45 +113,77 @@
     "userMayBeRemoved": "",
     "noLocationsRecorded": "",
     "noDevicesRecorded": "",
-    "moreLocations": "",
-    "moreDevices": "",
     "noViolations": "",
     "noTerminations": "",
-    "trustLow": "",
-    "trustMedium": "",
-    "trustHigh": ""
+    "lastSeen": "",
+    "terminatedBy": "",
+    "trustScoreConfirm": "",
+    "trustScoreRange": "",
+    "moreLocations_one": "",
+    "moreLocations_other": "",
+    "moreDevices_one": "",
+    "moreDevices_other": ""
   },
   "violation": {
     "violationNotFoundDesc": "",
-    "customRule": "",
-    "streamComparison": "",
     "ips": ""
   },
   "alerts": {
-    "done": "",
-    "clearFilters": ""
+    "clearFilters": "",
+    "acknowledgeAll": "",
+    "acknowledgeAllBody": "",
+    "acknowledgeAllBodySeverity": "",
+    "all": "",
+    "allClear": "",
+    "allServers": "",
+    "noAlertsRecorded": "",
+    "noMatches": "",
+    "acknowledgeAllTitle_one": "",
+    "acknowledgeAllTitle_other": "",
+    "pendingCount_one": "",
+    "pendingCount_other": ""
   },
   "history": {
-    "noHistoryFound": "",
     "adjustFilters": "",
-    "historyWillAppear": ""
+    "historyWillAppear": "",
+    "filters": {
+      "clearCount": "",
+      "countries": "",
+      "filterBy": "",
+      "mediaType": "",
+      "noCountries": "",
+      "noPlatforms": "",
+      "noUsers": "",
+      "sectionSelected_one": "",
+      "sectionSelected_other": ""
+    }
   },
   "users": {
     "owner": "",
     "noUsers": "",
     "usersWillAppear": "",
-    "noUsersMatch": ""
+    "noUsersMatch": "",
+    "joinedRelative": "",
+    "sortActive": "",
+    "sortTrust": ""
   },
   "activity": {
-    "playsOverTime": "Spiller Over Tid",
-    "concurrentStreams": "Samtidige Streams",
+    "playsOverTime": "Afspilninger over tid",
+    "concurrentStreams": "",
     "platforms": "Platforme",
     "playbackQuality": ""
   },
   "unauthenticated": {
     "connectionLost": "",
     "accessRevoked": "",
+    "deviceRemoved": "",
+    "expired": "",
     "scanQrCode": ""
+  },
+  "clientTooOld": {
+    "title": "",
+    "body": "",
+    "update": ""
   },
   "serverSelector": {
     "servers": "",
@@ -160,19 +192,77 @@
     "allServers": ""
   },
   "reconnected": "",
-  "actionsExecuted": "",
-  "serverScope": {
-    "single": ""
-  },
   "a11y": {
     "selectServer": "",
     "alerts": "",
-    "alertsCount": "",
     "settings": "",
-    "trustScore": ""
+    "trustScore": "",
+    "decreaseTrustScore": "",
+    "increaseTrustScore": "",
+    "sortAscending": "",
+    "sortDescending": "",
+    "alertsCount_one": "",
+    "alertsCount_other": "",
+    "filtersActive_one": "",
+    "filtersActive_other": ""
   },
   "map": {
     "noData": "",
     "unavailable": ""
+  },
+  "automations": {
+    "editOnWeb": "",
+    "emptyDescription": "",
+    "kind": {
+      "notification": "",
+      "policy": ""
+    },
+    "lastRun": "",
+    "truncated": "",
+    "turnOffFailed": "",
+    "turnOnFailed": "",
+    "unsupportedDescription": "",
+    "unsupportedTitle": "",
+    "versionCheckFailed": "",
+    "conditions_one": "",
+    "conditions_other": ""
+  },
+  "charts": {
+    "weekOf": ""
+  },
+  "push": {
+    "violationTitle": ""
+  },
+  "streamDetails": {
+    "bitrate": "",
+    "channels": "",
+    "codec": "",
+    "color": "",
+    "container": "",
+    "forced": "",
+    "format": "",
+    "framerate": "",
+    "hwDecode": "",
+    "hwEncode": "",
+    "mono": "",
+    "noDetails": "",
+    "notAvailable": "",
+    "profile": "",
+    "sampleRate": "",
+    "source": "",
+    "speed": "",
+    "stereo": "",
+    "stream": "",
+    "subtitles": "",
+    "throttled": "",
+    "transcodeDetails": ""
+  },
+  "widget": {
+    "asOf": "",
+    "signedOut": "",
+    "serversDown_one": "",
+    "serversDown_other": "",
+    "transcodes_one": "",
+    "transcodes_other": ""
   }
 }

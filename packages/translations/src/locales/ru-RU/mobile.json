@@ -1,7 +1,6 @@
 {
   "pair": {
     "welcome": "Добро пожаловать в Tracearr",
-    "addServer": "Добавить сервер",
     "connectToServer": "Подключиться к серверу",
     "enterServerDetails": "Введите URL сервера Tracearr и токен мобильного доступа",
     "serverUrl": "URL сервера",
@@ -16,24 +15,16 @@
     "pleaseEnterToken": ""
   },
   "errors": {
-    "missingFields": "Отсутствуют поля",
-    "pleaseEnterBothFields": "Пожалуйста, введите URL-адрес сервера и токен",
     "invalidUrl": "Неверный URL",
-    "serverUrlMustStartWith": "Адрес сервера должен начинаться с http:// или https://",
     "pleaseEnterValidUrl": "Пожалуйста, введите действительный URL сервера",
-    "pairingFailed": "Не удалось связать",
+    "pairingFailed": "Сопряжение не удалось",
     "unableToPair": "",
     "invalidQrCode": "",
     "invalidQrCodeMissingData": "Неверный QR-код: отсутствуют данные сопряжения",
     "invalidQrCodeFormat": "Неверный формат QR-кода. Пожалуйста, сгенерируйте новый код.",
     "invalidQrCodeMissingUrl": "Неверный QR-код: отсутствует URL сервера",
     "invalidQrCodeMissingToken": "Неверный QR-код: отсутствует код сопряжения",
-    "invalidServerUrlInQr": "Неверный URL сервера в QR-коде",
-    "tooManyPairingAttempts": "Слишком много попыток подключения. Пожалуйста, подождите несколько минут.",
-    "invalidOrExpiredToken": "Недопустимый или просроченный маркер подключения.",
-    "invalidPairingRequest": "Неверный запрос на объединение. Проверьте ваш токен.",
     "errorDetails": "",
-    "componentStack": "",
     "connectionLost": "",
     "failedToLoadSession": ""
   },
@@ -63,14 +54,16 @@
     "build": ""
   },
   "navigation": {
-    "home": "",
     "selectServer": "Выбрать сервер",
-    "server": "Сервер",
-    "navigation": ""
+    "server": "Сервер"
   },
   "resources": {
     "cpu": "ЦП",
-    "ram": ""
+    "ram": "",
+    "item": "",
+    "noData": "",
+    "system": "",
+    "waiting": ""
   },
   "notifications": {
     "testSent": "Тест Отправлено",
@@ -82,7 +75,6 @@
     "ruleViolationTriggered": "",
     "newPlaybackBegan": "",
     "playbackEnded": "",
-    "exceededStreamLimit": "",
     "newDeviceDetected": "",
     "trustScoreDegraded": "",
     "serverUnreachable": "",
@@ -98,11 +90,19 @@
     "criticalOverrideDescription": "",
     "rateLimitDescription": "",
     "sendTestNotification": "",
-    "testDescription": ""
-  },
-  "dashboard": {
-    "today": "",
-    "hrs": ""
+    "testDescription": "",
+    "pushNotifications": "",
+    "ruleTypes": {
+      "accountInactivity": "",
+      "deviceVelocity": "",
+      "geoRestriction": "",
+      "impossibleTravel": "",
+      "simultaneousLocations": ""
+    },
+    "severityAll": "",
+    "severityHighOnly": "",
+    "severityWarningUp": "",
+    "violationTypes": ""
   },
   "session": {
     "streamTerminated": "",
@@ -113,37 +113,72 @@
     "userMayBeRemoved": "",
     "noLocationsRecorded": "",
     "noDevicesRecorded": "",
-    "moreLocations": "",
-    "moreDevices": "",
     "noViolations": "",
     "noTerminations": "",
-    "trustLow": "",
-    "trustMedium": "",
-    "trustHigh": ""
+    "lastSeen": "",
+    "terminatedBy": "",
+    "trustScoreConfirm": "",
+    "trustScoreRange": "",
+    "moreLocations_one": "",
+    "moreLocations_few": "",
+    "moreLocations_many": "",
+    "moreLocations_other": "",
+    "moreDevices_one": "",
+    "moreDevices_few": "",
+    "moreDevices_many": "",
+    "moreDevices_other": ""
   },
   "violation": {
     "violationNotFoundDesc": "",
-    "customRule": "",
-    "streamComparison": "",
     "ips": ""
   },
   "alerts": {
-    "done": "",
-    "clearFilters": ""
+    "clearFilters": "",
+    "acknowledgeAll": "",
+    "acknowledgeAllBody": "",
+    "acknowledgeAllBodySeverity": "",
+    "all": "",
+    "allClear": "",
+    "allServers": "",
+    "noAlertsRecorded": "",
+    "noMatches": "",
+    "acknowledgeAllTitle_one": "",
+    "acknowledgeAllTitle_few": "",
+    "acknowledgeAllTitle_many": "",
+    "acknowledgeAllTitle_other": "",
+    "pendingCount_one": "",
+    "pendingCount_few": "",
+    "pendingCount_many": "",
+    "pendingCount_other": ""
   },
   "history": {
-    "noHistoryFound": "",
     "adjustFilters": "",
-    "historyWillAppear": ""
+    "historyWillAppear": "",
+    "filters": {
+      "clearCount": "",
+      "countries": "",
+      "filterBy": "",
+      "mediaType": "",
+      "noCountries": "",
+      "noPlatforms": "",
+      "noUsers": "",
+      "sectionSelected_one": "",
+      "sectionSelected_few": "",
+      "sectionSelected_many": "",
+      "sectionSelected_other": ""
+    }
   },
   "users": {
     "owner": "",
     "noUsers": "",
     "usersWillAppear": "",
-    "noUsersMatch": ""
+    "noUsersMatch": "",
+    "joinedRelative": "",
+    "sortActive": "",
+    "sortTrust": ""
   },
   "activity": {
-    "playsOverTime": "Воспроизведение со временем",
+    "playsOverTime": "Просмотры с течением времени",
     "concurrentStreams": "Одновременные потоки",
     "platforms": "Платформы",
     "playbackQuality": ""
@@ -151,7 +186,14 @@
   "unauthenticated": {
     "connectionLost": "",
     "accessRevoked": "",
+    "deviceRemoved": "",
+    "expired": "",
     "scanQrCode": ""
+  },
+  "clientTooOld": {
+    "title": "",
+    "body": "",
+    "update": ""
   },
   "serverSelector": {
     "servers": "",
@@ -160,19 +202,87 @@
     "allServers": ""
   },
   "reconnected": "",
-  "actionsExecuted": "",
-  "serverScope": {
-    "single": ""
-  },
   "a11y": {
     "selectServer": "",
     "alerts": "",
-    "alertsCount": "",
     "settings": "",
-    "trustScore": ""
+    "trustScore": "",
+    "decreaseTrustScore": "",
+    "increaseTrustScore": "",
+    "sortAscending": "",
+    "sortDescending": "",
+    "alertsCount_one": "",
+    "alertsCount_few": "",
+    "alertsCount_many": "",
+    "alertsCount_other": "",
+    "filtersActive_one": "",
+    "filtersActive_few": "",
+    "filtersActive_many": "",
+    "filtersActive_other": ""
   },
   "map": {
     "noData": "",
     "unavailable": ""
+  },
+  "automations": {
+    "editOnWeb": "",
+    "emptyDescription": "",
+    "kind": {
+      "notification": "",
+      "policy": ""
+    },
+    "lastRun": "",
+    "truncated": "",
+    "turnOffFailed": "",
+    "turnOnFailed": "",
+    "unsupportedDescription": "",
+    "unsupportedTitle": "",
+    "versionCheckFailed": "",
+    "conditions_one": "",
+    "conditions_few": "",
+    "conditions_many": "",
+    "conditions_other": ""
+  },
+  "charts": {
+    "weekOf": ""
+  },
+  "push": {
+    "violationTitle": ""
+  },
+  "streamDetails": {
+    "bitrate": "",
+    "channels": "",
+    "codec": "",
+    "color": "",
+    "container": "",
+    "forced": "",
+    "format": "",
+    "framerate": "",
+    "hwDecode": "",
+    "hwEncode": "",
+    "mono": "",
+    "noDetails": "",
+    "notAvailable": "",
+    "profile": "",
+    "sampleRate": "",
+    "source": "",
+    "speed": "",
+    "stereo": "",
+    "stream": "",
+    "subtitles": "",
+    "throttled": "",
+    "transcodeDetails": ""
+  },
+  "widget": {
+    "asOf": "",
+    "signedOut": "",
+    "serversDown_one": "",
+    "serversDown_few": "",
+    "serversDown_many": "",
+    "serversDown_other": "",
+    "transcodes_one": "",
+    "transcodes_few": "",
+    "transcodes_many": "",
+    "transcodes_other": ""
   }
 }

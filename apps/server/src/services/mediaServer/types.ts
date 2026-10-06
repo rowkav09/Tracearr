@@ -256,6 +256,8 @@ export interface MediaItemVersion {
   videoDynamicRange?: string;
   audioCodec?: string;
   audioChannels?: number;
+  audioAtmos?: boolean;
+  editionTitle?: string;
   container?: string;
   /** kbps */
   bitrate?: number;
@@ -339,6 +341,9 @@ export interface MediaLibraryItem {
 
   /** MusicBrainz ID (track/album/artist only) */
   musicBrainzId?: string;
+
+  /** Normalized plex://movie/<id> or plex://episode/<id> guid (Plex only, see normalizePlexGuid) */
+  plexGuid?: string | null;
 
   /** Genre names */
   genres?: string[];
@@ -437,9 +442,10 @@ export interface IMediaServerClient {
   readonly serverType: ServerType;
 
   /**
-   * Get all active playback sessions
+   * Get all active playback sessions. sessionKey narrows the result to one
+   * session; Plex filters before its per-transcode metadata fetches.
    */
-  getSessions(): Promise<MediaSession[]>;
+  getSessions(sessionKey?: string): Promise<MediaSession[]>;
 
   /**
    * Get all users with access to this server
@@ -483,7 +489,8 @@ export interface IMediaServerClient {
    * with quality metadata and external IDs when available.
    *
    * @param libraryId - The library identifier
-   * @param options - Pagination options
+   * @param options - Pagination options; libraryType lets the client narrow the
+   *   listing to the item types that library holds
    * @returns Promise with items array and total count for pagination. rawCount, when
    *   present, is the page's item count before any client-side filtering (e.g. extras) -
    *   callers should use it instead of items.length to decide whether pagination is
@@ -495,8 +502,19 @@ export interface IMediaServerClient {
     options?: {
       offset?: number;
       limit?: number;
+      libraryType?: string;
     }
   ): Promise<{ items: MediaLibraryItem[]; totalCount: number; rawCount?: number }>;
+
+  /**
+   * Which of the given rating keys the server still has as items of this
+   * library. Optional - the full scan uses it to confirm that an item missing
+   * from the listing is gone before tombstoning it.
+   */
+  findExistingRatingKeys?(
+    ratingKeys: string[],
+    library: { id: string; type: string }
+  ): Promise<Set<string>>;
 
   /**
    * Get all leaf items (episodes) from a library with pagination support
@@ -529,7 +547,7 @@ export interface IMediaServerClient {
   getLibraryItemsSince?(
     libraryId: string,
     since: Date,
-    options?: { offset?: number; limit?: number }
+    options?: { offset?: number; limit?: number; libraryType?: string }
   ): Promise<{ items: MediaLibraryItem[]; totalCount: number }>;
 
   /**
@@ -575,6 +593,17 @@ export interface IMediaServerClient {
     since: Date,
     options?: { offset?: number; limit?: number }
   ): Promise<{ items: MediaLibraryItem[]; totalCount: number }>;
+
+  /**
+   * Ask the server whether each item's files are still on disk. Plex-only:
+   * its listings keep reporting a file until the library trash is emptied, and
+   * only the metadata endpoint says whether the file is really there. JF/Emby
+   * drop the item instead, so they leave this undefined.
+   *
+   * @param ratingKeys - Server item identifiers to check
+   * @returns Rating key -> version key -> whether the file exists
+   */
+  checkFilesExist?(ratingKeys: string[]): Promise<Map<string, Map<string, boolean>>>;
 }
 
 /**

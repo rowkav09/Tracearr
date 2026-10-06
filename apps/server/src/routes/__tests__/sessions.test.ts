@@ -33,8 +33,13 @@ vi.mock('../../services/cache.js', () => ({
   })),
 }));
 
+vi.mock('../../services/termination.js', () => ({
+  terminateSession: vi.fn(),
+}));
+
 // Import the mocked db and the routes
 import { db } from '../../db/client.js';
+import { terminateSession } from '../../services/termination.js';
 import { sessionRoutes } from '../sessions.js';
 
 /**
@@ -236,6 +241,40 @@ describe('Session Routes', () => {
       });
 
       expect(response.statusCode).toBe(400);
+    });
+  });
+
+  describe('POST /sessions/:id/terminate', () => {
+    it('answers 409 when the stream sits on a historical server', async () => {
+      const owner = createOwnerUser();
+      const app = await buildTestApp(owner);
+      const sessionId = randomUUID();
+      const serverId = owner.serverIds[0] ?? randomUUID();
+      vi.mocked(db.select).mockReturnValue({
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        limit: vi
+          .fn()
+          .mockResolvedValue([
+            { id: sessionId, serverId, serverUserId: randomUUID(), state: 'playing' },
+          ]),
+      } as never);
+      vi.mocked(terminateSession).mockResolvedValue({
+        success: false,
+        terminationLogId: 'log-h',
+        error: 'Server is historical',
+        outcome: 'server_historical',
+      });
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/sessions/${sessionId}/terminate`,
+        payload: { reason: 'test' },
+      });
+
+      expect(response.statusCode).toBe(409);
+      expect(response.json().message).toBe('Resume this server to end its streams');
+      await app.close();
     });
   });
 
@@ -699,6 +738,26 @@ describe('Session Routes', () => {
       expect(query).toContain('s.started_at = gs.started_at');
     });
 
+    it('leaves trailers out when no media type is picked', async () => {
+      app = await buildTestApp(createOwnerUser());
+      mockDb.execute.mockResolvedValueOnce({ rows: [] });
+
+      await app.inject({ method: 'GET', url: '/sessions/history' });
+
+      const { sql: query } = renderSql(mockDb.execute.mock.calls[0][0] as SQL);
+      expect(query).toContain("media_type <> 'trailer'");
+    });
+
+    it('returns trailers when the trailer type is picked', async () => {
+      app = await buildTestApp(createOwnerUser());
+      mockDb.execute.mockResolvedValueOnce({ rows: [] });
+
+      await app.inject({ method: 'GET', url: '/sessions/history?mediaTypes=trailer' });
+
+      const { sql: query } = renderSql(mockDb.execute.mock.calls[0][0] as SQL);
+      expect(query).not.toContain("media_type <> 'trailer'");
+    });
+
     it('returns an empty result in a single query when no plays match', async () => {
       const ownerUser = createOwnerUser();
       app = await buildTestApp(ownerUser);
@@ -870,7 +929,8 @@ describe('Session Routes', () => {
       expect(normalized).toContain(
         'MIN(s.started_at) DESC, COALESCE(s.reference_id, s.id)::text DESC'
       );
-      expect(normalized).toContain('ORDER BY gs.started_at DESC, gs.play_id::text DESC');
+      expect(normalized).toContain('JOIN history_page_ids hp ON hp.play_id = gs.play_id');
+      expect(normalized).toContain('ORDER BY hp.rn');
     });
 
     it('paginates two plays with an identical started_at without duplicating or dropping either', async () => {
@@ -910,6 +970,42 @@ describe('Session Routes', () => {
       expect(page2Params.some((p) => p instanceof Date && p.getTime() === tiedTime.getTime())).toBe(
         true
       );
+    });
+
+    it('filters to local sessions with the shared local definition', async () => {
+      app = await buildTestApp(createOwnerUser());
+      mockDb.execute.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [] });
+
+      await app.inject({ method: 'GET', url: '/sessions/history' });
+      await app.inject({ method: 'GET', url: '/sessions/history?network=local' });
+
+      const queryAt = (call: number) => renderSql(mockDb.execute.mock.calls[call][0] as SQL).sql;
+      const occurrences = (query: string) =>
+        query.split('s.is_local IS TRUE OR (s.is_local IS NULL').length - 1;
+      // The select list carries the fragment too; the filter adds it to both page CTEs.
+      expect(occurrences(queryAt(1)) - occurrences(queryAt(0))).toBe(2);
+      expect(queryAt(1)).not.toContain('NOT (s.is_local');
+    });
+
+    it('filters to remote sessions with the negated local definition', async () => {
+      app = await buildTestApp(createOwnerUser());
+      mockDb.execute.mockResolvedValueOnce({ rows: [] });
+
+      await app.inject({ method: 'GET', url: '/sessions/history?network=remote' });
+
+      const { sql: query } = renderSql(mockDb.execute.mock.calls[0][0] as SQL);
+      expect(query).toContain('NOT (s.is_local IS TRUE');
+    });
+
+    it('returns the flag on each history row', async () => {
+      app = await buildTestApp(createOwnerUser());
+      mockDb.execute.mockResolvedValueOnce({
+        rows: [createMockHistoryRow({ is_local: true, geo_city: 'Chicago', geo_country: 'US' })],
+      });
+
+      const response = await app.inject({ method: 'GET', url: '/sessions/history' });
+
+      expect(JSON.parse(response.body).data[0].isLocal).toBe(true);
     });
   });
 });

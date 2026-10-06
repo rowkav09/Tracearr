@@ -1,6 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -40,10 +47,15 @@ import {
   Activity,
   ListTodo,
   Monitor,
+  CopyMinus,
+  FingerprintPattern,
+  Link2,
+  MapPin,
+  type LucideIcon,
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useSocket } from '@/hooks/useSocket';
-import type { MaintenanceJobProgress } from '@tracearr/shared';
+import type { MaintenanceJobProgress, MaintenanceJobType } from '@tracearr/shared';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import {
@@ -74,6 +86,7 @@ interface JobDefinition {
   name: string;
   description: string;
   options?: JobOption[];
+  destructive?: boolean;
 }
 
 interface JobHistoryItem {
@@ -92,6 +105,7 @@ interface JobHistoryItem {
     durationMs: number;
     message: string;
   };
+  trigger: 'manual' | 'auto';
 }
 
 interface QueueStats {
@@ -103,7 +117,7 @@ interface QueueStats {
 }
 
 // Map job types to icons
-const JOB_ICONS: Record<string, typeof Database> = {
+const JOB_ICONS = {
   normalize_players: Database,
   normalize_countries: Globe,
   normalize_codecs: ArrowUpDown,
@@ -116,7 +130,11 @@ const JOB_ICONS: Record<string, typeof Database> = {
   full_aggregate_rebuild: History,
   cleanup_old_chunks: Trash2,
   repair_corrupted_chunks: Wrench,
-};
+  backfill_session_identity: FingerprintPattern,
+  remove_import_duplicates: CopyMinus,
+  link_imported_history: Link2,
+  sync_server_locations: MapPin,
+} satisfies Partial<Record<MaintenanceJobType, LucideIcon>>;
 
 const CATEGORY_CONFIG = {
   normalization: { icon: CaseSensitive, labelKey: 'jobs.normalization' as const },
@@ -413,7 +431,7 @@ export function Jobs() {
 
           <ItemGroup className="gap-3">
             {filteredJobs.map((job) => {
-              const JobIcon = JOB_ICONS[job.type] || Wrench;
+              const JobIcon = JOB_ICONS[job.type as MaintenanceJobType] || Wrench;
               const isRunning = runningJob === job.type;
 
               return (
@@ -435,7 +453,7 @@ export function Jobs() {
                   </ItemMedia>
                   <ItemContent>
                     <ItemTitle>{job.name}</ItemTitle>
-                    <ItemDescription>{job.description}</ItemDescription>
+                    <ItemDescription className="line-clamp-none">{job.description}</ItemDescription>
                   </ItemContent>
                   <ItemActions>
                     <Button
@@ -468,15 +486,23 @@ export function Jobs() {
                     <div className="w-full space-y-3 border-t pt-4">
                       <div className="flex items-center justify-between text-sm">
                         <span className="text-muted-foreground">{progress.message}</span>
-                        <span className="font-medium tabular-nums">{getProgressPercent()}%</span>
+                        {progress.totalRecords > 0 && (
+                          <span className="font-medium tabular-nums">{getProgressPercent()}%</span>
+                        )}
                       </div>
-                      <Progress value={getProgressPercent()} className="h-1.5" />
+                      {progress.totalRecords > 0 ? (
+                        <Progress value={getProgressPercent()} className="h-1.5" />
+                      ) : (
+                        <Progress value={100} className="h-1.5 animate-pulse" />
+                      )}
                       <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
                         <span className="text-muted-foreground">
                           <span className="text-foreground font-medium">
                             {progress.processedRecords.toLocaleString()}
                           </span>{' '}
-                          / {progress.totalRecords.toLocaleString()} {t('jobs.processed')}
+                          {progress.totalRecords > 0 &&
+                            `/ ${progress.totalRecords.toLocaleString()} `}
+                          {t('jobs.processed')}
                         </span>
                         {progress.updatedRecords > 0 && (
                           <span className="text-muted-foreground">
@@ -543,14 +569,12 @@ export function Jobs() {
       {/* Job History */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                {t('jobs.jobHistory')}
-              </CardTitle>
-              <CardDescription>{t('jobs.jobHistoryDesc')}</CardDescription>
-            </div>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-5 w-5" />
+            {t('jobs.jobHistory')}
+          </CardTitle>
+          <CardDescription>{t('jobs.jobHistoryDesc')}</CardDescription>
+          <CardAction>
             <Button
               variant="ghost"
               size="sm"
@@ -564,7 +588,7 @@ export function Jobs() {
               <RefreshCw className={cn('h-3.5 w-3.5', isLoadingHistory && 'animate-spin')} />
               {t('common:actions.refresh')}
             </Button>
-          </div>
+          </CardAction>
         </CardHeader>
         <CardContent>
           {isLoadingHistory ? (
@@ -601,6 +625,9 @@ export function Jobs() {
                         <Badge variant={isSuccess ? 'success' : 'destructive'}>
                           {isSuccess ? t('common:states.success') : t('common:states.failed')}
                         </Badge>
+                        {item.trigger === 'auto' && (
+                          <Badge variant="secondary">{t('jobs.automatic')}</Badge>
+                        )}
                       </ItemTitle>
                       {item.result && (
                         <ItemDescription className="tabular-nums">
@@ -668,16 +695,27 @@ export function Jobs() {
             </div>
           )}
 
-          <Alert variant="warning">
-            <AlertTriangle />
-            <AlertTitle>{t('jobs.mayTakeAWhile')}</AlertTitle>
-            <AlertDescription>{t('jobs.mayTakeAWhileDesc')}</AlertDescription>
-          </Alert>
+          {confirmJob?.destructive ? (
+            <Alert variant="destructive">
+              <AlertTriangle />
+              <AlertTitle>{t('jobs.deletesData')}</AlertTitle>
+              <AlertDescription>{t('jobs.deletesDataDesc')}</AlertDescription>
+            </Alert>
+          ) : (
+            <Alert variant="warning">
+              <AlertTriangle />
+              <AlertTitle>{t('jobs.mayTakeAWhile')}</AlertTitle>
+              <AlertDescription>{t('jobs.mayTakeAWhileDesc')}</AlertDescription>
+            </Alert>
+          )}
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setConfirmJob(null)}>
               {t('common:actions.cancel')}
             </Button>
-            <Button onClick={() => confirmJob && handleStartJob(confirmJob.type, jobOptions)}>
+            <Button
+              variant={confirmJob?.destructive ? 'destructive' : 'default'}
+              onClick={() => confirmJob && handleStartJob(confirmJob.type, jobOptions)}
+            >
               <Play className="mr-1.5 h-3.5 w-3.5" />
               {t('jobs.startJob')}
             </Button>

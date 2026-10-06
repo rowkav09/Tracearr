@@ -44,6 +44,7 @@ import type {
   MaintenanceJobProgress,
   LibrarySyncProgress,
   NotificationToast,
+  ServerToClientEvents,
 } from '@tracearr/shared';
 
 import authPlugin, { loadJwtRevokeSettings } from './plugins/auth.js';
@@ -52,6 +53,7 @@ import { closeAuth } from './lib/auth.js';
 import { authRoutes } from './routes/auth/index.js';
 import { setupRoutes } from './routes/setup.js';
 import { serverRoutes } from './routes/servers.js';
+import { serverLocationRoutes } from './routes/serverLocations.js';
 import { userRoutes } from './routes/users/index.js';
 import { serverUserRoutes } from './routes/serverUsers.js';
 import { sessionRoutes } from './routes/sessions.js';
@@ -68,9 +70,12 @@ import { debugRoutes } from './routes/debug.js';
 import { mobileRoutes } from './routes/mobile.js';
 import { notificationPreferencesRoutes } from './routes/notificationPreferences.js';
 import { destinationRoutes } from './routes/destinations.js';
+import { requestServiceRoutes } from './routes/requestServices.js';
+import { requestRoutes } from './routes/requests.js';
 import { newsletterRoutes } from './routes/newsletters.js';
 import { emailRoutes } from './routes/email.js';
 import { versionRoutes } from './routes/version.js';
+import { whatsNewRoutes } from './routes/whatsNew.js';
 import { maintenanceRoutes } from './routes/maintenance.js';
 import { mapRoutes } from './routes/map.js';
 import { publicRoutes } from './routes/public.js';
@@ -95,6 +100,7 @@ import { createCacheService, createPubSubService } from './services/cache.js';
 import { initializePoller, startPoller, stopPoller } from './jobs/poller/index.js';
 import { invalidateServersCache } from './jobs/poller/database.js';
 import { sseManager } from './services/sseManager.js';
+import { WidgetSessionTracker } from './services/widgetSessions.js';
 import {
   initializeSSEProcessor,
   startSSEProcessor,
@@ -113,6 +119,7 @@ import {
 import { closeAllTransporters } from './services/notifications/destinations/emailTransport.js';
 import { runAutomationModelMigration } from './services/automations/modelMigration.js';
 import { runSystemEventsMigration } from './services/automations/systemEventsMigration.js';
+import { seedWhatsNewLastSeen } from './services/whatsNew.js';
 import { seedBuiltinTemplates } from './services/automations/templates/seeder.js';
 import { initDestinationCrypto } from './services/notifications/destinationCrypto.js';
 import { invalidateDestinationsCache } from './services/notifications/destinationStore.js';
@@ -126,6 +133,7 @@ import {
   initMaintenanceQueue,
   startMaintenanceWorker,
   shutdownMaintenanceQueue,
+  enqueueServerLocationSyncIfBehind,
 } from './jobs/maintenanceQueue.js';
 import {
   initLibrarySyncQueue,
@@ -150,6 +158,12 @@ import {
   scheduleInactivityChecks,
   shutdownInactivityCheckQueue,
 } from './jobs/inactivityCheckQueue.js';
+import {
+  initRequestSyncQueue,
+  startRequestSyncWorker,
+  scheduleRequestSync,
+  shutdownRequestSyncQueue,
+} from './jobs/requestSyncQueue.js';
 import {
   initBackupQueue,
   startBackupWorker,
@@ -180,7 +194,7 @@ import { startConnectionBudget, stopConnectionBudget } from './services/connecti
 import { initPushRateLimiter } from './services/pushRateLimiter.js';
 import { initializeV2Rules } from './services/automations/v2Integration.js';
 import { rehydratePauseWakes, stopPauseWakes } from './services/automations/wakes/pauseWakes.js';
-import { processPushReceipts } from './services/pushNotification.js';
+import { processPushReceipts, pushNotificationService } from './services/pushNotification.js';
 import { cleanupMobileTokens } from './jobs/cleanupMobileTokens.js';
 import { db, checkDatabaseConnection } from './db/client.js';
 import { runMigrationsGuarded } from './db/migrationRunner.js';
@@ -491,6 +505,7 @@ async function buildApp(options: { trustProxy?: boolean } = {}) {
 
   await app.register(authRoutes, { prefix: `${API_BASE_PATH}/auth` });
   await app.register(serverRoutes, { prefix: `${API_BASE_PATH}/servers` });
+  await app.register(serverLocationRoutes, { prefix: `${API_BASE_PATH}/servers` });
   await app.register(userRoutes, { prefix: `${API_BASE_PATH}/users` });
   await app.register(serverUserRoutes, { prefix: `${API_BASE_PATH}/server-users` });
   await app.register(sessionRoutes, { prefix: `${API_BASE_PATH}/sessions` });
@@ -501,6 +516,8 @@ async function buildApp(options: { trustProxy?: boolean } = {}) {
   await app.register(statsRoutes, { prefix: `${API_BASE_PATH}/stats` });
   await app.register(settingsRoutes, { prefix: `${API_BASE_PATH}/settings` });
   await app.register(destinationRoutes, { prefix: `${API_BASE_PATH}/destinations` });
+  await app.register(requestServiceRoutes, { prefix: `${API_BASE_PATH}/request-services` });
+  await app.register(requestRoutes, { prefix: `${API_BASE_PATH}/requests` });
   await app.register(newsletterRoutes, { prefix: `${API_BASE_PATH}/newsletters` });
   await app.register(emailRoutes, { prefix: `${API_BASE_PATH}/email` });
   await app.register(importRoutes, { prefix: `${API_BASE_PATH}/import` });
@@ -509,6 +526,7 @@ async function buildApp(options: { trustProxy?: boolean } = {}) {
   await app.register(mobileRoutes, { prefix: `${API_BASE_PATH}/mobile` });
   await app.register(notificationPreferencesRoutes, { prefix: `${API_BASE_PATH}/notifications` });
   await app.register(versionRoutes, { prefix: `${API_BASE_PATH}/version` });
+  await app.register(whatsNewRoutes, { prefix: `${API_BASE_PATH}/whats-new` });
   await app.register(maintenanceRoutes, { prefix: `${API_BASE_PATH}/maintenance` });
   await app.register(mapRoutes, { prefix: `${API_BASE_PATH}/map` });
   await app.register(tailscaleRoutes, { prefix: `${API_BASE_PATH}/tailscale` });
@@ -618,6 +636,7 @@ async function buildApp(options: { trustProxy?: boolean } = {}) {
     await shutdownImagePrecacheQueue();
     await shutdownVersionCheckQueue();
     await shutdownInactivityCheckQueue();
+    await shutdownRequestSyncQueue();
     await shutdownBackupQueue();
     await shutdownNewsletterQueues();
     closeAllTransporters();
@@ -863,6 +882,13 @@ async function initializeServices(app: FastifyInstance) {
   // those templates. Unwrapped too, or an install ends up with neither the checkbox nor the rule.
   await runSystemEventsMigration();
 
+  // Wrapped: a failed seed leaves the setting null, which shows nothing and retries next boot.
+  try {
+    await seedWhatsNewLastSeen();
+  } catch (err) {
+    app.log.warn({ err }, "Failed to seed what's-new last-seen version");
+  }
+
   try {
     await sweepDestinationConfigs();
   } catch (err) {
@@ -935,6 +961,11 @@ async function initializeServices(app: FastifyInstance) {
   await initHeavyOpsLock(app.redis);
   app.log.info('Heavy operations lock initialized');
 
+  // Picks up a sync lost to a restart or a busy queue, and the first run after upgrading
+  void enqueueServerLocationSyncIfBehind().catch((err: unknown) => {
+    app.log.error({ err }, 'Failed to check for a pending server location sync');
+  });
+
   // Size the pg pool from the server's real max_connections and the live
   // instance count (no-op when DATABASE_POOL_MAX is set explicitly)
   try {
@@ -993,6 +1024,17 @@ async function initializeServices(app: FastifyInstance) {
   } catch (err) {
     app.log.error({ err }, 'Failed to initialize inactivity check queue');
     // Don't throw - inactivity checks are non-critical
+  }
+
+  try {
+    initRequestSyncQueue(redisUrl);
+    startRequestSyncWorker();
+    scheduleRequestSync().catch((err) => {
+      app.log.error({ err }, 'Failed to schedule request sync');
+    });
+    app.log.info('Request sync queue initialized');
+  } catch (err) {
+    app.log.error({ err }, 'Failed to initialize request sync queue');
   }
 
   // Initialize backup queue (scheduled backups)
@@ -1162,6 +1204,13 @@ async function initializePostListen(app: FastifyInstance) {
     }
   });
 
+  const widgetSessions = new WidgetSessionTracker();
+  const wakeMobileWidgets = () => {
+    pushNotificationService.triggerSessionsSync().catch((err: unknown) => {
+      app.log.error({ err }, 'Silent sessions sync push failed');
+    });
+  };
+
   wsSubscriber.on('message', (_channel: string, message: string) => {
     try {
       const { event, data } = JSON.parse(message) as {
@@ -1174,12 +1223,17 @@ async function initializePostListen(app: FastifyInstance) {
       switch (event) {
         case WS_EVENTS.SESSION_STARTED:
           broadcastToSessions('session:started', data as ActiveSession);
+          widgetSessions.started(data as ActiveSession);
+          wakeMobileWidgets();
           break;
         case WS_EVENTS.SESSION_STOPPED:
           broadcastToSessions('session:stopped', data as string);
+          widgetSessions.stopped(data as string);
+          wakeMobileWidgets();
           break;
         case WS_EVENTS.SESSION_UPDATED:
           broadcastToSessions('session:updated', data as ActiveSession);
+          if (widgetSessions.updated(data as ActiveSession)) wakeMobileWidgets();
           break;
         case WS_EVENTS.VIOLATION_NEW:
           broadcastToSessions('violation:new', data as ViolationWithDetails);
@@ -1218,6 +1272,9 @@ async function initializePostListen(app: FastifyInstance) {
           invalidateDestinationsCache();
           broadcastToSessions('destinations:changed');
           break;
+        case WS_EVENTS.REQUESTS_CHANGED:
+          broadcastToSessions('requests:changed', data as { serviceId: string });
+          break;
         case WS_EVENTS.SERVERS_CHANGED:
           invalidateServersCache();
           broadcastToSessions('servers:changed');
@@ -1226,7 +1283,10 @@ async function initializePostListen(app: FastifyInstance) {
           broadcastToSessions('notification:toast', data as NotificationToast);
           break;
         case WS_EVENTS.SERVER_DOWN:
-          broadcastToSessions('server:down', data as { serverId: string; serverName: string });
+          broadcastToSessions(
+            'server:down',
+            data as Parameters<ServerToClientEvents['server:down']>[0]
+          );
           break;
         case WS_EVENTS.SERVER_UP:
           broadcastToSessions('server:up', data as { serverId: string; serverName: string });

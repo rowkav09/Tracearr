@@ -13,9 +13,15 @@ import {
 } from '@tracearr/shared';
 import { TautulliService } from '../services/tautulli.js';
 import { importJellystatBackup } from '../services/jellystat.js';
+import {
+  readJellystatUpload,
+  removeJellystatUpload,
+  saveJellystatUpload,
+} from '../services/import/jellystatUpload.js';
 import { importPlaybackReporting } from '../services/playbackReporting.js';
 import { getPubSubService } from '../services/cache.js';
 import { syncServer } from '../services/sync.js';
+import { HISTORICAL_IMPORT_MESSAGE } from '../services/liveServers.js';
 import { JellyfinClient, EmbyClient } from '../services/mediaServer/index.js';
 import { db } from '../db/client.js';
 import { servers } from '../db/schema.js';
@@ -63,6 +69,18 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
 
     const { serverId, overwriteFriendlyNames = false, includeStreamDetails = false } = body.data;
 
+    const [server] = await db
+      .select({ historicalAt: servers.historicalAt })
+      .from(servers)
+      .where(eq(servers.id, serverId))
+      .limit(1);
+    if (!server) {
+      return reply.notFound('Server not found');
+    }
+    if (server.historicalAt) {
+      return reply.conflict(HISTORICAL_IMPORT_MESSAGE);
+    }
+
     // Sync server users first to ensure we have all users before importing history
     try {
       app.log.info({ serverId }, 'Syncing server before Tautulli import');
@@ -101,7 +119,6 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
       // Start import in background (non-blocking)
       TautulliService.importHistory(serverId, pubSubService ?? undefined, undefined, {
         overwriteFriendlyNames,
-        skipRefresh: includeStreamDetails, // Skip refresh if enrichment will follow
       })
         .then(async (result) => {
           console.log(`[Import] Tautulli import completed:`, result);
@@ -324,13 +341,15 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
     if (server.type !== 'jellyfin' && server.type !== 'emby') {
       return reply.badRequest('Jellystat import only supports Jellyfin/Emby servers');
     }
-
-    // Read file contents
-    const chunks: Buffer[] = [];
-    for await (const chunk of data.file) {
-      chunks.push(chunk);
+    if (server.historicalAt) {
+      return reply.conflict(HISTORICAL_IMPORT_MESSAGE);
     }
-    const backupJson = Buffer.concat(chunks).toString('utf-8');
+
+    const backupPath = await saveJellystatUpload(data.file);
+    if (data.file.truncated) {
+      await removeJellystatUpload(backupPath);
+      return reply.payloadTooLarge('Backup file is larger than 500 MB');
+    }
 
     // Sync server users first
     try {
@@ -338,6 +357,7 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
       await syncServer(parsed.data.serverId, { syncUsers: true, syncLibraries: false });
       app.log.info({ serverId }, 'Server sync completed');
     } catch (error) {
+      await removeJellystatUpload(backupPath);
       app.log.error({ err: error, serverId }, 'Failed to sync server before import');
       return reply.internalServerError('Failed to sync server users before import');
     }
@@ -347,7 +367,7 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
       const jobId = await enqueueJellystatImport(
         parsed.data.serverId,
         authUser.userId,
-        backupJson,
+        backupPath,
         parsed.data.enrichMedia,
         parsed.data.updateStreamDetails
       );
@@ -360,6 +380,7 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
       };
     } catch (error) {
       if (error instanceof Error && error.message.includes('already in progress')) {
+        await removeJellystatUpload(backupPath);
         return reply.conflict(error.message);
       }
 
@@ -369,18 +390,24 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
       const pubSubService = getPubSubService();
 
       // Start import in background (non-blocking)
-      importJellystatBackup(
-        parsed.data.serverId,
-        backupJson,
-        enrichMedia,
-        pubSubService ?? undefined,
-        { updateStreamDetails: parsed.data.updateStreamDetails }
-      )
+      readJellystatUpload(backupPath)
+        .then((backupJson) =>
+          importJellystatBackup(
+            parsed.data.serverId,
+            backupJson,
+            enrichMedia,
+            pubSubService ?? undefined,
+            { updateStreamDetails: parsed.data.updateStreamDetails }
+          )
+        )
         .then((result) => {
           console.log(`[Import] Jellystat import completed:`, result);
         })
         .catch((err: unknown) => {
           console.error(`[Import] Jellystat import failed:`, err);
+        })
+        .finally(() => {
+          void removeJellystatUpload(backupPath);
         });
 
       return {
@@ -482,6 +509,9 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
     if (server.type !== 'jellyfin' && server.type !== 'emby') {
       return reply.badRequest('Playback Reporting import only supports Jellyfin/Emby servers');
     }
+    if (server.historicalAt) {
+      return reply.conflict(HISTORICAL_IMPORT_MESSAGE);
+    }
 
     try {
       app.log.info({ serverId }, 'Syncing server before Playback Reporting import');
@@ -564,6 +594,9 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
       }
       if (server.type !== 'jellyfin' && server.type !== 'emby') {
         return reply.badRequest('Playback Reporting import only supports Jellyfin/Emby servers');
+      }
+      if (server.historicalAt) {
+        return reply.conflict(HISTORICAL_IMPORT_MESSAGE);
       }
 
       const clientConfig = {

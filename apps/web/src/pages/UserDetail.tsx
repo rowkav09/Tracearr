@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { UserRequestsCard } from '@/components/requests/UserRequestsCard';
 import { TrustScoreBadge } from '@/components/users/TrustScoreBadge';
 import { UserLocationsCard } from '@/components/users/UserLocationsCard';
 import { UserDevicesCard } from '@/components/users/UserDevicesCard';
@@ -207,6 +208,7 @@ export function UserDetail() {
         violationColumn.accessor((violation) => violation.rule.name, {
           id: 'rule.name',
           header: t('common:labels.rule'),
+          enableSorting: false,
           cell: ({ row }) => (
             <div>
               <p className="font-medium">{row.original.rule.name}</p>
@@ -230,12 +232,14 @@ export function UserDetail() {
           : []),
         violationColumn.accessor('severity', {
           header: t('common:labels.severity'),
+          enableSorting: false,
           cell: ({ row }) => (
             <SeverityBadge severity={row.original.severity as 'low' | 'warning' | 'high'} />
           ),
         }),
         violationColumn.accessor('createdAt', {
           header: t('common:labels.when'),
+          enableSorting: false,
           cell: ({ row }) => (
             <span className="text-muted-foreground text-sm">
               {formatDistanceToNow(new Date(row.original.createdAt), { addSuffix: true })}
@@ -244,6 +248,7 @@ export function UserDetail() {
         }),
         violationColumn.accessor('acknowledgedAt', {
           header: t('common:labels.status'),
+          enableSorting: false,
           cell: ({ row }) => (
             <span
               className={
@@ -267,6 +272,7 @@ export function UserDetail() {
       terminationColumn.columns([
         terminationColumn.accessor('trigger', {
           header: t('common:labels.type'),
+          enableSorting: false,
           cell: ({ row }) => (
             <Badge variant={row.original.trigger === 'manual' ? 'default' : 'secondary'}>
               {row.original.trigger === 'manual' ? (
@@ -285,6 +291,7 @@ export function UserDetail() {
         }),
         terminationColumn.accessor('mediaTitle', {
           header: t('common:labels.media'),
+          enableSorting: false,
           cell: ({ row }) => {
             const { title, subtitle } = getMediaDisplay(row.original);
             return (
@@ -317,6 +324,7 @@ export function UserDetail() {
           : []),
         terminationColumn.accessor('createdAt', {
           header: t('common:labels.when'),
+          enableSorting: false,
           cell: ({ row }) => (
             <span className="text-muted-foreground text-sm">
               {formatDistanceToNow(new Date(row.original.createdAt), { addSuffix: true })}
@@ -325,6 +333,7 @@ export function UserDetail() {
         }),
         terminationColumn.accessor('triggeredByUsername', {
           header: t('pages:userDetail.byRule'),
+          enableSorting: false,
           cell: ({ row }) => {
             const log = row.original;
             if (log.trigger === 'manual') {
@@ -343,6 +352,7 @@ export function UserDetail() {
         }),
         terminationColumn.accessor('reason', {
           header: t('common:labels.reason'),
+          enableSorting: false,
           cell: ({ row }) => (
             <span className="text-muted-foreground block max-w-[150px] truncate text-sm">
               {row.original.reason ?? '—'}
@@ -351,6 +361,7 @@ export function UserDetail() {
         }),
         terminationColumn.accessor('success', {
           header: t('common:labels.status'),
+          enableSorting: false,
           cell: ({ row }) => (
             <span className={row.original.success ? 'text-green-500' : 'font-medium text-red-500'}>
               {row.original.success ? t('common:states.success') : t('common:states.failed')}
@@ -757,7 +768,7 @@ export function UserDetail() {
                       {t('userDetail.adjustTrustScore')}
                     </Button>
                   )}
-                  {isOwner && account.id !== user.id && (
+                  {isOwner && account.mergedIn && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -774,6 +785,8 @@ export function UserDetail() {
           </CardContent>
         </Card>
       )}
+
+      <UserRequestsCard serverUserId={effectiveId!} scope={identityScope} />
 
       {/* Locations and Devices */}
       <div className="grid gap-6 lg:grid-cols-2">
@@ -845,6 +858,7 @@ export function UserDetail() {
               />
             </DataTableViewport>
             <DataTablePager
+              variant="footer"
               {...violationsPager}
               labels={{
                 navigation: t('common:table.pagination'),
@@ -885,6 +899,7 @@ export function UserDetail() {
               />
             </DataTableViewport>
             <DataTablePager
+              variant="footer"
               {...terminationsPager}
               labels={{
                 navigation: t('common:table.pagination'),

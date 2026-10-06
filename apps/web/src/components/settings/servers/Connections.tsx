@@ -32,14 +32,16 @@ import {
 } from '@/components/settings/servers/AddServerDialog';
 import { EditServerDialog } from '@/components/settings/servers/EditServerDialog';
 import { ServerRow } from '@/components/settings/servers/ServerRow';
-import { api, tokenStorage } from '@/lib/api';
+import { api } from '@/lib/api';
 import type { PlexDiscoveredServer } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
 import {
   useDeleteServer,
   useReorderServers,
+  useRequestServices,
   useServers,
+  useSetServerHistorical,
   useSyncServer,
   useUpdateServer,
 } from '@/hooks/queries';
@@ -51,11 +53,17 @@ export function Connections() {
   const syncServer = useSyncServer();
   const updateServer = useUpdateServer();
   const reorderServers = useReorderServers();
+  const setHistorical = useSetServerHistorical();
   const queryClient = useQueryClient();
   const { refetch: refetchUser, user } = useAuth();
   const { serverConnectionStatuses } = useSocket();
+  const isOwner = user?.role === 'owner';
+  const { data: requestServices, isLoading: requestServicesLoading } = useRequestServices({
+    enabled: isOwner,
+  });
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [historicalId, setHistoricalId] = useState<string | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [editServer, setEditServer] = useState<Server | null>(null);
   const [serverType, setServerType] = useState<'plex' | 'jellyfin' | 'emby' | 'navidrome'>('plex');
@@ -75,8 +83,6 @@ export function Connections() {
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
-
-  const isOwner = user?.role === 'owner';
 
   useEffect(() => {
     if (user && !isOwner && serverType === 'plex') {
@@ -209,17 +215,13 @@ export function Connections() {
         serverType === 'jellyfin'
           ? api.auth.connectJellyfinWithApiKey
           : api.auth.connectEmbyWithApiKey;
-      const result = await connectFn({
+      await connectFn({
         serverUrl,
         serverName,
         apiKey,
         ...(publicUrl.trim() ? { publicUrl: publicUrl.trim() } : {}),
       });
-
-      if (result.accessToken && result.refreshToken) {
-        tokenStorage.setTokens(result.accessToken, result.refreshToken);
-        await refetchUser();
-      }
+      await refetchUser();
       await refetch();
       setShowAddDialog(false);
       resetAddForm();
@@ -284,8 +286,20 @@ export function Connections() {
                   onSync={() => syncServer.mutate(server.id)}
                   onDelete={() => setDeleteId(server.id)}
                   onEdit={() => setEditServer(server)}
-                  isSyncing={syncServer.isPending}
+                  onSetHistorical={(historical) =>
+                    historical
+                      ? setHistoricalId(server.id)
+                      : setHistorical.mutate({ id: server.id, historical: false })
+                  }
+                  isSwitching={setHistorical.isPending && setHistorical.variables?.id === server.id}
+                  isSyncing={syncServer.isPending && syncServer.variables === server.id}
                   isDraggable={isOwner}
+                  isOwner={isOwner}
+                  requestService={
+                    isOwner && !requestServicesLoading
+                      ? { service: requestServices?.find((s) => s.serverId === server.id) }
+                      : undefined
+                  }
                 />
               ))}
             </ItemGroup>
@@ -355,6 +369,25 @@ export function Connections() {
               void queryClient.invalidateQueries({ queryKey: ['plex-accounts'] });
             },
           });
+        }}
+      />
+
+      <ConfirmDialog
+        open={!!historicalId}
+        onOpenChange={() => setHistoricalId(null)}
+        title={t('servers.markHistoricalTitle', {
+          name: servers.find((s) => s.id === historicalId)?.name ?? '',
+        })}
+        description={t('servers.markHistoricalConfirm')}
+        confirmLabel={t('servers.markHistorical')}
+        variant="default"
+        isLoading={setHistorical.isPending}
+        onConfirm={() => {
+          if (!historicalId) return;
+          setHistorical.mutate(
+            { id: historicalId, historical: true },
+            { onSuccess: () => setHistoricalId(null) }
+          );
         }}
       />
 

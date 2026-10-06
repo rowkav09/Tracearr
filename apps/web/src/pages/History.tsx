@@ -24,7 +24,7 @@ import {
   type HistoryFilters,
 } from '@/hooks/queries';
 import { useServer } from '@/hooks/useServer';
-import type { SessionWithDetails } from '@tracearr/shared';
+import { PLAYBACK_DECISIONS, type SessionWithDetails } from '@tracearr/shared';
 
 // Local storage key for column visibility
 const COLUMN_VISIBILITY_KEY = 'tracearr-history-columns';
@@ -91,6 +91,7 @@ function parseFiltersFromUrl(searchParams: URLSearchParams): HistoryFilters {
     'episode',
     'track',
     'live',
+    'trailer',
   ] as const);
   if (mediaTypes) filters.mediaTypes = mediaTypes;
 
@@ -99,12 +100,14 @@ function parseFiltersFromUrl(searchParams: URLSearchParams): HistoryFilters {
     filters.state = state;
   }
 
-  const transcodeDecisions = parseCommaSeparated(searchParams.get('transcodeDecisions'), [
-    'directplay',
-    'copy',
-    'transcode',
-  ] as const);
+  const transcodeDecisions = parseCommaSeparated(
+    searchParams.get('transcodeDecisions'),
+    PLAYBACK_DECISIONS
+  );
   if (transcodeDecisions) filters.transcodeDecisions = transcodeDecisions;
+
+  const network = searchParams.get('network');
+  if (network === 'local' || network === 'remote') filters.network = network;
 
   const platforms = parseCommaSeparated<string>(searchParams.get('platforms'));
   if (platforms) filters.platforms = platforms;
@@ -140,6 +143,7 @@ function parseFiltersFromUrl(searchParams: URLSearchParams): HistoryFilters {
   const watched = searchParams.get('watched');
   if (watched === 'true') filters.watched = true;
   if (watched === 'false') filters.watched = false;
+  if (searchParams.get('subtitleBurnIn') === 'true') filters.subtitleBurnIn = true;
 
   const orderBy = searchParams.get('orderBy');
   if (orderBy === 'startedAt' || orderBy === 'durationMs' || orderBy === 'mediaTitle') {
@@ -164,6 +168,7 @@ function filtersToUrlParams(filters: HistoryFilters): URLSearchParams {
   if (filters.state) params.set('state', filters.state);
   if (filters.transcodeDecisions?.length)
     params.set('transcodeDecisions', filters.transcodeDecisions.join(','));
+  if (filters.network) params.set('network', filters.network);
   if (filters.platforms?.length) params.set('platforms', filters.platforms.join(','));
   if (filters.geoCountries?.length) params.set('countries', filters.geoCountries.join(','));
   if (filters.search) params.set('search', filters.search);
@@ -171,6 +176,7 @@ function filtersToUrlParams(filters: HistoryFilters): URLSearchParams {
   if (filters.endDate) params.set('endDate', filters.endDate.toISOString());
   if (!filters.startDate && !filters.endDate) params.set('period', 'all');
   if (filters.watched !== undefined) params.set('watched', String(filters.watched));
+  if (filters.subtitleBurnIn) params.set('subtitleBurnIn', 'true');
   if (filters.orderBy && filters.orderBy !== 'startedAt') params.set('orderBy', filters.orderBy);
   if (filters.orderDir && filters.orderDir !== 'desc') params.set('orderDir', filters.orderDir);
 

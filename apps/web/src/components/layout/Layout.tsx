@@ -4,14 +4,19 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { AppSidebar } from './AppSidebar';
 import { SiteHeader } from './SiteHeader';
 import { StatusBanners } from './StatusBanners';
+import { WhatsNewAutoOpen } from '@/components/whats-new/WhatsNewAutoOpen';
+import { useStreamCountTitle } from '@/hooks/useDocumentTitle';
 
 export function Layout() {
+  useStreamCountTitle();
+
   return (
     <SidebarProvider>
       <AppSidebar />
       <SidebarInset>
         <SiteHeader />
         <StatusBanners />
+        <WhatsNewAutoOpen />
         <ScrollArea className="flex-1">
           <main className="p-6">
             <Outlet />

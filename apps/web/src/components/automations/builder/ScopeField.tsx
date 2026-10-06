@@ -21,7 +21,6 @@ import {
   type AutomationScope,
   type AutomationScopeMode,
 } from '@/lib/automations/scope';
-import { SELECTED_TOGGLE } from './selection';
 import { StepFooterField } from './StepFooterField';
 
 interface ScopeFieldProps {
@@ -54,6 +53,7 @@ export function ScopeField({
   const modes = offered.includes(scope.mode) ? offered : [scope.mode, ...offered];
 
   const scopeServerId = ('serverId' in scope ? scope.serverId : '') || soleServerId;
+  const scopeServer = servers.find((server) => server.id === scopeServerId);
 
   const { data: accountsPage } = useUsers(
     { serverId: scopeServerId, pageSize: 100 },
@@ -89,7 +89,7 @@ export function ScopeField({
           className="flex-wrap"
         >
           {modes.map((mode) => (
-            <ToggleGroupItem key={mode} value={mode} className={SELECTED_TOGGLE}>
+            <ToggleGroupItem key={mode} value={mode}>
               {t(`automations.builder.scope.${mode}`)}
             </ToggleGroupItem>
           ))}
@@ -125,6 +125,11 @@ export function ScopeField({
                       )
                     }
                   />
+                  {scopeServer?.historicalAt && (
+                    <FieldDescription>
+                      {t('automations.builder.scope.historicalNote')}
+                    </FieldDescription>
+                  )}
                 </Field>
               )}
 

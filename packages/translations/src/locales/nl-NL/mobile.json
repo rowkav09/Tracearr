@@ -1,7 +1,6 @@
 {
   "pair": {
     "welcome": "Welkom bij Tracearr",
-    "addServer": "Server toevoegen",
     "connectToServer": "Verbinden met server",
     "enterServerDetails": "Voer de URL van je Tracearr-server en mobiele toegangstoken in",
     "serverUrl": "Server-URL",
@@ -16,10 +15,7 @@
     "pleaseEnterToken": "Voer de toegangstoken in"
   },
   "errors": {
-    "missingFields": "Ontbrekende velden",
-    "pleaseEnterBothFields": "Voer zowel server-URL als token in",
     "invalidUrl": "Ongeldige URL",
-    "serverUrlMustStartWith": "Server-URL moet beginnen met http:// of https://",
     "pleaseEnterValidUrl": "Voer een geldige server-URL in",
     "pairingFailed": "Koppelen mislukt",
     "unableToPair": "Kan geen verbinding maken met de server",
@@ -28,12 +24,7 @@
     "invalidQrCodeFormat": "Ongeldig indeling QR-code. Genereer een nieuwe code.",
     "invalidQrCodeMissingUrl": "Ongeldige QR-code: server-URL ontbreekt",
     "invalidQrCodeMissingToken": "Ongeldige QR-code: koppeltoken ontbreekt",
-    "invalidServerUrlInQr": "Ongeldige server-URL in QR-code",
-    "tooManyPairingAttempts": "Te veel koppelpogingen. Wacht een paar minuten.",
-    "invalidOrExpiredToken": "Ongeldig of verlopen koppeltoken.",
-    "invalidPairingRequest": "Ongeldig koppelverzoek. Controleer je token.",
     "errorDetails": "",
-    "componentStack": "",
     "connectionLost": "Verbinding kwijt",
     "failedToLoadSession": "Sessie laden mislukt"
   },
@@ -63,14 +54,16 @@
     "build": ""
   },
   "navigation": {
-    "home": "",
     "selectServer": "Server selecteren",
-    "server": "",
-    "navigation": "Navigatie"
+    "server": ""
   },
   "resources": {
     "cpu": "",
-    "ram": ""
+    "ram": "",
+    "item": "",
+    "noData": "",
+    "system": "",
+    "waiting": ""
   },
   "notifications": {
     "testSent": "Test verzonden",
@@ -78,11 +71,10 @@
     "failedToSendTest": "Versturen testmelding mislukt",
     "loadingPreferences": "Voorkeuren laden...",
     "unableToLoadPreferences": "Voorkeuren laden mislukt",
-    "receiveAlerts": "Ontvang meldingen op dit apparaat",
+    "receiveAlerts": "Ontvang waarschuwingen op dit apparaat",
     "ruleViolationTriggered": "Regelovertreding geactiveerd",
     "newPlaybackBegan": "Afspelen is begonnen",
     "playbackEnded": "Afspelen beëindigd",
-    "exceededStreamLimit": "Gebruiker heeft de streamlimiet overschreden",
     "newDeviceDetected": "Nieuw apparaat gedetecteerd voor gebruiker",
     "trustScoreDegraded": "De vertrouwensscore van de gebruiker is gedaald",
     "serverUnreachable": "Mediaserver onbereikbaar",
@@ -98,14 +90,22 @@
     "criticalOverrideDescription": "Ernstige overtredingen worden ook tijdens rustige uren nog gemeld",
     "rateLimitDescription": "Snelheidslimieten voorkomen spam met meldingen. Huidige limieten: {{perMinute}}/min, {{perHour}}/uur.",
     "sendTestNotification": "Stuur Test Notificatie",
-    "testDescription": "Controleer of pushmeldingen correct werken"
-  },
-  "dashboard": {
-    "today": "VANDAAG",
-    "hrs": "uren"
+    "testDescription": "Controleer of pushmeldingen correct werken",
+    "pushNotifications": "",
+    "ruleTypes": {
+      "accountInactivity": "",
+      "deviceVelocity": "",
+      "geoRestriction": "",
+      "impossibleTravel": "",
+      "simultaneousLocations": ""
+    },
+    "severityAll": "",
+    "severityHighOnly": "",
+    "severityWarningUp": "",
+    "violationTypes": ""
   },
   "session": {
-    "streamTerminated": "Stream Beëindigd",
+    "streamTerminated": "Stream afgebroken",
     "sessionStopped": "De afspeelsessie is gestopt.",
     "failedToTerminate": "Het beëindigen is mislukt"
   },
@@ -113,34 +113,59 @@
     "userMayBeRemoved": "Deze gebruiker is mogelijk verwijderd.",
     "noLocationsRecorded": "Geen locaties geregistreerd",
     "noDevicesRecorded": "Geen apparaten geregistreerd",
-    "moreLocations": "+{{count}} meer locaties",
-    "moreDevices": "+{{count}} meer apparaten",
     "noViolations": "Geen overtredingen",
-    "noTerminations": "Geen stream stops",
-    "trustLow": "Laag",
-    "trustMedium": "",
-    "trustHigh": "Hoog"
+    "noTerminations": "Geen afgebroken streams",
+    "lastSeen": "",
+    "terminatedBy": "",
+    "trustScoreConfirm": "",
+    "trustScoreRange": "",
+    "moreLocations_one": "",
+    "moreLocations_other": "+{{count}} meer locaties",
+    "moreDevices_one": "",
+    "moreDevices_other": "+{{count}} meer apparaten"
   },
   "violation": {
-    "violationNotFoundDesc": "Deze overtreding is mogelijk afgewezen of niet langer beschikbaar.",
-    "customRule": "Aangepaste regel",
-    "streamComparison": "Stream Vergelijking",
+    "violationNotFoundDesc": "Deze overtreding is mogelijk genegeerd of niet langer beschikbaar.",
     "ips": ""
   },
   "alerts": {
-    "done": "Klaar",
-    "clearFilters": "Filters opschonen"
+    "clearFilters": "Filters opschonen",
+    "acknowledgeAll": "",
+    "acknowledgeAllBody": "",
+    "acknowledgeAllBodySeverity": "",
+    "all": "",
+    "allClear": "",
+    "allServers": "",
+    "noAlertsRecorded": "",
+    "noMatches": "",
+    "acknowledgeAllTitle_one": "",
+    "acknowledgeAllTitle_other": "",
+    "pendingCount_one": "",
+    "pendingCount_other": ""
   },
   "history": {
-    "noHistoryFound": "Geen historie gevonden",
     "adjustFilters": "Probeer je filters aan te passen",
-    "historyWillAppear": "De sessiegeschiedenis verschijnt hier zodra gebruikers beginnen met streamen"
+    "historyWillAppear": "De sessiegeschiedenis verschijnt hier zodra gebruikers beginnen met streamen",
+    "filters": {
+      "clearCount": "",
+      "countries": "",
+      "filterBy": "",
+      "mediaType": "",
+      "noCountries": "",
+      "noPlatforms": "",
+      "noUsers": "",
+      "sectionSelected_one": "",
+      "sectionSelected_other": ""
+    }
   },
   "users": {
     "owner": "Eigenaar",
     "noUsers": "Geen Gebruikers",
     "usersWillAppear": "Gebruikers verschijnen hier nadat de synchronisatie met uw mediaserver is voltooid",
-    "noUsersMatch": "Geen gebruikers overeengekomen met \"{{query}}\""
+    "noUsersMatch": "Geen gebruikers overeengekomen met \"{{query}}\"",
+    "joinedRelative": "",
+    "sortActive": "",
+    "sortTrust": ""
   },
   "activity": {
     "playsOverTime": "Weergaven over tijd",
@@ -150,8 +175,15 @@
   },
   "unauthenticated": {
     "connectionLost": "Verbinding Verbroken",
-    "accessRevoked": "Uw toegang tot {{serverName}} is ingetrokken. Vraag de serverbeheerder om een ​​nieuwe koppelingscode.",
+    "accessRevoked": "Je toegang tot {{serverName}} is ingetrokken. Vraag de servereigenaar om een nieuwe koppelcode.",
+    "deviceRemoved": "",
+    "expired": "",
     "scanQrCode": ""
+  },
+  "clientTooOld": {
+    "title": "",
+    "body": "",
+    "update": ""
   },
   "serverSelector": {
     "servers": "",
@@ -160,19 +192,77 @@
     "allServers": "Alle servers"
   },
   "reconnected": "Opnieuw verbonden",
-  "actionsExecuted": "Acties uitgevoerd",
-  "serverScope": {
-    "single": "Alleen {{name}} weergeven"
-  },
   "a11y": {
     "selectServer": "Selecteer server",
     "alerts": "Waarschuwingen",
-    "alertsCount": "Waarschuwingen, {{count}} ongelezen",
     "settings": "Instellingen",
-    "trustScore": ""
+    "trustScore": "",
+    "decreaseTrustScore": "",
+    "increaseTrustScore": "",
+    "sortAscending": "",
+    "sortDescending": "",
+    "alertsCount_one": "",
+    "alertsCount_other": "Waarschuwingen, {{count}} ongelezen",
+    "filtersActive_one": "",
+    "filtersActive_other": ""
   },
   "map": {
     "noData": "Geen locatiegegevens beschikbaar",
     "unavailable": "Kaart niet beschikbaar"
+  },
+  "automations": {
+    "editOnWeb": "",
+    "emptyDescription": "",
+    "kind": {
+      "notification": "",
+      "policy": ""
+    },
+    "lastRun": "",
+    "truncated": "",
+    "turnOffFailed": "",
+    "turnOnFailed": "",
+    "unsupportedDescription": "",
+    "unsupportedTitle": "",
+    "versionCheckFailed": "",
+    "conditions_one": "",
+    "conditions_other": ""
+  },
+  "charts": {
+    "weekOf": ""
+  },
+  "push": {
+    "violationTitle": ""
+  },
+  "streamDetails": {
+    "bitrate": "",
+    "channels": "",
+    "codec": "",
+    "color": "",
+    "container": "",
+    "forced": "",
+    "format": "",
+    "framerate": "",
+    "hwDecode": "",
+    "hwEncode": "",
+    "mono": "",
+    "noDetails": "",
+    "notAvailable": "",
+    "profile": "",
+    "sampleRate": "",
+    "source": "",
+    "speed": "",
+    "stereo": "",
+    "stream": "",
+    "subtitles": "",
+    "throttled": "",
+    "transcodeDetails": ""
+  },
+  "widget": {
+    "asOf": "",
+    "signedOut": "",
+    "serversDown_one": "",
+    "serversDown_other": "",
+    "transcodes_one": "",
+    "transcodes_other": ""
   }
 }

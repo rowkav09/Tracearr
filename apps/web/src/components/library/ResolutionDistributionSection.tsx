@@ -1,27 +1,27 @@
 import { useMemo } from 'react';
+import { useNavigate } from 'react-router';
 import { Film, Tv, PieChart } from 'lucide-react';
 import Highcharts from 'highcharts';
 import { HighchartsReact } from 'highcharts-react-official';
+import {
+  RESOLUTION_LABELS,
+  resolutionBucket,
+  type ResolutionBreakdown,
+  type Server,
+} from '@tracearr/shared';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartSkeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { PerServerCardGrid } from '@/components/server';
 import { useLibraryResolution } from '@/hooks/queries';
-import type { Server } from '@tracearr/shared';
-import type { ResolutionBreakdown } from '@tracearr/shared';
+import { RESOLUTION_COLORS } from '@/lib/resolutionColors';
+import { browseHref } from '@/lib/browseLinks';
 
 interface ResolutionDistributionSectionProps {
   serverId?: string | null;
   selectedServers?: Server[];
   isMultiServer?: boolean;
 }
-
-const QUALITY_COLORS = {
-  '4K': '#10b981',
-  '1080p': '#3b82f6',
-  '720p': '#f59e0b',
-  SD: '#ef4444',
-};
 
 interface ResolutionDonutProps {
   data: ResolutionBreakdown | undefined;
@@ -30,6 +30,9 @@ interface ResolutionDonutProps {
   title: string;
   icon?: React.ReactNode;
   showHeader?: boolean;
+  /** A bar click opens Browse filtered to that resolution for this type and server. */
+  browseType: 'movie' | 'show';
+  serverId?: string | null;
 }
 
 function ResolutionDonut({
@@ -39,15 +42,17 @@ function ResolutionDonut({
   title,
   icon,
   showHeader = true,
+  browseType,
+  serverId,
 }: ResolutionDonutProps) {
+  const navigate = useNavigate();
   const chartData = useMemo(() => {
     if (!data) return [];
-    return [
-      { name: '4K', y: data.count4k, color: QUALITY_COLORS['4K'] },
-      { name: '1080p', y: data.count1080p, color: QUALITY_COLORS['1080p'] },
-      { name: '720p', y: data.count720p, color: QUALITY_COLORS['720p'] },
-      { name: 'SD', y: data.countSd, color: QUALITY_COLORS['SD'] },
-    ].filter((d) => d.y > 0);
+    return RESOLUTION_LABELS.map((label) => ({
+      name: label,
+      y: data.counts[resolutionBucket(label) ?? 'sd'],
+      color: RESOLUTION_COLORS[label],
+    })).filter((d) => d.y > 0);
   }, [data]);
 
   const options = useMemo<Highcharts.Options>(() => {
@@ -113,6 +118,14 @@ function ResolutionDonut({
           borderWidth: 0,
           borderRadius: 3,
           colorByPoint: true,
+          cursor: 'pointer',
+          point: {
+            events: {
+              click: function () {
+                void navigate(browseHref(browseType, { resolution: this.name, serverId }));
+              },
+            },
+          },
           dataLabels: {
             enabled: true,
             style: {
@@ -153,7 +166,7 @@ function ResolutionDonut({
         ],
       },
     };
-  }, [chartData, data, height]);
+  }, [chartData, data, height, navigate, browseType, serverId]);
 
   if (isLoading) {
     return (
@@ -232,6 +245,8 @@ function ServerResolutionCard({ serverId }: { serverId: string }) {
           isLoading={resolution.isLoading}
           title="Movies"
           showHeader={false}
+          browseType="movie"
+          serverId={serverId}
         />
       </div>
 
@@ -252,6 +267,8 @@ function ServerResolutionCard({ serverId }: { serverId: string }) {
           isLoading={resolution.isLoading}
           title="TV Shows"
           showHeader={false}
+          browseType="show"
+          serverId={serverId}
         />
       </div>
     </div>
@@ -285,6 +302,8 @@ function SingleServerResolutionSection({ serverId }: { serverId?: string | null 
             title="Movies"
             icon={null}
             showHeader={false}
+            browseType="movie"
+            serverId={serverId}
           />
         </CardContent>
       </Card>
@@ -310,6 +329,8 @@ function SingleServerResolutionSection({ serverId }: { serverId?: string | null 
             title="TV Shows"
             icon={null}
             showHeader={false}
+            browseType="show"
+            serverId={serverId}
           />
         </CardContent>
       </Card>

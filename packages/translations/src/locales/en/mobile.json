@@ -1,7 +1,6 @@
 {
   "pair": {
     "welcome": "Welcome to Tracearr",
-    "addServer": "Add Server",
     "connectToServer": "Connect to Server",
     "enterServerDetails": "Enter your Tracearr server URL and mobile access token",
     "serverUrl": "Server URL",
@@ -16,10 +15,7 @@
     "pleaseEnterToken": "Please enter your access token"
   },
   "errors": {
-    "missingFields": "Missing Fields",
-    "pleaseEnterBothFields": "Please enter both server URL and token",
     "invalidUrl": "Invalid URL",
-    "serverUrlMustStartWith": "Server URL must start with http:// or https://",
     "pleaseEnterValidUrl": "Please enter a valid server URL",
     "pairingFailed": "Pairing Failed",
     "unableToPair": "Unable to pair with server",
@@ -28,12 +24,7 @@
     "invalidQrCodeFormat": "Invalid QR code format. Please generate a new code.",
     "invalidQrCodeMissingUrl": "Invalid QR code: missing server URL",
     "invalidQrCodeMissingToken": "Invalid QR code: missing pairing token",
-    "invalidServerUrlInQr": "Invalid server URL in QR code",
-    "tooManyPairingAttempts": "Too many pairing attempts. Please wait a few minutes.",
-    "invalidOrExpiredToken": "Invalid or expired pairing token.",
-    "invalidPairingRequest": "Invalid pairing request. Check your token.",
     "errorDetails": "Error Details:",
-    "componentStack": "Component Stack:",
     "connectionLost": "Connection lost",
     "failedToLoadSession": "Failed to load session"
   },
@@ -63,14 +54,16 @@
     "build": "Build {{build}}"
   },
   "navigation": {
-    "home": "Home",
     "selectServer": "Select Server",
-    "server": "Server",
-    "navigation": "Navigation"
+    "server": "Server"
   },
   "resources": {
     "cpu": "CPU",
-    "ram": "RAM"
+    "ram": "RAM",
+    "item": "resource data",
+    "noData": "No resource data",
+    "system": "System",
+    "waiting": "Waiting for server statistics..."
   },
   "notifications": {
     "testSent": "Test Sent",
@@ -82,7 +75,6 @@
     "ruleViolationTriggered": "Rule violation triggered",
     "newPlaybackBegan": "New playback began",
     "playbackEnded": "Playback ended",
-    "exceededStreamLimit": "User exceeded stream limit",
     "newDeviceDetected": "New device detected for user",
     "trustScoreDegraded": "User trust score degraded",
     "serverUnreachable": "Media server unreachable",
@@ -98,11 +90,19 @@
     "criticalOverrideDescription": "High-severity violations still notify during quiet hours",
     "rateLimitDescription": "Rate limits prevent notification spam. Current limits: {{perMinute}}/min, {{perHour}}/hour.",
     "sendTestNotification": "Send Test Notification",
-    "testDescription": "Verify that push notifications are working correctly"
-  },
-  "dashboard": {
-    "today": "TODAY",
-    "hrs": "hrs"
+    "testDescription": "Verify that push notifications are working correctly",
+    "pushNotifications": "Push Notifications",
+    "ruleTypes": {
+      "accountInactivity": "Account Inactivity",
+      "deviceVelocity": "Device Velocity",
+      "geoRestriction": "Geo Restriction",
+      "impossibleTravel": "Impossible Travel",
+      "simultaneousLocations": "Simultaneous Locations"
+    },
+    "severityAll": "All",
+    "severityHighOnly": "High only",
+    "severityWarningUp": "Warning+",
+    "violationTypes": "Violation Types"
   },
   "session": {
     "streamTerminated": "Stream Terminated",
@@ -113,34 +113,59 @@
     "userMayBeRemoved": "This user may have been removed.",
     "noLocationsRecorded": "No locations recorded",
     "noDevicesRecorded": "No devices recorded",
-    "moreLocations": "+{{count}} more locations",
-    "moreDevices": "+{{count}} more devices",
+    "moreLocations_one": "+{{count}} more location",
+    "moreLocations_other": "+{{count}} more locations",
+    "moreDevices_one": "+{{count}} more device",
+    "moreDevices_other": "+{{count}} more devices",
     "noViolations": "No violations",
     "noTerminations": "No stream terminations",
-    "trustLow": "Low",
-    "trustMedium": "Medium",
-    "trustHigh": "High"
+    "lastSeen": "Last seen {{relative}}",
+    "terminatedBy": "By @{{username}}",
+    "trustScoreConfirm": "Set the trust score for @{{username}} to {{score}}?",
+    "trustScoreRange": "Trust score for @{{username}}, from 0 to 100."
   },
   "violation": {
     "violationNotFoundDesc": "This violation may have been dismissed or is no longer available.",
-    "customRule": "Custom Rule",
-    "streamComparison": "Stream Comparison",
     "ips": "IPs"
   },
   "alerts": {
-    "done": "Done",
-    "clearFilters": "Clear Filters"
+    "clearFilters": "Clear Filters",
+    "acknowledgeAll": "Acknowledge all",
+    "acknowledgeAllBody": "Every pending alert on {{servers}} will be marked as acknowledged. This cannot be undone.",
+    "acknowledgeAllBodySeverity": "Every pending alert with {{severity}} severity on {{servers}} will be marked as acknowledged. This cannot be undone.",
+    "acknowledgeAllTitle_one": "Acknowledge {{count}} alert?",
+    "acknowledgeAllTitle_other": "Acknowledge {{count}} alerts?",
+    "all": "All",
+    "allClear": "All clear",
+    "allServers": "all servers",
+    "noAlertsRecorded": "No alerts have been recorded yet.",
+    "noMatches": "No matching alerts",
+    "pendingCount_one": "{{count}} pending",
+    "pendingCount_other": "{{count}} pending"
   },
   "history": {
-    "noHistoryFound": "No History Found",
     "adjustFilters": "Try adjusting your filters",
-    "historyWillAppear": "Session history will appear here once users start streaming"
+    "historyWillAppear": "Session history will appear here once users start streaming",
+    "filters": {
+      "clearCount": "Clear ({{count}})",
+      "countries": "Countries",
+      "filterBy": "Filter by",
+      "mediaType": "Media Type",
+      "noCountries": "No countries available",
+      "noPlatforms": "No platforms available",
+      "noUsers": "No users available",
+      "sectionSelected_one": "{{section}}, {{count}} selected",
+      "sectionSelected_other": "{{section}}, {{count}} selected"
+    }
   },
   "users": {
     "owner": "Owner",
     "noUsers": "No Users",
     "usersWillAppear": "Users will appear here after syncing with your media server",
-    "noUsersMatch": "No users match \"{{query}}\""
+    "noUsersMatch": "No users match \"{{query}}\"",
+    "joinedRelative": "Joined {{relative}}",
+    "sortActive": "Active",
+    "sortTrust": "Trust"
   },
   "activity": {
     "playsOverTime": "Plays Over Time",
@@ -150,8 +175,15 @@
   },
   "unauthenticated": {
     "connectionLost": "Connection Lost",
-    "accessRevoked": "Your access to {{serverName}} was revoked. Ask the server owner for a new pairing code.",
+    "accessRevoked": "{{serverName}} no longer accepts this device. Pair it again with a new code from the web app.",
+    "deviceRemoved": "This device was removed from {{serverName}}. Pair it again with a new code from the web app.",
+    "expired": "{{serverName}} signed this device out after 30 days without use. Pair it again with a new code from the web app.",
     "scanQrCode": "Scan QR Code"
+  },
+  "clientTooOld": {
+    "title": "Update Tracearr",
+    "body": "{{serverName}} needs a newer version of the Tracearr app.",
+    "update": "Update"
   },
   "serverSelector": {
     "servers": "Servers",
@@ -160,19 +192,77 @@
     "allServers": "All servers"
   },
   "reconnected": "Reconnected",
-  "actionsExecuted": "Actions Executed",
-  "serverScope": {
-    "single": "Showing {{name}} only"
-  },
   "a11y": {
     "selectServer": "Select server",
     "alerts": "Alerts",
-    "alertsCount": "Alerts, {{count}} unread",
+    "alertsCount_one": "Alerts, {{count}} unread",
+    "alertsCount_other": "Alerts, {{count}} unread",
     "settings": "Settings",
-    "trustScore": "Trust score {{score}}"
+    "trustScore": "Trust score {{score}}",
+    "decreaseTrustScore": "Decrease trust score",
+    "filtersActive_one": "Filters, {{count}} active",
+    "filtersActive_other": "Filters, {{count}} active",
+    "increaseTrustScore": "Increase trust score",
+    "sortAscending": "Sorted ascending, tap to reverse",
+    "sortDescending": "Sorted descending, tap to reverse"
   },
   "map": {
     "noData": "No location data available",
     "unavailable": "Map unavailable"
+  },
+  "automations": {
+    "conditions_one": "{{count}} condition",
+    "conditions_other": "{{count}} conditions",
+    "editOnWeb": "Automations are created and edited in the Tracearr web app.",
+    "emptyDescription": "Create automations in the Tracearr web app and they show up here.",
+    "kind": {
+      "notification": "Notification",
+      "policy": "Policy"
+    },
+    "lastRun": "Last run {{when}}",
+    "truncated": "Showing the first {{shown}} of {{total}} automations. The rest are in the Tracearr web app.",
+    "turnOffFailed": "Could not turn this off. It is still on.",
+    "turnOnFailed": "Could not turn this on. It is still off.",
+    "unsupportedDescription": "This server reports version {{version}}. Update Tracearr to see automations and what they ran.",
+    "unsupportedTitle": "Automations need server 2.2 or newer",
+    "versionCheckFailed": "Could not check the server version"
+  },
+  "charts": {
+    "weekOf": "Week of {{date}}"
+  },
+  "push": {
+    "violationTitle": "{{severity}} Violation"
+  },
+  "streamDetails": {
+    "bitrate": "Bitrate",
+    "channels": "Channels",
+    "codec": "Codec",
+    "color": "Color",
+    "container": "Container",
+    "forced": "Forced",
+    "format": "Format:",
+    "framerate": "Framerate",
+    "hwDecode": "HW Decode",
+    "hwEncode": "HW Encode",
+    "mono": "Mono",
+    "noDetails": "No detailed stream information available",
+    "notAvailable": "N/A",
+    "profile": "Profile",
+    "sampleRate": "Sample Rate",
+    "source": "Source",
+    "speed": "Speed",
+    "stereo": "Stereo",
+    "stream": "Stream",
+    "subtitles": "Subtitles",
+    "throttled": "throttled",
+    "transcodeDetails": "Transcode Details"
+  },
+  "widget": {
+    "asOf": "as of {{time}}",
+    "serversDown_one": "{{count}} server down",
+    "serversDown_other": "{{count}} servers down",
+    "signedOut": "Open Tracearr to pair a server.",
+    "transcodes_one": "{{count}} transcode",
+    "transcodes_other": "{{count}} transcodes"
   }
 }

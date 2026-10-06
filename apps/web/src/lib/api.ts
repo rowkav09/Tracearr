@@ -1,6 +1,6 @@
 import type {
   Server,
-  User,
+  ServerDownReason,
   UserRole,
   ServerUserWithIdentity,
   ServerUserDetail,
@@ -49,11 +49,25 @@ import type {
   DestinationTestResult,
   CreateDestinationInput,
   UpdateDestinationInput,
+  RequestService,
+  RequestsAnalyticsResponse,
+  RequestersQuery,
+  RequestersResponse,
+  RequestsStatus,
+  RequestsUnplayedQuery,
+  RequestsUnplayedResponse,
+  RequestServiceProbeResult,
+  MediaRequestEntry,
+  UserRequestsResponse,
+  TestRequestServiceInput,
+  CreateRequestServiceInput,
+  UpdateRequestServiceInput,
   Newsletter,
   CreateNewsletterInput,
   UpdateNewsletterInput,
   NewsletterPreview,
   NewsletterPreviewDraftInput,
+  NewsletterRecipientsDraftInput,
   NewsletterRecipientsView,
   NewsletterVariantsView,
   NewsletterSendsPage,
@@ -68,11 +82,15 @@ import type {
   HistoryAggregatesQueryInput,
   HistoryAggregates,
   VersionInfo,
+  WhatsNewState,
   EngagementStats,
   ShowStatsResponse,
   SetupStatus,
   MediaType,
   ServerConnectionStatus,
+  ServerLocationEntry,
+  ServerLocationsResponse,
+  UpdateServerLocationsResponse,
   // New analytics types
   DeviceCompatibilityResponse,
   DeviceCompatibilityMatrix,
@@ -88,6 +106,7 @@ import type {
   LibraryQualityResponse,
   LibraryStorageResponse,
   DuplicatesResponse,
+  DuplicateFilesResponse,
   StaleResponse,
   WatchResponse,
   CompletionResponse,
@@ -106,6 +125,7 @@ import type {
   // Cross-server user merging types
   UserMergeResult,
   MergeSuggestion,
+  DismissedMergeSuggestion,
   ServerUserSplitResult,
   UserSortField,
   UserRosterFilters,
@@ -114,6 +134,7 @@ import type {
   WatchedState,
   CatalogResponse,
   CatalogLettersResponse,
+  CatalogCodecOptionsResponse,
   ShelvesResponse,
   GenresResponse,
   LibrariesResponse,
@@ -133,6 +154,7 @@ import type {
   TemplateDefinition,
   TemplateEnvelope,
   TemplateInput,
+  QualityStats,
 } from '@tracearr/shared';
 
 // Re-export shared types needed by frontend components
@@ -260,6 +282,39 @@ function listSearchParams(params: Record<string, unknown>): string {
     }
   }
   return searchParams.toString();
+}
+
+/** The filters /sessions/history and /sessions/history/aggregates share. */
+function appendHistoryFilterParams(
+  searchParams: URLSearchParams,
+  params: Partial<HistoryAggregatesQueryInput> & { serverIds?: string[] }
+): void {
+  if (params.serverUserIds?.length)
+    searchParams.set('serverUserIds', params.serverUserIds.join(','));
+  if (params.serverIds?.length) {
+    for (const id of params.serverIds) {
+      searchParams.append('serverIds', id);
+    }
+  }
+  if (params.state) searchParams.set('state', params.state);
+  if (params.mediaTypes?.length) searchParams.set('mediaTypes', params.mediaTypes.join(','));
+  if (params.startDate) searchParams.set('startDate', params.startDate.toISOString());
+  if (params.endDate) searchParams.set('endDate', params.endDate.toISOString());
+  if (params.search) searchParams.set('search', params.search);
+  if (params.platforms?.length) searchParams.set('platforms', params.platforms.join(','));
+  if (params.product) searchParams.set('product', params.product);
+  if (params.device) searchParams.set('device', params.device);
+  if (params.playerName) searchParams.set('playerName', params.playerName);
+  if (params.ipAddress) searchParams.set('ipAddress', params.ipAddress);
+  if (params.geoCountries?.length) searchParams.set('geoCountries', params.geoCountries.join(','));
+  if (params.geoCity) searchParams.set('geoCity', params.geoCity);
+  if (params.geoRegion) searchParams.set('geoRegion', params.geoRegion);
+  if (params.network) searchParams.set('network', params.network);
+  if (params.transcodeDecisions?.length)
+    searchParams.set('transcodeDecisions', params.transcodeDecisions.join(','));
+  if (params.watched !== undefined) searchParams.set('watched', String(params.watched));
+  if (params.subtitleBurnIn) searchParams.set('subtitleBurnIn', 'true');
+  if (params.excludeShortSessions) searchParams.set('excludeShortSessions', 'true');
 }
 
 export interface BulkViolationParams {
@@ -634,11 +689,7 @@ class ApiClient {
       apiKey: string;
       publicUrl?: string;
     }) =>
-      this.request<{
-        accessToken: string;
-        refreshToken: string;
-        user: User;
-      }>('/auth/jellyfin/connect-api-key', {
+      this.request<{ serverId: string }>('/auth/jellyfin/connect-api-key', {
         method: 'POST',
         body: JSON.stringify(data),
       }),
@@ -650,11 +701,7 @@ class ApiClient {
       apiKey: string;
       publicUrl?: string;
     }) =>
-      this.request<{
-        accessToken: string;
-        refreshToken: string;
-        user: User;
-      }>('/auth/emby/connect-api-key', {
+      this.request<{ serverId: string }>('/auth/emby/connect-api-key', {
         method: 'POST',
         body: JSON.stringify(data),
       }),
@@ -681,6 +728,7 @@ class ApiClient {
         clientIdentifier?: string;
         color?: string | null;
         publicUrl?: string | null;
+        apiKey?: string;
       }
     ) =>
       this.request<Server>(`/servers/${id}`, {
@@ -710,6 +758,11 @@ class ApiClient {
         method: 'PATCH',
         body: JSON.stringify({ servers }),
       }),
+    setHistorical: (id: string, historical: boolean) =>
+      this.request<Server>(`/servers/${id}/historical`, {
+        method: 'POST',
+        body: JSON.stringify({ historical }),
+      }),
     liveStats: (id: string) =>
       this.request<{
         serverId: string;
@@ -722,7 +775,7 @@ class ApiClient {
       }>(`/servers/${id}/live-stats`),
     health: async () => {
       const response = await this.request<{
-        data: { serverId: string; serverName: string }[];
+        data: { serverId: string; serverName: string; reason?: ServerDownReason }[];
       }>('/servers/health');
       return response.data;
     },
@@ -732,6 +785,12 @@ class ApiClient {
       );
       return response.data;
     },
+    locations: (id: string) => this.request<ServerLocationsResponse>(`/servers/${id}/locations`),
+    updateLocations: (id: string, entries: ServerLocationEntry[]) =>
+      this.request<UpdateServerLocationsResponse>(`/servers/${id}/locations`, {
+        method: 'PUT',
+        body: JSON.stringify({ entries }),
+      }),
   };
 
   // Users
@@ -818,6 +877,28 @@ class ApiClient {
       const response = await this.request<{ data: MergeSuggestion[] }>('/users/merge-suggestions');
       return response.data;
     },
+    dismissedMergeSuggestions: async () => {
+      const response = await this.request<{ data: DismissedMergeSuggestion[] }>(
+        '/users/merge-suggestions/dismissed'
+      );
+      return response.data;
+    },
+    dismissMergeSuggestion: (userIds: [string, string]) =>
+      this.request<void>('/users/merge-suggestions/dismissals', {
+        method: 'POST',
+        body: JSON.stringify({ userIds }),
+      }),
+    restoreMergeSuggestion: (userA: string, userB: string) =>
+      this.request<void>(`/users/merge-suggestions/dismissals/${userA}/${userB}`, {
+        method: 'DELETE',
+      }),
+    requests: (id: string, opts: { scope?: 'identity'; page: number; pageSize: number }) => {
+      const searchParams = new URLSearchParams();
+      if (opts.scope) searchParams.set('scope', opts.scope);
+      searchParams.set('page', String(opts.page));
+      searchParams.set('pageSize', String(opts.pageSize));
+      return this.request<UserRequestsResponse>(`/users/${id}/requests?${searchParams.toString()}`);
+    },
   };
 
   // Server users (accounts on a specific media server)
@@ -848,31 +929,7 @@ class ApiClient {
       const searchParams = new URLSearchParams();
       if (params.cursor) searchParams.set('cursor', params.cursor);
       if (params.pageSize) searchParams.set('pageSize', String(params.pageSize));
-      if (params.serverUserIds?.length)
-        searchParams.set('serverUserIds', params.serverUserIds.join(','));
-      if (params.serverIds?.length) {
-        for (const id of params.serverIds) {
-          searchParams.append('serverIds', id);
-        }
-      }
-      if (params.state) searchParams.set('state', params.state);
-      if (params.mediaTypes?.length) searchParams.set('mediaTypes', params.mediaTypes.join(','));
-      if (params.startDate) searchParams.set('startDate', params.startDate.toISOString());
-      if (params.endDate) searchParams.set('endDate', params.endDate.toISOString());
-      if (params.search) searchParams.set('search', params.search);
-      if (params.platforms?.length) searchParams.set('platforms', params.platforms.join(','));
-      if (params.product) searchParams.set('product', params.product);
-      if (params.device) searchParams.set('device', params.device);
-      if (params.playerName) searchParams.set('playerName', params.playerName);
-      if (params.ipAddress) searchParams.set('ipAddress', params.ipAddress);
-      if (params.geoCountries?.length)
-        searchParams.set('geoCountries', params.geoCountries.join(','));
-      if (params.geoCity) searchParams.set('geoCity', params.geoCity);
-      if (params.geoRegion) searchParams.set('geoRegion', params.geoRegion);
-      if (params.transcodeDecisions?.length)
-        searchParams.set('transcodeDecisions', params.transcodeDecisions.join(','));
-      if (params.watched !== undefined) searchParams.set('watched', String(params.watched));
-      if (params.excludeShortSessions) searchParams.set('excludeShortSessions', 'true');
+      appendHistoryFilterParams(searchParams, params);
       if (params.orderBy) searchParams.set('orderBy', params.orderBy);
       if (params.orderDir) searchParams.set('orderDir', params.orderDir);
       return this.request<HistorySessionResponse>(`/sessions/history?${searchParams.toString()}`);
@@ -885,31 +942,7 @@ class ApiClient {
       params: Partial<HistoryAggregatesQueryInput> & { serverIds?: string[] }
     ) => {
       const searchParams = new URLSearchParams();
-      if (params.serverUserIds?.length)
-        searchParams.set('serverUserIds', params.serverUserIds.join(','));
-      if (params.serverIds?.length) {
-        for (const id of params.serverIds) {
-          searchParams.append('serverIds', id);
-        }
-      }
-      if (params.state) searchParams.set('state', params.state);
-      if (params.mediaTypes?.length) searchParams.set('mediaTypes', params.mediaTypes.join(','));
-      if (params.startDate) searchParams.set('startDate', params.startDate.toISOString());
-      if (params.endDate) searchParams.set('endDate', params.endDate.toISOString());
-      if (params.search) searchParams.set('search', params.search);
-      if (params.platforms?.length) searchParams.set('platforms', params.platforms.join(','));
-      if (params.product) searchParams.set('product', params.product);
-      if (params.device) searchParams.set('device', params.device);
-      if (params.playerName) searchParams.set('playerName', params.playerName);
-      if (params.ipAddress) searchParams.set('ipAddress', params.ipAddress);
-      if (params.geoCountries?.length)
-        searchParams.set('geoCountries', params.geoCountries.join(','));
-      if (params.geoCity) searchParams.set('geoCity', params.geoCity);
-      if (params.geoRegion) searchParams.set('geoRegion', params.geoRegion);
-      if (params.transcodeDecisions?.length)
-        searchParams.set('transcodeDecisions', params.transcodeDecisions.join(','));
-      if (params.watched !== undefined) searchParams.set('watched', String(params.watched));
-      if (params.excludeShortSessions) searchParams.set('excludeShortSessions', 'true');
+      appendHistoryFilterParams(searchParams, params);
       return this.request<HistoryAggregates>(
         `/sessions/history/aggregates?${searchParams.toString()}`
       );
@@ -1182,15 +1215,7 @@ class ApiClient {
     },
     quality: async (timeRange?: StatsTimeRange, serverIds?: string[]) => {
       const params = this.buildStatsParamsMulti(timeRange ?? { period: 'month' }, serverIds);
-      return this.request<{
-        directPlay: number;
-        directStream: number;
-        transcode: number;
-        total: number;
-        directPlayPercent: number;
-        directStreamPercent: number;
-        transcodePercent: number;
-      }>(`/stats/quality?${params.toString()}`);
+      return this.request<QualityStats>(`/stats/quality?${params.toString()}`);
     },
     topUsers: async (timeRange?: StatsTimeRange, serverIds?: string[]) => {
       const params = this.buildStatsParamsMulti(timeRange ?? { period: 'month' }, serverIds);
@@ -1235,6 +1260,7 @@ class ApiClient {
           direct: number;
           directStream: number;
           transcode: number;
+          audioTranscode: number;
         }[];
       }>(`/stats/concurrent?${params.toString()}`);
       return response.data;
@@ -1414,6 +1440,13 @@ class ApiClient {
       params.set('pageSize', String(pageSize));
       return this.request<DuplicatesResponse>(`/library/duplicates?${params.toString()}`);
     },
+    duplicateFiles: (itemIds: string[]) => {
+      const params = new URLSearchParams();
+      for (const id of itemIds) {
+        params.append('itemIds', id);
+      }
+      return this.request<DuplicateFilesResponse>(`/library/duplicates/files?${params.toString()}`);
+    },
     stale: (
       serverIds?: string[],
       libraryId?: string,
@@ -1584,8 +1617,12 @@ class ApiClient {
       pageSize?: number;
       libraryKey?: string;
       hdr?: boolean;
+      atmos?: boolean;
       sizeGbMin?: number;
       sizeGbMax?: number;
+      videoCodec?: string;
+      audioCodec?: string;
+      audioChannels?: string;
     }) => {
       const searchParams = new URLSearchParams();
       searchParams.set('type', params.type);
@@ -1606,8 +1643,12 @@ class ApiClient {
       if (params.pageSize) searchParams.set('pageSize', String(params.pageSize));
       if (params.libraryKey) searchParams.set('libraryKey', params.libraryKey);
       if (params.hdr) searchParams.set('hdr', 'true');
+      if (params.atmos) searchParams.set('atmos', 'true');
       if (params.sizeGbMin !== undefined) searchParams.set('sizeGbMin', String(params.sizeGbMin));
       if (params.sizeGbMax !== undefined) searchParams.set('sizeGbMax', String(params.sizeGbMax));
+      if (params.videoCodec) searchParams.set('videoCodec', params.videoCodec);
+      if (params.audioCodec) searchParams.set('audioCodec', params.audioCodec);
+      if (params.audioChannels) searchParams.set('audioChannels', params.audioChannels);
       return this.request<CatalogResponse>(`/library/catalog?${searchParams.toString()}`);
     },
     catalogLetters: (params: {
@@ -1623,8 +1664,12 @@ class ApiClient {
       sort?: 'title' | 'added' | 'year' | 'plays' | 'watch_time' | 'viewers';
       libraryKey?: string;
       hdr?: boolean;
+      atmos?: boolean;
       sizeGbMin?: number;
       sizeGbMax?: number;
+      videoCodec?: string;
+      audioCodec?: string;
+      audioChannels?: string;
     }) => {
       const searchParams = new URLSearchParams();
       searchParams.set('type', params.type);
@@ -1643,8 +1688,12 @@ class ApiClient {
       if (params.sort) searchParams.set('sort', params.sort);
       if (params.libraryKey) searchParams.set('libraryKey', params.libraryKey);
       if (params.hdr) searchParams.set('hdr', 'true');
+      if (params.atmos) searchParams.set('atmos', 'true');
       if (params.sizeGbMin !== undefined) searchParams.set('sizeGbMin', String(params.sizeGbMin));
       if (params.sizeGbMax !== undefined) searchParams.set('sizeGbMax', String(params.sizeGbMax));
+      if (params.videoCodec) searchParams.set('videoCodec', params.videoCodec);
+      if (params.audioCodec) searchParams.set('audioCodec', params.audioCodec);
+      if (params.audioChannels) searchParams.set('audioChannels', params.audioChannels);
       return this.request<CatalogLettersResponse>(
         `/library/catalog/letters?${searchParams.toString()}`
       );
@@ -1667,6 +1716,14 @@ class ApiClient {
         }
       }
       return this.request<ShelvesResponse>(`/library/shelves?${searchParams.toString()}`);
+    },
+    catalogCodecs: (type: 'movie' | 'show', serverIds?: string[]) => {
+      const searchParams = new URLSearchParams();
+      searchParams.set('type', type);
+      for (const id of serverIds ?? []) searchParams.append('serverIds', id);
+      return this.request<CatalogCodecOptionsResponse>(
+        `/library/catalog/codecs?${searchParams.toString()}`
+      );
     },
     genres: (type: 'movie' | 'show', serverIds?: string[]) => {
       const searchParams = new URLSearchParams();
@@ -1732,6 +1789,17 @@ class ApiClient {
         }
         return this.request<MediaWatchersResponse>(
           `/library/media/${id}/watchers?${searchParams.toString()}`
+        );
+      },
+      requests: (id: string, serverIds?: string[]) => {
+        const searchParams = new URLSearchParams();
+        if (serverIds?.length) {
+          for (const serverId of serverIds) {
+            searchParams.append('serverIds', serverId);
+          }
+        }
+        return this.request<{ data: MediaRequestEntry[] }>(
+          `/library/media/${id}/requests?${searchParams.toString()}`
         );
       },
       history: (id: string, cursor?: string, pageSize?: number, serverIds?: string[]) => {
@@ -1812,6 +1880,48 @@ class ApiClient {
       }),
   };
 
+  requestServices = {
+    list: () => this.request<RequestService[]>('/request-services'),
+    test: (data: TestRequestServiceInput) =>
+      this.request<RequestServiceProbeResult>('/request-services/test', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    create: (data: CreateRequestServiceInput) =>
+      this.request<RequestService>('/request-services', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    update: (id: string, data: UpdateRequestServiceInput) =>
+      this.request<RequestService>(`/request-services/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+    remove: (id: string) => this.request<void>(`/request-services/${id}`, { method: 'DELETE' }),
+    sync: (id: string) =>
+      this.request<{ jobId: string }>(`/request-services/${id}/sync`, { method: 'POST' }),
+  };
+
+  requests = {
+    status: () => this.request<RequestsStatus>('/requests/status'),
+    analytics: (serverIds?: string[]) => {
+      const query = listSearchParams({ serverIds });
+      return this.request<RequestsAnalyticsResponse>(
+        `/requests/analytics${query ? `?${query}` : ''}`
+      );
+    },
+    unplayed: (params: Partial<RequestsUnplayedQuery> & { serverIds?: string[] }) => {
+      const query = listSearchParams(params);
+      return this.request<RequestsUnplayedResponse>(
+        `/requests/unplayed${query ? `?${query}` : ''}`
+      );
+    },
+    requesters: (params: Partial<RequestersQuery> & { serverIds?: string[] }) => {
+      const query = listSearchParams(params);
+      return this.request<RequestersResponse>(`/requests/requesters${query ? `?${query}` : ''}`);
+    },
+  };
+
   // Newsletters
   newsletters = {
     list: () => this.request<Newsletter[]>('/newsletters'),
@@ -1832,8 +1942,11 @@ class ApiClient {
         body: JSON.stringify(body),
       }),
     variants: (id: string) => this.request<NewsletterVariantsView>(`/newsletters/${id}/variants`),
-    recipients: (id: string) =>
-      this.request<NewsletterRecipientsView>(`/newsletters/${id}/recipients`),
+    recipients: (body: NewsletterRecipientsDraftInput) =>
+      this.request<NewsletterRecipientsView>('/newsletters/recipients', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
     test: (id: string, address: string, variantKey?: string) =>
       this.request<{ queued: boolean; jobId: string }>(`/newsletters/${id}/test`, {
         method: 'POST',
@@ -2055,6 +2168,7 @@ class ApiClient {
             type: 'boolean';
             default: boolean;
           }>;
+          destructive?: boolean;
         }>;
       }>('/maintenance/jobs'),
     startJob: (type: string, options?: { fullRefresh?: boolean }) =>
@@ -2125,6 +2239,7 @@ class ApiClient {
             durationMs: number;
             message: string;
           };
+          trigger: 'manual' | 'auto';
         }>;
       }>('/maintenance/history'),
     getSnapshots: (params?: { suspicious?: boolean; date?: string; libraryId?: string }) => {
@@ -2196,6 +2311,12 @@ class ApiClient {
     get: () => this.request<VersionInfo>('/version'),
     check: () =>
       this.request<{ message: string }>('/version/check', { method: 'POST', body: '{}' }),
+  };
+
+  // What's new dialog (owner only)
+  whatsNew = {
+    get: () => this.request<WhatsNewState>('/whats-new'),
+    dismiss: () => this.request<void>('/whats-new/dismiss', { method: 'POST', body: '{}' }),
   };
 
   // Tailscale VPN

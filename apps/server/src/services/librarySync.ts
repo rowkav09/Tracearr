@@ -41,12 +41,27 @@ import {
   hasStampableSessionsBefore,
 } from '../jobs/sessionIdentityBackfill.js';
 import { maybeEnqueueMaintenanceJob } from '../jobs/maintenanceQueue.js';
+import {
+  AUTO_LINK_WINDOW_MS,
+  listPlexServers,
+  MAX_AUTO_LINK_ATTEMPTS,
+} from '../jobs/importedHistoryLinking.js';
 import { getSessionsCompressionHorizon, refreshAggregates } from '../db/timescale.js';
-import type { LibrarySyncProgress } from '@tracearr/shared';
+import type { LibrarySyncProgress, ServerType } from '@tracearr/shared';
 import { REDIS_KEYS, RESOLUTION_TIERS, LEGACY_VERSION_SENTINEL } from '@tracearr/shared';
-import { resolutionBucketPredicate, resolutionRankSql } from '../utils/resolutionBuckets.js';
+import {
+  bucketMembershipColumns,
+  perResolutionBucket,
+  readResolutionCounts,
+  resolutionRankSql,
+} from '../utils/resolutionBuckets.js';
 import { getHeavyOpsStatus } from '../jobs/heavyOpsLock.js';
-import { sanitizeText, sanitizeTextArray, scrubStringFields } from '../utils/sanitizeText.js';
+import { sanitizeText, scrubStringFields } from '../utils/sanitizeText.js';
+import {
+  getImportedHistoryLinkState,
+  getSettings,
+  setImportedHistoryLinkState,
+} from './settings.js';
 import type { Redis } from 'ioredis';
 
 // Constants for batching and rate limiting.
@@ -118,6 +133,21 @@ const COUNT_MISMATCH_RATIO = 0.01;
 /** Music-type library sections: their server totalCount spans a different item universe than we store, so the undercount check is skipped for them. */
 const MUSIC_LIBRARY_TYPES = new Set(['music', 'artist']);
 
+/** Sections whose items are their own leaves - Plex serves /allLeaves from the same listing as /all, so a leaf fetch returns every item twice. Plex says 'movie', JF/Emby say 'movies'. */
+const FLAT_LIBRARY_TYPES = new Set(['movie', 'movies']);
+
+/**
+ * Bump a server type's version when its listing query changes shape. A library
+ * stamped with an older version gets one forced full scan, so items the old
+ * query left out come back without anyone running a manual sync. Plex is at 3
+ * and the other servers at 2: Plex's listing started storing plex_guid, and
+ * every parse now reads the Atmos and edition fields, which existing copies
+ * only pick up through a full scan.
+ */
+function libraryScanVersionFor(serverType: ServerType): number {
+  return serverType === 'plex' ? 3 : 2;
+}
+
 // Auto-handoff throttles for the compressed-history identity backfill. The
 // probe decompress-scans all compressed history when it comes back false (the
 // steady state - media_id is in neither segmentby nor orderby), so it must
@@ -139,6 +169,69 @@ let lastAutoBackfillEnqueueAt = 0;
 export function _resetAutoBackfillThrottleForTests(): void {
   lastAutoBackfillProbeAt = 0;
   lastAutoBackfillEnqueueAt = 0;
+}
+
+// The imported history link hand-off keeps its own throttle state on the same
+// intervals, so enqueueing it never holds back the identity backfill above.
+let lastLinkProbeAt = 0;
+let lastLinkEnqueueAt = 0;
+
+export function _resetImportedHistoryLinkThrottleForTests(): void {
+  lastLinkProbeAt = 0;
+  lastLinkEnqueueAt = 0;
+}
+
+/**
+ * Hand imported Plex history linking to the maintenance queue after a Plex
+ * library sync, until the job reports done, runs out of automatic attempts, or
+ * 14 days pass since linking was last re-armed.
+ * While any Plex server has a library sync pending the job would skip it, so
+ * the hand-off waits for a later sync without spending its throttle, as it
+ * does when the maintenance queue refuses the job.
+ */
+export async function maybeEnqueueImportedHistoryLink(
+  addedItems: boolean,
+  hasPendingLibrarySync: (serverId: string) => Promise<boolean>
+): Promise<void> {
+  const link = await getImportedHistoryLinkState();
+  if (link.state === 'done') {
+    return;
+  }
+
+  const plexServers = await listPlexServers();
+  const tautulli = await getSettings(['tautulliUrl', 'tautulliApiKey']);
+  if (!tautulli.tautulliUrl || !tautulli.tautulliApiKey) {
+    if (plexServers.every((server) => link.providerPassDoneServers.includes(server.id))) {
+      await setImportedHistoryLinkState(link.generation, {
+        ...link,
+        state: 'done',
+        autoAttempts: 0,
+      });
+      return;
+    }
+  }
+
+  if (
+    link.autoAttempts >= MAX_AUTO_LINK_ATTEMPTS ||
+    Date.now() - Date.parse(link.armedAt) > AUTO_LINK_WINDOW_MS
+  ) {
+    return;
+  }
+
+  const now = Date.now();
+  const allowed =
+    now - lastLinkEnqueueAt >= AUTO_BACKFILL_ENQUEUE_INTERVAL_MS &&
+    (addedItems || now - lastLinkProbeAt >= AUTO_BACKFILL_PROBE_INTERVAL_MS);
+  if (!allowed) return;
+  for (const server of plexServers) {
+    if (await hasPendingLibrarySync(server.id)) return;
+  }
+  const enqueued = await maybeEnqueueMaintenanceJob('link_imported_history', 'system', {
+    trigger: 'auto',
+  });
+  if (!enqueued) return;
+  lastLinkProbeAt = now;
+  lastLinkEnqueueAt = now;
 }
 
 // Reconcile throttle: same module-level pattern as the backfill probe above.
@@ -172,9 +265,12 @@ interface SnapshotStats {
   seasonCount: number;
   showCount: number;
   musicCount: number;
+  count8k: number;
   count4k: number;
+  count1440p: number;
   count1080p: number;
   count720p: number;
+  count480p: number;
   countSd: number;
   hevcCount: number;
   h264Count: number;
@@ -209,14 +305,6 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** Bind a genre list as one param; drizzle expands a raw array into a record that cannot cast to text[] */
-function toPgTextArrayLiteral(values: string[]): string {
-  const escaped = sanitizeTextArray(values).map(
-    (v) => `"${v.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
-  );
-  return `{${escaped.join(',')}}`;
-}
-
 /**
  * Library Sync Service
  *
@@ -227,6 +315,7 @@ function toPgTextArrayLiteral(values: string[]): string {
 interface LibrarySyncArgs {
   serverId: string;
   serverName: string;
+  serverType: ServerType;
   libraryId: string;
   libraryName: string;
   libraryType: string;
@@ -388,6 +477,7 @@ export class LibrarySyncService {
       const result = await this.syncLibrary({
         serverId,
         serverName: server.name,
+        serverType: server.type,
         libraryId: library.id,
         libraryName: library.name,
         libraryType: library.type,
@@ -562,6 +652,7 @@ export class LibrarySyncService {
     const {
       serverId,
       serverName,
+      serverType,
       libraryId,
       libraryName,
       libraryType,
@@ -577,7 +668,11 @@ export class LibrarySyncService {
     const isMusicLibrary = MUSIC_LIBRARY_TYPES.has(libraryType.toLowerCase());
 
     // Fetch total count first
-    const { totalCount } = await client.getLibraryItems(libraryId, { offset: 0, limit: 1 });
+    const { totalCount } = await client.getLibraryItems(libraryId, {
+      offset: 0,
+      limit: 1,
+      libraryType,
+    });
 
     // Load sync state from Redis
     const syncState = await this.getSyncState(serverId, libraryId);
@@ -613,7 +708,9 @@ export class LibrarySyncService {
     const fullScanDue =
       syncState.lastFullScanAt !== null &&
       Date.now() - syncState.lastFullScanAt.getTime() >= FULL_SCAN_MAX_AGE_MS;
-    const forceFullScan = triggeredBy === 'manual' || fullScanDue || overcountMismatch;
+    const scanQueryChanged = syncState.scanVersion !== libraryScanVersionFor(serverType);
+    const forceFullScan =
+      triggeredBy === 'manual' || fullScanDue || overcountMismatch || scanQueryChanged;
 
     const isIncremental =
       syncState.lastSyncedAt !== null &&
@@ -638,9 +735,11 @@ export class LibrarySyncService {
             ? `local active count exceeds server total (local ${localActiveCount} vs server ${totalCount})`
             : forceFullScan && triggeredBy === 'manual'
               ? 'manual trigger'
-              : forceFullScan
-                ? `periodic full scan (last full scan ${fullScanAgeHours}h ago)`
-                : 'unknown';
+              : scanQueryChanged
+                ? 'listing query changed since the last full scan'
+                : forceFullScan
+                  ? `periodic full scan (last full scan ${fullScanAgeHours}h ago)`
+                  : 'unknown';
       console.log(`[LibrarySync] Full sync for ${libraryName}: ${reason}`);
     }
 
@@ -668,13 +767,14 @@ export class LibrarySyncService {
       try {
         const { items: newItems, totalCount: incrementalCount } = await client.getLibraryItemsSince(
           libraryId,
-          syncState.lastSyncedAt!
+          syncState.lastSyncedAt!,
+          { libraryType }
         );
 
         // Check for new episodes/tracks independently — new episodes can arrive
         // for shows that were added months ago (no new Series in the result).
         let newLeaves: MediaLibraryItem[] = [];
-        if (client.getLibraryLeavesSince) {
+        if (client.getLibraryLeavesSince && !FLAT_LIBRARY_TYPES.has(libraryType.toLowerCase())) {
           try {
             const { items: leaves } = await client.getLibraryLeavesSince(
               libraryId,
@@ -733,6 +833,7 @@ export class LibrarySyncService {
           await this.saveSyncState(
             serverId,
             libraryId,
+            serverType,
             totalCount,
             syncState.lastFullScanAt ?? new Date()
           );
@@ -815,6 +916,7 @@ export class LibrarySyncService {
         await this.saveSyncState(
           serverId,
           libraryId,
+          serverType,
           totalCount,
           syncState.lastFullScanAt ?? new Date()
         );
@@ -874,6 +976,7 @@ export class LibrarySyncService {
       const { items, rawCount } = await client.getLibraryItems(libraryId, {
         offset,
         limit: BATCH_SIZE,
+        libraryType,
       });
 
       // A page that's all extras parses to zero items even though the server page
@@ -1128,7 +1231,11 @@ export class LibrarySyncService {
 
     // Calculate delta
     const addedKeys = [...currentKeys].filter((k) => !previousKeys.has(k));
-    const removedKeys = [...previousKeys].filter((k) => !currentKeys.has(k));
+    const removedKeys = await this.confirmRemovals(
+      client,
+      { id: libraryId, name: libraryName, type: libraryType },
+      [...previousKeys].filter((k) => !currentKeys.has(k))
+    );
 
     // Mark removed items (delete from database)
     if (removedKeys.length > 0) {
@@ -1189,7 +1296,14 @@ export class LibrarySyncService {
         triggeredBy,
         syncState.acceptedShortfall
       );
-      await this.saveSyncState(serverId, libraryId, totalCount, new Date(), acceptedShortfall);
+      await this.saveSyncState(
+        serverId,
+        libraryId,
+        serverType,
+        totalCount,
+        new Date(),
+        acceptedShortfall
+      );
       return {
         serverId,
         libraryId,
@@ -1222,7 +1336,14 @@ export class LibrarySyncService {
       triggeredBy,
       syncState.acceptedShortfall
     );
-    await this.saveSyncState(serverId, libraryId, totalCount, new Date(), acceptedShortfall);
+    await this.saveSyncState(
+      serverId,
+      libraryId,
+      serverType,
+      totalCount,
+      new Date(),
+      acceptedShortfall
+    );
 
     return {
       serverId,
@@ -1247,6 +1368,7 @@ export class LibrarySyncService {
     lastItemCount: number | null;
     lastFullScanAt: Date | null;
     acceptedShortfall: number;
+    scanVersion: number | null;
   }> {
     if (!redisClient)
       return {
@@ -1254,13 +1376,15 @@ export class LibrarySyncService {
         lastItemCount: null,
         lastFullScanAt: null,
         acceptedShortfall: 0,
+        scanVersion: null,
       };
 
-    const [lastStr, countStr, fullScanStr, shortfallStr] = await Promise.all([
+    const [lastStr, countStr, fullScanStr, shortfallStr, scanVersionStr] = await Promise.all([
       redisClient.get(REDIS_KEYS.LIBRARY_SYNC_LAST(serverId, libraryId)),
       redisClient.get(REDIS_KEYS.LIBRARY_SYNC_COUNT(serverId, libraryId)),
       redisClient.get(REDIS_KEYS.LIBRARY_SYNC_FULL_SCAN_AT(serverId, libraryId)),
       redisClient.get(REDIS_KEYS.LIBRARY_SYNC_SHORTFALL(serverId, libraryId)),
+      redisClient.get(REDIS_KEYS.LIBRARY_SYNC_SCAN_VERSION(serverId, libraryId)),
     ]);
 
     return {
@@ -1268,6 +1392,7 @@ export class LibrarySyncService {
       lastItemCount: countStr ? parseInt(countStr, 10) : null,
       lastFullScanAt: fullScanStr ? new Date(fullScanStr) : null,
       acceptedShortfall: shortfallStr ? parseInt(shortfallStr, 10) : 0,
+      scanVersion: scanVersionStr ? parseInt(scanVersionStr, 10) : null,
     };
   }
 
@@ -1283,6 +1408,7 @@ export class LibrarySyncService {
   private async saveSyncState(
     serverId: string,
     libraryId: string,
+    serverType: ServerType,
     itemCount: number,
     lastFullScanAt: Date,
     acceptedShortfall?: number
@@ -1307,6 +1433,12 @@ export class LibrarySyncService {
       redisClient.set(
         REDIS_KEYS.LIBRARY_SYNC_FULL_SCAN_AT(serverId, libraryId),
         lastFullScanAt.toISOString(),
+        'EX',
+        SYNC_STATE_TTL
+      ),
+      redisClient.set(
+        REDIS_KEYS.LIBRARY_SYNC_SCAN_VERSION(serverId, libraryId),
+        String(libraryScanVersionFor(serverType)),
         'EX',
         SYNC_STATE_TTL
       ),
@@ -1510,6 +1642,7 @@ export class LibrarySyncService {
               imdbId: item.imdbId ?? null,
               tmdbId: item.tmdbId ?? null,
               tvdbId: item.tvdbId ?? null,
+              plexGuid: item.plexGuid ?? null,
               videoResolution: item.videoResolution ?? null,
               videoCodec: item.videoCodec ?? null,
               videoDynamicRange: item.videoDynamicRange ?? null,
@@ -1546,6 +1679,7 @@ export class LibrarySyncService {
             imdbId: sql`excluded.imdb_id`,
             tmdbId: sql`excluded.tmdb_id`,
             tvdbId: sql`excluded.tvdb_id`,
+            plexGuid: sql`excluded.plex_guid`,
             videoResolution: sql`excluded.video_resolution`,
             videoCodec: sql`excluded.video_codec`,
             videoDynamicRange: sql`excluded.video_dynamic_range`,
@@ -1589,6 +1723,7 @@ export class LibrarySyncService {
             ${libraryItems.imdbId} IS DISTINCT FROM excluded.imdb_id OR
             ${libraryItems.tmdbId} IS DISTINCT FROM excluded.tmdb_id OR
             ${libraryItems.tvdbId} IS DISTINCT FROM excluded.tvdb_id OR
+            ${libraryItems.plexGuid} IS DISTINCT FROM excluded.plex_guid OR
             ${libraryItems.videoResolution} IS DISTINCT FROM excluded.video_resolution OR
             ${libraryItems.videoCodec} IS DISTINCT FROM excluded.video_codec OR
             ${libraryItems.videoDynamicRange} IS DISTINCT FROM excluded.video_dynamic_range OR
@@ -1689,19 +1824,26 @@ export class LibrarySyncService {
       });
     }
 
-    const genreRows = uniqueItems
-      .filter((i) => i.genres?.length && mediaIdByRatingKey.get(i.ratingKey))
-      .map((i) => ({ id: mediaIdByRatingKey.get(i.ratingKey)!, genres: i.genres! }));
-    if (genreRows.length > 0) {
-      const values = sql.join(
-        genreRows.map((r) => sql`(${r.id}::uuid, ${toPgTextArrayLiteral(r.genres)}::text[])`),
-        sql`, `
-      );
-      // m.genres IS NULL writes once so disagreeing servers don't thrash the row
+    const genreMediaIds = new Set(
+      uniqueItems
+        .filter((i) => i.genres?.length)
+        .map((i) => mediaIdByRatingKey.get(i.ratingKey))
+        .filter((id): id is string => !!id)
+    );
+    if (genreMediaIds.size > 0) {
+      // Rebuilt from every server's active copy so an edit on the server lands.
+      // Servers that disagree settle on the longest list, then the lowest
+      // server id, so they never take turns overwriting the row.
+      const ids = `{${[...genreMediaIds].join(',')}}`;
       await db.execute(sql`
-        UPDATE media m SET genres = v.genres, updated_at = now()
-        FROM (VALUES ${values}) AS v(id, genres)
-        WHERE m.id = v.id AND m.genres IS NULL
+        UPDATE media m SET genres = best.genres, updated_at = now()
+        FROM (
+          SELECT DISTINCT ON (media_id) media_id, genres
+          FROM library_items
+          WHERE removed_at IS NULL AND cardinality(genres) > 0 AND media_id = ANY(${ids}::uuid[])
+          ORDER BY media_id, cardinality(genres) DESC, server_id, id
+        ) best
+        WHERE m.id = best.media_id AND m.genres IS DISTINCT FROM best.genres
       `);
     }
 
@@ -1754,6 +1896,8 @@ export class LibrarySyncService {
           videoDynamicRange: version.videoDynamicRange ?? null,
           audioCodec: version.audioCodec ?? null,
           audioChannels: version.audioChannels ?? null,
+          audioAtmos: version.audioAtmos ?? false,
+          editionTitle: version.editionTitle ?? null,
           container: version.container ?? null,
           bitrate: version.bitrate ?? null,
           fileSize: version.fileSize ?? null,
@@ -1777,6 +1921,8 @@ export class LibrarySyncService {
             videoDynamicRange: sql`excluded.video_dynamic_range`,
             audioCodec: sql`excluded.audio_codec`,
             audioChannels: sql`excluded.audio_channels`,
+            audioAtmos: sql`excluded.audio_atmos`,
+            editionTitle: sql`excluded.edition_title`,
             container: sql`excluded.container`,
             bitrate: sql`excluded.bitrate`,
             fileSize: sql`excluded.file_size`,
@@ -1862,9 +2008,12 @@ export class LibrarySyncService {
         seasonCount: librarySnapshots.seasonCount,
         showCount: librarySnapshots.showCount,
         musicCount: librarySnapshots.musicCount,
+        count8k: librarySnapshots.count8k,
         count4k: librarySnapshots.count4k,
+        count1440p: librarySnapshots.count1440p,
         count1080p: librarySnapshots.count1080p,
         count720p: librarySnapshots.count720p,
+        count480p: librarySnapshots.count480p,
         countSd: librarySnapshots.countSd,
         hevcCount: librarySnapshots.hevcCount,
         h264Count: librarySnapshots.h264Count,
@@ -1934,10 +2083,7 @@ export class LibrarySyncService {
           li.id,
           li.file_size,
           li.media_type,
-          BOOL_OR(${resolutionBucketPredicate('v.video_resolution', '4k')}) AS has_4k,
-          BOOL_OR(${resolutionBucketPredicate('v.video_resolution', '1080p')}) AS has_1080p,
-          BOOL_OR(${resolutionBucketPredicate('v.video_resolution', '720p')}) AS has_720p,
-          BOOL_OR(${resolutionBucketPredicate('v.video_resolution', 'sd')}) AS has_sd,
+          ${bucketMembershipColumns('v.video_resolution')},
           BOOL_OR(${resolutionRankSql('v.video_resolution')} >= ${RESOLUTION_TIERS['1080p']}) AS high_quality,
           BOOL_OR(v.video_codec IN ('hevc', 'h265', 'x265', 'HEVC', 'H265', 'X265')) AS has_hevc,
           BOOL_OR(v.video_codec IN ('h264', 'avc', 'x264', 'H264', 'AVC', 'X264')) AS has_h264,
@@ -1959,10 +2105,7 @@ export class LibrarySyncService {
         COUNT(*) FILTER (WHERE media_type = 'season')::int AS season_count,
         COUNT(*) FILTER (WHERE media_type = 'show')::int AS show_count,
         COUNT(*) FILTER (WHERE file_size > 0 AND media_type IN ('artist', 'album', 'track'))::int AS music_count,
-        COUNT(*) FILTER (WHERE file_size > 0 AND has_4k)::int AS count_4k,
-        COUNT(*) FILTER (WHERE file_size > 0 AND has_1080p)::int AS count_1080p,
-        COUNT(*) FILTER (WHERE file_size > 0 AND has_720p)::int AS count_720p,
-        COUNT(*) FILTER (WHERE file_size > 0 AND has_sd)::int AS count_sd,
+        ${perResolutionBucket((bucket) => `COUNT(*) FILTER (WHERE file_size > 0 AND has_${bucket})::int AS count_${bucket}`)},
         COUNT(*) FILTER (WHERE file_size > 0 AND high_quality)::int AS count_high_quality,
         COUNT(*) FILTER (WHERE file_size > 0 AND has_hevc)::int AS hevc_count,
         COUNT(*) FILTER (WHERE file_size > 0 AND has_h264)::int AS h264_count,
@@ -1980,10 +2123,6 @@ export class LibrarySyncService {
           season_count: number;
           show_count: number;
           music_count: number;
-          count_4k: number;
-          count_1080p: number;
-          count_720p: number;
-          count_sd: number;
           count_high_quality: number;
           hevc_count: number;
           h264_count: number;
@@ -1992,6 +2131,7 @@ export class LibrarySyncService {
         }
       | undefined;
     if (!row) return null;
+    const counts = readResolutionCounts(row);
 
     return this.writeSnapshot(serverId, libraryId, {
       itemCount: row.item_count,
@@ -2001,10 +2141,13 @@ export class LibrarySyncService {
       seasonCount: row.season_count,
       showCount: row.show_count,
       musicCount: row.music_count,
-      count4k: row.count_4k,
-      count1080p: row.count_1080p,
-      count720p: row.count_720p,
-      countSd: row.count_sd,
+      count8k: counts['8k'],
+      count4k: counts['4k'],
+      count1440p: counts['1440p'],
+      count1080p: counts['1080p'],
+      count720p: counts['720p'],
+      count480p: counts['480p'],
+      countSd: counts.sd,
       hevcCount: row.hevc_count,
       h264Count: row.h264_count,
       av1Count: row.av1_count,
@@ -2069,9 +2212,12 @@ export class LibrarySyncService {
         seasonCount: latest.seasonCount,
         showCount: latest.showCount,
         musicCount: latest.musicCount,
+        count8k: latest.count8k,
         count4k: latest.count4k,
+        count1440p: latest.count1440p,
         count1080p: latest.count1080p,
         count720p: latest.count720p,
+        count480p: latest.count480p,
         countSd: latest.countSd,
         hevcCount: latest.hevcCount,
         h264Count: latest.h264Count,
@@ -2156,6 +2302,37 @@ export class LibrarySyncService {
       );
 
     return new Set(rows.map((r) => r.ratingKey));
+  }
+
+  /**
+   * A listing can leave out items the server still has (Jellyfin 12 folded
+   * collection members into their box set), so every key the scan did not see
+   * is checked by id before it is tombstoned. When the check itself fails the
+   * items stay until the next scan.
+   */
+  private async confirmRemovals(
+    client: ReturnType<typeof createMediaServerClient>,
+    library: { id: string; name: string; type: string },
+    missingKeys: string[]
+  ): Promise<string[]> {
+    if (missingKeys.length === 0 || !client.findExistingRatingKeys) return missingKeys;
+
+    let stillPresent: Set<string>;
+    try {
+      stillPresent = await client.findExistingRatingKeys(missingKeys, library);
+    } catch (err) {
+      console.warn(
+        `[LibrarySync] ${library.name}: could not confirm ${missingKeys.length} removals, keeping the items until the next scan:`,
+        err
+      );
+      return [];
+    }
+    if (stillPresent.size > 0) {
+      console.warn(
+        `[LibrarySync] ${library.name}: listing left out ${stillPresent.size} of ${missingKeys.length} missing items the server still has - keeping them`
+      );
+    }
+    return missingKeys.filter((k) => !stillPresent.has(k));
   }
 
   /**

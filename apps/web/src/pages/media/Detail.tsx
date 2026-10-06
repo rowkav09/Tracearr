@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { format } from 'date-fns';
+import type { MediaRequestEntry } from '@tracearr/shared';
 import { ApiError } from '@/lib/api';
 import {
   useMediaDetail,
@@ -13,6 +14,7 @@ import {
   useMediaPlatforms,
   useMediaHistory,
   useSession,
+  useMediaRequests,
   findCachedMediaStub,
 } from '@/hooks/queries';
 import { useServer } from '@/hooks/useServer';
@@ -23,6 +25,7 @@ import { KpiStrip } from '@/components/media-browse/KpiStrip';
 import { WatchersTable } from '@/components/media-browse/WatchersTable';
 import { SeasonHeatPanel } from '@/components/media-browse/SeasonHeatPanel';
 import { PlatformPanel } from '@/components/media-browse/PlatformPanel';
+import { MediaRequestsPanel } from '@/components/requests/MediaRequestsPanel';
 import { InlineErrorState } from '@/components/library/ErrorState';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
@@ -43,7 +46,7 @@ const HISTORY_HEAD_CLASS = 'text-foreground h-10 px-2 font-medium whitespace-now
 const HISTORY_CELL_CLASS = 'p-2 whitespace-nowrap';
 
 function NotFoundState() {
-  const { t } = useTranslation('pages');
+  const { t } = useTranslation(['pages', 'common']);
   return (
     <div className="flex flex-col items-center justify-center gap-3 px-4 py-20 text-center">
       <h1 className="text-xl font-semibold">{t('media.detail.notFound.title')}</h1>
@@ -107,7 +110,7 @@ function HistoryPanel({
   onLoadMore: () => void;
   onRowClick: (sessionId: string) => void;
 }) {
-  const { t } = useTranslation('pages');
+  const { t } = useTranslation(['pages', 'common']);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const virtualizer = useVirtualizer({
@@ -166,16 +169,16 @@ function HistoryPanel({
                 }}
               >
                 <div role="columnheader" className={HISTORY_HEAD_CLASS}>
-                  {t('media.detail.history.columns.date')}
+                  {t('common:labels.date')}
                 </div>
                 <div role="columnheader" className={HISTORY_HEAD_CLASS}>
-                  {t('media.detail.history.columns.user')}
+                  {t('common:labels.user')}
                 </div>
                 <div role="columnheader" className={HISTORY_HEAD_CLASS}>
-                  {t('media.detail.history.columns.content')}
+                  {t('common:labels.content')}
                 </div>
                 <div role="columnheader" className={HISTORY_HEAD_CLASS}>
-                  {t('media.detail.history.columns.server')}
+                  {t('common:labels.server')}
                 </div>
                 <div role="columnheader" className={cn(HISTORY_HEAD_CLASS, 'text-right')}>
                   {t('media.detail.history.columns.duration')}
@@ -326,6 +329,18 @@ export function MediaDetail() {
   const seasonHeatQuery = useSeasonHeat(id, selectedServerIds, isShow);
   const platformsQuery = useMediaPlatforms(id, selectedServerIds);
   const historyQuery = useMediaHistory(id, selectedServerIds);
+  const requestsQuery = useMediaRequests(id, selectedServerIds);
+
+  // requestedAt is a fixed-width UTC ISO string from the API, so comparing the
+  // strings orders them chronologically.
+  const primaryRequest = useMemo(() => {
+    const live = (requestsQuery.data?.data ?? []).filter((entry) => entry.deletedAt === null);
+    return live.reduce<MediaRequestEntry | null>(
+      (earliest, entry) =>
+        earliest === null || entry.requestedAt < earliest.requestedAt ? entry : earliest,
+      null
+    );
+  }, [requestsQuery.data]);
 
   const notFoundStatus =
     detailQuery.error instanceof ApiError &&
@@ -347,6 +362,7 @@ export function MediaDetail() {
         isError={detailQuery.isError}
         onRetry={() => void detailQuery.refetch()}
         serverById={serverById}
+        request={primaryRequest}
         onFullHistoryClick={() => {
           historyRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }}
@@ -359,6 +375,15 @@ export function MediaDetail() {
         onRetry={() => void detailQuery.refetch()}
         serverById={serverById}
       />
+
+      {mediaType !== 'episode' && (
+        <MediaRequestsPanel
+          rows={requestsQuery.data?.data}
+          isLoading={requestsQuery.isLoading}
+          isError={requestsQuery.isError}
+          onRetry={() => void requestsQuery.refetch()}
+        />
+      )}
 
       <KpiStrip
         mediaType={mediaType}

@@ -26,7 +26,7 @@ export interface VariantPlan {
   excluded: NewsletterExcludedPerson[];
 }
 
-/** The newsletter's servers in its own order: the scope's list, or name order (loadServerLinks) when the scope names none. */
+/** The newsletter's servers in its own order: the scope's list, or server order (loadServerLinks) when the scope names none. */
 export function orderServers(
   scope: Pick<NewsletterScope, 'serverIds'>,
   servers: ServerLink[]
@@ -102,6 +102,8 @@ export function testVariantPlan(
     username: null,
     serverName: null,
     thumbUrl: null,
+    newSinceLastSend: false,
+    addressFromUsername: false,
   };
   return { variants: [variantFor(servers, ids, [recipient])], excluded: [] };
 }

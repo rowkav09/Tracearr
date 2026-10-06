@@ -11,6 +11,7 @@ import {
   POLLER_CONFIG,
   POLLING_INTERVALS,
   SESSION_LIMITS,
+  usernameAsEmail,
   type ActiveSession,
   type EngineAutomation,
   type Session,
@@ -28,10 +29,12 @@ import {
 import { getGeoIPSettings } from '../../routes/settings.js';
 import { isMaintenance } from '../../serverState.js';
 import { isLeader } from '../../services/leaderLease.js';
+import { isLiveRow } from '../../services/liveServers.js';
 import type { CacheService, PubSubService } from '../../services/cache.js';
-import { type GeoLocation } from '../../services/geoip.js';
+import { geoipService } from '../../services/geoip.js';
 import { createMediaServerClient } from '../../services/mediaServer/index.js';
-import { lookupSessionGeoIP, isTailscaleIP } from '../../services/tailscaleLocation.js';
+import { resolveSessionGeo, type SessionGeo } from '../../services/serverLocations.js';
+import { isTailscaleIP } from '../../services/tailscaleLocation.js';
 import {
   fetchRecentSessionsForIdentity,
   setContextAssemblyDeps,
@@ -50,6 +53,7 @@ import {
 import { registerService, unregisterService } from '../../services/serviceTracker.js';
 import { getWatchedThreshold } from '../../services/settings.js';
 import { sseManager } from '../../services/sseManager.js';
+import { HttpClientError } from '../../utils/http.js';
 import { createLogger } from '../../utils/logger.js';
 
 import {
@@ -96,6 +100,7 @@ import type {
   PendingSessionData,
   PendingSessionOutcome,
   PollerConfig,
+  ProcessedSession,
   ResolvePendingSessionInput,
   ServerProcessingResult,
   ServerWithToken,
@@ -236,7 +241,8 @@ async function handleFirstMisses(
     if (missedPollTracking.has(cachedKey)) continue; // Already in grace period
 
     const cachedActiveSession = activeSessions.find((s) => {
-      const sType = (serverTypeMap.get(s.serverId) ?? 'plex') as 'plex' | 'jellyfin' | 'emby' | 'navidrome';
+      const sType = (serverTypeMap.get(s.serverId) ?? 'plex') as
+        'plex' | 'jellyfin' | 'emby' | 'navidrome';
       return (
         buildCompositeKey({
           serverType: sType,
@@ -548,6 +554,14 @@ async function pruneMissedPollTracking(
 // Server Session Processing
 // ============================================================================
 
+/** Plex buffering maps to 'playing'; the session keeps its last playing or paused state. */
+function stateThroughBuffering(
+  current: 'playing' | 'paused' | 'stopped',
+  processed: ProcessedSession
+): 'playing' | 'paused' {
+  return processed.buffering && current !== 'stopped' ? current : processed.state;
+}
+
 /**
  * Confirm or update a Redis-only pending session. Pending sessions are
  * invisible to cachedSessionKeys, so both poll branches must call this
@@ -576,17 +590,18 @@ async function resolvePendingSession(
 
   const { updatedData, isConfirmed } = updatePendingSession(
     pendingSession,
-    processed.state,
+    stateThroughBuffering(pendingSession.currentState, processed),
     processed.progressMs,
     Date.now()
   );
+  updatedData.processed = { ...updatedData.processed, buffering: processed.buffering };
 
   if (!isConfirmed) {
     await cacheService.setPendingSession(server.id, pendingKey, updatedData);
     return { status: 'still-pending', updatedSession: buildPendingActiveSession(updatedData) };
   }
 
-  const geo: GeoLocation = await lookupSessionGeoIP(processed.ipAddress, usePlexGeoip, server.type);
+  const geo = await resolveSessionGeo(processed.ipAddress, server.id, usePlexGeoip);
   const createResult = await cacheService.withSessionCreateLock(
     server.id,
     processed.sessionKey,
@@ -631,7 +646,13 @@ async function resolvePendingSession(
   }
 
   await cacheService.deletePendingSession(server.id, pendingKey);
-  const { insertedSession, violationResults, qualityChange, wasTerminatedByRule } = createResult;
+  const {
+    insertedSession,
+    violationResults,
+    qualityChange,
+    wasTerminatedByRule,
+    geo: insertedGeo,
+  } = createResult;
 
   if (qualityChange) {
     await handleQualityChangeFallout(qualityChange, cacheService, pubSubService);
@@ -643,7 +664,7 @@ async function resolvePendingSession(
       session: insertedSession,
       processed,
       user: userDetail,
-      geo,
+      geo: insertedGeo,
       server,
     });
     recordDbWrite(insertedSession.id, Date.now());
@@ -839,6 +860,7 @@ async function processServerSessions(
             .set({
               username: processed.username,
               thumbUrl: processed.userThumb || existingServerUser.thumbUrl,
+              ...(server.type === 'plex' ? {} : { email: usernameAsEmail(processed.username) }),
               updatedAt: new Date(),
             })
             .where(eq(serverUsers.id, existingServerUser.id));
@@ -886,6 +908,7 @@ async function processServerSessions(
               serverId: server.id,
               externalId: u.externalId,
               username: u.username,
+              email: server.type === 'plex' ? null : usernameAsEmail(u.username),
               thumbUrl: u.thumbUrl,
             }))
           )
@@ -1089,7 +1112,7 @@ async function processServerSessions(
           }
 
           // Get GeoIP location (uses Plex API if enabled, falls back to MaxMind)
-          const geo: GeoLocation = await lookupSessionGeoIP(processed.ipAddress, usePlexGeoip, server.type);
+          const geo = await resolveSessionGeo(processed.ipAddress, server.id, usePlexGeoip);
 
           const createResult = await cacheService.withSessionCreateLock<
             | { rediscovered: typeof sessions.$inferSelect }
@@ -1247,7 +1270,7 @@ async function processServerSessions(
                   geo,
                   server,
                   overrides: {
-                    state: processed.state,
+                    state: stateThroughBuffering(existing.state, processed),
                     lastPausedAt: existing.lastPausedAt,
                     pausedDurationMs: existing.pausedDurationMs ?? 0,
                     watched: existing.watched ?? false,
@@ -1325,8 +1348,9 @@ async function processServerSessions(
             existingRow && existingRow.serverUserId !== userDetail.id ? null : existingRow;
 
           // Skip the GeoIP lookup when the IP matches the existing row - reuse its geo data.
-          const geo: GeoLocation =
-            existingSession?.ipAddress === processed.ipAddress && !isTailscaleIP(processed.ipAddress)
+          const geo: SessionGeo =
+            existingSession?.ipAddress === processed.ipAddress &&
+            !isTailscaleIP(processed.ipAddress)
               ? {
                   city: existingSession.geoCity,
                   region: existingSession.geoRegion,
@@ -1338,8 +1362,9 @@ async function processServerSessions(
                   lon: existingSession.geoLon,
                   asnNumber: existingSession.geoAsnNumber,
                   asnOrganization: existingSession.geoAsnOrganization,
+                  isLocal: existingSession.isLocal ?? geoipService.isPrivateIP(processed.ipAddress),
                 }
-              : await lookupSessionGeoIP(processed.ipAddress, usePlexGeoip, server.type);
+              : await resolveSessionGeo(processed.ipAddress, server.id, usePlexGeoip);
 
           if (!existingSession) {
             // Issue #120: Stale cache entry - session key is in Redis but no active session exists in DB
@@ -1589,7 +1614,7 @@ async function processServerSessions(
           }
 
           const previousState = existingSession.state;
-          const newState = processed.state;
+          const newState = stateThroughBuffering(existingSession.state, processed);
           const now = new Date();
 
           // Check if transcode state changed (e.g., user changed quality mid-stream)
@@ -1669,7 +1694,11 @@ async function processServerSessions(
           // Write to DB only on state changes or on the periodic jittered flush
           const watchedThresholdReached = updatePayload.watched === true;
           if (watchedThresholdReached) watchedTransitionOccurred = true;
-          const hasChanges = shouldWriteToDb(existingSession, processed, watchedThresholdReached);
+          const hasChanges = shouldWriteToDb(
+            existingSession,
+            { ...processed, state: newState },
+            watchedThresholdReached
+          );
           const flushElapsed = shouldFlushDbWrite(existingSession.id, now.getTime());
 
           // Guarded by isNull(stoppedAt): a stop racing this write must not
@@ -1835,9 +1864,15 @@ async function processServerSessions(
       confirmedFromPendingIds,
     };
   } catch (error) {
-    console.error(`Error polling server ${server.name}:`, error);
+    const unauthorized = error instanceof HttpClientError && error.statusCode === 401;
+    if (unauthorized) {
+      console.error(`[Poller] ${server.name} rejected Tracearr's token (401)`);
+    } else {
+      console.error(`Error polling server ${server.name}:`, error);
+    }
     return {
       success: false,
+      unauthorized,
       newSessions: [],
       stoppedSessionKeys: [],
       updatedSessions: [],
@@ -1886,7 +1921,7 @@ async function pollServers(): Promise<void> {
 
   try {
     // Get all connected servers
-    const allServers = await getCachedServers();
+    const allServers = (await getCachedServers()).filter(isLiveRow);
 
     // Filter to only servers that need polling.
     // SSE-connected servers (Plex or JF/Emby with plugin) are handled by SSE events.
@@ -1957,6 +1992,7 @@ async function pollServers(): Promise<void> {
 
         const {
           success,
+          unauthorized,
           newSessions,
           stoppedSessionKeys,
           updatedSessions,
@@ -1985,13 +2021,14 @@ async function pollServers(): Promise<void> {
             const failCount = await cacheService.incrServerFailCount(server.id);
 
             if (failCount >= POLLER_CONFIG.DOWN_THRESHOLD) {
-              await cacheService.setServerHealth(server.id, false);
+              const reason = unauthorized ? 'unauthorized' : undefined;
+              await cacheService.setServerHealth(server.id, false, reason);
 
               if (wasHealthy !== false) {
                 console.log(
                   `[Poller] Server ${server.name} is DOWN (${failCount} consecutive failures)`
                 );
-                await dispatchServerHealth('server.down', healthServer, new Date());
+                await dispatchServerHealth('server.down', healthServer, new Date(), reason);
               }
             }
           }
@@ -2078,6 +2115,50 @@ async function pollServers(): Promise<void> {
 // ============================================================================
 
 /**
+ * Stops every row handed in as forceStopped, mirrors the cache and the
+ * `session:stopped` publish, and invalidates dashboard stats once. The stale
+ * sweep and the historical switch both end sessions this way.
+ */
+export async function forceStopSessions(
+  rows: (typeof sessions.$inferSelect)[],
+  stoppedAt: Date = new Date()
+): Promise<number> {
+  let stopped = 0;
+  let dashboardStatsDirty = false;
+  try {
+    for (const row of rows) {
+      const { wasUpdated, needsRetry, retryData } = await stopSessionAtomic({
+        session: row,
+        stoppedAt,
+        forceStopped: true,
+      });
+      clearDbWriteTracking(row.id);
+
+      if (needsRetry && retryData && cacheService) {
+        await cacheService.addSessionWriteRetry(row.id, retryData);
+      }
+
+      if (!wasUpdated) continue;
+      stopped += 1;
+
+      if (cacheService) {
+        await cacheService.removeActiveSession(row.id, { skipDashboardInvalidation: true });
+        dashboardStatsDirty = true;
+      }
+
+      if (pubSubService) {
+        await pubSubService.publish('session:stopped', row.id);
+      }
+    }
+  } finally {
+    if (dashboardStatsDirty && cacheService) {
+      await cacheService.invalidateDashboardStatsCache();
+    }
+  }
+  return stopped;
+}
+
+/**
  * Sweep for stale sessions and force-stop them
  *
  * A session is considered stale when:
@@ -2125,51 +2206,9 @@ export async function sweepStaleSessions(): Promise<number> {
 
     console.log(`[Poller] Force-stopping ${staleSessions.length} stale session(s)`);
 
-    const now = new Date();
-
-    // Dashboard invalidation is deferred to one call after the loop (instead
-    // of one SCAN per force-stopped session); try/finally so the flag still
-    // flushes if a later iteration throws.
-    let dashboardStatsDirty = false;
-    try {
-      for (const staleSession of staleSessions) {
-        // Check if session should be force-stopped (using the stateTracker function)
-        if (!shouldForceStopStaleSession(staleSession.lastSeenAt)) {
-          // Shouldn't happen since we already filtered, but double-check
-          continue;
-        }
-
-        const { wasUpdated, needsRetry, retryData } = await stopSessionAtomic({
-          session: staleSession,
-          stoppedAt: now,
-          forceStopped: true,
-        });
-        clearDbWriteTracking(staleSession.id);
-
-        if (needsRetry && retryData && cacheService) {
-          await cacheService.addSessionWriteRetry(staleSession.id, retryData);
-        }
-
-        if (!wasUpdated) {
-          continue;
-        }
-
-        if (cacheService) {
-          await cacheService.removeActiveSession(staleSession.id, {
-            skipDashboardInvalidation: true,
-          });
-          dashboardStatsDirty = true;
-        }
-
-        if (pubSubService) {
-          await pubSubService.publish('session:stopped', staleSession.id);
-        }
-      }
-    } finally {
-      if (dashboardStatsDirty && cacheService) {
-        await cacheService.invalidateDashboardStatsCache();
-      }
-    }
+    await forceStopSessions(
+      staleSessions.filter((session) => shouldForceStopStaleSession(session.lastSeenAt))
+    );
 
     return staleSessions.length;
   } catch (error) {
@@ -2294,7 +2333,7 @@ export async function triggerServerPoll(serverId: string): Promise<void> {
 
   try {
     const [server] = await db.select().from(servers).where(eq(servers.id, serverId));
-    if (!server) return;
+    if (!server || !isLiveRow(server)) return;
 
     const cachedSessions = cacheService ? await cacheService.getAllActiveSessions() : [];
     const serverTypeMap = new Map([[server.id, server.type]]);
@@ -2367,7 +2406,7 @@ export async function triggerReconciliationPoll(): Promise<void> {
   try {
     // Get all servers with an active SSE connection (Plex or JF/Emby plugin).
     // Servers in fallback are already covered by the main poller.
-    const allServers = await getCachedServers();
+    const allServers = (await getCachedServers()).filter(isLiveRow);
     const sseServers = allServers.filter((server) => !sseManager.isInFallback(server.id));
 
     if (sseServers.length === 0) {

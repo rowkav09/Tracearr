@@ -4,6 +4,7 @@
  */
 
 import { forwardRef, useRef, useEffect, memo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { Link } from 'react-router';
 import {
@@ -15,12 +16,10 @@ import {
   CircleHelp,
   Play,
   Pause,
-  MonitorPlay,
-  Zap,
-  Cpu,
   Globe,
   Clock,
   Clapperboard,
+  Subtitles,
 } from 'lucide-react';
 import { TableCell, TableHead, TableRow } from '@/components/ui/table';
 import { DATA_TABLE_VIEWPORT_MAX_HEIGHT } from '@/components/ui/data-table';
@@ -30,10 +29,24 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Skeleton } from '@/components/ui/skeleton';
-import { cn, formatLocationCompact, getCountryName, getMediaDisplay } from '@/lib/utils';
+import {
+  cn,
+  formatLocationCompact,
+  getCountryName,
+  getMediaDisplay,
+  getSessionProgress,
+} from '@/lib/utils';
 import { formatDuration } from '@/lib/formatters';
+import { playbackBadge } from '@/lib/playbackBadge';
 import { getAvatarUrl } from '@/components/users/utils';
-import type { SessionWithDetails, SessionState, MediaType, EngagementTier } from '@tracearr/shared';
+import { LocalBadge } from '@/components/sessions/LocalBadge';
+import {
+  PLAYBACK_DECISION_LABEL_KEYS,
+  type SessionWithDetails,
+  type SessionState,
+  type MediaType,
+  type EngagementTier,
+} from '@tracearr/shared';
 import type { ColumnVisibility } from './HistoryFilters';
 import { ServerColumnCell } from '@/components/server';
 import { useServerColorMap } from '@/hooks/useServerColorMap';
@@ -83,8 +96,8 @@ const ENGAGEMENT_TIER_CONFIG: Record<
   },
 };
 
-function getEngagementTier(progress: number, hasDuration: boolean): EngagementTier {
-  if (!hasDuration) return 'unknown';
+function getEngagementTier(progress: number | null): EngagementTier {
+  if (progress === null) return 'unknown';
   if (progress >= 200) return 'rewatched';
   if (progress >= 85) return 'watched';
   if (progress >= 50) return 'engaged';
@@ -95,13 +108,11 @@ function getEngagementTier(progress: number, hasDuration: boolean): EngagementTi
 function EngagementTierBadge({
   progress,
   state,
-  hasDuration,
 }: {
-  progress: number;
+  progress: number | null;
   state: SessionState;
-  hasDuration: boolean;
 }) {
-  const tier = getEngagementTier(progress, hasDuration);
+  const tier = getEngagementTier(progress);
   if (tier === 'unknown' || state !== 'stopped') return null;
 
   const config = ENGAGEMENT_TIER_CONFIG[tier];
@@ -185,14 +196,6 @@ function MediaTypeIcon({ type }: { type: MediaType }) {
   );
 }
 
-// Calculate progress percentage (playback position)
-// Uses progressMs (where in the video) not durationMs (how long watched)
-function getProgress(session: SessionWithDetails): number {
-  if (!session.totalDurationMs || session.totalDurationMs === 0) return 0;
-  const progress = session.progressMs ?? 0;
-  return Math.min(100, Math.round((progress / session.totalDurationMs) * 100));
-}
-
 interface HistoryTableRowProps {
   session: SessionWithDetails;
   onClick?: () => void;
@@ -210,8 +213,9 @@ export const HistoryTableRow = memo(
       ref
     ) => {
       const { title: primary, subtitle: secondary } = getMediaDisplay(session);
-      const progress = getProgress(session);
+      const progress = getSessionProgress(session);
       const colorMap = useServerColorMap();
+      const { t } = useTranslation();
       const serverColor = isMultiServer ? (colorMap.get(session.serverId) ?? null) : null;
       const accentStyle = serverColor
         ? { ...style, boxShadow: `inset 3px 0 0 0 ${serverColor}` }
@@ -282,11 +286,7 @@ export const HistoryTableRow = memo(
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="truncate font-medium">{primary}</span>
-                    <EngagementTierBadge
-                      progress={progress}
-                      state={session.state}
-                      hasDuration={!!session.totalDurationMs}
-                    />
+                    <EngagementTierBadge progress={progress} state={session.state} />
                   </div>
                   {secondary && (
                     <div className="text-muted-foreground truncate text-xs">{secondary}</div>
@@ -344,6 +344,7 @@ export const HistoryTableRow = memo(
                           session.geoCountry
                         )}
                       </span>
+                      <LocalBadge isLocal={session.isLocal} country={session.geoCountry} />
                     </div>
                   </TooltipTrigger>
                   <TooltipContent>
@@ -376,26 +377,28 @@ export const HistoryTableRow = memo(
           {columnVisibility.quality && (
             <TableCell className={COLUMN_WIDTHS.quality}>
               {(() => {
-                const isHwTranscode =
-                  session.isTranscode &&
-                  !!(session.transcodeInfo?.hwEncoding || session.transcodeInfo?.hwDecoding);
-
-                if (session.isTranscode) {
-                  return (
-                    <Badge variant="warning" className="gap-1 text-xs">
-                      {isHwTranscode ? <Cpu className="h-3 w-3" /> : <Zap className="h-3 w-3" />}
-                      Transcode
-                    </Badge>
-                  );
-                }
-
+                const { decision, Icon, variant, isBurnIn } = playbackBadge(session);
                 return (
-                  <Badge variant="success" className="gap-1 text-xs">
-                    <MonitorPlay className="h-3 w-3" />
-                    {session.videoDecision === 'copy' || session.audioDecision === 'copy'
-                      ? 'Direct Stream'
-                      : 'Direct Play'}
-                  </Badge>
+                  <div className="flex items-center gap-1">
+                    <Badge variant={variant} className="gap-1 text-xs">
+                      <Icon className="h-3 w-3" />
+                      {t(PLAYBACK_DECISION_LABEL_KEYS[decision])}
+                    </Badge>
+                    {isBurnIn && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge
+                            variant="warning"
+                            className="px-1.5 text-xs"
+                            aria-label={t('playback.burnIn')}
+                          >
+                            <Subtitles className="h-3 w-3" />
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent>{t('playback.burnIn')}</TooltipContent>
+                      </Tooltip>
+                    )}
+                  </div>
                 );
               })()}
             </TableCell>
@@ -441,18 +444,20 @@ export const HistoryTableRow = memo(
           {/* Progress */}
           {columnVisibility.progress && (
             <TableCell className={COLUMN_WIDTHS.progress}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center gap-2">
-                    <Progress value={progress} className="h-1.5 w-12" />
-                    <span className="text-muted-foreground text-xs">{progress}%</span>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {progress}% complete
-                  {session.watched && ' (watched)'}
-                </TooltipContent>
-              </Tooltip>
+              {progress !== null && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-2">
+                      <Progress value={progress} className="h-1.5 w-12" />
+                      <span className="text-muted-foreground text-xs">{progress}%</span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {progress}% complete
+                    {session.watched && ' (watched)'}
+                  </TooltipContent>
+                </Tooltip>
+              )}
             </TableCell>
           )}
         </TableRow>

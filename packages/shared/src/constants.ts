@@ -2,7 +2,11 @@
  * Shared constants for Tracearr
  */
 
-import { classifyByDimensions, type ResolutionLabel } from './resolution.js';
+import {
+  classifyByDimensions,
+  normalizeResolutionLabel,
+  type ResolutionLabel,
+} from './resolution.js';
 
 export { IDENTITY_AWARE_CONDITION_FIELDS } from './automations/conditions.js';
 
@@ -45,6 +49,7 @@ export const WS_EVENTS = {
   SERVER_CONNECTION: 'server:connection',
   NOTIFICATION_TOAST: 'notification:toast',
   DESTINATIONS_CHANGED: 'destinations:changed',
+  REQUESTS_CHANGED: 'requests:changed',
   SERVERS_CHANGED: 'servers:changed',
 } as const;
 
@@ -111,6 +116,12 @@ export const REDIS_KEYS = {
   // Notification rate limiting (sliding window counters)
   PUSH_RATE_MINUTE: (sessionId: string) => `${_redisPrefix}tracearr:push:rate:minute:${sessionId}`,
   PUSH_RATE_HOUR: (sessionId: string) => `${_redisPrefix}tracearr:push:rate:hour:${sessionId}`,
+  // Held for CACHE_TTL.PUSH_SESSIONS_SYNC after a device is sent a silent sessions sync
+  PUSH_SESSIONS_SYNC: (sessionId: string) =>
+    `${_redisPrefix}tracearr:push:sync:sessions:${sessionId}`,
+  // Held until that window ends while one instance has the trailing sync scheduled
+  PUSH_SESSIONS_SYNC_PENDING: (sessionId: string) =>
+    `${_redisPrefix}tracearr:push:sync:sessions:pending:${sessionId}`,
   // Location stats filter caching (includes serverIds hash for proper scoping)
   LOCATION_FILTERS: (userId: string, serverIds: string[]) => {
     // Sort and hash serverIds for stable cache key
@@ -141,7 +152,10 @@ export const REDIS_KEYS = {
     return `${_redisPrefix}tracearr:library:stale:v2`;
   },
   get LIBRARY_DUPLICATES() {
-    return `${_redisPrefix}tracearr:library:duplicates:v3`;
+    return `${_redisPrefix}tracearr:library:duplicates:v5`;
+  },
+  get LIBRARY_DUPLICATE_FILES() {
+    return `${_redisPrefix}tracearr:library:duplicate-files`;
   },
   get LIBRARY_STORAGE() {
     return `${_redisPrefix}tracearr:library:storage:v3`;
@@ -173,6 +187,9 @@ export const REDIS_KEYS = {
   get LIBRARY_SHELVES() {
     return `${_redisPrefix}tracearr:library:shelves`;
   },
+  get REQUESTS_ANALYTICS() {
+    return `${_redisPrefix}tracearr:requests:analytics`;
+  },
   get LIBRARY_GENRES() {
     return `${_redisPrefix}tracearr:library:genres`;
   },
@@ -180,7 +197,7 @@ export const REDIS_KEYS = {
     return `${_redisPrefix}tracearr:library:catalog-letters:v2`;
   },
   get LIBRARY_LIBRARIES() {
-    return `${_redisPrefix}tracearr:library:libraries`;
+    return `${_redisPrefix}tracearr:library:libraries:v2`;
   },
   // Watched-filtered ordered candidate list shared by /catalog and
   // /catalog/letters (see getWatchedCandidates in catalog.ts)
@@ -213,24 +230,33 @@ export const REDIS_KEYS = {
   // Accepted structural shortfall from the last full scan - see COUNT_MISMATCH_* in librarySync.ts
   LIBRARY_SYNC_SHORTFALL: (serverId: string, libraryId: string) =>
     `${_redisPrefix}tracearr:library:sync:shortfall:${serverId}:${libraryId}`,
+  // Shape of the listing query the last full scan used - see LIBRARY_SCAN_VERSION in librarySync.ts
+  LIBRARY_SYNC_SCAN_VERSION: (serverId: string, libraryId: string) =>
+    `${_redisPrefix}tracearr:library:sync:scanversion:${serverId}:${libraryId}`,
   // Image precache watermark state (per server, not per library - the precache
   // job walks library_items scoped only by server)
   LIBRARY_PRECACHE_WATERMARK: (serverId: string) =>
     `${_redisPrefix}tracearr:library:precache:watermark:${serverId}`,
   LIBRARY_PRECACHE_LAST_FULL: (serverId: string) =>
     `${_redisPrefix}tracearr:library:precache:last-full:${serverId}`,
+  // The cache directory that full pass walked; the persistence check only
+  // trusts a stamp taken against the directory the process is using now.
+  LIBRARY_PRECACHE_LAST_FULL_DIR: (serverId: string) =>
+    `${_redisPrefix}tracearr:library:precache:last-full-dir:${serverId}`,
   // Poster cache: one-time boot reconciliation marker, the last sweep's tally,
   // and the disk-limited flag the precache sets when the guard refused writes.
   IMAGE_CACHE_SCHEMA: `${_redisPrefix}tracearr:image-cache:schema`,
   IMAGE_CACHE_TALLY: `${_redisPrefix}tracearr:image-cache:tally`,
   IMAGE_CACHE_DISK_LIMITED: `${_redisPrefix}tracearr:image-cache:disk-limited`,
+  // Global, not per-server: the cache directory is one path for the whole process.
+  IMAGE_CACHE_NOT_PERSISTING: `${_redisPrefix}tracearr:image-cache:not-persisting`,
   // Auth tokens
-  REFRESH_TOKEN: (hash: string) => `${_redisPrefix}tracearr:refresh:${hash}`,
   PLEX_TEMP_TOKEN: (token: string) => `${_redisPrefix}tracearr:plex_temp:${token}`,
   MOBILE_REFRESH_TOKEN: (hash: string) => `${_redisPrefix}tracearr:mobile_refresh:${hash}`,
   MOBILE_BLACKLISTED_TOKEN: (deviceId: string) =>
     `${_redisPrefix}tracearr:mobile:blacklist:${deviceId}`,
   MOBILE_LAST_SEEN: (deviceId: string) => `${_redisPrefix}tracearr:mobile:last_seen:${deviceId}`,
+  MOBILE_REVOKED_TOKEN: (hash: string) => `${_redisPrefix}tracearr:mobile:revoked:${hash}`,
   // Rate limiting
   MOBILE_TOKEN_GEN_RATE: (userId: string) => `${_redisPrefix}mobile_token_gen:${userId}`,
   // Distributed locks
@@ -266,7 +292,7 @@ export const REDIS_KEYS = {
   },
   // Filter options caching
   FILTER_OPTIONS: (userId: string, scopeHash: string) =>
-    `${_redisPrefix}tracearr:filter-options:${userId}:${scopeHash}`,
+    `${_redisPrefix}tracearr:filter-options:v2:${userId}:${scopeHash}`,
   // v1 segment invalidates cached entries if the GeoLocation shape ever changes
   PLEX_GEOIP: (ip: string) => `${_redisPrefix}tracearr:geoip:plex:v1:${ip}`,
   // Public API v2 per-media stats/watchers responses
@@ -303,6 +329,7 @@ export const CACHE_TTL = {
   LIBRARY_QUALITY: 300, // 5 minutes
   LIBRARY_STALE: 3600, // 1 hour (changes slowly)
   LIBRARY_DUPLICATES: 3600, // 1 hour (changes slowly)
+  LIBRARY_DUPLICATE_FILES: 60, // 1 minute - a live answer from the media server
   LIBRARY_STORAGE: 300, // 5 minutes
   LIBRARY_WATCH: 300, // 5 minutes
   LIBRARY_ROI: 3600, // 1 hour (ROI changes slowly)
@@ -313,11 +340,16 @@ export const CACHE_TTL = {
   LIBRARY_CODECS: 300, // 5 minutes
   LIBRARY_RESOLUTION: 300, // 5 minutes
   LIBRARY_SHELVES: 300, // 5 minutes
+  REQUESTS_ANALYTICS: 300, // 5 minutes - the request sync runs far less often
   LIBRARY_GENRES: 3600, // 1 hour
   LIBRARY_CATALOG_LETTERS: 300, // 5 minutes, matches LIBRARY_SHELVES freshness
   LIBRARY_LIBRARIES: 300, // 5 minutes - library list changes only on sync
   LIBRARY_MEDIA_DETAIL: 60, // 1 minute, matches PUBLIC_MEDIA_STATS freshness
   MOBILE_LAST_SEEN: 300, // 5 minutes - throttle for device activity updates
+  // 20 minutes: Apple asks for no more than two or three background pushes an
+  // hour, drops the rest, and each one that lands also spends one of the 40 to
+  // 70 daily widget reloads, so three an hour is the fastest that stays honest
+  PUSH_SESSIONS_SYNC: 1200,
   // Filter options (dropdown values change infrequently)
   FILTER_OPTIONS: 120, // 2 minutes
   PLEX_GEOIP: 86400,
@@ -356,6 +388,11 @@ export const API_VERSION = 'v1';
 export const API_BASE_PATH = `/api/${API_VERSION}`;
 export const API_VERSION_V2 = 'v2';
 export const API_V2_BASE_PATH = `/api/${API_VERSION_V2}`;
+
+export const MOBILE_CLIENT_HEADER = 'x-tracearr-client';
+// Floor for the store build version in MOBILE_CLIENT_HEADER. Requests without
+// the header come from apps that cannot show the update screen and are never refused.
+export const MIN_MOBILE_CLIENT_VERSION: string | null = null;
 
 // JWT configuration
 export const JWT_CONFIG = {
@@ -599,15 +636,6 @@ export function formatBitrate(kbps: number | null | undefined): string {
  * Keys are lowercase, values are proper display casing.
  */
 const MEDIA_TECH_DISPLAY: Record<string, string> = {
-  // Resolution
-  '4k': '4K',
-  '2k': '2K',
-  uhd: 'UHD',
-  sd: 'SD',
-  hd: 'HD',
-  '1080p': '1080p',
-  '720p': '720p',
-  '480p': '480p',
   // Dynamic range
   sdr: 'SDR',
   hdr: 'HDR',
@@ -695,21 +723,11 @@ const MEDIA_TECH_DISPLAY: Record<string, string> = {
   cc: 'CC',
 };
 
-/**
- * Format a media tech string (resolution, codec, dynamic range) for display.
- * Uses a lookup map for known values, falls back to uppercase for unknown.
- *
- * @param value - Tech string (e.g., "4k", "hevc", "truehd", "dolby vision")
- * @returns Formatted string with proper casing
- *
- * @example
- * formatMediaTech("4k")           // "4K"
- * formatMediaTech("hevc")         // "HEVC"
- * formatMediaTech("truehd")       // "TrueHD"
- * formatMediaTech("dolby vision") // "Dolby Vision"
- */
+/** Display casing for a resolution, codec or dynamic range; a resolution comes back as its tier name. */
 export function formatMediaTech(value: string | null | undefined): string {
   if (!value) return 'Unknown';
+  const tier = normalizeResolutionLabel(value);
+  if (tier) return tier;
   const lower = value.toLowerCase().trim();
   return MEDIA_TECH_DISPLAY[lower] ?? value.toUpperCase();
 }

@@ -18,8 +18,12 @@ import { normalizeClient } from '../utils/platformNormalizer.js';
 import { parseJellystatPlayMethod } from '../utils/transcodeNormalizer.js';
 import { wallTimeToUtc } from '../utils/wallClock.js';
 import { servers, sessions } from '../db/schema.js';
+import { ServerHistoricalError } from './liveServers.js';
 import { checkAggregateNeedsRebuild, refreshAggregates } from '../db/timescale.js';
-import { enqueueMaintenanceJob } from '../jobs/maintenanceQueue.js';
+import {
+  enqueueMaintenanceJob,
+  enqueueServerLocationSyncIfBehind,
+} from '../jobs/maintenanceQueue.js';
 import type { PubSubService } from './cache.js';
 import { geoasnService } from './geoasn.js';
 import { geoipService } from './geoip.js';
@@ -27,6 +31,7 @@ import {
   createSimpleProgressPublisher,
   createSkippedUserTracker,
   createUserMapping,
+  exceedsRuntime,
   fetchMediaEnrichment,
   flushInsertBatch,
   type MediaEnrichment,
@@ -36,7 +41,8 @@ import {
 import { EmbyClient } from './mediaServer/emby/client.js';
 import { JellyfinClient } from './mediaServer/jellyfin/client.js';
 import { parseMediaType } from './mediaServer/shared/jellyfinEmbyUtils.js';
-import { getWatchedThreshold } from './settings.js';
+import { markImportedServerLocations } from './serverLocations.js';
+import { getWatchedThresholds, watchedThresholdFor, type WatchedThresholds } from './settings.js';
 
 const PAGE_SIZE = 5000;
 const BATCH_SIZE = 500;
@@ -163,7 +169,7 @@ export interface TransformContext {
     asnNumber?: number | null;
     asnOrganization?: string | null;
   };
-  thresholds: { movie: number; episode: number; track: number };
+  thresholds: WatchedThresholds;
   enrichment?: MediaEnrichment;
   identity?: SessionIdentity;
 }
@@ -192,12 +198,7 @@ export function transformPlaybackReportingRow(
   }
 
   const totalDurationMs = ctx.enrichment?.runtimeMs ?? null;
-  const threshold =
-    mediaType === 'episode'
-      ? ctx.thresholds.episode
-      : mediaType === 'track'
-        ? ctx.thresholds.track
-        : ctx.thresholds.movie;
+  const threshold = watchedThresholdFor(ctx.thresholds, mediaType);
   const watched = totalDurationMs != null && durationMs >= totalDurationMs * threshold;
 
   const { videoDecision, audioDecision, isTranscode } = parseJellystatPlayMethod(
@@ -253,6 +254,7 @@ export function transformPlaybackReportingRow(
     geoLon: ctx.geo.lon,
     geoAsnNumber: ctx.geo.asnNumber,
     geoAsnOrganization: ctx.geo.asnOrganization,
+    isLocal: geoipService.isPrivateIP(ipAddress),
     playerName: (deviceName || clientName || 'Unknown').slice(0, 255),
     device: normalized.device.slice(0, 255),
     deviceId: null,
@@ -355,6 +357,7 @@ export async function importPlaybackReporting(
     unknownUserRecords: 0,
     overlapRecords: 0,
     filteredRecords: 0,
+    overlongRecords: 0,
     errorRecords: 0,
     enrichedRecords: 0,
     message: 'Starting import...',
@@ -375,11 +378,17 @@ export async function importPlaybackReporting(
       throw new Error(`Server not found: ${serverId}`);
     }
 
+    if (server.historicalAt) {
+      throw new ServerHistoricalError(serverId);
+    }
+
     if (server.type !== 'jellyfin' && server.type !== 'emby') {
       throw new Error(
         `Playback Reporting import only supports Jellyfin/Emby servers, got: ${server.type}`
       );
     }
+
+    const cutoff = server.createdAt;
 
     const clientConfig = {
       url: server.url,
@@ -408,6 +417,7 @@ export async function importPlaybackReporting(
         duplicates: 0,
         overlap: 0,
         filtered: 0,
+        overlong: 0,
         errors: 0,
         enriched: 0,
         message,
@@ -420,12 +430,14 @@ export async function importPlaybackReporting(
     publishProgress(progress);
 
     const userMap = await createUserMapping(serverId);
-    const thresholds = {
-      movie: await getWatchedThreshold('movie'),
-      episode: await getWatchedThreshold('episode'),
-      track: await getWatchedThreshold('track'),
-    };
-    const watermark = options.importFullRange ? null : await loadTrackedHistoryWatermark(serverId);
+    const thresholds = await getWatchedThresholds();
+    // importFullRange only disables the tracked-history watermark; tracking starts
+    // at the server's created_at, so the cutoff still applies.
+    const trackedWatermark = options.importFullRange
+      ? null
+      : await loadTrackedHistoryWatermark(serverId);
+    const watermark =
+      trackedWatermark && trackedWatermark.getTime() < cutoff.getTime() ? trackedWatermark : cutoff;
 
     let minImportDate: Date | null = null;
     let maxImportDate: Date | null = null;
@@ -508,7 +520,7 @@ export async function importPlaybackReporting(
               continue;
             }
 
-            if (watermark && startedAt >= watermark) {
+            if (startedAt >= watermark) {
               progress.overlapRecords++;
               progress.skippedRecords++;
               continue;
@@ -517,6 +529,12 @@ export async function importPlaybackReporting(
             const enrichment = enrichmentMap.get(row.itemId);
             if (enrichment?.filtered) {
               progress.filteredRecords++;
+              progress.skippedRecords++;
+              continue;
+            }
+
+            if (exceedsRuntime(row.playDurationSec * 1000, enrichment?.runtimeMs)) {
+              progress.overlongRecords++;
               progress.skippedRecords++;
               continue;
             }
@@ -572,13 +590,20 @@ export async function importPlaybackReporting(
     progress.message = 'Refreshing aggregates...';
     publishProgress(progress);
     await refreshImportAggregates(minImportDate, maxImportDate);
+    try {
+      await markImportedServerLocations(serverId);
+      await enqueueServerLocationSyncIfBehind();
+    } catch (err) {
+      console.error('[PlaybackReporting] Could not queue the server location sync:', err);
+    }
 
     let message =
       `Import complete: ${progress.importedRecords} imported, ` +
       `${progress.duplicateRecords} duplicates skipped, ` +
       `${progress.overlapRecords} overlapping tracked history, ` +
       `${progress.unknownUserRecords} unknown user, ` +
-      `${progress.filteredRecords} filtered, ${progress.errorRecords} errors`;
+      `${progress.filteredRecords} filtered, ` +
+      `${progress.overlongRecords} longer than the media runtime, ${progress.errorRecords} errors`;
 
     const skippedUsersWarning = skippedUserTracker.formatWarning();
     if (skippedUsersWarning) {
@@ -602,6 +627,7 @@ export async function importPlaybackReporting(
       duplicates: progress.duplicateRecords,
       overlap: progress.overlapRecords,
       filtered: progress.filteredRecords,
+      overlong: progress.overlongRecords,
       errors: progress.errorRecords,
       enriched: progress.enrichedRecords,
       message,
@@ -629,6 +655,7 @@ export async function importPlaybackReporting(
       duplicates: progress.duplicateRecords,
       overlap: progress.overlapRecords,
       filtered: progress.filteredRecords,
+      overlong: progress.overlongRecords,
       errors: progress.errorRecords,
       enriched: progress.enrichedRecords,
       message: `Import failed: ${errorMessage}`,

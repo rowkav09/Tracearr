@@ -184,7 +184,7 @@ export function Map() {
   const hasData = locations.length > 0;
 
   return (
-    <div className="-m-6 flex h-[calc(100vh-4rem)] flex-col">
+    <div className="-m-6 flex h-[calc(100vh-3rem)] flex-col md:h-screen">
       {/* Filter bar */}
       <div className="bg-card/50 relative z-20 flex items-center gap-3 border-b px-4 py-2 backdrop-blur">
         {/* Time range picker */}
@@ -212,7 +212,7 @@ export function Map() {
           value={filters.mediaType ?? '_all'}
           onValueChange={(v) => setFilter('mediaType', v === '_all' ? null : v)}
         >
-          <SelectTrigger className="h-8 w-[100px] text-sm">
+          <SelectTrigger className="h-8 min-w-[100px] text-sm">
             <SelectValue placeholder={t('map.allTypes')} />
           </SelectTrigger>
           <SelectContent>

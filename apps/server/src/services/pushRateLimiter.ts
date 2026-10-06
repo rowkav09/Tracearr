@@ -7,7 +7,7 @@
  */
 
 import type { Redis } from 'ioredis';
-import { REDIS_KEYS } from '@tracearr/shared';
+import { CACHE_TTL, REDIS_KEYS } from '@tracearr/shared';
 
 /**
  * Result of a rate limit check
@@ -169,6 +169,52 @@ export class PushRateLimiter {
       resetMinuteIn: minuteTTL > 0 ? minuteTTL : 60,
       resetHourIn: hourTTL > 0 ? hourTTL : 3600,
     };
+  }
+
+  /**
+   * Claim a device's silent sessions sync. True opens the device's window and
+   * the caller sends now. False means the window is taken: one trailing send is
+   * scheduled across all instances for when it ends, so the device still gets
+   * the final state without spending more of the background push budget iOS
+   * gives the app. A restart drops a scheduled trailing send.
+   */
+  async claimSessionsSync(
+    mobileSessionId: string,
+    sendTrailing: () => Promise<void>
+  ): Promise<boolean> {
+    if (await this.openSessionsSyncWindow(mobileSessionId)) return true;
+
+    const remainingMs = await this.redis.pttl(REDIS_KEYS.PUSH_SESSIONS_SYNC(mobileSessionId));
+    if (remainingMs <= 0) return this.claimSessionsSync(mobileSessionId, sendTrailing);
+
+    const scheduled = await this.redis.set(
+      REDIS_KEYS.PUSH_SESSIONS_SYNC_PENDING(mobileSessionId),
+      '1',
+      'PX',
+      remainingMs,
+      'NX'
+    );
+    if (scheduled === 'OK') {
+      setTimeout(() => {
+        this.openSessionsSyncWindow(mobileSessionId)
+          .then((opened) => (opened ? sendTrailing() : undefined))
+          .catch((err: unknown) => {
+            console.error('[Push] Trailing sessions sync failed', err);
+          });
+      }, remainingMs).unref();
+    }
+    return false;
+  }
+
+  private async openSessionsSyncWindow(mobileSessionId: string): Promise<boolean> {
+    const claimed = await this.redis.set(
+      REDIS_KEYS.PUSH_SESSIONS_SYNC(mobileSessionId),
+      '1',
+      'EX',
+      CACHE_TTL.PUSH_SESSIONS_SYNC,
+      'NX'
+    );
+    return claimed === 'OK';
   }
 
   /**

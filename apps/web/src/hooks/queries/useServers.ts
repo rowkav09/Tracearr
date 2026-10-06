@@ -5,6 +5,7 @@ import {
   BANDWIDTH_STATS_CONFIG,
   liveStatsRetentionSeconds,
   type Server,
+  type ServerLocationEntry,
   type ServerResourceDataPoint,
   type ServerBandwidthDataPoint,
 } from '@tracearr/shared';
@@ -70,6 +71,7 @@ export function useUpdateServer() {
       clientIdentifier,
       color,
       publicUrl,
+      apiKey,
     }: {
       id: string;
       name?: string;
@@ -77,7 +79,8 @@ export function useUpdateServer() {
       clientIdentifier?: string;
       color?: string | null;
       publicUrl?: string | null;
-    }) => api.servers.update(id, { name, url, clientIdentifier, color, publicUrl }),
+      apiKey?: string;
+    }) => api.servers.update(id, { name, url, clientIdentifier, color, publicUrl, apiKey }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['servers', 'list'] });
       void queryClient.invalidateQueries({ queryKey: ['plex', 'server-connections'] });
@@ -87,6 +90,64 @@ export function useUpdateServer() {
     },
     onError: (error: Error) => {
       toast.error(t('toast.error.serverUpdateFailed'), { description: error.message });
+    },
+  });
+}
+
+export function useSetServerHistorical() {
+  const { t } = useTranslation('notifications');
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, historical }: { id: string; historical: boolean }) =>
+      api.servers.setHistorical(id, historical),
+    onSuccess: (server, { historical }) => {
+      void queryClient.invalidateQueries({ queryKey: ['plex-accounts'] });
+      const key = historical ? 'serverMarkedHistorical' : 'serverResumed';
+      toast.success(t(`toast.success.${key}.title`), {
+        description: t(`toast.success.${key}.message`, { name: server.name }),
+      });
+    },
+    onError: (error: Error) => {
+      toast.error(t('toast.error.serverHistoricalFailed'), { description: error.message });
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ['servers', 'list'] });
+    },
+  });
+}
+
+export function useServerLocations(serverId: string | undefined) {
+  return useQuery({
+    queryKey: ['servers', 'locations', serverId],
+    queryFn: () =>
+      serverId ? api.servers.locations(serverId) : Promise.reject(new Error('No server selected')),
+    enabled: !!serverId,
+    // Opening the editor switches this key on a mounted observer, which refetches only stale data.
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
+}
+
+export function useUpdateServerLocations() {
+  const { t } = useTranslation('notifications');
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, entries }: { id: string; entries: ServerLocationEntry[] }) =>
+      api.servers.updateLocations(id, entries),
+    onSuccess: (data, { id }) => {
+      queryClient.setQueryData(['servers', 'locations', id], data);
+      toast.success(t('toast.success.serverLocationSaved.title'), {
+        description: t(
+          data.syncQueued
+            ? 'toast.success.serverLocationSaved.queued'
+            : 'toast.success.serverLocationSaved.waiting'
+        ),
+      });
+    },
+    onError: (error: Error) => {
+      toast.error(t('toast.error.serverLocationSaveFailed'), { description: error.message });
     },
   });
 }

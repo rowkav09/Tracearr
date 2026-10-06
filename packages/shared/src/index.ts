@@ -7,6 +7,9 @@ export type {
   // Server
   ServerType,
   Server,
+  ServerLocationEntry,
+  ServerLocationsResponse,
+  UpdateServerLocationsResponse,
   // User
   User,
   ServerUser,
@@ -23,6 +26,7 @@ export type {
   ServerUserSplitResult,
   MergeSuggestionIdentity,
   MergeSuggestion,
+  DismissedMergeSuggestion,
   // Session
   SessionState,
   MediaType,
@@ -145,6 +149,7 @@ export type {
   PlexTimelineEntry,
   SSEConnectionStatus,
   ServerConnectionStatus,
+  ServerDownReason,
   PluginIssue,
   // Termination logs
   TerminationTrigger,
@@ -216,6 +221,8 @@ export type {
   DuplicateGroup,
   DuplicatesSummary,
   DuplicatesResponse,
+  DuplicateFileStatus,
+  DuplicateFilesResponse,
   StaleCategory,
   StaleItem,
   StaleSummary,
@@ -237,8 +244,10 @@ export type {
   CatalogResponse,
   CatalogLetterBucket,
   CatalogLettersResponse,
+  CatalogCodecOptionsResponse,
   ShelfRow,
   RecentlyAddedShelfRow,
+  RecentlyUpdatedShelfRow,
   MostPopularShelfRow,
   DeadWeightRow,
   ShelvesKpiWatchedInPeriod,
@@ -284,7 +293,7 @@ export type {
   CodecEntry,
   CodecBreakdown,
   LibraryCodecsResponse,
-  ResolutionEntry,
+  ResolutionCounts,
   ResolutionBreakdown,
   LibraryResolutionResponse,
   LibraryOption,
@@ -303,6 +312,7 @@ export type {
   UpdateDestinationInput,
   NotificationToast,
   EmailSecurity,
+  DestinationTextProfile,
 } from './destinations.js';
 
 // Automation type exports
@@ -366,6 +376,13 @@ export type {
   DryRunAction,
   DryRunSample,
   DryRunResponse,
+  TemplateNode,
+  TemplateErrorCode,
+  TemplateError,
+  ParseResult,
+  TextLimit,
+  TemplateVariable,
+  NotificationPriority,
 } from './automations/index.js';
 
 // Automation constants and schemas
@@ -404,9 +421,24 @@ export {
   contextOf,
   contextSupplies,
   fieldsAvailableFor,
+  TEMPLATE_ERROR_CODES,
+  parseTemplate,
+  templateVariables,
+  renderTemplate,
+  renderText,
+  fitText,
+  textSize,
+  VARIABLE_ALIASES,
+  VARIABLE_SAMPLES,
+  resolveVariable,
+  variablesFor,
+  SEND_TITLE_MAX,
+  SEND_BODY_MAX,
+  NOTIFICATION_PRIORITIES,
   TEMPLATE_GROUPS,
   TEMPLATE_SCHEMA_VERSION,
   TEMPLATE_MIN_SERVER_VERSION,
+  templateMinServerVersion,
   templateEnvelopeSchema,
   materializeTemplate,
   slotValueFor,
@@ -438,7 +470,10 @@ export {
   publicUrlSchema,
   serverIdParamSchema,
   reorderServersSchema,
+  setServerHistoricalSchema,
   updateServerSchema,
+  serverLocationEntrySchema,
+  serverLocationsSchema,
   // User
   updateUserSchema,
   updateUserIdentitySchema,
@@ -447,6 +482,8 @@ export {
   identityScopedPaginationSchema,
   mergeUsersBodySchema,
   mergeUserParamSchema,
+  mergeSuggestionDismissalSchema,
+  mergeSuggestionPairParamSchema,
   splitServerUserParamSchema,
   USER_SORT_FIELDS,
   userRosterFilterSchema,
@@ -505,6 +542,9 @@ export {
   jellystatTranscodingInfoSchema,
   jellystatPlaybackActivitySchema,
   jellystatBackupSchema,
+  jellystatLibraryItemSchema,
+  jellystatLibraryEpisodeSchema,
+  jellystatPluginRowSchema,
   jellystatImportBodySchema,
   importJobStatusSchema,
   // Playback Reporting import
@@ -522,6 +562,7 @@ export {
   libraryQualityQuerySchema,
   libraryStorageQuerySchema,
   libraryDuplicatesQuerySchema,
+  libraryDuplicateFilesQuerySchema,
   libraryStaleQuerySchema,
   libraryWatchQuerySchema,
   libraryRoiQuerySchema,
@@ -545,6 +586,9 @@ export {
   EMAIL_SECURITY,
   EMAIL_SMTP_PRESETS,
   addressList,
+  DESTINATION_TEXT_PROFILES,
+  escapeDiscordMarkdown,
+  escapeFor,
 } from './destinations.js';
 
 // Schema input type exports
@@ -580,6 +624,7 @@ export {
   updateNewsletterSchema,
   newsletterTestSendSchema,
   newsletterPreviewDraftSchema,
+  newsletterRecipientsDraftSchema,
   emailSuppressionCreateSchema,
   newsletterSendsQuerySchema,
   newsletterCron,
@@ -626,6 +671,7 @@ export type {
   EmailSuppression,
   NewsletterPreview,
   NewsletterPreviewDraftInput,
+  NewsletterRecipientsDraftInput,
   NewsletterPreviewVariant,
   NewsletterVariantsView,
   NewsletterSectionCounts,
@@ -633,6 +679,13 @@ export type {
   EmailBrandingSettings,
   NewsletterSendHtml,
 } from './newsletters.js';
+
+// User merge
+export { rankMergeTarget, type MergeRankInput } from './merge.js';
+
+export { LOCAL_NETWORK_COUNTRY, isPlacedLocal } from './localNetwork.js';
+
+export { isEmailAddress, usernameAsEmail } from './emailAddress.js';
 
 // Rich text for newsletter intro and outro
 export {
@@ -689,6 +742,9 @@ export type {
   JellystatTranscodingInfo,
   JellystatPlaybackActivity,
   JellystatBackup,
+  JellystatLibraryItem,
+  JellystatLibraryEpisode,
+  JellystatPluginRow,
   JellystatImportBody,
   ImportJobStatus,
   // Engagement tracking
@@ -701,6 +757,7 @@ export type {
   LibraryQualityQueryInput,
   LibraryStorageQueryInput,
   LibraryDuplicatesQueryInput,
+  LibraryDuplicateFilesQueryInput,
   LibraryStaleQueryInput,
   LibraryWatchQueryInput,
   LibraryRoiQueryInput,
@@ -736,6 +793,8 @@ export {
   API_BASE_PATH,
   API_VERSION_V2,
   API_V2_BASE_PATH,
+  MOBILE_CLIENT_HEADER,
+  MIN_MOBILE_CLIENT_VERSION,
   JWT_CONFIG,
   POLLING_INTERVALS,
   POLLER_CONFIG,
@@ -783,6 +842,9 @@ export {
   POSTER_IMAGE_SIZE,
 } from './constants.js';
 
+// API error codes
+export { ErrorCodes, type ErrorCode } from './errors.js';
+
 // Role helper exports
 export { ROLE_PERMISSIONS, LOGIN_ROLES, canLogin, hasMinRole, isOwner, isActive } from './types.js';
 
@@ -817,6 +879,8 @@ export type { ListMeta, ListResponse } from './listQuery.js';
 // Resolution classification
 export {
   RESOLUTION_TIERS,
+  RESOLUTION_LABELS,
+  RESOLUTION_BUCKETS,
   classifyByDimensions,
   normalizeResolutionLabel,
   resolutionTierRank,
@@ -837,6 +901,25 @@ export {
   type DynamicRangeToken,
 } from './dynamicRange.js';
 
+// Playback decision (Direct Play, Direct Stream, Audio Transcode, Transcode)
+export {
+  PLAYBACK_DECISIONS,
+  PLAYBACK_DECISION_LABEL_KEYS,
+  isSubtitleBurnIn,
+  playbackDecision,
+  type PlaybackDecision,
+  type PlaybackDecisionInput,
+  type SubtitleBurnInInput,
+} from './playbackDecision.js';
+
+// Trust score levels
+export {
+  TRUST_LEVEL_THRESHOLDS,
+  TRUST_LEVEL_LABEL_KEYS,
+  trustLevel,
+  type TrustLevel,
+} from './trustLevel.js';
+
 // Server-scope selection (cache-key and query-param builders)
 export {
   ALL_SERVERS,
@@ -852,3 +935,76 @@ export {
   memberFacingUrl,
   type MediaServerItemLinkInput,
 } from './mediaServerLinks.js';
+
+// Request tracking (Seerr)
+export {
+  REQUEST_SERVICE_TYPES,
+  MEDIA_REQUEST_STATUSES,
+  testRequestServiceSchema,
+  createRequestServiceSchema,
+  updateRequestServiceSchema,
+  userRequestsQuerySchema,
+  requestsAnalyticsQuerySchema,
+  requestsUnplayedQuerySchema,
+  requestersQuerySchema,
+  REQUEST_UNPLAYED_SORTS,
+  REQUESTER_SORTS,
+  type RequestServiceType,
+  type MediaRequestStatus,
+  type MediaRequestMediaType,
+  type RequestSeason,
+  type RequestCounts,
+  type RequestService,
+  type RequestServiceProbeResult,
+  type RequestRequester,
+  type MediaRequestEntry,
+  type UserRequestEntry,
+  type UserRequestsSummary,
+  type UserRequestsResponse,
+  type TestRequestServiceInput,
+  type CreateRequestServiceInput,
+  type UpdateRequestServiceInput,
+  type UserRequestsQuery,
+  type RequestOutcomeRow,
+  type RequestUnplayedSort,
+  type RequesterSort,
+  type RequesterFollowThrough,
+  type RequestsUnplayedResponse,
+  type RequestersResponse,
+  type RequestsUnplayedQuery,
+  type RequestersQuery,
+  type RequestsFunnel,
+  type RequestsAnalyticsResponse,
+  type RequestsStatus,
+  type RequestsAnalyticsQuery,
+} from './requests.js';
+
+// Release versions
+export {
+  normalizeVersion,
+  parseVersion,
+  isPrerelease,
+  getBaseVersion,
+  compareVersions,
+  isNewerVersion,
+  type ParsedVersion,
+} from './releaseVersion.js';
+
+// Release notes
+export {
+  RELEASE_CHANGE_TYPES,
+  WHATS_NEW_LEGACY,
+  releaseChangeSchema,
+  releaseHighlightSchema,
+  releaseNotesFileSchema,
+  releaseLinkLabel,
+  isMinorRelease,
+  releaseTagIssues,
+  renderReleaseNotesMarkdown,
+  type ReleaseChangeType,
+  type ReleaseChange,
+  type ReleaseHighlight,
+  type ReleaseNotesFile,
+  type WhatsNewState,
+  type UpgradeWarning,
+} from './releaseNotes.js';

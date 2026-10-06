@@ -16,6 +16,7 @@ import type { sessions } from '../../db/schema.js';
 import type { SessionIdentity as MediaItemIdentity } from './database.js';
 import type { CacheService, PubSubService } from '../../services/cache.js';
 import type { GeoLocation } from '../../services/geoip.js';
+import type { SessionGeo } from '../../services/serverLocations.js';
 import type { SessionStopReason } from '../../services/automations/events/types.js';
 import type { ViolationInsertResult } from './violations.js';
 
@@ -176,6 +177,8 @@ export interface ProcessedSession extends StreamDetailFields {
   // Playback state
   /** Current playback state */
   state: 'playing' | 'paused';
+  /** Plex reports buffering; state above maps it to 'playing' */
+  buffering: boolean;
   /** Total media duration in milliseconds */
   totalDurationMs: number;
   /** Current playback position in milliseconds */
@@ -299,8 +302,8 @@ export interface PendingSessionData {
     /** All server_user ids belonging to the same identity, for cross-server rule aggregation */
     identityServerUserIds: string[];
   };
-  /** GeoIP location data */
-  geo: GeoLocation;
+  /** isLocal is absent on entries written before the flag existed */
+  geo: GeoLocation & { isLocal?: boolean };
   /** Timestamp when session started (ms since epoch) */
   startedAt: number;
   /** Last update timestamp (ms since epoch) */
@@ -323,6 +326,8 @@ export interface PendingSessionData {
 export interface ServerProcessingResult {
   /** Whether the server was successfully polled (false = connection error) */
   success: boolean;
+  /** The failed poll was a 401: the server rejected Tracearr's token */
+  unauthorized?: boolean;
   /** Newly created sessions */
   newSessions: ActiveSession[];
   /** Session keys that stopped playing */
@@ -366,7 +371,7 @@ export interface SessionCreationInput {
     identityServerUserIds: string[];
   };
   /** GeoIP location data */
-  geo: GeoLocation;
+  geo: SessionGeo;
   /** Active V2 rules to evaluate */
   activeAutomations: EngineAutomation[];
   /** Active sessions for rule context (e.g., concurrent streams) */
@@ -514,7 +519,7 @@ export interface MediaChangeInput {
     identityServerUserIds: string[];
   };
   /** GeoIP location data */
-  geo: GeoLocation;
+  geo: SessionGeo;
   /** Active V2 rules to evaluate */
   activeAutomations: EngineAutomation[];
   /** Active sessions for rule context (e.g., concurrent streams) */

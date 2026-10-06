@@ -7,7 +7,8 @@ import './map.css';
 import { useTranslation } from 'react-i18next';
 import { recordClientError } from '@/lib/clientErrors';
 import { useTheme } from '@/components/theme-provider';
-import { checkBasemap, isWebglSupported } from './maplibre';
+import { autoFitBounds, type FitPoint } from './autoFitBounds';
+import { checkBasemap, isWebglSupported, mapMaxZoom } from './maplibre';
 
 export function useResolvedDark(): boolean {
   const { theme } = useTheme();
@@ -67,7 +68,7 @@ export function useMapLibre(
       center,
       zoom,
       minZoom,
-      maxZoom: 14,
+      maxZoom: mapMaxZoom(),
       interactive,
       attributionControl: false,
       fadeDuration: 200,
@@ -144,7 +145,7 @@ interface AutoFitOptions {
 
 export function useAutoFit(
   map: MLMap | null,
-  points: [number, number][],
+  points: FitPoint[],
   { maxZoom, filterKey, isLoading, suspend }: AutoFitOptions
 ): void {
   const prevKeyRef = useRef('');
@@ -181,21 +182,9 @@ export function useAutoFit(
     prevKeyRef.current = key;
     if (suspend && !isInitial) return;
     if (isInitial || !userMovedRef.current) {
-      let [minLon, minLat] = points[0]!;
-      let [maxLon, maxLat] = points[0]!;
-      for (const [lon, lat] of points) {
-        minLon = Math.min(minLon, lon);
-        minLat = Math.min(minLat, lat);
-        maxLon = Math.max(maxLon, lon);
-        maxLat = Math.max(maxLat, lat);
-      }
-      map.fitBounds(
-        [
-          [minLon, minLat],
-          [maxLon, maxLat],
-        ],
-        { padding: 50, maxZoom, duration: 600 }
-      );
+      const bounds = autoFitBounds(points);
+      if (!bounds) return;
+      map.fitBounds(bounds, { padding: 50, maxZoom, duration: 600 });
     }
   }, [map, points, isLoading, maxZoom, suspend]);
 }

@@ -9,15 +9,26 @@
 import { Expo, type ExpoPushMessage, type ExpoPushTicket } from 'expo-server-sdk';
 import { eq, isNotNull } from 'drizzle-orm';
 import type { ViolationWithDetails, ActiveSession } from '@tracearr/shared';
-import { SEVERITY_LEVELS, getSeverityPriority, formatEpisodeLabel } from '@tracearr/shared';
+import {
+  SEVERITY_LEVELS,
+  getSeverityPriority,
+  formatEpisodeLabel,
+  fitText,
+} from '@tracearr/shared';
 import { db } from '../db/client.js';
 import { mobileSessions, notificationPreferences, serverUsers } from '../db/schema.js';
+import { getCacheService } from './cache.js';
 import { getPushRateLimiter } from './pushRateLimiter.js';
 import { quietHoursService, type NotificationSeverity } from './quietHours.js';
 import { pushEncryptionService } from './pushEncryption.js';
 import { getNetworkSettings } from '../routes/settings.js';
 import { buildPushPosterUrl, buildPushAvatarUrl, buildLogoUrl } from './imageProxy.js';
+import { hashSha256 } from '../utils/hash.js';
 import type { NewDevicePayload, TrustChangedPayload } from './notifications/events.js';
+
+const PUSH_PAYLOAD_BYTES = 4096;
+const encoder = new TextEncoder();
+const jsonBytes = (value: unknown): number => encoder.encode(JSON.stringify(value)).length;
 
 // Initialize Expo SDK
 const expo = new Expo();
@@ -38,6 +49,22 @@ const pendingReceipts = new Map<string, PendingReceipt>();
 
 // Invalid tokens that should be removed
 const tokensToRemove = new Set<string>();
+
+// The mobile app registers its notification actions against these ids, so they cannot change.
+const PUSH_CATEGORY = {
+  VIOLATION: 'violation',
+  STREAM: 'stream',
+  SERVER: 'server',
+  NEW_DEVICE: 'new_device',
+  TRUST_SCORE_CHANGED: 'trust_score_changed',
+} as const;
+
+// threadId travels outside the encrypted data, so Expo and APNs see it: the id is
+// hashed, and the same id always gives the same thread. 32 hex chars is 128 bits.
+const threadHash = (id: string): string => hashSha256(id).slice(0, 32);
+const serverThreadId = (serverId: string | undefined): string | undefined =>
+  serverId ? `server:${threadHash(serverId)}` : undefined;
+const userThreadId = (serverUserId: string): string => `user:${threadHash(serverUserId)}`;
 
 const MAX_PENDING_RECEIPTS = 10000;
 const MAX_TOKENS_TO_REMOVE = 1000;
@@ -74,6 +101,7 @@ function formatMediaTitle(session: ActiveSession): string {
 interface SessionWithPrefs {
   expoPushToken: string;
   mobileSessionId: string;
+  platform: 'ios' | 'android';
   deviceSecret: string | null;
   pushEnabled: boolean;
   onViolationDetected: boolean;
@@ -102,7 +130,7 @@ interface SessionWithPrefs {
  * Encrypts the data payload if deviceSecret is provided
  * Supports rich notifications with subtitle and image
  */
-function buildPushMessage(
+export function buildPushMessage(
   token: string,
   deviceSecret: string | null,
   notification: {
@@ -112,6 +140,8 @@ function buildPushMessage(
     data?: Record<string, unknown>;
     priority?: 'default' | 'high';
     channelId?: string;
+    categoryId?: string;
+    threadId?: string; // iOS groups notifications that share one
     badge?: number;
     sound?: 'default' | null;
     imageUrl?: string | null; // Rich notification image URL (must be HTTPS)
@@ -132,6 +162,8 @@ function buildPushMessage(
     data,
     priority: notification.priority ?? 'default',
     channelId: notification.channelId,
+    categoryId: notification.categoryId,
+    threadId: notification.threadId,
     badge: notification.badge,
     sound: notification.sound === undefined ? 'default' : notification.sound,
   };
@@ -148,6 +180,18 @@ function buildPushMessage(
     (message as ExpoPushMessage & { richContent?: { image: string } }).richContent = {
       image: notification.imageUrl,
     };
+  }
+
+  // Expo rejects a message over 4096 bytes as MessageTooBig, which only surfaces in a log.
+  // JSON escaping can cost more than the UTF-8 bytes, so cut until the whole thing fits.
+  let over = jsonBytes(message) - PUSH_PAYLOAD_BYTES;
+  while (over > 0 && message.body) {
+    message.body = fitText(message.body, {
+      max: Math.max(encoder.encode(message.body).length - over, 0),
+      unit: 'bytes',
+    });
+    over = jsonBytes(message) - PUSH_PAYLOAD_BYTES;
+    if (message.body === '…') break;
   }
 
   return message;
@@ -175,6 +219,7 @@ async function getSessionsWithPreferences(): Promise<SessionWithPrefs[]> {
     .select({
       expoPushToken: mobileSessions.expoPushToken,
       mobileSessionId: mobileSessions.id,
+      platform: mobileSessions.platform,
       deviceSecret: mobileSessions.deviceSecret,
       pushEnabled: notificationPreferences.pushEnabled,
       onViolationDetected: notificationPreferences.onViolationDetected,
@@ -212,6 +257,7 @@ async function getSessionsWithPreferences(): Promise<SessionWithPrefs[]> {
     .map((s) => ({
       expoPushToken: s.expoPushToken,
       mobileSessionId: s.mobileSessionId,
+      platform: s.platform,
       deviceSecret: s.deviceSecret ?? null,
       // Use defaults if no preferences exist
       pushEnabled: s.pushEnabled ?? true,
@@ -567,6 +613,13 @@ export class PushNotificationService {
     const identityUserId =
       violation.user.userId ?? (await getIdentityUserId(violation.serverUserId));
 
+    // Only a session that is still playing: a client offers to terminate it.
+    const activeSessionId =
+      violation.sessionId &&
+      (await getCacheService()?.getActiveSessionIds())?.includes(violation.sessionId)
+        ? violation.sessionId
+        : null;
+
     const messages = activeSessions.map((session) =>
       buildPushMessage(session.expoPushToken, session.deviceSecret, {
         title: override?.title ?? serverName,
@@ -584,9 +637,12 @@ export class PushNotificationService {
           ruleType: violation.rule.type,
           severity: violation.severity,
           serverId: violation.server?.id,
+          ...(activeSessionId && { sessionId: activeSessionId }),
         },
         priority: severity === 'high' ? 'high' : 'default',
         channelId: 'violations',
+        categoryId: PUSH_CATEGORY.VIOLATION,
+        threadId: serverThreadId(serverId),
         badge: 1,
         sound: severity === 'high' ? 'default' : undefined,
         imageUrl,
@@ -662,6 +718,8 @@ export class PushNotificationService {
         },
         priority: 'default',
         channelId: 'sessions',
+        categoryId: PUSH_CATEGORY.STREAM,
+        threadId: serverThreadId(session.server.id),
         imageUrl,
       })
     );
@@ -734,6 +792,8 @@ export class PushNotificationService {
         },
         priority: 'default',
         channelId: 'sessions',
+        categoryId: PUSH_CATEGORY.STREAM,
+        threadId: serverThreadId(session.server.id),
         imageUrl,
       })
     );
@@ -794,6 +854,8 @@ export class PushNotificationService {
         },
         priority: 'high',
         channelId: 'alerts',
+        categoryId: PUSH_CATEGORY.SERVER,
+        threadId: serverThreadId(serverId),
         sound: 'default',
         imageUrl,
       })
@@ -840,6 +902,8 @@ export class PushNotificationService {
         data: { ...payload, type: 'new_device' },
         priority: 'high',
         channelId: 'alerts',
+        categoryId: PUSH_CATEGORY.NEW_DEVICE,
+        threadId: userThreadId(payload.serverUserId),
         sound: 'default',
         imageUrl,
       })
@@ -892,6 +956,8 @@ export class PushNotificationService {
         data: { ...payload, type: 'trust_score_changed' },
         priority: dropped ? 'high' : 'default',
         channelId: 'alerts',
+        categoryId: PUSH_CATEGORY.TRUST_SCORE_CHANGED,
+        threadId: userThreadId(payload.serverUserId),
         imageUrl,
       })
     );
@@ -901,30 +967,23 @@ export class PushNotificationService {
 
   /**
    * Send silent push notification for background data sync
-   * These notifications don't show any UI, just trigger the app's background task
+   * These notifications don't show any UI, just trigger the app's background task.
+   * Only the master toggle applies: the per-event toggles, rate limits and quiet
+   * hours govern what a user sees, and nothing here is shown.
    */
   async sendSilentNotification(
     data: Record<string, unknown>,
-    skipPreferences = false
+    allowDevice?: (session: SessionWithPrefs) => Promise<boolean>
   ): Promise<void> {
     const sessions = await getSessionsWithPreferences();
-    if (sessions.length === 0) return;
-
-    // For silent notifications, we only filter by pushEnabled (skip all other prefs)
-    const eligibleSessions = skipPreferences
-      ? sessions.filter((s) => s.pushEnabled)
-      : sessions.filter((s) => {
-          if (!s.pushEnabled) return false;
-          return true;
-        });
-
-    if (eligibleSessions.length === 0) {
-      console.log(`[Push] No eligible sessions for silent notification`);
-      return;
+    const eligibleSessions: SessionWithPrefs[] = [];
+    for (const session of sessions) {
+      if (!session.pushEnabled) continue;
+      if (allowDevice && !(await allowDevice(session))) continue;
+      eligibleSessions.push(session);
     }
 
-    // Note: Silent notifications typically skip rate limiting and quiet hours
-    // as they're for background data sync, not user-facing alerts
+    if (eligibleSessions.length === 0) return;
 
     const messages: ExpoPushMessage[] = eligibleSessions.map((session) => {
       // Encrypt data payload if device has a secret
@@ -958,13 +1017,26 @@ export class PushNotificationService {
   }
 
   /**
-   * Trigger a data sync push for sessions refresh
+   * Wake backgrounded iOS apps so the home screen widget reloads the active
+   * sessions. Runs on every stream start, stop and widget-visible change, so
+   * each device is claimed through the rate limiter first; without Redis
+   * nothing is sent.
    */
   async triggerSessionsSync(): Promise<void> {
-    await this.sendSilentNotification({
-      syncType: 'sessions',
-      timestamp: Date.now(),
-    });
+    const rateLimiter = getPushRateLimiter();
+    if (!rateLimiter) return;
+
+    await this.sendSilentNotification(
+      { syncType: 'sessions', timestamp: Date.now() },
+      async (session) =>
+        session.platform === 'ios' &&
+        (await rateLimiter.claimSessionsSync(session.mobileSessionId, () =>
+          this.sendSilentNotification(
+            { syncType: 'sessions', timestamp: Date.now() },
+            async (device) => device.mobileSessionId === session.mobileSessionId
+          )
+        ))
+    );
   }
 
   /**
@@ -1056,6 +1128,8 @@ export class PushNotificationService {
         },
         priority: 'default',
         channelId: 'alerts',
+        categoryId: PUSH_CATEGORY.SERVER,
+        threadId: serverThreadId(serverId),
         imageUrl,
       })
     );

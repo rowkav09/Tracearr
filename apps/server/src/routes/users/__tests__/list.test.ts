@@ -125,7 +125,9 @@ describe('roster search', () => {
 
 describe('roster ORDER BY', () => {
   it('sorts by the identity display name by default, ascending, tiebroken on the identity id', () => {
-    expect(orderClause('username')).toBe('coalesce(u.name, u.username) ASC NULLS LAST, u.id ASC');
+    expect(orderClause('username')).toBe(
+      'lower(coalesce(u.name, u.username)) ASC NULLS LAST, u.id ASC'
+    );
   });
 
   it('sorts trust by the identity aggregate, worst-first default', () => {
@@ -143,7 +145,7 @@ describe('roster ORDER BY', () => {
   it('honours an explicit direction and keeps NULLS LAST in both', () => {
     expect(orderClause('joinedAt', 'asc')).toBe('u.first_joined_at ASC NULLS LAST, u.id ASC');
     expect(orderClause('username', 'desc')).toBe(
-      'coalesce(u.name, u.username) DESC NULLS LAST, u.id ASC'
+      'lower(coalesce(u.name, u.username)) DESC NULLS LAST, u.id ASC'
     );
   });
 });
@@ -327,14 +329,15 @@ describe('GET /users', () => {
     await app.close();
   });
 
-  it('returns the list envelope and the server-computed login capability', async () => {
+  it('returns the list envelope, ISO 8601 timestamps and the server-computed login capability', async () => {
     const authUser = owner();
     app = await buildTestApp(authUser);
     const userId = randomUUID();
     const serverUserId = randomUUID();
     const serverId = randomUUID();
-    const joinedAt = new Date('2023-01-05T00:00:00.000Z');
-    const activeAt = new Date('2024-06-02T00:00:00.000Z');
+    // db.execute hands timestamptz back as Postgres text
+    const joinedAt = '2023-01-05 00:00:00+00';
+    const activeAt = '2024-06-02 14:29:35.04+00';
 
     mockExecute
       .mockResolvedValueOnce({
@@ -397,8 +400,12 @@ describe('GET /users', () => {
       identityTrustScore: 72,
       trustScore: 80,
       loginCapable: true,
-      identityJoinedAt: joinedAt.toISOString(),
-      identityLastActivityAt: activeAt.toISOString(),
+      joinedAt: '2023-01-05T00:00:00.000Z',
+      lastActivityAt: '2024-06-02T14:29:35.040Z',
+      removedAt: null,
+      updatedAt: '2024-06-02T14:29:35.040Z',
+      identityJoinedAt: '2023-01-05T00:00:00.000Z',
+      identityLastActivityAt: '2024-06-02T14:29:35.040Z',
     });
     expect(body.data[0].identityServers).toEqual([
       { id: serverId, name: 'Plex', serverUserId, removedAt: null },

@@ -5,6 +5,7 @@
 import { z } from 'zod';
 import { isValidTimezone } from './constants.js';
 import { listDateBoundSchema, listSortSchema } from './listQuery.js';
+import { PLAYBACK_DECISIONS } from './playbackDecision.js';
 
 // ============================================================================
 // Shared Enum Constants
@@ -193,6 +194,10 @@ export const reorderServersSchema = z.object({
   ),
 });
 
+export const setServerHistoricalSchema = z.object({
+  historical: z.boolean(),
+});
+
 export const updateServerSchema = z
   .object({
     name: z.string().min(1).max(100).optional(),
@@ -204,15 +209,51 @@ export const updateServerSchema = z
       .optional()
       .nullable(),
     publicUrl: publicUrlSchema.optional(),
+    apiKey: z.string().trim().min(1).optional(),
   })
   .refine(
     (data) =>
       data.name !== undefined ||
       data.url !== undefined ||
       data.color !== undefined ||
-      data.publicUrl !== undefined,
-    { message: 'At least one of name, url, color, or publicUrl is required' }
+      data.publicUrl !== undefined ||
+      data.apiKey !== undefined,
+    { message: 'At least one of name, url, color, publicUrl, or apiKey is required' }
   );
+
+const locationTextSchema = z
+  .string()
+  .trim()
+  .max(255)
+  .nullable()
+  .transform((value) => (value ? value : null));
+
+export const serverLocationEntrySchema = z.object({
+  effectiveFrom: z.iso.datetime({ offset: true }).nullable(),
+  lat: z.number().min(-90).max(90),
+  lon: z.number().min(-180).max(180),
+  city: locationTextSchema,
+  region: locationTextSchema,
+  country: z.string().regex(/^[A-Z]{2}$/, 'Country must be a two-letter ISO code'),
+});
+
+export const serverLocationsSchema = z
+  .object({ entries: z.array(serverLocationEntrySchema).max(20) })
+  .superRefine(({ entries }, ctx) => {
+    const undated = entries.filter((entry) => entry.effectiveFrom === null).length;
+    if (undated > 1) {
+      ctx.addIssue({ code: 'custom', message: 'Only one location can apply from the beginning' });
+    }
+    const dated = entries.flatMap((entry) =>
+      entry.effectiveFrom === null ? [] : [new Date(entry.effectiveFrom).getTime()]
+    );
+    if (new Set(dated).size !== dated.length) {
+      ctx.addIssue({ code: 'custom', message: 'Two locations share a start date' });
+    }
+    if (dated.some((time) => time > Date.now())) {
+      ctx.addIssue({ code: 'custom', message: 'A location cannot start in the future' });
+    }
+  });
 
 // ============================================================================
 // User Schemas
@@ -258,6 +299,11 @@ export const mergeUsersBodySchema = z.object({
 export type MergeUsersBody = z.infer<typeof mergeUsersBodySchema>;
 
 export const mergeUserParamSchema = z.object({ id: uuidSchema });
+
+export const mergeSuggestionDismissalSchema = z
+  .object({ userIds: z.tuple([uuidSchema, uuidSchema]) })
+  .refine(({ userIds: [a, b] }) => a !== b, 'userIds must name two different identities');
+export const mergeSuggestionPairParamSchema = z.object({ userA: uuidSchema, userB: uuidSchema });
 export const splitServerUserParamSchema = z.object({ id: uuidSchema });
 
 export const USER_SORT_FIELDS = ['username', 'trustScore', 'joinedAt', 'lastActivityAt'] as const;
@@ -362,8 +408,10 @@ export const historyQuerySchema = z.object({
   geoCountries: commaSeparatedArray(z.string().max(100)),
   geoCity: z.string().max(255).optional(), // City name
   geoRegion: z.string().max(255).optional(), // State/province
+  network: z.enum(['local', 'remote']).optional(),
 
-  transcodeDecisions: commaSeparatedArray(z.enum(['directplay', 'copy', 'transcode'])),
+  transcodeDecisions: commaSeparatedArray(z.enum(PLAYBACK_DECISIONS)),
+  subtitleBurnIn: booleanStringSchema.optional(),
 
   // Status filters
   watched: booleanStringSchema.optional(), // 85%+ completion
@@ -825,8 +873,63 @@ export const jellystatPlaybackActivitySchema = z.looseObject({
 export const jellystatBackupSchema = z.array(
   z.object({
     jf_playback_activity: z.array(z.unknown()).optional(), // Validate records individually during import
+    jf_library_items: z.array(z.unknown()).optional(),
+    jf_library_episodes: z.array(z.unknown()).optional(),
+    jf_playback_reporting_plugin_data: z.array(z.unknown()).optional(),
   })
 );
+
+const jellystatNullableInt = z
+  .number()
+  .int()
+  .nullish()
+  .transform((v) => v ?? null);
+
+// Jellystat's remap only treats `archived = false` as still in the library, so a null flag counts as archived.
+const jellystatArchived = z
+  .boolean()
+  .nullish()
+  .transform((v) => v !== false);
+
+/**
+ * Library item row from a Jellystat backup, projected to the fields the remap veto reads
+ */
+export const jellystatLibraryItemSchema = z.object({
+  Id: z.string(),
+  Name: z.string(),
+  ProductionYear: jellystatNullableInt,
+  archived: jellystatArchived,
+});
+
+/**
+ * Library episode row from a Jellystat backup, projected to the fields the remap veto reads
+ */
+export const jellystatLibraryEpisodeSchema = z.object({
+  EpisodeId: z.string(),
+  SeriesId: z
+    .string()
+    .nullish()
+    .transform((v) => v ?? null),
+  Name: z.string(),
+  SeriesName: z
+    .string()
+    .nullish()
+    .transform((v) => v ?? null),
+  ParentIndexNumber: jellystatNullableInt,
+  IndexNumber: jellystatNullableInt,
+  archived: jellystatArchived,
+});
+
+/**
+ * Playback Reporting plugin row from a Jellystat backup (bigint rowid may arrive as a string)
+ */
+export const jellystatPluginRowSchema = z.object({
+  rowid: z.union([
+    z.number().int().nonnegative(),
+    z.string().regex(/^\d+$/).transform(Number).pipe(z.number().int()),
+  ]),
+  ItemId: z.string(),
+});
 
 /**
  * Request body for Jellystat import (multipart form data is parsed separately)
@@ -1006,6 +1109,13 @@ export const libraryDuplicatesQuerySchema = z.object({
   pageSize: z.coerce.number().int().min(1).max(100).default(50),
 });
 
+// Capped because every id costs a media server lookup; one page of duplicates fits.
+export const libraryDuplicateFilesQuerySchema = z.object({
+  itemIds: z
+    .union([uuidSchema.transform((id) => [id]), z.array(uuidSchema)])
+    .refine((ids) => ids.length <= 50, { message: 'At most 50 items per request' }),
+});
+
 // Library stale content query schema
 export const libraryStaleQuerySchema = z.object({
   serverId: z.uuid().optional(),
@@ -1137,6 +1247,7 @@ export type LibraryGrowthQueryInput = z.infer<typeof libraryGrowthQuerySchema>;
 export type LibraryQualityQueryInput = z.infer<typeof libraryQualityQuerySchema>;
 export type LibraryStorageQueryInput = z.infer<typeof libraryStorageQuerySchema>;
 export type LibraryDuplicatesQueryInput = z.infer<typeof libraryDuplicatesQuerySchema>;
+export type LibraryDuplicateFilesQueryInput = z.infer<typeof libraryDuplicateFilesQuerySchema>;
 export type LibraryStaleQueryInput = z.infer<typeof libraryStaleQuerySchema>;
 export type LibraryWatchQueryInput = z.infer<typeof libraryWatchQuerySchema>;
 export type LibraryRoiQueryInput = z.infer<typeof libraryRoiQuerySchema>;
@@ -1170,6 +1281,9 @@ export type JellystatPlayState = z.infer<typeof jellystatPlayStateSchema>;
 export type JellystatTranscodingInfo = z.infer<typeof jellystatTranscodingInfoSchema>;
 export type JellystatPlaybackActivity = z.infer<typeof jellystatPlaybackActivitySchema>;
 export type JellystatBackup = z.infer<typeof jellystatBackupSchema>;
+export type JellystatLibraryItem = z.infer<typeof jellystatLibraryItemSchema>;
+export type JellystatLibraryEpisode = z.infer<typeof jellystatLibraryEpisodeSchema>;
+export type JellystatPluginRow = z.infer<typeof jellystatPluginRowSchema>;
 export type JellystatImportBody = z.infer<typeof jellystatImportBodySchema>;
 export type ImportJobStatus = z.infer<typeof importJobStatusSchema>;
 

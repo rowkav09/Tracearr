@@ -102,9 +102,20 @@ jobs:
 
   # Integration tests require real database - run separately from unit tests
   test-integration:
-    name: Test (integration)
+    name: Test (integration, ${{ matrix.part.name }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Same split as ci.yml: the catalog EXPLAIN gate on its own, the rest in two halves
+    strategy:
+      fail-fast: false
+      matrix:
+        part:
+          - name: suite 1/2
+            args: --exclude '**/catalogExplain.integration.test.ts' --shard=1/2
+          - name: suite 2/2
+            args: --exclude '**/catalogExplain.integration.test.ts' --shard=2/2
+          - name: explain gate
+            args: catalogExplain
     env:
       TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
       TURBO_TEAM: ${{ vars.TURBO_TEAM }}
@@ -128,7 +139,7 @@ jobs:
           --health-retries 10
 
       redis:
-        image: redis:8-alpine@sha256:becdda6c7f4b3fb42e42fd7f120bbf5c54c4caaaf16f26da24e4563d2c1f0576
+        image: redis:8-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
         ports:
           - 6380:6379
         options: >-
@@ -166,28 +177,85 @@ jobs:
         run: pnpm turbo run build --filter=@tracearr/shared --filter=@tracearr/emails --filter=@tracearr/test-utils
 
       - name: Run integration tests
-        run: pnpm --filter @tracearr/server test:integration
+        run: pnpm --filter @tracearr/server test:integration ${{ matrix.part.args }}
+
+  release-notes:
+    name: Release Notes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --filter @tracearr/shared
+
+      - name: Build shared
+        run: pnpm --filter @tracearr/shared build
+
+      - name: Validate and render release notes
+        run: node .github/scripts/render-release-notes.mjs
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_NOTES_OUT_DIR: release-notes-out
+
+      - name: Upload release notes
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-notes
+          path: |
+            release-notes-out/release_notes.md
+            release-notes-out/release-notes.json
+          if-no-files-found: error
 
   # Determine if this is a prerelease (alpha, beta, rc, etc.)
   check-release-type:
     name: Check Release Type
     runs-on: ubuntu-latest
-    needs: [lint-and-typecheck, test, test-integration]
+    needs: [lint-and-typecheck, test, test-integration, release-notes]
     outputs:
       prerelease: ${{ steps.check.outputs.prerelease }}
+      # true when the next channel should follow this tag: every prerelease,
+      # and a stable that is newer than the newest beta, so beta users are
+      # never behind stable after a hotfix
+      moves-next: ${{ steps.check.outputs.moves_next }}
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+
       - name: Check if prerelease
         id: check
         run: |
           TAG="${{ github.ref_name }}"
           if [[ "$TAG" == *-* ]]; then
             echo "prerelease=true" >> "$GITHUB_OUTPUT"
+            echo "moves_next=true" >> "$GITHUB_OUTPUT"
             echo "This is a prerelease: $TAG"
-          else
-            echo "prerelease=false" >> "$GITHUB_OUTPUT"
-            echo "This is a stable release: $TAG"
+            exit 0
           fi
+          echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          NEWEST_BETA=$(git tag -l 'v*-*' | sort -V | tail -1)
+          MOVES_NEXT=$(node -e '
+            const [tag, beta] = process.argv.slice(1);
+            const parse = (v) => { const [base, pre] = v.replace(/^v/, "").split("-"); return { n: base.split(".").map(Number), pre }; };
+            const cmp = (a, b) => { for (let i = 0; i < 3; i++) { if (a.n[i] !== b.n[i]) return a.n[i] - b.n[i]; } if (!a.pre && b.pre) return 1; if (a.pre && !b.pre) return -1; return 0; };
+            console.log(!beta || cmp(parse(tag), parse(beta)) > 0 ? "true" : "false");
+          ' "$TAG" "$NEWEST_BETA")
+          echo "moves_next=$MOVES_NEXT" >> "$GITHUB_OUTPUT"
+          echo "This is a stable release: $TAG (newest beta ${NEWEST_BETA:-none}, moves next: $MOVES_NEXT)"
 
   # Build each platform natively in parallel (much faster than QEMU emulation)
   build-docker:
@@ -213,25 +281,17 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Update GeoIP database
-        run: |
-          echo "Downloading latest GeoLite2-City database..."
-          curl -sSL "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=${{ secrets.MAXMIND_LICENSE_KEY }}&suffix=tar.gz" \
-            -o /tmp/geolite2-city.tar.gz && \
-          tar -xzf /tmp/geolite2-city.tar.gz -C /tmp && \
-          mv /tmp/GeoLite2-City_*/GeoLite2-City.mmdb data/GeoLite2-City.mmdb && \
-          echo "Successfully updated GeoLite2-City.mmdb" || \
-          echo "Download failed, using existing database as fallback"
-          echo "Downloading latest GeoLite2-ASN database..."
-          curl -sSL "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-ASN&license_key=${{ secrets.MAXMIND_LICENSE_KEY }}&suffix=tar.gz" \
-            -o /tmp/geolite2-asn.tar.gz && \
-          tar -xzf /tmp/geolite2-asn.tar.gz -C /tmp && \
-          mv /tmp/GeoLite2-ASN_*/GeoLite2-ASN.mmdb data/GeoLite2-ASN.mmdb && \
-          echo "Successfully updated GeoLite2-ASN.mmdb" || \
-          echo "Download failed, using existing database as fallback"
-          ls -la data/GeoLite2-City.mmdb data/GeoLite2-ASN.mmdb
+        uses: ./.github/actions/fetch-geoip
+        # The committed databases stay in place when MaxMind is unreachable
+        continue-on-error: true
+        with:
+          license-key: ${{ secrets.MAXMIND_LICENSE_KEY }}
+
+      - name: Fetch basemap
+        uses: ./.github/actions/fetch-basemap
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
       - name: Log in to Container Registry
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
@@ -248,15 +308,15 @@ jobs:
 
       - name: Build and push by digest
         id: build
-        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           file: ./docker/Dockerfile
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
-          cache-from: type=gha,scope=docker-${{ matrix.arch }}
-          cache-to: type=gha,mode=max,scope=docker-${{ matrix.arch }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-docker-${{ matrix.arch }}
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-docker-${{ matrix.arch }},mode=min,ignore-error=true
           build-args: |
             APP_VERSION=${{ github.ref_name }}
             APP_TAG=${{ github.ref_name }}
@@ -296,7 +356,7 @@ jobs:
           merge-multiple: true
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
       - name: Log in to Container Registry
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
@@ -315,7 +375,7 @@ jobs:
             type=semver,pattern={{major}}.{{minor}},enable=${{ needs.check-release-type.outputs.prerelease == 'false' }}
             type=semver,pattern={{major}},enable=${{ needs.check-release-type.outputs.prerelease == 'false' }}
             type=raw,value=latest,enable=${{ needs.check-release-type.outputs.prerelease == 'false' }}
-            type=raw,value=next,enable=${{ needs.check-release-type.outputs.prerelease == 'true' }}
+            type=raw,value=next,enable=${{ needs.check-release-type.outputs.moves-next == 'true' }}
 
       - name: Create manifest list and push
         working-directory: /tmp/digests
@@ -356,25 +416,17 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Update GeoIP database
-        run: |
-          echo "Downloading latest GeoLite2-City database..."
-          curl -sSL "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=${{ secrets.MAXMIND_LICENSE_KEY }}&suffix=tar.gz" \
-            -o /tmp/geolite2-city.tar.gz && \
-          tar -xzf /tmp/geolite2-city.tar.gz -C /tmp && \
-          mv /tmp/GeoLite2-City_*/GeoLite2-City.mmdb data/GeoLite2-City.mmdb && \
-          echo "Successfully updated GeoLite2-City.mmdb" || \
-          echo "Download failed, using existing database as fallback"
-          echo "Downloading latest GeoLite2-ASN database..."
-          curl -sSL "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-ASN&license_key=${{ secrets.MAXMIND_LICENSE_KEY }}&suffix=tar.gz" \
-            -o /tmp/geolite2-asn.tar.gz && \
-          tar -xzf /tmp/geolite2-asn.tar.gz -C /tmp && \
-          mv /tmp/GeoLite2-ASN_*/GeoLite2-ASN.mmdb data/GeoLite2-ASN.mmdb && \
-          echo "Successfully updated GeoLite2-ASN.mmdb" || \
-          echo "Download failed, using existing database as fallback"
-          ls -la data/GeoLite2-City.mmdb data/GeoLite2-ASN.mmdb
+        uses: ./.github/actions/fetch-geoip
+        # The committed databases stay in place when MaxMind is unreachable
+        continue-on-error: true
+        with:
+          license-key: ${{ secrets.MAXMIND_LICENSE_KEY }}
+
+      - name: Fetch basemap
+        uses: ./.github/actions/fetch-basemap
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
       - name: Log in to Container Registry
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
@@ -391,15 +443,15 @@ jobs:
 
       - name: Build and push by digest
         id: build
-        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           file: ./docker/Dockerfile.supervised
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
           outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
-          cache-from: type=gha,scope=supervised-${{ matrix.arch }}
-          cache-to: type=gha,mode=max,scope=supervised-${{ matrix.arch }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-supervised-${{ matrix.arch }}
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-supervised-${{ matrix.arch }},mode=min,ignore-error=true
           build-args: |
             APP_VERSION=${{ github.ref_name }}
             APP_TAG=supervised-${{ github.ref_name }}
@@ -439,7 +491,7 @@ jobs:
           merge-multiple: true
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
       - name: Log in to Container Registry
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
@@ -461,7 +513,7 @@ jobs:
           tags: |
             type=semver,pattern={{version}}
             type=raw,value=supervised,enable=${{ needs.check-release-type.outputs.prerelease == 'false' }},prefix=
-            type=raw,value=supervised-next,enable=${{ needs.check-release-type.outputs.prerelease == 'true' }},prefix=
+            type=raw,value=supervised-next,enable=${{ needs.check-release-type.outputs.moves-next == 'true' }},prefix=
 
       - name: Create manifest list and push
         working-directory: /tmp/digests
@@ -519,6 +571,36 @@ jobs:
             fi
             (cd "packages/${pkg}" && npm pkg set version="$VERSION" && npm publish --tag "$TAG")
           done
+          if [ "$TAG" = "latest" ] && [ "${{ needs.check-release-type.outputs.moves-next }}" = "true" ]; then
+            # The trusted-publishing login that publishes is refused for dist-tag changes
+            # (401 on v2.6.0), so a stuck next must not fail the job and skip the mobile sync
+            for pkg in shared translations; do
+              npm dist-tag add "@tracearr/${pkg}@${VERSION}" next \
+                || echo "::warning::next was not moved for @tracearr/${pkg}; run npm dist-tag add @tracearr/${pkg}@${VERSION} next by hand"
+            done
+          fi
+
+  # Tells Tracearr/Mobile-App to pin this release's published packages so the
+  # mobile app never drifts from a version the server actually shipped.
+  dispatch-mobile-sync:
+    name: Dispatch mobile package sync
+    runs-on: ubuntu-latest
+    needs: [publish-packages]
+    permissions: {}
+
+    steps:
+      - name: Tell Tracearr/Mobile-App to pin ${{ github.ref_name }}
+        env:
+          GH_TOKEN: ${{ secrets.MOBILE_APP_DISPATCH_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::MOBILE_APP_DISPATCH_TOKEN is not set; run the mobile sync by hand for $TAG"
+            exit 1
+          fi
+          gh api repos/Tracearr/Mobile-App/dispatches \
+            -f event_type=tracearr-release \
+            -F "client_payload[tag]=$TAG"
 
   # Keep the Helm chart's appVersion in sync with stable releases so the
   # chart's default image tag (which falls back to appVersion) doesn't drift.
@@ -585,29 +667,24 @@ jobs:
       - name: Generate OpenAPI specs
         run: pnpm --filter @tracearr/server openapi:dump "$GITHUB_WORKSPACE"
 
-      - name: Get tag annotation
-        id: tag_info
-        run: |
-          # Use subject+body to exclude GPG/SSH signatures from signed tags
-          SUBJECT=$(git tag -l --format='%(contents:subject)' ${{ github.ref_name }})
-          BODY=$(git tag -l --format='%(contents:body)' ${{ github.ref_name }})
-          if [ -n "$BODY" ]; then
-            printf '%s\n\n%s\n' "$SUBJECT" "$BODY" > tag_message.txt
-          else
-            echo "$SUBJECT" > tag_message.txt
-          fi
+      - name: Download release notes
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: release-notes
+          path: release-notes-out
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
         with:
           name: ${{ github.ref_name }}
-          body_path: tag_message.txt
+          body_path: release-notes-out/release_notes.md
           prerelease: ${{ needs.check-release-type.outputs.prerelease }}
           generate_release_notes: false
           fail_on_unmatched_files: true
           files: |
             openapi-v1.json
             openapi-v2.json
+            release-notes-out/release-notes.json
 
   announce-reddit:
     name: Post to Reddit
@@ -619,15 +696,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - name: Get tag annotation
-        run: |
-          SUBJECT=$(git tag -l --format='%(contents:subject)' ${{ github.ref_name }})
-          BODY=$(git tag -l --format='%(contents:body)' ${{ github.ref_name }})
-          if [ -n "$BODY" ]; then
-            printf '%s\n\n%s\n' "$SUBJECT" "$BODY" > tag_message.txt
-          else
-            echo "$SUBJECT" > tag_message.txt
-          fi
+      - name: Download release notes
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: release-notes
+          path: release-notes-out
 
       - name: Post release to Reddit
         run: node .github/scripts/post-release-to-reddit.mjs
@@ -637,4 +710,31 @@ jobs:
           REDDIT_REFRESH_TOKEN: ${{ secrets.REDDIT_REFRESH_TOKEN }}
           RELEASE_TAG: ${{ github.ref_name }}
           TITLE_PREFIX: ${{ needs.check-release-type.outputs.prerelease == 'true' && 'Beta Release' || 'Release' }}
-          NOTES_FILE: tag_message.txt
+          NOTES_FILE: release-notes-out/release_notes.md
+
+  announce-discord:
+    name: Post to Discord
+    runs-on: ubuntu-latest
+    needs: [check-release-type, create-release]
+    continue-on-error: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Download release notes
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: release-notes
+          path: release-notes-out
+
+      - name: Post release to Discord
+        run: node .github/scripts/post-release-to-discord.mjs
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+          DISCORD_ANNOUNCEMENTS_CHANNEL_ID: ${{ vars.DISCORD_ANNOUNCEMENTS_CHANNEL_ID }}
+          DISCORD_RELEASE_ROLE_ID: ${{ vars.DISCORD_RELEASE_ROLE_ID }}
+          DISCORD_BETA_ROLE_ID: ${{ vars.DISCORD_BETA_ROLE_ID }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          PRERELEASE: ${{ needs.check-release-type.outputs.prerelease }}
+          NOTES_FILE: release-notes-out/release-notes.json

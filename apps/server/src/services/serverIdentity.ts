@@ -8,6 +8,7 @@ import { eq, isNull, and } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { servers } from '../db/schema.js';
 import { createMediaServerClient } from './mediaServer/index.js';
+import { isLiveServer, liveServerCondition } from './liveServers.js';
 import { invalidateServersCache } from '../jobs/poller/database.js';
 import type { ServerType } from '@tracearr/shared';
 
@@ -17,6 +18,19 @@ interface IdentifiableServer {
   url: string;
   token: string;
   machineIdentifier: string | null;
+}
+
+/** The identifier the server at this address reports for itself, or null when it reports none. */
+export async function readServerIdentity(
+  server: Omit<IdentifiableServer, 'machineIdentifier'>
+): Promise<string | null> {
+  const client = createMediaServerClient({
+    type: server.type,
+    url: server.url,
+    token: server.token,
+    id: server.id,
+  });
+  return client.getServerIdentity ? client.getServerIdentity() : null;
 }
 
 /**
@@ -30,16 +44,10 @@ export async function ensureServerIdentifier(
   log?: { debug: (obj: unknown, msg: string) => void }
 ): Promise<string | null> {
   if (server.machineIdentifier) return server.machineIdentifier;
+  if (!(await isLiveServer(server.id))) return null;
 
   try {
-    const client = createMediaServerClient({
-      type: server.type,
-      url: server.url,
-      token: server.token,
-      id: server.id,
-    });
-    if (!client.getServerIdentity) return null;
-    const identity = await client.getServerIdentity();
+    const identity = await readServerIdentity(server);
     if (!identity) return null;
 
     await db
@@ -67,7 +75,7 @@ export async function backfillMissingServerIdentifiers(log?: {
       machineIdentifier: servers.machineIdentifier,
     })
     .from(servers)
-    .where(isNull(servers.machineIdentifier));
+    .where(and(isNull(servers.machineIdentifier), liveServerCondition));
 
   let filled = 0;
   for (const row of rows) {

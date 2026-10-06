@@ -1,7 +1,6 @@
 {
   "pair": {
     "welcome": "Bem-vindo ao Tracearr",
-    "addServer": "Adicionar Servidor",
     "connectToServer": "Conectar ao servidor",
     "enterServerDetails": "Digite seu URL do servidor Tracearr e token de acesso móvel",
     "serverUrl": "URL do servidor",
@@ -16,24 +15,16 @@
     "pleaseEnterToken": ""
   },
   "errors": {
-    "missingFields": "Campos em Falta",
-    "pleaseEnterBothFields": "Por favor, insira o URL e o token do servidor",
     "invalidUrl": "URL inválida",
-    "serverUrlMustStartWith": "O URL do servidor deve começar com http:// ou https://",
     "pleaseEnterValidUrl": "Por favor, insira uma URL de servidor válida",
-    "pairingFailed": "Falha no pareamento",
+    "pairingFailed": "Falha no emparelhamento",
     "unableToPair": "",
     "invalidQrCode": "",
     "invalidQrCodeMissingData": "Código QR inválido: falta dados de emparelhamento",
     "invalidQrCodeFormat": "Formato de código QR inválido. Por favor, gere um novo código.",
     "invalidQrCodeMissingUrl": "Código QR inválido: URL do servidor faltando",
     "invalidQrCodeMissingToken": "Código QR inválido: falta o token de emparelhamento",
-    "invalidServerUrlInQr": "URL do servidor inválida no código QR",
-    "tooManyPairingAttempts": "Muitas tentativas de emparelhamento. Por favor, aguarde alguns minutos.",
-    "invalidOrExpiredToken": "Token de pareamento inválido ou expirado.",
-    "invalidPairingRequest": "Pedido de emparelhamento inválido. Verifique seu token.",
     "errorDetails": "",
-    "componentStack": "",
     "connectionLost": "",
     "failedToLoadSession": ""
   },
@@ -47,30 +38,32 @@
     "joinCommunity": "Junte-se à comunidade",
     "docs": "",
     "readDocs": "",
-    "website": "",
-    "visitWebsite": "",
-    "github": "",
+    "website": "Site",
+    "visitWebsite": "Visita tracearr.com",
+    "github": "GitHub",
     "viewSourceCode": "Ver código-fonte",
-    "sponsor": "",
-    "supportDevelopment": "",
+    "sponsor": "Patrocinador",
+    "supportDevelopment": "Apoia o desenvolvimento",
     "account": "conta",
-    "disconnect": "",
+    "disconnect": "Desconectar",
     "disconnectServer": "Desconectar servidor",
-    "disconnectConfirm": "Tem certeza que deseja desconectar do \"{{serverName}}\"? Você precisará parear novamente para usar o aplicativo.",
-    "disconnectConfirmGeneric": "Tem certeza que deseja desconectar? Você precisará parear novamente para usar o aplicativo.",
+    "disconnectConfirm": "Tem a certeza de que pretende desligar de \"{{serverName}}\"? Terá de emparelhar novamente para utilizar a aplicação.",
+    "disconnectConfirmGeneric": "Tem a certeza de que pretende desligar? Terá de emparelhar novamente para utilizar a aplicação.",
     "currentlyConnected": "Conectado atualmente a {{serverName}}",
-    "version": "",
-    "build": ""
+    "version": "Versão {{version}}",
+    "build": "Compilação {{build}}"
   },
   "navigation": {
-    "home": "",
     "selectServer": "Selecionar servidor",
-    "server": "Servidor",
-    "navigation": ""
+    "server": "Servidor"
   },
   "resources": {
     "cpu": "cpu",
-    "ram": ""
+    "ram": "RAM",
+    "item": "",
+    "noData": "",
+    "system": "Sistema",
+    "waiting": ""
   },
   "notifications": {
     "testSent": "Teste Enviado",
@@ -82,7 +75,6 @@
     "ruleViolationTriggered": "",
     "newPlaybackBegan": "",
     "playbackEnded": "",
-    "exceededStreamLimit": "",
     "newDeviceDetected": "",
     "trustScoreDegraded": "",
     "serverUnreachable": "",
@@ -98,11 +90,19 @@
     "criticalOverrideDescription": "",
     "rateLimitDescription": "",
     "sendTestNotification": "",
-    "testDescription": ""
-  },
-  "dashboard": {
-    "today": "",
-    "hrs": ""
+    "testDescription": "",
+    "pushNotifications": "",
+    "ruleTypes": {
+      "accountInactivity": "",
+      "deviceVelocity": "",
+      "geoRestriction": "",
+      "impossibleTravel": "",
+      "simultaneousLocations": ""
+    },
+    "severityAll": "",
+    "severityHighOnly": "",
+    "severityWarningUp": "",
+    "violationTypes": ""
   },
   "session": {
     "streamTerminated": "",
@@ -113,45 +113,77 @@
     "userMayBeRemoved": "",
     "noLocationsRecorded": "",
     "noDevicesRecorded": "",
-    "moreLocations": "",
-    "moreDevices": "",
     "noViolations": "",
     "noTerminations": "",
-    "trustLow": "",
-    "trustMedium": "",
-    "trustHigh": ""
+    "lastSeen": "",
+    "terminatedBy": "",
+    "trustScoreConfirm": "",
+    "trustScoreRange": "",
+    "moreLocations_one": "",
+    "moreLocations_other": "",
+    "moreDevices_one": "",
+    "moreDevices_other": ""
   },
   "violation": {
     "violationNotFoundDesc": "",
-    "customRule": "",
-    "streamComparison": "",
     "ips": ""
   },
   "alerts": {
-    "done": "",
-    "clearFilters": ""
+    "clearFilters": "",
+    "acknowledgeAll": "",
+    "acknowledgeAllBody": "",
+    "acknowledgeAllBodySeverity": "",
+    "all": "",
+    "allClear": "",
+    "allServers": "",
+    "noAlertsRecorded": "",
+    "noMatches": "",
+    "acknowledgeAllTitle_one": "",
+    "acknowledgeAllTitle_other": "",
+    "pendingCount_one": "",
+    "pendingCount_other": ""
   },
   "history": {
-    "noHistoryFound": "",
     "adjustFilters": "",
-    "historyWillAppear": ""
+    "historyWillAppear": "",
+    "filters": {
+      "clearCount": "",
+      "countries": "",
+      "filterBy": "",
+      "mediaType": "",
+      "noCountries": "",
+      "noPlatforms": "",
+      "noUsers": "",
+      "sectionSelected_one": "",
+      "sectionSelected_other": ""
+    }
   },
   "users": {
     "owner": "",
     "noUsers": "",
     "usersWillAppear": "",
-    "noUsersMatch": ""
+    "noUsersMatch": "",
+    "joinedRelative": "",
+    "sortActive": "",
+    "sortTrust": ""
   },
   "activity": {
     "playsOverTime": "Reproduções ao longo do tempo",
-    "concurrentStreams": "Fluxos simultâneos",
+    "concurrentStreams": "Transmissões simultâneas",
     "platforms": "Plataformas",
     "playbackQuality": ""
   },
   "unauthenticated": {
     "connectionLost": "",
     "accessRevoked": "",
+    "deviceRemoved": "",
+    "expired": "",
     "scanQrCode": ""
+  },
+  "clientTooOld": {
+    "title": "",
+    "body": "",
+    "update": ""
   },
   "serverSelector": {
     "servers": "",
@@ -160,19 +192,77 @@
     "allServers": ""
   },
   "reconnected": "",
-  "actionsExecuted": "",
-  "serverScope": {
-    "single": ""
-  },
   "a11y": {
     "selectServer": "",
     "alerts": "",
-    "alertsCount": "",
     "settings": "",
-    "trustScore": ""
+    "trustScore": "",
+    "decreaseTrustScore": "",
+    "increaseTrustScore": "",
+    "sortAscending": "",
+    "sortDescending": "",
+    "alertsCount_one": "",
+    "alertsCount_other": "",
+    "filtersActive_one": "",
+    "filtersActive_other": ""
   },
   "map": {
     "noData": "",
     "unavailable": ""
+  },
+  "automations": {
+    "editOnWeb": "",
+    "emptyDescription": "",
+    "kind": {
+      "notification": "",
+      "policy": ""
+    },
+    "lastRun": "",
+    "truncated": "",
+    "turnOffFailed": "",
+    "turnOnFailed": "",
+    "unsupportedDescription": "",
+    "unsupportedTitle": "",
+    "versionCheckFailed": "",
+    "conditions_one": "",
+    "conditions_other": ""
+  },
+  "charts": {
+    "weekOf": ""
+  },
+  "push": {
+    "violationTitle": ""
+  },
+  "streamDetails": {
+    "bitrate": "",
+    "channels": "",
+    "codec": "",
+    "color": "",
+    "container": "",
+    "forced": "",
+    "format": "",
+    "framerate": "",
+    "hwDecode": "",
+    "hwEncode": "",
+    "mono": "",
+    "noDetails": "",
+    "notAvailable": "",
+    "profile": "",
+    "sampleRate": "",
+    "source": "",
+    "speed": "",
+    "stereo": "",
+    "stream": "",
+    "subtitles": "",
+    "throttled": "",
+    "transcodeDetails": ""
+  },
+  "widget": {
+    "asOf": "",
+    "signedOut": "",
+    "serversDown_one": "",
+    "serversDown_other": "",
+    "transcodes_one": "",
+    "transcodes_other": ""
   }
 }

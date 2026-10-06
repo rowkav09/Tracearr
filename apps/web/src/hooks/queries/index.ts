@@ -55,6 +55,9 @@ export {
   useUserTerminations,
   useBulkResetTrust,
   useMergeSuggestions,
+  useDismissedMergeSuggestions,
+  useDismissMergeSuggestion,
+  useRestoreMergeSuggestion,
   useMergeUsers,
   useSplitServerUser,
 } from './useUsers';
@@ -106,6 +109,9 @@ export {
   useDeleteServer,
   useSyncServer,
   useUpdateServer,
+  useSetServerHistorical,
+  useServerLocations,
+  useUpdateServerLocations,
   useServerLiveStats,
   useMultiServerLiveStats,
   usePlexServerConnections,
@@ -130,6 +136,23 @@ export {
   useTestDestination,
   useTestUnsavedDestination,
 } from './useDestinations';
+
+// Request hooks
+export {
+  REQUESTS_KEY,
+  useMediaRequests,
+  useUserRequests,
+  useRequestsAnalytics,
+  useRequestsConfigured,
+  useRequestsUnplayed,
+  useRequesters,
+  useRequestServices,
+  useTestRequestService,
+  useCreateRequestService,
+  useUpdateRequestService,
+  useDeleteRequestService,
+  useSyncRequestService,
+} from './useRequests';
 
 // Newsletter hooks
 export {
@@ -188,6 +211,9 @@ export {
 // Version hooks
 export { useVersion, useForceVersionCheck } from './useVersion';
 
+// What's new hooks
+export { WHATS_NEW_KEY, useWhatsNew, useDismissWhatsNew } from './useWhatsNew';
+
 // Library hooks
 export {
   useLibraryStats,
@@ -221,6 +247,7 @@ export {
   CATALOG_PAGE_SIZE,
   useShelves,
   useGenres,
+  useCatalogCodecs,
   useLibraries,
   useMediaDetail,
   useMediaStats,

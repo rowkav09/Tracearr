@@ -25,6 +25,16 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import sensible from '@fastify/sensible';
 import { randomUUID } from 'node:crypto';
 import type { AuthUser } from '@tracearr/shared';
+import type { SQL } from 'drizzle-orm';
+
+const clientFloor = vi.hoisted(() => ({ value: null as string | null }));
+
+vi.mock('@tracearr/shared', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@tracearr/shared')>()),
+  get MIN_MOBILE_CLIENT_VERSION() {
+    return clientFloor.value;
+  },
+}));
 
 // Mock the database module
 vi.mock('../../db/client.js', () => ({
@@ -61,8 +71,10 @@ vi.mock('../../lib/auth.js', () => ({
 
 // Import mocked db, routes, termination service, websocket, and settings
 import { db } from '../../db/client.js';
+import { renderSql } from '../../test/helpers.js';
 import { getAuth } from '../../lib/auth.js';
 import { mobileRoutes } from '../mobile.js';
+import { registerErrorHandler } from '../../utils/errors.js';
 import { terminateSession } from '../../services/termination.js';
 import { disconnectMobileDevice } from '../../websocket/index.js';
 import { getSetting, setSetting } from '../../services/settings.js';
@@ -80,6 +92,24 @@ function createMultiMock() {
     ]),
   };
   return chain;
+}
+
+// db.delete() as both the revoke path (.where().returning()) and the routes'
+// own deletes (awaited directly or after .where()) use it.
+function deleteResult(rows: unknown[] = []) {
+  const settle = (resolve: (v: unknown) => unknown, reject?: (e: unknown) => unknown) =>
+    Promise.resolve(undefined).then(resolve, reject);
+  return {
+    where: () => ({ returning: () => Promise.resolve(rows), then: settle }),
+    then: settle,
+  };
+}
+
+// Pair's in-transaction device row read: .where().for('update').limit()
+function lockedDeviceRead(rows: unknown[]) {
+  return {
+    from: () => ({ where: () => ({ for: () => ({ limit: () => Promise.resolve(rows) }) }) }),
+  };
 }
 
 const mockRedis = {
@@ -106,6 +136,7 @@ async function buildTestApp(authUser: AuthUser | null): Promise<FastifyInstance>
 
   // Register sensible for HTTP error helpers
   await app.register(sensible);
+  registerErrorHandler(app);
 
   // Mock Redis decorator (cast to never for test mock)
   app.decorate('redis', mockRedis as never);
@@ -322,18 +353,11 @@ describe('Mobile Routes', () => {
           return {
             from: vi.fn().mockResolvedValue(mockSessions),
           } as never;
-        } else if (selectCallCount === 2) {
+        } else {
           // Pending tokens count
           return {
             from: vi.fn().mockReturnValue({
               where: vi.fn().mockResolvedValue([{ count: 1 }]),
-            }),
-          } as never;
-        } else {
-          // Server name query
-          return {
-            from: vi.fn().mockReturnValue({
-              limit: vi.fn().mockResolvedValue([{ name: 'MyServer' }]),
             }),
           } as never;
         }
@@ -348,7 +372,7 @@ describe('Mobile Routes', () => {
       const body = response.json();
       expect(body.isEnabled).toBe(true);
       expect(body.sessions).toHaveLength(2);
-      expect(body.serverName).toBe('MyServer');
+      expect(body.serverName).toBe('Tracearr');
       expect(body.pendingTokens).toBe(1);
       expect(body.maxDevices).toBe(5);
     });
@@ -377,16 +401,10 @@ describe('Mobile Routes', () => {
         selectCallCount++;
         if (selectCallCount === 1) {
           return { from: vi.fn().mockResolvedValue([]) } as never;
-        } else if (selectCallCount === 2) {
-          return {
-            from: vi.fn().mockReturnValue({
-              where: vi.fn().mockResolvedValue([{ count: 0 }]),
-            }),
-          } as never;
         } else {
           return {
             from: vi.fn().mockReturnValue({
-              limit: vi.fn().mockResolvedValue([{ name: 'Tracearr' }]),
+              where: vi.fn().mockResolvedValue([{ count: 0 }]),
             }),
           } as never;
         }
@@ -410,19 +428,7 @@ describe('Mobile Routes', () => {
 
       vi.mocked(setSetting).mockResolvedValue(undefined);
 
-      let selectCallCount = 0;
-      vi.mocked(db.select).mockImplementation(() => {
-        selectCallCount++;
-        if (selectCallCount === 1) {
-          return { from: vi.fn().mockResolvedValue([]) } as never;
-        } else {
-          return {
-            from: vi.fn().mockReturnValue({
-              limit: vi.fn().mockResolvedValue([{ name: 'MyServer' }]),
-            }),
-          } as never;
-        }
-      });
+      vi.mocked(db.select).mockReturnValue({ from: vi.fn().mockResolvedValue([]) } as never);
 
       const response = await app.inject({
         method: 'POST',
@@ -625,7 +631,7 @@ describe('Mobile Routes', () => {
       });
       vi.mocked(db.delete).mockImplementation(() => {
         callOrder.push('delete');
-        return Promise.resolve() as never;
+        return deleteResult() as never;
       });
 
       mockRedis.del.mockResolvedValue(1);
@@ -640,7 +646,8 @@ describe('Mobile Routes', () => {
       expect(body.success).toBe(true);
       expect(setSetting).toHaveBeenCalledWith('mobileEnabled', false);
       expect(mockRedis.del).toHaveBeenCalled();
-      expect(callOrder).toEqual(['revoke', 'delete', 'delete']);
+      // Blacklist, row delete, tombstone, then the bulk session and token deletes
+      expect(callOrder).toEqual(['revoke', 'delete', 'revoke', 'delete', 'delete']);
     });
 
     it('rejects non-owner access with 403', async () => {
@@ -681,7 +688,7 @@ describe('Mobile Routes', () => {
       });
       vi.mocked(db.delete).mockImplementation(() => {
         callOrder.push('delete');
-        return Promise.resolve() as never;
+        return deleteResult() as never;
       });
 
       mockRedis.del.mockResolvedValue(1);
@@ -695,12 +702,20 @@ describe('Mobile Routes', () => {
       const body = response.json();
       expect(body.success).toBe(true);
       expect(body.revokedCount).toBe(2);
-      // Blacklist + refresh token delete for each session
-      expect(mockRedis.setex).toHaveBeenCalledTimes(2);
+      // Tombstone, blacklist and refresh token delete for each session
+      expect(mockRedis.setex).toHaveBeenCalledTimes(4);
       expect(mockRedis.del).toHaveBeenCalledTimes(2);
       expect(disconnectMobileDevice).toHaveBeenCalledWith('device-aaa');
       expect(disconnectMobileDevice).toHaveBeenCalledWith('device-bbb');
-      expect(callOrder).toEqual(['revoke', 'revoke', 'delete']);
+      expect(callOrder).toEqual([
+        'revoke',
+        'delete',
+        'revoke',
+        'revoke',
+        'delete',
+        'revoke',
+        'delete',
+      ]);
     });
 
     it('handles empty sessions gracefully', async () => {
@@ -710,7 +725,7 @@ describe('Mobile Routes', () => {
         from: vi.fn().mockResolvedValue([]),
       } as never);
 
-      vi.mocked(db.delete).mockReturnValue(Promise.resolve() as never);
+      vi.mocked(db.delete).mockReturnValue(deleteResult() as never);
 
       const response = await app.inject({
         method: 'DELETE',
@@ -757,7 +772,7 @@ describe('Mobile Routes', () => {
       });
       vi.mocked(db.delete).mockImplementation(() => {
         callOrder.push('delete');
-        return { where: vi.fn().mockResolvedValue(undefined) } as never;
+        return deleteResult() as never;
       });
 
       mockRedis.del.mockResolvedValue(1);
@@ -770,7 +785,8 @@ describe('Mobile Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json();
       expect(body.success).toBe(true);
-      expect(callOrder).toEqual(['revoke', 'delete']);
+      // Blacklist, row delete under lock, tombstone, then the handler's own no-op delete
+      expect(callOrder).toEqual(['revoke', 'delete', 'revoke', 'delete']);
       // Should blacklist the device
       expect(mockRedis.setex).toHaveBeenCalledWith(
         expect.stringContaining('mobile:blacklist:device-xyz'),
@@ -781,6 +797,44 @@ describe('Mobile Routes', () => {
       expect(disconnectMobileDevice).toHaveBeenCalledWith('device-xyz');
       expect(mockRedis.del).toHaveBeenCalled();
       expect(db.delete).toHaveBeenCalled();
+    });
+
+    it('writes revoke tombstones for the current and previous token hashes', async () => {
+      app = await buildTestApp(ownerUser);
+
+      const sessionId = randomUUID();
+      const mockSession = {
+        ...createMockSession({ id: sessionId, refreshTokenHash: 'current-hash' }),
+        previousRefreshTokenHash: 'previous-hash',
+      };
+      vi.mocked(db.select).mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue([mockSession]),
+          }),
+        }),
+      } as never);
+      vi.mocked(db.delete).mockReturnValue(deleteResult() as never);
+      mockRedis.setex.mockResolvedValue('OK');
+      mockRedis.del.mockResolvedValue(1);
+
+      const response = await app.inject({
+        method: 'DELETE',
+        url: `/mobile/sessions/${sessionId}`,
+      });
+
+      expect(response.statusCode).toBe(200);
+      const thirtyDays = 30 * 24 * 60 * 60;
+      expect(mockRedis.setex).toHaveBeenCalledWith(
+        'tracearr:mobile:revoked:current-hash',
+        thirtyDays,
+        '1'
+      );
+      expect(mockRedis.setex).toHaveBeenCalledWith(
+        'tracearr:mobile:revoked:previous-hash',
+        thirtyDays,
+        '1'
+      );
     });
 
     it('returns 404 for non-existent session', async () => {
@@ -973,6 +1027,9 @@ describe('Mobile Routes', () => {
       // Mock transaction with call tracking for different query patterns
       const mockOwner = { id: randomUUID(), username: 'owner', role: 'owner' };
       const mockServerId = randomUUID();
+      const serverOrderBy = vi
+        .fn()
+        .mockResolvedValue([{ id: mockServerId, name: 'MyServer', type: 'plex' }]);
       vi.mocked(db.transaction).mockImplementation(async (callback) => {
         let txSelectCallCount = 0;
         const tx = {
@@ -981,14 +1038,13 @@ describe('Mobile Routes', () => {
             txSelectCallCount++;
             // Call 1: mobileTokens lookup with .where().for().limit()
             // Call 2: users lookup with .where().limit()
-            // Call 3: servers lookup (id, name, type) - awaited directly, no .where() or .limit()
+            // Call 3: servers lookup (id, type) - ends at .orderBy()
+            // Call 4: device row re-read under lock - not paired yet
             if (txSelectCallCount === 3) {
-              // tx.select({ id, name, type }).from(servers) - awaited directly
-              return {
-                from: vi
-                  .fn()
-                  .mockResolvedValue([{ id: mockServerId, name: 'MyServer', type: 'plex' }]),
-              };
+              return { from: vi.fn().mockReturnValue({ orderBy: serverOrderBy }) };
+            }
+            if (txSelectCallCount === 4) {
+              return lockedDeviceRead([]);
             }
             return {
               from: vi.fn().mockImplementation(() => ({
@@ -1028,9 +1084,12 @@ describe('Mobile Routes', () => {
       expect(body.accessToken).toBe('ba-session-token');
       expect(body.refreshToken).toBe('ba-session-token');
       expect(body.server.id).toBe(mockServerId);
-      expect(body.server.name).toBe('MyServer');
+      expect(body.server.name).toBe('Tracearr');
       expect(body.server.type).toBe('plex');
       expect(body.user.role).toBe('owner');
+      expect(renderSql(serverOrderBy.mock.calls[0]?.[0] as SQL).sql).toBe(
+        'servers.historical_at IS NULL desc'
+      );
     });
 
     it('rejects invalid token prefix', async () => {
@@ -1050,6 +1109,27 @@ describe('Mobile Routes', () => {
       expect(response.statusCode).toBe(401);
       const body = response.json();
       expect(body.message).toBe('Invalid mobile token');
+    });
+
+    it('answers a client below the floor with 426 before any lookup', async () => {
+      app = await buildTestApp(null);
+      clientFloor.value = '2026.10.1';
+      mockRedis.eval.mockResolvedValue(1);
+
+      try {
+        const response = await app.inject({
+          method: 'POST',
+          url: '/mobile/pair',
+          headers: { 'x-tracearr-client': 'mobile/0.0.1' },
+          payload: validPairPayload,
+        });
+
+        expect(response.statusCode).toBe(426);
+        expect(response.json().code).toBe('AUTH_008');
+        expect(db.select).not.toHaveBeenCalled();
+      } finally {
+        clientFloor.value = null;
+      }
     });
 
     it('rejects invalid request body', async () => {
@@ -1303,10 +1383,21 @@ describe('Mobile Routes', () => {
             txSelectCallCount++;
             if (txSelectCallCount === 3) {
               return {
-                from: vi
-                  .fn()
-                  .mockResolvedValue([{ id: mockServerId, name: 'Server', type: 'plex' }]),
+                from: vi.fn().mockReturnValue({
+                  orderBy: vi
+                    .fn()
+                    .mockResolvedValue([{ id: mockServerId, name: 'Server', type: 'plex' }]),
+                }),
               };
+            }
+            if (txSelectCallCount === 4) {
+              return lockedDeviceRead([
+                {
+                  id: existingSessionId,
+                  refreshTokenHash: oldRefreshHash,
+                  betterAuthSessionId: null,
+                },
+              ]);
             }
             return {
               from: vi.fn().mockReturnValue({
@@ -1345,55 +1436,36 @@ describe('Mobile Routes', () => {
   });
 
   describe('POST /mobile/refresh', () => {
-    it('refreshes mobile JWT with valid refresh token', async () => {
+    it('moves a legacy pairing onto a better auth session', async () => {
       app = await buildTestApp(null);
 
+      const userId = randomUUID();
       mockRedis.eval.mockResolvedValue(1); // Rate limit OK
-      mockRedis.get.mockResolvedValue(
-        JSON.stringify({ userId: randomUUID(), deviceId: 'device-123' })
-      );
+      mockRedis.get.mockResolvedValue(JSON.stringify({ userId, deviceId: 'device-123' }));
 
-      const mockUser = { id: randomUUID(), username: 'owner', role: 'owner' };
-      const mockSession = createMockSession();
+      const mockUser = { id: userId, username: 'owner', role: 'owner' };
+      const mockSession = { ...createMockSession(), userId, betterAuthSessionId: null };
 
       let selectCallCount = 0;
       vi.mocked(db.select).mockImplementation(() => {
         selectCallCount++;
-        if (selectCallCount === 1) {
-          // User query
-          return {
-            from: vi.fn().mockReturnValue({
-              where: vi.fn().mockReturnValue({
-                limit: vi.fn().mockResolvedValue([mockUser]),
-              }),
+        const rows = selectCallCount === 1 ? [mockUser] : [mockSession];
+        return {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              limit: vi.fn().mockResolvedValue(rows),
             }),
-          } as never;
-        } else if (selectCallCount === 2) {
-          // Session query
-          return {
-            from: vi.fn().mockReturnValue({
-              where: vi.fn().mockReturnValue({
-                limit: vi.fn().mockResolvedValue([mockSession]),
-              }),
-            }),
-          } as never;
-        } else {
-          // Servers query
-          return {
-            from: vi.fn().mockResolvedValue([{ id: randomUUID() }]),
-          } as never;
-        }
+          }),
+        } as never;
       });
 
       vi.mocked(db.update).mockReturnValue({
         set: vi.fn().mockReturnValue({
-          where: vi.fn().mockResolvedValue(undefined),
+          where: vi.fn().mockReturnValue({
+            returning: vi.fn().mockResolvedValue([{ id: mockSession.id }]),
+          }),
         }),
       } as never);
-
-      mockJwt.sign.mockReturnValue('new.jwt.token');
-      mockRedis.del.mockResolvedValue(1);
-      mockRedis.setex.mockResolvedValue('OK');
 
       const response = await app.inject({
         method: 'POST',
@@ -1402,9 +1474,10 @@ describe('Mobile Routes', () => {
       });
 
       expect(response.statusCode).toBe(200);
-      const body = response.json();
-      expect(body.accessToken).toBe('new.jwt.token');
-      expect(body.refreshToken).toBeDefined();
+      expect(response.json()).toEqual({
+        accessToken: 'ba-session-token',
+        refreshToken: 'ba-session-token',
+      });
     });
 
     it('rejects when user no longer valid', async () => {
@@ -1480,6 +1553,147 @@ describe('Mobile Routes', () => {
       expect(body.message).toBe('Session has been revoked');
     });
 
+    function refreshWith(refreshToken: string) {
+      return app.inject({
+        method: 'POST',
+        url: '/mobile/refresh',
+        payload: { refreshToken },
+      });
+    }
+
+    function selectRows(...results: unknown[][]) {
+      const whereArgs: SQL[] = [];
+      let call = 0;
+      vi.mocked(db.select).mockImplementation(() => {
+        const rows = results[call++] ?? [];
+        return {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockImplementation((clause: SQL) => {
+              whereArgs.push(clause);
+              return { limit: vi.fn().mockResolvedValue(rows) };
+            }),
+          }),
+        } as never;
+      });
+      return whereArgs;
+    }
+
+    function betterAuthRefreshSetup(getSession: ReturnType<typeof vi.fn>) {
+      const userId = randomUUID();
+      mockRedis.eval.mockResolvedValue(1);
+      mockRedis.get.mockImplementation(async (key: string) =>
+        key.includes('mobile_refresh:') ? JSON.stringify({ userId, deviceId: 'device-123' }) : null
+      );
+      selectRows(
+        [{ id: userId, username: 'owner', role: 'owner' }],
+        [{ ...createMockSession(), userId, betterAuthSessionId: 'ba-session-id' }]
+      );
+      vi.mocked(getAuth).mockReturnValue({
+        api: { getSession },
+      } as unknown as ReturnType<typeof getAuth>);
+    }
+
+    it('answers an unknown token with a revoke tombstone with AUTH_005', async () => {
+      app = await buildTestApp(null);
+      mockRedis.eval.mockResolvedValue(1);
+      mockRedis.get.mockImplementation(async (key: string) =>
+        key.includes('mobile:revoked:') ? '1' : null
+      );
+      selectRows([]);
+
+      const response = await refreshWith('revoked-token');
+
+      expect(response.statusCode).toBe(401);
+      expect(response.json().message).toBe('Session has been revoked');
+      expect(response.json().code).toBe('AUTH_005');
+    });
+
+    it('answers an unknown token without a tombstone with AUTH_002', async () => {
+      app = await buildTestApp(null);
+      mockRedis.eval.mockResolvedValue(1);
+      mockRedis.get.mockResolvedValue(null);
+      selectRows([]);
+
+      const response = await refreshWith('unknown-token');
+
+      expect(response.statusCode).toBe(401);
+      expect(response.json().message).toBe('Invalid or expired refresh token');
+      expect(response.json().code).toBe('AUTH_002');
+    });
+
+    it('answers a better auth row whose session is gone with AUTH_003', async () => {
+      app = await buildTestApp(null);
+      betterAuthRefreshSetup(vi.fn().mockResolvedValue(null));
+
+      const response = await refreshWith('ba-token');
+
+      expect(response.statusCode).toBe(401);
+      expect(response.json().message).toBe('Invalid or expired refresh token');
+      expect(response.json().code).toBe('AUTH_003');
+    });
+
+    it('answers 503 and keeps the token when the better auth lookup fails', async () => {
+      app = await buildTestApp(null);
+      betterAuthRefreshSetup(vi.fn().mockRejectedValue(new Error('db down')));
+
+      const response = await refreshWith('ba-token');
+
+      expect(response.statusCode).toBe(503);
+      expect(response.json().code).toBe('SRV_002');
+      expect(mockRedis.del).not.toHaveBeenCalled();
+    });
+
+    it('recovers a row by its current hash only after a redis miss', async () => {
+      app = await buildTestApp(null);
+      const userId = randomUUID();
+      mockRedis.eval.mockResolvedValue(1);
+      mockRedis.get.mockResolvedValue(null);
+      mockRedis.setex.mockResolvedValue('OK');
+      const row = { ...createMockSession(), userId, betterAuthSessionId: 'ba-session-id' };
+      const whereArgs = selectRows(
+        [row],
+        [{ id: userId, username: 'owner', role: 'owner' }],
+        [row]
+      );
+      vi.mocked(getAuth).mockReturnValue({
+        api: { getSession: vi.fn().mockResolvedValue({ user: { id: userId } }) },
+      } as unknown as ReturnType<typeof getAuth>);
+      vi.mocked(db.update).mockReturnValue({
+        set: vi.fn().mockReturnValue({ where: vi.fn().mockResolvedValue(undefined) }),
+      } as never);
+
+      const response = await refreshWith('ba-token');
+
+      expect(response.statusCode).toBe(200);
+      expect(renderSql(whereArgs[0]!).sql).toBe('mobile_sessions.refresh_token_hash = $1');
+      expect(mockRedis.setex).toHaveBeenCalledWith(
+        expect.stringContaining('mobile_refresh:'),
+        90 * 24 * 60 * 60,
+        JSON.stringify({ userId, deviceId: 'device-123' })
+      );
+    });
+
+    it('answers a client below the floor with 426 before any lookup', async () => {
+      app = await buildTestApp(null);
+      clientFloor.value = '2026.10.1';
+      mockRedis.eval.mockResolvedValue(1);
+
+      try {
+        const response = await app.inject({
+          method: 'POST',
+          url: '/mobile/refresh',
+          headers: { 'x-tracearr-client': 'mobile/0.0.1' },
+          payload: { refreshToken: 'any-token' },
+        });
+
+        expect(response.statusCode).toBe(426);
+        expect(response.json().code).toBe('AUTH_008');
+        expect(db.select).not.toHaveBeenCalled();
+      } finally {
+        clientFloor.value = null;
+      }
+    });
+
     it('rejects invalid request body', async () => {
       app = await buildTestApp(null);
 
@@ -1547,20 +1761,63 @@ describe('Mobile Routes', () => {
       expect(db.update).toHaveBeenCalled();
     });
 
-    it('rejects invalid push token format', async () => {
+    it('accepts the ExpoPushToken prefix', async () => {
+      app = await buildTestApp(mobileUser);
+
+      vi.mocked(db.update).mockReturnValue({
+        set: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            returning: vi.fn().mockResolvedValue([{ id: randomUUID() }]),
+          }),
+        }),
+      } as never);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/mobile/push-token',
+        payload: {
+          expoPushToken: 'ExpoPushToken[abc123]',
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+    });
+
+    it('rejects a raw APNs token and names expoPushToken', async () => {
+      app = await buildTestApp(mobileUser);
+      const apnsToken = 'a1b2c3d4'.repeat(8);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/mobile/push-token',
+        payload: {
+          expoPushToken: apnsToken,
+        },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body = response.json();
+      expect(body.message).toBe('Invalid push token: expoPushToken: not an Expo push token');
+      expect(body.error).toBe('BadRequestError');
+      expect(body.code).toBe('VAL_001');
+      expect(db.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects a short device secret and names deviceSecret', async () => {
       app = await buildTestApp(mobileUser);
 
       const response = await app.inject({
         method: 'POST',
         url: '/mobile/push-token',
         payload: {
-          expoPushToken: 'invalid-token-format',
+          expoPushToken: 'ExponentPushToken[abc123]',
+          deviceSecret: 'a'.repeat(31),
         },
       });
 
       expect(response.statusCode).toBe(400);
       const body = response.json();
-      expect(body.message).toContain('Invalid push token format');
+      expect(body.message).toBe('Invalid push token: deviceSecret: must be 32 to 64 characters');
     });
 
     it('rejects when deviceId missing from JWT', async () => {
@@ -1585,6 +1842,7 @@ describe('Mobile Routes', () => {
       expect(response.statusCode).toBe(400);
       const body = response.json();
       expect(body.message).toContain('missing deviceId');
+      expect(body.code).toBe('VAL_001');
     });
 
     it('returns 404 when session not found', async () => {
@@ -1609,6 +1867,8 @@ describe('Mobile Routes', () => {
       expect(response.statusCode).toBe(404);
       const body = response.json();
       expect(body.message).toContain('No mobile session found');
+      expect(body.error).toBe('NotFoundError');
+      expect(body.code).toBe('RES_001');
     });
   });
 
@@ -1709,6 +1969,36 @@ describe('Mobile Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json();
       expect(body.success).toBe(true);
+    });
+
+    it('returns 409 with the resume message when the server is historical', async () => {
+      app = await buildTestApp({ ...createMobileUser(), serverIds: [serverId] });
+
+      vi.mocked(db.select).mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi
+              .fn()
+              .mockResolvedValue([
+                { id: sessionId, serverId, serverUserId: randomUUID(), state: 'playing' },
+              ]),
+          }),
+        }),
+      } as never);
+      vi.mocked(terminateSession).mockResolvedValue({
+        success: false,
+        error: 'Server is historical',
+        outcome: 'server_historical',
+      } as never);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/mobile/streams/${sessionId}/terminate`,
+        payload: {},
+      });
+
+      expect(response.statusCode).toBe(409);
+      expect(response.json().message).toBe('Resume this server to end its streams');
     });
 
     it('returns 403 for viewer trying to terminate', async () => {

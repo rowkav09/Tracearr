@@ -11,6 +11,8 @@ import type {
   TriggerNode,
 } from './automations/index.js';
 import type { NotificationToast } from './destinations.js';
+import type { UpgradeWarning } from './releaseNotes.js';
+import type { ResolutionBucket } from './resolution.js';
 import type { statPeriodSchema } from './schemas.js';
 import type { z } from 'zod';
 
@@ -58,8 +60,31 @@ export interface Server {
   /** What the server reports running, and the newest release the update checker saw. */
   version?: string | null;
   latestVersion?: string | null;
+  /** When Tracearr stopped contacting this server. Null, or absent on older payloads, while it is live. */
+  historicalAt?: string | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface ServerLocationEntry {
+  /** ISO datetime the location took effect; null covers everything before the first dated entry */
+  effectiveFrom: string | null;
+  lat: number;
+  lon: number;
+  city: string | null;
+  region: string | null;
+  /** ISO 3166-1 alpha-2 */
+  country: string;
+}
+
+export interface ServerLocationsResponse {
+  entries: ServerLocationEntry[];
+  /** Entries changed since the location sync last applied them */
+  syncPending: boolean;
+}
+
+export interface UpdateServerLocationsResponse extends ServerLocationsResponse {
+  syncQueued: boolean;
 }
 
 // User types - Identity layer (the real human)
@@ -174,6 +199,7 @@ export interface ServerUserFullDetail {
       trustScore: number;
       sessionCount: number;
       removedAt: Date | null;
+      mergedIn: boolean;
     }[];
     stats: { totalSessions: number; totalWatchTime: number };
   };
@@ -233,6 +259,10 @@ export interface MergeSuggestionIdentity {
   email: string | null;
   role: UserRole;
   loginCapable: boolean;
+  /** Latest activity across every account the identity has; null before any. */
+  lastActivityAt: string | null;
+  /** Sessions across every account the identity has. */
+  sessionCount: number;
   serverUsers: {
     id: string;
     serverId: string;
@@ -248,7 +278,15 @@ export interface MergeSuggestion {
   matchValue: string;
   users: [MergeSuggestionIdentity, MergeSuggestionIdentity];
   requiredTargetUserId: string | null;
+  /** The identity a merge keeps unless the owner swaps: `rankMergeTarget` over the pair, so it is requiredTargetUserId whenever that is set. */
+  suggestedTargetUserId: string;
   wouldCombineSameServer: boolean;
+}
+
+/** A pair the owner marked as not the same person; it is not suggested again until restored. */
+export interface DismissedMergeSuggestion {
+  users: [MergeSuggestionIdentity, MergeSuggestionIdentity];
+  dismissedAt: string;
 }
 
 export interface SetupStatus {
@@ -302,6 +340,8 @@ export interface SourceAudioDetails {
   channelLayout?: string;
   language?: string;
   sampleRate?: number;
+  profile?: string;
+  atmos?: boolean;
 }
 
 /** Stream video details after transcode */
@@ -330,9 +370,12 @@ export interface TranscodeInfo {
   hwEncoding?: string;
   speed?: number;
   throttled?: boolean;
-  /** Percent of the file transcoded so far (0-100) */
+  /**
+   * Plex: share of the runtime this transcode job has produced since it started (0-100), not a
+   * position. Jellyfin: the server's CompletionPercentage, whose meaning is unverified.
+   */
   progress?: number;
-  /** Seconds of media the transcoder has ready past the start */
+  /** Seconds from the file start that the transcoder has ready (Plex only; Jellyfin sends none) */
   maxOffsetAvailable?: number;
   reasons?: string[];
 }
@@ -442,6 +485,8 @@ export interface Session extends StreamDetailFields {
   geoLon: number | null;
   geoAsnNumber: number | null;
   geoAsnOrganization: string | null;
+  // A local network session; its geo fields hold its server's location when one is set
+  isLocal: boolean;
   playerName: string | null; // Friendly device name
   deviceId: string | null; // Unique device identifier (machineIdentifier)
   product: string | null; // Product/app name (e.g., "Plex for iOS")
@@ -470,6 +515,8 @@ export interface ActiveSession extends Session {
   canTerminate: boolean;
   /** True while the session is an unconfirmed pending entry; absent once confirmed. */
   pending?: boolean;
+  /** Plex only: the client is buffering; state keeps the last playing or paused value. */
+  buffering?: boolean;
 }
 
 export interface SessionSegment {
@@ -600,6 +647,7 @@ export interface ViolationSessionInfo {
   geoCity: string | null;
   geoRegion: string | null;
   geoCountry: string | null;
+  isLocal: boolean;
   geoContinent: string | null;
   geoPostal: string | null;
   geoLat: number | null;
@@ -668,6 +716,7 @@ export interface LocationStats {
   city: string | null;
   region: string | null; // State/province
   country: string | null;
+  isLocal: boolean;
   lat: number;
   lon: number;
   count: number;
@@ -724,11 +773,15 @@ export interface HourOfDayStats {
 export interface QualityStats {
   directPlay: number;
   directStream: number;
+  /** Every transcode, audio-only ones included. */
   transcode: number;
+  /** The audio-only part of `transcode`. */
+  audioTranscode: number;
   total: number;
   directPlayPercent: number;
   directStreamPercent: number;
   transcodePercent: number;
+  audioTranscodePercent: number;
 }
 
 export interface TopUserStats {
@@ -915,9 +968,13 @@ export interface ImageCacheStatus {
   sweptAt: string | null;
   freedBytesLastSweep: number;
   deletedFilesLastSweep: number;
-  /** Rows in library_items with a thumb path, removed ones included. */
+  /** A full pass this process completed was followed by an empty cache, so the
+   *  directory is not surviving restarts. */
+  notPersisting: boolean;
+  /** Distinct (server, thumb path) pairs in library_items, removed rows
+   *  included: one cache file each, however many rows share the image. */
   postersWithThumb: number;
-  /** postersWithThumb × 18 KB. */
+  /** postersWithThumb × ESTIMATED_POSTER_BYTES. */
   estimatedNeedBytes: number;
   freeBytes: number;
   totalBytes: number;
@@ -995,8 +1052,8 @@ export interface TautulliImportResult {
   success: boolean;
   imported: number;
   updated: number;
-  /** Number of sessions linked via referenceId (resume chain detection) */
-  linked: number;
+  /** No longer set; kept for clients built against older versions */
+  linked?: number;
   skipped: number;
   errors: number;
   message: string;
@@ -1020,6 +1077,11 @@ export interface JellystatImportProgress {
   errorRecords: number;
   /** Number of media items enriched with metadata from Jellyfin */
   enrichedRecords: number;
+  uncheckedRecords?: number;
+  unlinkedEpisodeRecords?: number;
+  vetoedRecords?: number;
+  pluginUncheckedRecords?: number;
+  overlongRecords?: number;
   /** Current phase message */
   message: string;
   /** Present when status='waiting' - what this job is waiting for */
@@ -1035,6 +1097,11 @@ export interface JellystatImportResult {
   filtered: number;
   errors: number;
   enriched: number;
+  unchecked: number;
+  unlinkedEpisodes: number;
+  vetoed: number;
+  pluginUnchecked: number;
+  overlong: number;
   message: string;
   /** Details about users that were skipped (not found in Tracearr) */
   skippedUsers?: {
@@ -1068,6 +1135,8 @@ export interface PlaybackReportingImportProgress {
   overlapRecords: number;
   /** Skipped: theme songs, trailers, etc. */
   filteredRecords: number;
+  /** Skipped: recorded play time runs past the media runtime plus 60 s */
+  overlongRecords: number;
   errorRecords: number;
   enrichedRecords: number;
   message: string;
@@ -1082,6 +1151,7 @@ export interface PlaybackReportingImportResult {
   duplicates: number;
   overlap: number;
   filtered: number;
+  overlong: number;
   errors: number;
   enriched: number;
   message: string;
@@ -1109,6 +1179,9 @@ export interface LibrarySyncProgress {
   error?: string;
 }
 
+/** Why the poller marked a server down, when it knows; absent for unreachable. */
+export type ServerDownReason = 'unauthorized';
+
 // WebSocket event types
 export interface ServerToClientEvents {
   'session:started': (session: ActiveSession) => void;
@@ -1124,12 +1197,17 @@ export interface ServerToClientEvents {
   'library:sync:progress': (progress: LibrarySyncProgress) => void;
   'tasks:updated': (tasks: RunningTask[]) => void;
   'version:update': (data: { current: string; latest: string; releaseUrl: string }) => void;
-  'server:down': (data: { serverId: string; serverName: string }) => void;
+  'server:down': (data: {
+    serverId: string;
+    serverName: string;
+    reason?: ServerDownReason;
+  }) => void;
   'server:up': (data: { serverId: string; serverName: string }) => void;
   'server:connection': (status: ServerConnectionStatus) => void;
   'notification:toast': (data: NotificationToast) => void;
   'destinations:changed': () => void;
   'servers:changed': () => void;
+  'requests:changed': (data: { serviceId: string }) => void;
 }
 
 export interface ClientToServerEvents {
@@ -1142,6 +1220,7 @@ export interface UserLocation {
   city: string | null;
   region: string | null; // State/province/subdivision
   country: string | null;
+  isLocal: boolean;
   lat: number | null;
   lon: number | null;
   sessionCount: number;
@@ -1154,6 +1233,7 @@ export interface DeviceLocation {
   city: string | null;
   region: string | null;
   country: string | null;
+  isLocal: boolean;
   sessionCount: number;
   lastSeenAt: Date;
 }
@@ -1287,6 +1367,7 @@ export interface ApiError {
   statusCode: number;
   error: string;
   message: string;
+  code?: string;
 }
 
 // ============================================
@@ -1432,6 +1513,7 @@ export interface EncryptedPushPayload {
   salt: string; // Base64-encoded 16-byte PBKDF2 salt
   ct: string; // Base64-encoded ciphertext (without authTag)
   tag: string; // Base64-encoded 16-byte authentication tag
+  kid?: string; // First 16 hex chars of SHA-256 of the device secret used to encrypt
 }
 
 // Push notification payload structure (before encryption)
@@ -1673,6 +1755,7 @@ export interface PlexAccount {
   plexThumbnail: string | null;
   allowLogin: boolean; // Whether this account can be used for authentication
   serverCount: number; // Number of Tracearr servers linked to this account
+  liveServerCount: number; // Those still contacted; historical servers no longer block unlinking
   createdAt: Date;
 }
 
@@ -1741,7 +1824,10 @@ export type MaintenanceJobType =
   | 'cleanup_old_chunks'
   | 'full_aggregate_rebuild'
   | 'repair_corrupted_chunks'
-  | 'backfill_session_identity';
+  | 'backfill_session_identity'
+  | 'remove_import_duplicates'
+  | 'link_imported_history'
+  | 'sync_server_locations';
 
 export type MaintenanceJobStatus = 'idle' | 'waiting' | 'running' | 'complete' | 'error';
 
@@ -1958,6 +2044,7 @@ export interface VersionInfo {
     isPrerelease: boolean; // Whether this update is a prerelease
     releaseName: string | null; // Release title from GitHub
     releaseNotes: string | null; // Release body/notes from GitHub (markdown)
+    upgradeWarnings: UpgradeWarning[]; // Warnings from every release between current and latest, newest first
   } | null;
   // Update status
   updateAvailable: boolean;
@@ -2152,6 +2239,9 @@ export interface BandwidthSummary {
 // Library Statistics Types
 // =============================================================================
 
+/** Titles per resolution bucket. Buckets overlap: a 4K+1080p title counts in both. */
+export type ResolutionCounts = Record<ResolutionBucket, number>;
+
 // Library Stats Response (GET /library/stats)
 export interface LibraryStatsResponse {
   totalItems: number;
@@ -2159,12 +2249,7 @@ export interface LibraryStatsResponse {
   movieCount: number;
   episodeCount: number;
   showCount: number;
-  qualityBreakdown: {
-    count4k: number;
-    count1080p: number;
-    count720p: number;
-    countSd: number;
-  };
+  qualityBreakdown: ResolutionCounts;
   asOf: string | null;
 }
 
@@ -2188,14 +2273,7 @@ export interface LibraryGrowthResponse {
 export interface QualityDataPoint {
   day: string;
   totalItems: number;
-  count4k: number;
-  count1080p: number;
-  count720p: number;
-  countSd: number;
-  pct4k: number;
-  pct1080p: number;
-  pct720p: number;
-  pctSd: number;
+  counts: ResolutionCounts;
   hevcCount: number;
   h264Count: number;
   av1Count: number;
@@ -2257,6 +2335,8 @@ export type MatchType = 'imdb' | 'tmdb' | 'tvdb' | 'fuzzy' | 'version';
 
 /** One physical file of a duplicate item */
 export interface DuplicateItemVersion {
+  /** The server's own id for this file, what a file-existence check answers by */
+  serverVersionKey: string;
   resolution: string | null;
   videoCodec: string | null;
   fileSize: number | null;
@@ -2279,6 +2359,10 @@ export interface DuplicateItem {
   title: string;
   year: number | null;
   mediaType: string;
+  /** Show for an episode, artist for a track; null for anything flat */
+  grandparentTitle: string | null;
+  seasonNumber: number | null;
+  episodeNumber: number | null;
   fileSize: number | null;
   resolution: string | null;
   versions: DuplicateItemVersion[];
@@ -2315,6 +2399,23 @@ export interface DuplicatesResponse {
   duplicates: DuplicateGroup[];
   summary: DuplicatesSummary;
   pagination: { page: number; pageSize: number; total: number };
+}
+
+// Duplicate file existence (GET /library/duplicates/files)
+/** One file the server was asked about, by the item it belongs to and its version key */
+export interface DuplicateFileStatus {
+  itemId: string;
+  serverVersionKey: string;
+  exists: boolean;
+}
+
+export interface DuplicateFilesResponse {
+  /**
+   * False when no server in the requested set can answer (only Plex can) or
+   * the probe failed. Callers show nothing rather than guess at a missing file.
+   */
+  checked: boolean;
+  files: DuplicateFileStatus[];
 }
 
 // Library Stale Content Response (GET /library/stale)
@@ -2535,6 +2636,14 @@ export interface CatalogLettersResponse {
   letters: CatalogLetterBucket[];
 }
 
+/** GET /library/catalog/codecs: codec display names for the browse filters, most common first. */
+export interface CatalogCodecOptionsResponse {
+  video: string[];
+  audio: string[];
+  /** Channel layouts as the charts name them ('Stereo', '5.1'). */
+  channels: string[];
+}
+
 // Shelves endpoint (GET /library/shelves) - windowed library command center:
 // four type-split shelves, a KPI strip, and a dead-weight (storage reclaim)
 // module. All-users aggregate (no per-viewer lens) so the whole payload is
@@ -2550,6 +2659,18 @@ export type ShelvesPeriod = z.infer<typeof statPeriodSchema>;
 export interface RecentlyAddedShelfRow extends ShelfRow {
   /** Newly-tracked episode count for a show card; always null for movies. */
   newEpisodes: number | null;
+  /** When the newest qualifying episode arrived. Null for movies, whose own
+   *  copy date already says it; a show's copy date is when the series first
+   *  appeared, which is years off once episodes keep arriving. */
+  newestEpisodeAt: string | null;
+}
+
+/** A title whose file this server replaced: the old copy left and a new one took its place. */
+export interface RecentlyUpdatedShelfRow extends ShelfRow {
+  /** Replaced episode count for a show card; always null for movies. */
+  replacedEpisodes: number | null;
+  /** When the newest replaced episode arrived; null for movies. */
+  newestEpisodeAt: string | null;
 }
 
 export interface MostPopularShelfRow extends ShelfRow {
@@ -2605,6 +2726,7 @@ export interface ShelvesResponse {
   period: ShelvesPeriod;
   recentlyAddedMovies: RecentlyAddedShelfRow[];
   recentlyAddedShows: RecentlyAddedShelfRow[];
+  recentlyUpdated: RecentlyUpdatedShelfRow[];
   mostPopularMovies: MostPopularShelfRow[];
   mostPopularShows: MostPopularShelfRow[];
   deadWeight?: DeadWeightRow[];
@@ -2633,6 +2755,8 @@ export interface MediaVersionEntry {
   videoCodec: string | null;
   audioCodec: string | null;
   dynamicRange: string | null;
+  audioAtmos?: boolean;
+  editionTitle?: string | null;
   container: string | null;
   fileSize: number | null;
 }
@@ -2681,6 +2805,9 @@ export interface MediaDetailResponse {
   availability: MediaAvailabilityEntry[];
   seasonCount: number | null;
   episodeCount: number | null;
+  posterUrl: string | null;
+  posterVersion: string | null;
+  dominantColor: string | null;
 }
 
 export interface MediaChildEntry {
@@ -2935,6 +3062,12 @@ export interface CodecEntry {
   codec: string;
   count: number;
   percentage: number;
+  /** Movie files in `count`; absent on music breakdowns. */
+  movies?: number;
+  /** Episode files in `count`; absent on music breakdowns. */
+  episodes?: number;
+  /** On the aggregated 'Other' entry: the names folded into it, most common first. */
+  includes?: string[];
 }
 
 /** Codec breakdown for a category (video, audio, or music) */
@@ -2959,21 +3092,10 @@ export interface LibraryCodecsResponse {
 // Library Resolution Types
 // ============================================================================
 
-/** Single resolution entry with count and percentage */
-export interface ResolutionEntry {
-  resolution: string;
-  count: number;
-  percentage: number;
-}
-
 /** Resolution breakdown for a media type */
 export interface ResolutionBreakdown {
-  count4k: number;
-  count1080p: number;
-  count720p: number;
-  countSd: number;
+  counts: ResolutionCounts;
   total: number;
-  entries: ResolutionEntry[];
 }
 
 /** Response from /library/resolution endpoint */

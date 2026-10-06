@@ -6,11 +6,10 @@
  * - POST /servers - Add a new server
  * - DELETE /servers/:id - Remove a server
  * - POST /servers/:id/sync - Force sync
- * - GET /servers/:id/image/* - Proxy images
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import Fastify, { type FastifyInstance, type FastifyReply } from 'fastify';
+import Fastify, { type FastifyInstance } from 'fastify';
 import sensible from '@fastify/sensible';
 import { randomUUID } from 'node:crypto';
 import { WS_EVENTS, type AuthUser } from '@tracearr/shared';
@@ -72,6 +71,8 @@ vi.mock('../../services/cache.js', () => ({
 
 vi.mock('../../jobs/librarySyncQueue.js', () => ({
   enqueueLibrarySync: vi.fn().mockResolvedValue(undefined),
+  rebuildAutoSyncSchedules: vi.fn().mockResolvedValue(undefined),
+  scheduleAutoSync: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('../../services/serverLiveStats.js', () => ({
@@ -79,11 +80,38 @@ vi.mock('../../services/serverLiveStats.js', () => ({
   getServerLiveStats: vi.fn(),
 }));
 
-// Import mocked modules
+vi.mock('../../services/serverIdentity.js', () => ({
+  readServerIdentity: vi.fn(),
+}));
+
+vi.mock('../../services/sseManager.js', () => ({
+  sseManager: {
+    refresh: vi.fn().mockResolvedValue(undefined),
+    removeServer: vi.fn().mockResolvedValue(undefined),
+  },
+}));
+
+vi.mock('../../services/historicalServers.js', () => ({
+  markServerHistorical: vi.fn(),
+  resumeServer: vi.fn(),
+}));
+
+vi.mock('../../services/settings.js', () => ({
+  rearmImportedHistoryLink: vi.fn().mockResolvedValue(undefined),
+}));
+
+import type { SQL } from 'drizzle-orm';
 import { db } from '../../db/client.js';
+import { rebuildAutoSyncSchedules, scheduleAutoSync } from '../../jobs/librarySyncQueue.js';
+import { getCacheService } from '../../services/cache.js';
+import { markServerHistorical, resumeServer } from '../../services/historicalServers.js';
+import { renderSql } from '../../test/helpers.js';
+import { rearmImportedHistoryLink } from '../../services/settings.js';
 import { PlexClient, JellyfinClient, EmbyClient } from '../../services/mediaServer/index.js';
 import { getServerLiveStats, getServerResourceStats } from '../../services/serverLiveStats.js';
 import { syncServer } from '../../services/sync.js';
+import { readServerIdentity } from '../../services/serverIdentity.js';
+import { sseManager } from '../../services/sseManager.js';
 import { serverRoutes } from '../servers.js';
 
 // Mock global fetch for image proxy tests
@@ -187,6 +215,7 @@ const mockServer = {
   type: 'plex' as const,
   url: 'http://localhost:32400',
   token: 'encrypted_test-token',
+  historicalAt: null as Date | null,
   createdAt: new Date(),
   updatedAt: new Date(),
 };
@@ -211,6 +240,7 @@ describe('Server Routes', () => {
           url: mockServer.url,
           displayOrder: 0,
           color: '#4B8BFF',
+          historicalAt: null,
           createdAt: mockServer.createdAt,
           updatedAt: mockServer.updatedAt,
         },
@@ -225,6 +255,7 @@ describe('Server Routes', () => {
       const body = response.json();
       expect(body.data).toHaveLength(1);
       expect(body.data[0].name).toBe('Test Plex Server');
+      expect(body.data[0].historicalAt).toBeNull();
       // Should not include token
       expect(body.data[0].token).toBeUndefined();
     });
@@ -380,6 +411,46 @@ describe('Server Routes', () => {
       const body = response.json();
       expect(body.name).toBe('New Plex');
       expect(body.type).toBe('plex');
+      expect(rearmImportedHistoryLink).toHaveBeenCalledWith({ keepProviderPass: false });
+    });
+
+    it('rebuilds the sync schedules for the new server without queuing a boot sync', async () => {
+      app = await buildTestApp(ownerUser);
+      vi.mocked(PlexClient.getAccountInfo).mockResolvedValue({
+        id: 'plex-account-123',
+        username: 'admin',
+        isAdmin: true,
+      });
+
+      let selectCall = 0;
+      vi.mocked(db.select).mockImplementation(() => {
+        selectCall++;
+        const chain = {
+          from: vi.fn().mockReturnThis(),
+          where: vi.fn().mockReturnThis(),
+          limit: vi.fn().mockResolvedValue([]),
+        };
+        if (selectCall === 3) {
+          chain.from = vi.fn().mockResolvedValue([]);
+        }
+        return chain as never;
+      });
+      mockDbInsert([{ ...mockServer, id: randomUUID(), name: 'Scheduled Plex' }]);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/servers',
+        payload: {
+          name: 'Scheduled Plex',
+          type: 'plex',
+          url: 'http://plex.local:32400',
+          token: 'my-plex-token',
+        },
+      });
+
+      expect(response.statusCode).toBe(201);
+      expect(rebuildAutoSyncSchedules).toHaveBeenCalledTimes(1);
+      expect(scheduleAutoSync).not.toHaveBeenCalled();
     });
 
     it('creates a new Jellyfin server for owner', async () => {
@@ -601,7 +672,7 @@ describe('Server Routes', () => {
       expect(response.json().message).toContain('admin');
     });
 
-    it('returns 401 when Jellyfin rejects the API key', async () => {
+    it('returns 400 when Jellyfin rejects the API key', async () => {
       app = await buildTestApp(ownerUser);
 
       mockDbSelectLimit([]);
@@ -622,7 +693,7 @@ describe('Server Routes', () => {
         },
       });
 
-      expect(response.statusCode).toBe(401);
+      expect(response.statusCode).toBe(400);
       expect(response.json().message).toContain('rejected');
     });
 
@@ -651,7 +722,7 @@ describe('Server Routes', () => {
       expect(response.json().message).toContain('Cannot reach');
     });
 
-    it('returns 401 when Emby rejects the API key', async () => {
+    it('returns 400 when Emby rejects the API key', async () => {
       app = await buildTestApp(ownerUser);
 
       mockDbSelectLimit([]);
@@ -672,7 +743,7 @@ describe('Server Routes', () => {
         },
       });
 
-      expect(response.statusCode).toBe(401);
+      expect(response.statusCode).toBe(400);
       expect(response.json().message).toContain('rejected');
     });
 
@@ -785,6 +856,168 @@ describe('Server Routes', () => {
       expect(plex.json().message).toBe('Public address applies to Jellyfin and Emby servers only');
     });
 
+    it('checks a new Jellyfin API key against the saved URL and server before storing it', async () => {
+      app = await buildTestApp(ownerUser);
+      const jellyfin = {
+        ...mockServer,
+        type: 'jellyfin' as const,
+        url: 'http://192.168.1.20:8096',
+        token: 'old-key',
+        machineIdentifier: 'jf-1',
+      };
+      vi.mocked(JellyfinClient.verifyServerAdmin).mockResolvedValue({ success: true });
+      vi.mocked(readServerIdentity).mockResolvedValue('jf-1');
+      mockDbSelectLimit([jellyfin]);
+      const update = mockDbUpdateReturning([jellyfin]);
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/servers/${jellyfin.id}`,
+        payload: { apiKey: ' new-key ' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(JellyfinClient.verifyServerAdmin).toHaveBeenCalledWith(
+        'new-key',
+        'http://192.168.1.20:8096'
+      );
+      expect(readServerIdentity).toHaveBeenCalledWith(
+        expect.objectContaining({ url: 'http://192.168.1.20:8096', token: 'new-key' })
+      );
+      expect(update.set).toHaveBeenCalledWith({ token: 'new-key', updatedAt: expect.any(Date) });
+      expect(sseManager.refresh).toHaveBeenCalled();
+    });
+
+    it('verifies a new URL and key as a pair and records the identity it confirmed', async () => {
+      app = await buildTestApp(ownerUser);
+      const jellyfin = {
+        ...mockServer,
+        type: 'jellyfin' as const,
+        url: 'http://192.168.1.20:8096',
+        token: 'old-key',
+        machineIdentifier: null,
+      };
+      vi.mocked(JellyfinClient.verifyServerAdmin).mockResolvedValue({ success: true });
+      vi.mocked(readServerIdentity).mockResolvedValueOnce('jf-1').mockResolvedValueOnce('jf-1');
+      mockDbSelectLimit([jellyfin]);
+      const update = mockDbUpdateReturning([jellyfin]);
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/servers/${jellyfin.id}`,
+        payload: { url: 'http://new-host:8096', apiKey: 'new-key' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(JellyfinClient.verifyServerAdmin).toHaveBeenCalledWith(
+        'new-key',
+        'http://new-host:8096'
+      );
+      expect(readServerIdentity).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ url: 'http://192.168.1.20:8096', token: 'old-key' })
+      );
+      expect(readServerIdentity).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({ url: 'http://new-host:8096', token: 'new-key' })
+      );
+      expect(update.set).toHaveBeenCalledWith({
+        url: 'http://new-host:8096',
+        token: 'new-key',
+        machineIdentifier: 'jf-1',
+        updatedAt: expect.any(Date),
+      });
+    });
+
+    it('refuses a URL or key that reaches a different server, or a server it cannot identify', async () => {
+      app = await buildTestApp(ownerUser);
+      const emby = {
+        ...mockServer,
+        type: 'emby' as const,
+        url: 'http://192.168.1.30:8096',
+        token: 'old-key',
+        machineIdentifier: 'emby-1',
+      };
+      vi.mocked(EmbyClient.verifyServerAdmin).mockResolvedValue({ success: true });
+
+      mockDbSelectLimit([emby]);
+      vi.mocked(readServerIdentity).mockResolvedValueOnce('emby-2');
+      const elsewhere = await app.inject({
+        method: 'PATCH',
+        url: `/servers/${emby.id}`,
+        payload: { url: 'http://192.168.1.31:8096', apiKey: 'other-key' },
+      });
+      expect(elsewhere.statusCode).toBe(400);
+      expect(elsewhere.json().message).toContain('different server');
+
+      mockDbSelectLimit([{ ...emby, machineIdentifier: null }]);
+      vi.mocked(readServerIdentity).mockRejectedValueOnce(new Error('401'));
+      const unknown = await app.inject({
+        method: 'PATCH',
+        url: `/servers/${emby.id}`,
+        payload: { apiKey: 'new-key' },
+      });
+      expect(unknown.statusCode).toBe(400);
+      expect(unknown.json().message).toContain('no record of which server');
+
+      expect(db.update).not.toHaveBeenCalled();
+    });
+
+    it('treats the saved key sent again as no change', async () => {
+      app = await buildTestApp(ownerUser);
+      const jellyfin = { ...mockServer, type: 'jellyfin' as const, token: 'same-key' };
+      mockDbSelectLimit([jellyfin]);
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/servers/${jellyfin.id}`,
+        payload: { apiKey: 'same-key' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(JellyfinClient.verifyServerAdmin).not.toHaveBeenCalled();
+      expect(db.update).not.toHaveBeenCalled();
+    });
+
+    it('keeps the old Emby key when the new one is refused, and refuses a key on Plex', async () => {
+      app = await buildTestApp(ownerUser);
+      const emby = {
+        ...mockServer,
+        type: 'emby' as const,
+        url: 'http://192.168.1.30:8096',
+        token: 'old-key',
+      };
+      vi.mocked(EmbyClient.verifyServerAdmin).mockResolvedValue({
+        success: false,
+        code: 'INVALID_KEY',
+        message: 'Invalid API key',
+      });
+      mockDbSelectLimit([emby]);
+      vi.mocked(db.update).mockClear();
+
+      const refused = await app.inject({
+        method: 'PATCH',
+        url: `/servers/${emby.id}`,
+        payload: { apiKey: 'bad-key' },
+      });
+      expect(refused.statusCode).toBe(400);
+      expect(db.update).not.toHaveBeenCalled();
+
+      mockDbSelectLimit([mockServer]);
+      const plex = await app.inject({
+        method: 'PATCH',
+        url: `/servers/${mockServer.id}`,
+        payload: { apiKey: 'any-key' },
+      });
+      expect(plex.statusCode).toBe(400);
+      expect(plex.json().message).toBe(
+        'Plex servers sign in through plex.tv and have no API key to change'
+      );
+      expect(PlexClient.verifyServerAdmin).not.toHaveBeenCalled();
+      expect(readServerIdentity).not.toHaveBeenCalled();
+      expect(db.update).not.toHaveBeenCalled();
+    });
+
     it('rejects when neither name nor url provided', async () => {
       app = await buildTestApp(ownerUser);
 
@@ -824,6 +1057,43 @@ describe('Server Routes', () => {
 
       expect(response.statusCode).toBe(404);
       expect(response.json().message).toBe('Server not found');
+    });
+
+    it('refuses a URL or key change on a historical server but still renames it', async () => {
+      app = await buildTestApp(ownerUser);
+      const historical = {
+        ...mockServer,
+        type: 'jellyfin' as const,
+        historicalAt: new Date('2026-09-01T00:00:00Z'),
+      };
+
+      mockDbSelectLimit([historical]);
+      let response = await app.inject({
+        method: 'PATCH',
+        url: `/servers/${historical.id}`,
+        payload: { url: 'http://moved.local:8096' },
+      });
+      expect(response.statusCode).toBe(409);
+      expect(response.json().message).toBe('Resume this server to change its address or key');
+      expect(JellyfinClient.verifyServerAdmin).not.toHaveBeenCalled();
+
+      mockDbSelectLimit([historical]);
+      response = await app.inject({
+        method: 'PATCH',
+        url: `/servers/${historical.id}`,
+        payload: { apiKey: 'new-key' },
+      });
+      expect(response.statusCode).toBe(409);
+
+      mockDbSelectLimit([historical]);
+      mockDbUpdateReturning([{ ...historical, name: 'Old Attic' }]);
+      response = await app.inject({
+        method: 'PATCH',
+        url: `/servers/${historical.id}`,
+        payload: { name: 'Old Attic' },
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.json().name).toBe('Old Attic');
     });
   });
 
@@ -1091,203 +1361,18 @@ describe('Server Routes', () => {
     });
   });
 
-  describe('GET /servers/:id/image/*', () => {
-    it('proxies Plex image with token in URL', async () => {
-      app = await buildTestApp(ownerUser);
-
-      mockDbSelectLimit([mockServer]);
-
-      const imageBuffer = Buffer.from('fake-image-data');
-      mockFetch.mockResolvedValue({
-        ok: true,
-        headers: new Map([['content-type', 'image/jpeg']]),
-        arrayBuffer: () => Promise.resolve(imageBuffer),
-      });
-
-      const response = await app.inject({
-        method: 'GET',
-        url: `/servers/${mockServer.id}/image/library/metadata/123/thumb/456`,
-      });
-
-      expect(response.statusCode).toBe(200);
-      expect(response.headers['content-type']).toBe('image/jpeg');
-      expect(response.headers['cache-control']).toContain('max-age=86400');
-
-      // Verify fetch was called with correct URL including Plex token
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('X-Plex-Token='),
-        expect.any(Object)
-      );
-    });
-
-    it('proxies Jellyfin image with auth header', async () => {
-      const jellyfinServer = {
-        ...mockServer,
-        type: 'jellyfin' as const,
-        url: 'http://localhost:8096',
-      };
-
-      app = await buildTestApp(ownerUser);
-      mockDbSelectLimit([jellyfinServer]);
-
-      const imageBuffer = Buffer.from('fake-image-data');
-      mockFetch.mockResolvedValue({
-        ok: true,
-        headers: new Map([['content-type', 'image/png']]),
-        arrayBuffer: () => Promise.resolve(imageBuffer),
-      });
-
-      const response = await app.inject({
-        method: 'GET',
-        url: `/servers/${jellyfinServer.id}/image/Items/abc/Images/Primary`,
-      });
-
-      expect(response.statusCode).toBe(200);
-
-      // Verify fetch was called with Authorization header
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            Authorization: expect.stringContaining('MediaBrowser'),
-          }),
-        })
-      );
-    });
-
-    it('accepts auth via query param for img tags', async () => {
-      // Create app with custom jwtVerify that reads from query
-      const customApp = Fastify({ logger: false });
-      await customApp.register(sensible);
-
-      customApp.decorate('authenticate', async (request: unknown) => {
-        (request as { user: AuthUser }).user = ownerUser;
-      });
-
-      customApp.decorateRequest(
-        'jwtVerify',
-        async function (this: { user: AuthUser; headers: { authorization?: string } }) {
-          // Simulate JWT verification - if header exists, it's valid
-          if (this.headers.authorization) {
-            this.user = ownerUser;
-          } else {
-            throw new Error('Missing token');
-          }
-        }
-      );
-
-      await customApp.register(serverRoutes, { prefix: '/servers' });
-
-      mockDbSelectLimit([mockServer]);
-      mockFetch.mockResolvedValue({
-        ok: true,
-        headers: new Map([['content-type', 'image/jpeg']]),
-        arrayBuffer: () => Promise.resolve(Buffer.from('image')),
-      });
-
-      const response = await customApp.inject({
-        method: 'GET',
-        url: `/servers/${mockServer.id}/image/thumb.jpg?token=valid-jwt-token`,
-      });
-
-      expect(response.statusCode).toBe(200);
-      await customApp.close();
-    });
-
-    it('goes through the shared authenticate guard, not a bare jwtVerify', async () => {
-      // The shared guard enforces the post-restore revocation timestamp and the
-      // mobile device blacklist; a hand-rolled jwtVerify skips both. Here the
-      // guard rejects while jwtVerify would succeed, so a 200 means the route
-      // is still bypassing it.
-      const customApp = Fastify({ logger: false });
-      await customApp.register(sensible);
-
-      customApp.decorate('authenticate', async (_request: unknown, reply: FastifyReply) => {
-        await reply.status(401).send({ message: 'Session has been revoked' });
-      });
-
-      customApp.decorateRequest('jwtVerify', async function (this: { user: AuthUser }) {
-        this.user = ownerUser;
-      });
-
-      await customApp.register(serverRoutes, { prefix: '/servers' });
-
-      mockDbSelectLimit([mockServer]);
-      mockFetch.mockResolvedValue({
-        ok: true,
-        headers: new Map([['content-type', 'image/jpeg']]),
-        arrayBuffer: () => Promise.resolve(Buffer.from('image')),
-      });
-
-      const response = await customApp.inject({
-        method: 'GET',
-        url: `/servers/${mockServer.id}/image/thumb.jpg`,
-        headers: { authorization: 'Bearer revoked-but-well-formed' },
-      });
-
-      expect(response.statusCode).toBe(401);
-      expect(mockFetch).not.toHaveBeenCalled();
-      await customApp.close();
-    });
-
-    it('returns 404 for non-existent server', async () => {
-      app = await buildTestApp(ownerUser);
-
-      mockDbSelectLimit([]);
-
-      const response = await app.inject({
-        method: 'GET',
-        url: `/servers/${randomUUID()}/image/thumb.jpg`,
-      });
-
-      expect(response.statusCode).toBe(404);
-    });
-
-    it('returns 404 when upstream image not found', async () => {
-      app = await buildTestApp(ownerUser);
-
-      mockDbSelectLimit([mockServer]);
-      mockFetch.mockResolvedValue({
-        ok: false,
-        status: 404,
-      });
-
-      const response = await app.inject({
-        method: 'GET',
-        url: `/servers/${mockServer.id}/image/nonexistent.jpg`,
-      });
-
-      expect(response.statusCode).toBe(404);
-    });
-
-    it('handles fetch error gracefully', async () => {
-      app = await buildTestApp(ownerUser);
-
-      mockDbSelectLimit([mockServer]);
-      mockFetch.mockRejectedValue(new Error('Network error'));
-
-      const response = await app.inject({
-        method: 'GET',
-        url: `/servers/${mockServer.id}/image/thumb.jpg`,
-      });
-
-      expect(response.statusCode).toBe(500);
-    });
-
-    it('returns 400 when image path is missing', async () => {
-      app = await buildTestApp(ownerUser);
-
-      const response = await app.inject({
-        method: 'GET',
-        url: `/servers/${mockServer.id}/image/`,
-      });
-
-      // Wildcard route with empty path
-      expect(response.statusCode).toBe(400);
-    });
-  });
-
   describe('GET /servers/:id/statistics', () => {
+    it('returns 403 for a server the caller cannot see', async () => {
+      app = await buildTestApp(viewerUser);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/servers/${mockServer.id}/statistics`,
+      });
+
+      expect(response.statusCode).toBe(403);
+    });
+
     it('returns 404 for non-existent server', async () => {
       app = await buildTestApp(ownerUser);
 
@@ -1426,8 +1511,21 @@ describe('Server Routes', () => {
       expect(response.statusCode).toBe(400);
     });
 
-    it('strips per-account bandwidth detail for non-owner callers', async () => {
+    it('returns 403 for a server the caller cannot see', async () => {
       app = await buildTestApp(viewerUser);
+      vi.mocked(getServerLiveStats).mockClear();
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/servers/${mockServer.id}/live-stats`,
+      });
+
+      expect(response.statusCode).toBe(403);
+      expect(getServerLiveStats).not.toHaveBeenCalled();
+    });
+
+    it('strips per-account bandwidth detail for non-owner callers', async () => {
+      app = await buildTestApp({ ...viewerUser, serverIds: [mockServer.id] });
       mockDbSelectLimit([mockServer]);
       vi.mocked(getServerLiveStats).mockResolvedValue({
         statistics: [],
@@ -1492,6 +1590,158 @@ describe('Server Routes', () => {
       expect(getServerLiveStats).toHaveBeenCalledWith(
         undefined,
         expect.objectContaining({ id: mockServer.id, url: mockServer.url, token: mockServer.token })
+      );
+    });
+  });
+
+  describe('POST /servers/:id/historical', () => {
+    const flagged = { ...mockServer, historicalAt: new Date('2026-10-01T12:00:00Z') };
+
+    it('marks a server historical for the owner and returns it without its token', async () => {
+      app = await buildTestApp(ownerUser);
+      mockDbSelectLimit([mockServer]);
+      vi.mocked(markServerHistorical).mockResolvedValue(flagged as never);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/servers/${mockServer.id}/historical`,
+        payload: { historical: true },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(markServerHistorical).toHaveBeenCalledWith(mockServer);
+      expect(resumeServer).not.toHaveBeenCalled();
+      const body = response.json();
+      expect(body.historicalAt).toBe('2026-10-01T12:00:00.000Z');
+      expect(body.token).toBeUndefined();
+    });
+
+    it('resumes a historical server', async () => {
+      app = await buildTestApp(ownerUser);
+      mockDbSelectLimit([flagged]);
+      vi.mocked(resumeServer).mockResolvedValue(mockServer as never);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/servers/${mockServer.id}/historical`,
+        payload: { historical: false },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(resumeServer).toHaveBeenCalledWith(flagged);
+      expect(response.json().historicalAt).toBeNull();
+    });
+
+    it('is owner only and validates its input', async () => {
+      app = await buildTestApp(viewerUser);
+      let response = await app.inject({
+        method: 'POST',
+        url: `/servers/${mockServer.id}/historical`,
+        payload: { historical: true },
+      });
+      expect(response.statusCode).toBe(403);
+      await app.close();
+
+      app = await buildTestApp(ownerUser);
+      response = await app.inject({
+        method: 'POST',
+        url: `/servers/${mockServer.id}/historical`,
+        payload: { historical: 'yes' },
+      });
+      expect(response.statusCode).toBe(400);
+
+      mockDbSelectLimit([]);
+      response = await app.inject({
+        method: 'POST',
+        url: `/servers/${randomUUID()}/historical`,
+        payload: { historical: true },
+      });
+      expect(response.statusCode).toBe(404);
+      expect(markServerHistorical).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('GET /servers/health', () => {
+    it('returns the down reason for a server the cache marks unauthorized', async () => {
+      app = await buildTestApp(ownerUser);
+      mockDbSelectWhere([{ id: 'srv-1', name: 'Living Room Plex' }]);
+      vi.mocked(getCacheService).mockReturnValueOnce({
+        getServerHealth: vi.fn().mockResolvedValue(false),
+        getServerDownReason: vi.fn().mockResolvedValue('unauthorized'),
+      } as never);
+
+      const response = await app.inject({ method: 'GET', url: '/servers/health' });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toEqual({
+        data: [{ serverId: 'srv-1', serverName: 'Living Room Plex', reason: 'unauthorized' }],
+      });
+    });
+  });
+
+  describe('historical servers elsewhere in the routes', () => {
+    const historical = { ...mockServer, historicalAt: new Date('2026-09-01T00:00:00Z') };
+
+    it('refuses a manual sync with 409 and never calls syncServer', async () => {
+      app = await buildTestApp(ownerUser);
+      mockDbSelectLimit([historical]);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/servers/${historical.id}/sync`,
+        payload: {},
+      });
+
+      expect(response.statusCode).toBe(409);
+      expect(response.json().message).toBe('Resume this server to sync it');
+      expect(syncServer).not.toHaveBeenCalled();
+    });
+
+    it('serves empty live stats and statistics without asking the server', async () => {
+      app = await buildTestApp(ownerUser);
+
+      mockDbSelectLimit([historical]);
+      let response = await app.inject({
+        method: 'GET',
+        url: `/servers/${historical.id}/live-stats`,
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.json()).toMatchObject({
+        serverId: historical.id,
+        statistics: [],
+        bandwidth: [],
+        bandwidthSamples: [],
+        bandwidthAccounts: [],
+        bandwidthDevices: [],
+      });
+      expect(getServerLiveStats).not.toHaveBeenCalled();
+
+      mockDbSelectLimit([historical]);
+      response = await app.inject({ method: 'GET', url: `/servers/${historical.id}/statistics` });
+      expect(response.statusCode).toBe(200);
+      expect(response.json().data).toEqual([]);
+      expect(getServerResourceStats).not.toHaveBeenCalled();
+    });
+
+    it('leaves historical servers out of /health and /connection-status', async () => {
+      app = await buildTestApp(ownerUser);
+
+      const healthChain = mockDbSelectWhere([]);
+      let response = await app.inject({ method: 'GET', url: '/servers/health' });
+      expect(response.statusCode).toBe(200);
+      expect(renderSql(healthChain.where.mock.calls[0]?.[0] as SQL).sql).toContain(
+        'servers.historical_at is null'
+      );
+
+      const statusChain = {
+        from: vi.fn().mockReturnThis(),
+        where: vi.fn().mockResolvedValue([]),
+      };
+      vi.mocked(db.select).mockReturnValue(statusChain as never);
+      response = await app.inject({ method: 'GET', url: '/servers/connection-status' });
+      expect(response.statusCode).toBe(200);
+      expect(renderSql(statusChain.where.mock.calls[0]?.[0] as SQL).sql).toContain(
+        'servers.historical_at is null'
       );
     });
   });

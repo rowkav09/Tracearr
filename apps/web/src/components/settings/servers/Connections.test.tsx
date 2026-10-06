@@ -28,13 +28,27 @@ vi.mock('@dnd-kit/core', async () => {
   };
 });
 
+const { serverRowProps } = vi.hoisted(() => ({
+  serverRowProps: [] as { server: Server; requestService?: unknown }[],
+}));
+
 vi.mock('@/components/settings/servers/ServerRow', () => ({
-  ServerRow: ({ server, onDelete }: { server: Server; onDelete: () => void }) => (
-    <div>
-      {server.name}
-      <button onClick={onDelete}>remove-{server.id}</button>
-    </div>
-  ),
+  ServerRow: (props: {
+    server: Server;
+    onDelete: () => void;
+    onSetHistorical: (historical: boolean) => void;
+    requestService?: unknown;
+  }) => {
+    serverRowProps.push(props);
+    return (
+      <div>
+        {props.server.name}
+        <button onClick={props.onDelete}>remove-{props.server.id}</button>
+        <button onClick={() => props.onSetHistorical(true)}>mark-{props.server.id}</button>
+        <button onClick={() => props.onSetHistorical(false)}>resume-{props.server.id}</button>
+      </div>
+    );
+  },
 }));
 
 const { connectJellyfinWithApiKey } = vi.hoisted(() => ({ connectJellyfinWithApiKey: vi.fn() }));
@@ -50,7 +64,6 @@ vi.mock('@/lib/api', () => ({
       connectEmbyWithApiKey: vi.fn(),
     },
   },
-  tokenStorage: { setTokens: vi.fn() },
 }));
 
 vi.mock('@/components/settings/servers/AddServerDialog', () => ({
@@ -91,13 +104,22 @@ vi.mock('@/hooks/useSocket', () => ({ useSocket: vi.fn() }));
 const deleteMutate = vi.fn((_id: string, opts?: { onSuccess?: () => void }) => {
   opts?.onSuccess?.();
 });
+const setHistoricalMutate = vi.fn((_vars: unknown, opts?: { onSuccess?: () => void }) => {
+  opts?.onSuccess?.();
+});
 const reorderMutate = vi.fn();
 const invalidateQueries = vi.fn();
 
 vi.mock('@/hooks/queries', () => ({
   useDeleteServer: vi.fn(() => ({ mutate: deleteMutate, isPending: false })),
   useReorderServers: vi.fn(() => ({ mutate: reorderMutate, isPending: false })),
+  useRequestServices: vi.fn(),
   useServers: vi.fn(),
+  useSetServerHistorical: vi.fn(() => ({
+    mutate: setHistoricalMutate,
+    isPending: false,
+    variables: undefined,
+  })),
   useSyncServer: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
   useUpdateServer: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
 }));
@@ -108,7 +130,7 @@ vi.mock('@tanstack/react-query', async () => {
   return { ...actual, useQueryClient: () => ({ invalidateQueries }) };
 });
 
-import { useServers } from '@/hooks/queries';
+import { useRequestServices, useServers } from '@/hooks/queries';
 import { useAuth } from '@/hooks/useAuth';
 import { useSocket } from '@/hooks/useSocket';
 
@@ -128,6 +150,11 @@ describe('Connections', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     capturedOnDragEnd = undefined;
+    serverRowProps.length = 0;
+    vi.mocked(useRequestServices).mockReturnValue({
+      data: [],
+      isLoading: false,
+    } as unknown as ReturnType<typeof useRequestServices>);
     vi.mocked(useAuth).mockReturnValue({
       user: { role: 'owner' },
       refetch: vi.fn(),
@@ -143,6 +170,70 @@ describe('Connections', () => {
       isLoading: false,
       refetch: vi.fn(),
     } as unknown as ReturnType<typeof useServers>);
+  });
+
+  it('holds the Seerr line back until the services query has answered', () => {
+    vi.mocked(useRequestServices).mockReturnValue({
+      data: undefined,
+      isLoading: true,
+    } as unknown as ReturnType<typeof useRequestServices>);
+    const { rerender } = render(<Connections />);
+
+    expect(serverRowProps).not.toHaveLength(0);
+    expect(serverRowProps.every((props) => props.requestService === undefined)).toBe(true);
+
+    const linked = { id: 'rs-1', serverId: 'server-1' };
+    vi.mocked(useRequestServices).mockReturnValue({
+      data: [linked],
+      isLoading: false,
+    } as unknown as ReturnType<typeof useRequestServices>);
+    serverRowProps.length = 0;
+    rerender(<Connections />);
+
+    expect(serverRowProps.map((props) => props.requestService)).toEqual([
+      { service: linked },
+      { service: undefined },
+    ]);
+  });
+
+  it('keeps the Seerr line and its query away from a non-owner', () => {
+    vi.mocked(useAuth).mockReturnValue({
+      user: { role: 'member' },
+      refetch: vi.fn(),
+    } as unknown as ReturnType<typeof useAuth>);
+
+    render(<Connections />);
+
+    expect(useRequestServices).toHaveBeenCalledWith({ enabled: false });
+    expect(serverRowProps).not.toHaveLength(0);
+    expect(serverRowProps.every((props) => props.requestService === undefined)).toBe(true);
+  });
+
+  it('asks before marking a server historical, then calls the mutation', async () => {
+    const user = userEvent.setup();
+    render(<Connections />);
+
+    await user.click(screen.getByText('mark-server-1'));
+    expect(screen.getByText('servers.markHistoricalConfirm')).toBeInTheDocument();
+    expect(setHistoricalMutate).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole('button', { name: 'servers.markHistorical' }));
+    await waitFor(() =>
+      expect(setHistoricalMutate).toHaveBeenCalledWith(
+        { id: 'server-1', historical: true },
+        expect.anything()
+      )
+    );
+  });
+
+  it('resumes without asking', async () => {
+    const user = userEvent.setup();
+    render(<Connections />);
+
+    await user.click(screen.getByText('resume-server-2'));
+
+    expect(setHistoricalMutate).toHaveBeenCalledWith({ id: 'server-2', historical: false });
+    expect(screen.queryByText('servers.markHistoricalConfirm')).not.toBeInTheDocument();
   });
 
   it('maps a keyboard drag to the reordered displayOrder payload', () => {
