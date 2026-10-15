@@ -28,6 +28,7 @@ const mockTakeRefusedWrites = vi.fn();
 const mockWriteDiskLimited = vi.fn();
 const mockClearDiskLimited = vi.fn();
 const mockReadDiskLimited = vi.fn();
+const mockIsOnMountedVolume = vi.fn();
 const mockReconcileImagePrecacheOnBoot = vi.fn();
 const mockSweepImageCache = vi.fn();
 const mockIsLiveServer = vi.fn().mockResolvedValue(true);
@@ -56,6 +57,7 @@ vi.mock('../../services/imageCacheGuard.js', () => ({
   writeDiskLimited: (...args: unknown[]) => mockWriteDiskLimited(...args),
   clearDiskLimited: (...args: unknown[]) => mockClearDiskLimited(...args),
   readDiskLimited: (...args: unknown[]) => mockReadDiskLimited(...args),
+  isOnMountedVolume: (...args: unknown[]) => mockIsOnMountedVolume(...args),
 }));
 
 const mockGetAllActiveSessions = vi.fn<() => Promise<Array<Record<string, unknown>>>>();
@@ -502,6 +504,17 @@ describe('imagePrecacheQueue', () => {
       expect(redisStore.get(REDIS_KEYS.IMAGE_CACHE_NOT_PERSISTING)).toBeUndefined();
     });
 
+    it('does not flag a mounted volume, where an empty sample is a new mount or failed writes', async () => {
+      mockBatchQuery([makeItemRow('item-0')]);
+      mockPosterCacheEntryExists.mockResolvedValue(false);
+      mockIsOnMountedVolume.mockResolvedValueOnce(true);
+      fullPassStamp();
+
+      await processImagePrecacheJob(makeJob({ serverId: 'server-1', cursor: null }));
+
+      expect(redisStore.get(REDIS_KEYS.IMAGE_CACHE_NOT_PERSISTING)).toBeUndefined();
+    });
+
     it('does not sample a watermark-scoped pass, which only walks recent rows', async () => {
       mockBatchQuery([makeItemRow('item-0')]);
       mockPosterCacheEntryExists.mockResolvedValue(false);
@@ -850,6 +863,26 @@ describe('imagePrecacheQueue', () => {
       const result = await processImagePrecacheJob(makeJob({ serverId: 'server-1', cursor: null }));
 
       expect(result).toEqual({ skipped: true, reason: 'backing off' });
+    });
+
+    it('skips an image the server answered for instead of backing the server off', async () => {
+      mockBatchQuery([makeItemRow('item-0')]);
+      mockQueueAdd.mockResolvedValue({ id: 'job-delayed' });
+      mockProxyImage.mockResolvedValue({
+        data: Buffer.from('<svg/>'),
+        contentType: 'image/svg+xml',
+        cached: false,
+        degraded: true,
+        failure: { reason: 'HTTP 500 (text/plain)', itemFault: true },
+      });
+
+      let result;
+      for (let i = 0; i <= FAILURE_BACKOFF_BATCHES; i++) {
+        result = await processImagePrecacheJob(makeJob({ serverId: 'server-1', cursor: null }));
+      }
+
+      expect(result).not.toEqual({ skipped: true, reason: 'backing off' });
+      expect(mockProxyImage).toHaveBeenCalledTimes(1);
     });
 
     it('continues the batch and does not fail the job when one warm call throws', async () => {

@@ -20,6 +20,7 @@ vi.mock('../../db/client.js', () => ({
 
 import { db } from '../../db/client.js';
 import { runRoutes } from '../runs.js';
+import { permissionGuard } from '../../lib/scope.js';
 
 const RUN_ID = randomUUID();
 const AUTOMATION_ID = randomUUID();
@@ -89,14 +90,14 @@ const ownerUser: AuthUser = {
 const viewerUser: AuthUser = {
   userId: randomUUID(),
   username: 'viewer',
-  role: 'viewer',
+  role: 'admin',
   serverIds: ['srv-1'],
 };
 
 const strandedViewer: AuthUser = {
   userId: randomUUID(),
   username: 'stranded',
-  role: 'viewer',
+  role: 'admin',
   serverIds: [],
 };
 
@@ -106,6 +107,7 @@ async function buildTestApp(authUser: AuthUser): Promise<FastifyInstance> {
   app.decorate('authenticate', async (request: unknown) => {
     (request as { user: AuthUser }).user = authUser;
   });
+  app.decorate('requirePermission', permissionGuard(app));
   await app.register(runRoutes, { prefix: '/runs' });
   return app;
 }
@@ -259,7 +261,7 @@ describe('Run routes', () => {
         'servers.id = automation_runs.server_id',
         'server_users.id = automation_runs.server_user_id',
         'users.id = server_users.user_id',
-        'library_items.id = CASE WHEN automation_runs.subject_key LIKE $1 THEN substring(automation_runs.subject_key FROM $2)::uuid END',
+        'library_items.id = CASE WHEN automation_runs.subject_key LIKE $1 THEN substring(automation_runs.subject_key FROM $2::int)::uuid END',
         '(libraries.server_id = library_items.server_id and libraries.library_id = library_items.library_id)',
       ]);
     });
@@ -560,6 +562,22 @@ describe('Run routes', () => {
       expect(body.evidence).toEqual(evidence);
     });
 
+    it('carries the media ids of what was playing', async () => {
+      app = await buildTestApp(ownerUser);
+      setupDetailMocks({ ...runRow(), steps: [], definitionVersionId: null }, [
+        { ...SESSION_CONTEXT, mediaId: 'ep-1', showMediaId: 'show-1' },
+      ]);
+
+      const body = (await app.inject({ method: 'GET', url: `/runs/${RUN_ID}` })).json();
+
+      expect(vi.mocked(db.select).mock.calls[1]![0]).toMatchObject({
+        mediaId: expect.anything(),
+        showMediaId: expect.anything(),
+      });
+      expect(body.session.mediaId).toBe('ep-1');
+      expect(body.session.showMediaId).toBe('show-1');
+    });
+
     it('reports no session context for a run that was never about one', async () => {
       app = await buildTestApp(ownerUser);
       setupDetailMocks({
@@ -604,6 +622,8 @@ describe('Run routes', () => {
         city: null,
         country: null,
         isLocal: false,
+        mediaId: null,
+        showMediaId: null,
       });
       expect(body.subject.name).toBe('ada@plex');
     });
