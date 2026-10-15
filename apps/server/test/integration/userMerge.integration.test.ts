@@ -67,6 +67,7 @@ import {
   SameServerCombineNotConfirmedError,
 } from '../../src/services/mergeService.js';
 import { resolveRecipients } from '../../src/services/newsletters/recipients.js';
+import { permissionGuard } from '../../src/lib/scope.js';
 
 /** The list envelope reports total and pageSize; the page count derives from them. */
 function pageCount(body: { meta: { pageSize: number; total: number } }): number {
@@ -102,6 +103,22 @@ async function setContactEmail(userId: string, contactEmail: string): Promise<vo
 async function shownNameOf(userId: string): Promise<string | null | undefined> {
   const [row] = await db.select({ name: users.name }).from(users).where(eq(users.id, userId));
   return row?.name;
+}
+
+async function insertAuthSession(userId: string): Promise<string> {
+  const id = randomUUID();
+  await db.insert(authSessions).values({
+    id,
+    expiresAt: new Date(Date.now() + 60_000),
+    token: randomUUID(),
+    userId,
+  });
+  return id;
+}
+
+async function authSessionExists(id: string): Promise<boolean> {
+  const rows = await db.select().from(authSessions).where(eq(authSessions.id, id));
+  return rows.length > 0;
 }
 
 async function mergeSignInPlexAccountIntoJellyfinUser(targetName: string | null = null) {
@@ -443,6 +460,42 @@ describe('mergeUsers', () => {
     expect(authAccountRow).toBeDefined();
   });
 
+  it('merges two members who both signed in through their media server, and split hands the sign-in back', async () => {
+    const admin = await createTestUser({ role: 'owner' });
+    const plex = await createTestServer({ type: 'plex' });
+    const emby = await createTestServer({ type: 'emby' });
+    const target = await createTestUser({ role: 'member' });
+    const source = await createTestUser({ role: 'member' });
+    const targetSu = await createTestServerUser({ userId: target.id, serverId: plex.id });
+    await db
+      .update(serverUsers)
+      .set({ plexAccountId: 'plex-tv-1' })
+      .where(eq(serverUsers.id, targetSu.id));
+    const sourceSu = await createTestServerUser({ userId: source.id, serverId: emby.id });
+    const embyAccountId = `${emby.id}:${sourceSu.externalId}`;
+    await db.insert(authAccounts).values([
+      { id: randomUUID(), providerId: 'plex', accountId: 'plex-tv-1', userId: target.id },
+      { id: randomUUID(), providerId: 'emby', accountId: embyAccountId, userId: source.id },
+    ]);
+
+    await mergeUsers(source.id, target.id, admin.id);
+
+    const ownerOf = async (accountId: string) =>
+      (
+        await db
+          .select({ userId: authAccounts.userId })
+          .from(authAccounts)
+          .where(eq(authAccounts.accountId, accountId))
+      )[0]?.userId;
+    expect(await ownerOf(embyAccountId)).toBe(target.id);
+    expect(await ownerOf('plex-tv-1')).toBe(target.id);
+
+    const { newUserId } = await splitServerUser(sourceSu.id, admin.id);
+
+    expect(await ownerOf(embyAccountId)).toBe(newUserId);
+    expect(await ownerOf('plex-tv-1')).toBe(target.id);
+  });
+
   it('moves a newsletter exclusion onto the target, and keeps one entry when both were excluded', async () => {
     const admin = await createTestUser({ role: 'owner' });
     const serverA = await createTestServer({ type: 'plex' });
@@ -598,6 +651,48 @@ describe('mergeUsers', () => {
     expect(await shownNameOf(target.id)).toBe('Grandma');
   });
 
+  it("signs the target out, since the person's data boundary changed, and leaves the owner signed in", async () => {
+    const admin = await createTestUser({ role: 'owner' });
+    const serverA = await createTestServer({ type: 'plex' });
+    const serverB = await createTestServer({ type: 'jellyfin' });
+    const target = await createTestUser({ role: 'member' });
+    const source = await createTestUser({ role: 'member' });
+    await createTestServerUser({ userId: target.id, serverId: serverA.id });
+    await createTestServerUser({ userId: source.id, serverId: serverB.id });
+    const targetSession = await insertAuthSession(target.id);
+    const ownerSession = await insertAuthSession(admin.id);
+
+    await mergeUsers(source.id, target.id, admin.id);
+
+    expect(await authSessionExists(targetSession)).toBe(false);
+    expect(await authSessionExists(ownerSession)).toBe(true);
+  });
+
+  it.each([
+    { source: 'block', target: 'allow', kept: 'block' },
+    { source: 'default', target: 'allow', kept: 'default' },
+    { source: 'allow', target: 'default', kept: 'default' },
+    { source: 'allow', target: 'allow', kept: 'allow' },
+  ] as const)(
+    'keeps the stricter sign-in access: $source into $target is $kept',
+    async ({ source: sourceAccess, target: targetAccess, kept }) => {
+      const admin = await createTestUser({ role: 'owner' });
+      const serverA = await createTestServer({ type: 'plex' });
+      const serverB = await createTestServer({ type: 'jellyfin' });
+      const target = await createTestUser({ role: 'member' });
+      const source = await createTestUser({ role: 'member' });
+      await db.update(users).set({ loginAccess: targetAccess }).where(eq(users.id, target.id));
+      await db.update(users).set({ loginAccess: sourceAccess }).where(eq(users.id, source.id));
+      await createTestServerUser({ userId: target.id, serverId: serverA.id });
+      await createTestServerUser({ userId: source.id, serverId: serverB.id });
+
+      await mergeUsers(source.id, target.id, admin.id);
+
+      const [merged] = await db.select().from(users).where(eq(users.id, target.id));
+      expect(merged?.loginAccess).toBe(kept);
+    }
+  );
+
   it('rejects merging an identity into itself', async () => {
     const admin = await createTestUser({ role: 'owner' });
     const user = await createTestUser({ role: 'member' });
@@ -648,6 +743,50 @@ describe('splitServerUser', () => {
       .where(eq(userMergeAudits.id, mergeResult.auditId));
     expect(audit?.undoneAt).not.toBeNull();
   });
+
+  it('signs out the identity the account was split from', async () => {
+    const admin = await createTestUser({ role: 'owner' });
+    const serverA = await createTestServer({ type: 'plex' });
+    const serverB = await createTestServer({ type: 'jellyfin' });
+    const target = await createTestUser({ role: 'member' });
+    const source = await createTestUser({ role: 'member' });
+    await createTestServerUser({ userId: target.id, serverId: serverA.id });
+    const sourceSu = await createTestServerUser({ userId: source.id, serverId: serverB.id });
+    await mergeUsers(source.id, target.id, admin.id);
+    const targetSession = await insertAuthSession(target.id);
+
+    await splitServerUser(sourceSu.id, admin.id);
+
+    expect(await authSessionExists(targetSession)).toBe(false);
+  });
+
+  it.each([
+    { from: 'block', split: 'block' },
+    { from: 'allow', split: 'default' },
+    { from: 'default', split: 'default' },
+    { from: 'sometimes', split: 'block' },
+  ] as const)(
+    'gives a split-off identity $split when the person it came from is $from',
+    async ({ from, split }) => {
+      const admin = await createTestUser({ role: 'owner' });
+      const serverA = await createTestServer({ type: 'plex' });
+      const serverB = await createTestServer({ type: 'jellyfin' });
+      const target = await createTestUser({ role: 'member' });
+      const source = await createTestUser({ role: 'member' });
+      await createTestServerUser({ userId: target.id, serverId: serverA.id });
+      const sourceSu = await createTestServerUser({ userId: source.id, serverId: serverB.id });
+      await mergeUsers(source.id, target.id, admin.id);
+      await db
+        .update(users)
+        .set({ loginAccess: from as never })
+        .where(eq(users.id, target.id));
+
+      const { newUserId } = await splitServerUser(sourceSu.id, admin.id);
+
+      const [restored] = await db.select().from(users).where(eq(users.id, newUserId));
+      expect(restored?.loginAccess).toBe(split);
+    }
+  );
 
   it('leaves a newsletter exclusion the merge moved on the surviving identity', async () => {
     const admin = await createTestUser({ role: 'owner' });
@@ -801,6 +940,7 @@ describe('GET /users/:id/full identity aggregation', () => {
     app.decorate('authenticate', async (request: any) => {
       request.user = { userId: admin.id, username: 'owner', role: 'owner', serverIds: [] };
     });
+    app.decorate('requirePermission', permissionGuard(app));
     await app.register(fullRoutes, { prefix: '/users' });
 
     const response = await app.inject({ method: 'GET', url: `/users/${targetSu.id}/full` });
@@ -844,6 +984,7 @@ describe('GET /users/:id/full identity aggregation', () => {
     app.decorate('authenticate', async (request: any) => {
       request.user = { userId: admin.id, username: 'owner', role: 'owner', serverIds: [] };
     });
+    app.decorate('requirePermission', permissionGuard(app));
     await app.register(fullRoutes, { prefix: '/users' });
     const mergedInById = async () => {
       const response = await app.inject({ method: 'GET', url: `/users/${targetSu.id}/full` });
@@ -892,10 +1033,11 @@ describe('GET /users/:id/full identity aggregation', () => {
       request.user = {
         userId: randomUUID(),
         username: 'viewer',
-        role: 'viewer',
+        role: 'admin',
         serverIds: [serverA.id],
       };
     });
+    app.decorate('requirePermission', permissionGuard(app));
     await app.register(fullRoutes, { prefix: '/users' });
 
     const response = await app.inject({ method: 'GET', url: `/users/${targetSu.id}/full` });
@@ -979,6 +1121,7 @@ describe('GET /users/:id/full?scope=identity panels', () => {
     app.decorate('authenticate', async (request: any) => {
       request.user = { userId: randomUUID(), username: 'owner', role: 'owner', serverIds: [] };
     });
+    app.decorate('requirePermission', permissionGuard(app));
     await app.register(fullRoutes, { prefix: '/users' });
 
     const defaultResponse = await app.inject({
@@ -1019,10 +1162,11 @@ describe('GET /users/:id/full?scope=identity panels', () => {
       request.user = {
         userId: randomUUID(),
         username: 'viewer',
-        role: 'viewer',
+        role: 'admin',
         serverIds: [serverA.id],
       };
     });
+    app.decorate('requirePermission', permissionGuard(app));
     await app.register(fullRoutes, { prefix: '/users' });
 
     const response = await app.inject({
@@ -1056,6 +1200,7 @@ describe('GET /users/:id/full?scope=identity panels', () => {
     app.decorate('authenticate', async (request: any) => {
       request.user = { userId: admin.id, username: 'owner', role: 'owner', serverIds: [] };
     });
+    app.decorate('requirePermission', permissionGuard(app));
     await app.register(fullRoutes, { prefix: '/users' });
 
     const defaultResponse = await app.inject({ method: 'GET', url: `/users/${soloSu.id}/full` });
@@ -1084,6 +1229,7 @@ describe('GET /users/:id/full?scope=identity panels', () => {
     app.decorate('authenticate', async (request: any) => {
       request.user = { userId: randomUUID(), username: 'owner', role: 'owner', serverIds: [] };
     });
+    app.decorate('requirePermission', permissionGuard(app));
     await app.register(sessionsRoutes, { prefix: '/users' });
     await app.register(terminationsRoutes, { prefix: '/users' });
 
@@ -1143,6 +1289,11 @@ describe('GET /violations userId identity filter', () => {
     app.decorate('authenticate', async (request: any) => {
       request.user = { userId: admin.id, username: 'owner', role: 'owner', serverIds: [] };
     });
+    app.decorate('requirePermission', permissionGuard(app));
+    app.decorate('requireOwner', async (request: any, reply: any) => {
+      await app.authenticate(request, reply);
+      if (request.user.role !== 'owner') return reply.forbidden('Owner access required');
+    });
     await app.register(violationRoutes, { prefix: '/violations' });
 
     const response = await app.inject({
@@ -1192,9 +1343,14 @@ describe('GET /violations userId identity filter', () => {
       request.user = {
         userId: randomUUID(),
         username: 'viewer',
-        role: 'viewer',
+        role: 'admin',
         serverIds: [serverA.id],
       };
+    });
+    app.decorate('requirePermission', permissionGuard(app));
+    app.decorate('requireOwner', async (request: any, reply: any) => {
+      await app.authenticate(request, reply);
+      if (request.user.role !== 'owner') return reply.forbidden('Owner access required');
     });
     await app.register(violationRoutes, { prefix: '/violations' });
 
@@ -1244,6 +1400,11 @@ describe('GET /users identityServers', () => {
     app.decorate('authenticate', async (request: any) => {
       request.user = { userId: admin.id, username: 'owner', role: 'owner', serverIds: [] };
     });
+    app.decorate('requirePermission', permissionGuard(app));
+    app.decorate('requireOwner', async (request: any, reply: any) => {
+      await app.authenticate(request, reply);
+      if (request.user.role !== 'owner') return reply.forbidden('Owner access required');
+    });
     await app.register(listRoutes, { prefix: '/users' });
 
     const response = await app.inject({ method: 'GET', url: '/users?pageSize=100' });
@@ -1287,9 +1448,14 @@ describe('GET /users identityServers', () => {
       request.user = {
         userId: randomUUID(),
         username: 'viewer',
-        role: 'viewer',
+        role: 'admin',
         serverIds: [serverA.id],
       };
+    });
+    app.decorate('requirePermission', permissionGuard(app));
+    app.decorate('requireOwner', async (request: any, reply: any) => {
+      await app.authenticate(request, reply);
+      if (request.user.role !== 'owner') return reply.forbidden('Owner access required');
     });
     await app.register(listRoutes, { prefix: '/users' });
 
@@ -1328,6 +1494,11 @@ describe('GET /users dedup + includeRemoved + access scoping', () => {
     await app.register(sensible);
     app.decorate('authenticate', async (request: any) => {
       request.user = { userId: admin.id, username: 'owner', role: 'owner', serverIds: [] };
+    });
+    app.decorate('requirePermission', permissionGuard(app));
+    app.decorate('requireOwner', async (request: any, reply: any) => {
+      await app.authenticate(request, reply);
+      if (request.user.role !== 'owner') return reply.forbidden('Owner access required');
     });
     await app.register(listRoutes, { prefix: '/users' });
 
@@ -1369,6 +1540,11 @@ describe('GET /users dedup + includeRemoved + access scoping', () => {
     await app.register(sensible);
     app.decorate('authenticate', async (request: any) => {
       request.user = { userId: admin.id, username: 'owner', role: 'owner', serverIds: [] };
+    });
+    app.decorate('requirePermission', permissionGuard(app));
+    app.decorate('requireOwner', async (request: any, reply: any) => {
+      await app.authenticate(request, reply);
+      if (request.user.role !== 'owner') return reply.forbidden('Owner access required');
     });
     await app.register(listRoutes, { prefix: '/users' });
 
@@ -1420,9 +1596,14 @@ describe('GET /users dedup + includeRemoved + access scoping', () => {
       request.user = {
         userId: randomUUID(),
         username: 'viewer',
-        role: 'viewer',
+        role: 'admin',
         serverIds: [serverA.id],
       };
+    });
+    app.decorate('requirePermission', permissionGuard(app));
+    app.decorate('requireOwner', async (request: any, reply: any) => {
+      await app.authenticate(request, reply);
+      if (request.user.role !== 'owner') return reply.forbidden('Owner access required');
     });
     await app.register(listRoutes, { prefix: '/users' });
 
@@ -1462,6 +1643,11 @@ describe('GET /users serverIds (multi-select)', () => {
     await app.register(sensible);
     app.decorate('authenticate', async (request: any) => {
       request.user = { userId: admin.id, username: 'owner', role: 'owner', serverIds: [] };
+    });
+    app.decorate('requirePermission', permissionGuard(app));
+    app.decorate('requireOwner', async (request: any, reply: any) => {
+      await app.authenticate(request, reply);
+      if (request.user.role !== 'owner') return reply.forbidden('Owner access required');
     });
     await app.register(listRoutes, { prefix: '/users' });
 
@@ -1506,6 +1692,11 @@ describe('GET /users serverIds (multi-select)', () => {
     app.decorate('authenticate', async (request: any) => {
       request.user = { userId: admin.id, username: 'owner', role: 'owner', serverIds: [] };
     });
+    app.decorate('requirePermission', permissionGuard(app));
+    app.decorate('requireOwner', async (request: any, reply: any) => {
+      await app.authenticate(request, reply);
+      if (request.user.role !== 'owner') return reply.forbidden('Owner access required');
+    });
     await app.register(listRoutes, { prefix: '/users' });
 
     const response = await app.inject({
@@ -1540,9 +1731,14 @@ describe('GET /users serverIds (multi-select)', () => {
       request.user = {
         userId: randomUUID(),
         username: 'viewer',
-        role: 'viewer',
+        role: 'admin',
         serverIds: [serverA.id],
       };
+    });
+    app.decorate('requirePermission', permissionGuard(app));
+    app.decorate('requireOwner', async (request: any, reply: any) => {
+      await app.authenticate(request, reply);
+      if (request.user.role !== 'owner') return reply.forbidden('Owner access required');
     });
     await app.register(listRoutes, { prefix: '/users' });
 
@@ -1583,6 +1779,11 @@ describe('GET /users search', () => {
     app.decorate('authenticate', async (request: any) => {
       request.user = { userId: admin.id, username: 'owner', role: 'owner', serverIds: [] };
     });
+    app.decorate('requirePermission', permissionGuard(app));
+    app.decorate('requireOwner', async (request: any, reply: any) => {
+      await app.authenticate(request, reply);
+      if (request.user.role !== 'owner') return reply.forbidden('Owner access required');
+    });
     await app.register(listRoutes, { prefix: '/users' });
 
     const response = await app.inject({ method: 'GET', url: '/users?search=zebra' });
@@ -1616,6 +1817,11 @@ describe('GET /users search', () => {
     await app.register(sensible);
     app.decorate('authenticate', async (request: any) => {
       request.user = { userId: admin.id, username: 'owner', role: 'owner', serverIds: [] };
+    });
+    app.decorate('requirePermission', permissionGuard(app));
+    app.decorate('requireOwner', async (request: any, reply: any) => {
+      await app.authenticate(request, reply);
+      if (request.user.role !== 'owner') return reply.forbidden('Owner access required');
     });
     await app.register(listRoutes, { prefix: '/users' });
 
@@ -1652,6 +1858,11 @@ describe('GET /users search', () => {
     await app.register(sensible);
     app.decorate('authenticate', async (request: any) => {
       request.user = { userId: admin.id, username: 'owner', role: 'owner', serverIds: [] };
+    });
+    app.decorate('requirePermission', permissionGuard(app));
+    app.decorate('requireOwner', async (request: any, reply: any) => {
+      await app.authenticate(request, reply);
+      if (request.user.role !== 'owner') return reply.forbidden('Owner access required');
     });
     await app.register(listRoutes, { prefix: '/users' });
 
@@ -1700,6 +1911,11 @@ describe('GET /users search', () => {
     await app.register(sensible);
     app.decorate('authenticate', async (request: any) => {
       request.user = { userId: admin.id, username: 'owner', role: 'owner', serverIds: [] };
+    });
+    app.decorate('requirePermission', permissionGuard(app));
+    app.decorate('requireOwner', async (request: any, reply: any) => {
+      await app.authenticate(request, reply);
+      if (request.user.role !== 'owner') return reply.forbidden('Owner access required');
     });
     await app.register(listRoutes, { prefix: '/users' });
 
@@ -1766,6 +1982,11 @@ describe('identity trust rollup stays current outside merge/split', () => {
     await app.register(sensible);
     app.decorate('authenticate', async (request: any) => {
       request.user = { userId: admin.id, username: 'owner', role: 'owner', serverIds: [] };
+    });
+    app.decorate('requirePermission', permissionGuard(app));
+    app.decorate('requireOwner', async (request: any, reply: any) => {
+      await app.authenticate(request, reply);
+      if (request.user.role !== 'owner') return reply.forbidden('Owner access required');
     });
     await app.register(listRoutes, { prefix: '/users' });
 
@@ -1871,6 +2092,11 @@ describe('identity trust rollup stays current outside merge/split', () => {
     app.decorate('authenticate', async (request: any) => {
       request.user = { userId: admin.id, username: 'owner', role: 'owner', serverIds: [] };
     });
+    app.decorate('requirePermission', permissionGuard(app));
+    app.decorate('requireOwner', async (request: any, reply: any) => {
+      await app.authenticate(request, reply);
+      if (request.user.role !== 'owner') return reply.forbidden('Owner access required');
+    });
     await app.register(violationRoutes, { prefix: '/violations' });
 
     const response = await app.inject({ method: 'DELETE', url: `/violations/${violation.id}` });
@@ -1920,6 +2146,11 @@ describe('POST /users/bulk/reset-trust', () => {
     await app.register(sensible);
     app.decorate('authenticate', async (request: any) => {
       request.user = { userId: admin.id, username: 'owner', role: 'owner', serverIds: [] };
+    });
+    app.decorate('requirePermission', permissionGuard(app));
+    app.decorate('requireOwner', async (request: any, reply: any) => {
+      await app.authenticate(request, reply);
+      if (request.user.role !== 'owner') return reply.forbidden('Owner access required');
     });
     await app.register(listRoutes, { prefix: '/users' });
 
@@ -1979,6 +2210,11 @@ describe('POST /users/bulk/reset-trust', () => {
         role: 'admin',
         serverIds: [serverA.id],
       };
+    });
+    app.decorate('requirePermission', permissionGuard(app));
+    app.decorate('requireOwner', async (request: any, reply: any) => {
+      await app.authenticate(request, reply);
+      if (request.user.role !== 'owner') return reply.forbidden('Owner access required');
     });
     await app.register(listRoutes, { prefix: '/users' });
 
@@ -2048,6 +2284,11 @@ describe('POST /users/bulk/reset-trust', () => {
     app.decorate('authenticate', async (request: any) => {
       request.user = { userId: admin.id, username: 'owner', role: 'owner', serverIds: [] };
     });
+    app.decorate('requirePermission', permissionGuard(app));
+    app.decorate('requireOwner', async (request: any, reply: any) => {
+      await app.authenticate(request, reply);
+      if (request.user.role !== 'owner') return reply.forbidden('Owner access required');
+    });
     await app.register(listRoutes, { prefix: '/users' });
 
     const response = await app.inject({
@@ -2100,6 +2341,11 @@ describe('GET /users orderBy', () => {
     app.decorate('authenticate', async (request: any) => {
       request.user = { userId: admin.id, username: 'owner', role: 'owner', serverIds: [] };
     });
+    app.decorate('requirePermission', permissionGuard(app));
+    app.decorate('requireOwner', async (request: any, reply: any) => {
+      await app.authenticate(request, reply);
+      if (request.user.role !== 'owner') return reply.forbidden('Owner access required');
+    });
     await app.register(listRoutes, { prefix: '/users' });
 
     const page1 = await app.inject({
@@ -2127,6 +2373,11 @@ describe('GET /users orderBy', () => {
     await app.register(sensible);
     app.decorate('authenticate', async (request: any) => {
       request.user = { userId: admin.id, username: 'owner', role: 'owner', serverIds: [] };
+    });
+    app.decorate('requirePermission', permissionGuard(app));
+    app.decorate('requireOwner', async (request: any, reply: any) => {
+      await app.authenticate(request, reply);
+      if (request.user.role !== 'owner') return reply.forbidden('Owner access required');
     });
     await app.register(listRoutes, { prefix: '/users' });
 
@@ -2158,6 +2409,11 @@ describe('GET /users orderBy', () => {
     await app.register(sensible);
     app.decorate('authenticate', async (request: any) => {
       request.user = { userId: admin.id, username: 'owner', role: 'owner', serverIds: [] };
+    });
+    app.decorate('requirePermission', permissionGuard(app));
+    app.decorate('requireOwner', async (request: any, reply: any) => {
+      await app.authenticate(request, reply);
+      if (request.user.role !== 'owner') return reply.forbidden('Owner access required');
     });
     await app.register(listRoutes, { prefix: '/users' });
 
@@ -2197,6 +2453,11 @@ describe('GET /users orderBy', () => {
     app.decorate('authenticate', async (request: any) => {
       request.user = { userId: admin.id, username: 'owner', role: 'owner', serverIds: [] };
     });
+    app.decorate('requirePermission', permissionGuard(app));
+    app.decorate('requireOwner', async (request: any, reply: any) => {
+      await app.authenticate(request, reply);
+      if (request.user.role !== 'owner') return reply.forbidden('Owner access required');
+    });
     await app.register(listRoutes, { prefix: '/users' });
 
     const descResponse = await app.inject({
@@ -2231,6 +2492,11 @@ describe('every trust move announces itself', () => {
     await app.register(sensible);
     app.decorate('authenticate', async (request: any) => {
       request.user = { userId: adminId, username: 'owner', role: 'owner', serverIds: [] };
+    });
+    app.decorate('requirePermission', permissionGuard(app));
+    app.decorate('requireOwner', async (request: any, reply: any) => {
+      await app.authenticate(request, reply);
+      if (request.user.role !== 'owner') return reply.forbidden('Owner access required');
     });
     await app.register(listRoutes, { prefix: '/users' });
     return app;

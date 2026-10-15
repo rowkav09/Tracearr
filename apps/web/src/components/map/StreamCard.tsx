@@ -1,13 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { Marker, type StyleSpecification } from 'maplibre-gl';
-import { formatEpisodeLabel, type ActiveSession, type LocationStats } from '@tracearr/shared';
-import { cn, formatLocationCompact } from '@/lib/utils';
+import {
+  formatEpisodeLabel,
+  isStaff,
+  type ActiveSession,
+  type LocationStats,
+} from '@tracearr/shared';
+import { cn, formatLocationCompact, getMediaLinks } from '@/lib/utils';
 import { ActiveSessionBadge } from '@/components/sessions/ActiveSessionBadge';
 import { LocalBadge } from '@/components/sessions/LocalBadge';
+import { MediaPageLink } from '@/components/media/MediaPageLink';
 import { ServerLegend } from '@/components/server';
 import { User, MapPin } from 'lucide-react';
 import { getAvatarUrl } from '@/components/users/utils';
+import { useAuth } from '@/hooks/useAuth';
 import { buildBaseStyle, DEFAULT_SERVER_COLOR } from './maplibre';
 import {
   MapPopup,
@@ -216,35 +223,53 @@ export function StreamCard({
 }
 
 function SessionPopupContent({ session }: { session: ActiveSession }) {
+  const viewer = useAuth().user;
+  const canOpenUser = !!viewer && isStaff(viewer.role);
   const avatarUrl = getAvatarUrl(session.serverId, session.user.thumbUrl, 32);
   const { primary: mediaTitle, secondary: mediaSubtitle } = formatMediaTitle(session);
+  const mediaLinks = getMediaLinks(session);
 
   return (
     <div className="text-foreground min-w-[180px] p-2.5">
-      <h4 className="text-sm leading-snug font-semibold">{mediaTitle}</h4>
+      <h4 className="text-sm leading-snug font-semibold">
+        <MediaPageLink to={mediaLinks.title}>{mediaTitle}</MediaPageLink>
+      </h4>
 
       <div className="mt-0.5 flex items-center gap-2">
         {mediaSubtitle && (
-          <span className="text-muted-foreground truncate text-xs">{mediaSubtitle}</span>
+          <span className="text-muted-foreground truncate text-xs">
+            <MediaPageLink to={mediaLinks.subtitle}>{mediaSubtitle}</MediaPageLink>
+          </span>
         )}
         <ActiveSessionBadge state={session.state} className="px-1.5 py-0 text-[10px]" />
       </div>
 
-      <Link
-        to={`/users/${session.user.id}`}
-        className="mt-2 flex items-center gap-2 py-1 transition-opacity hover:opacity-80"
-      >
-        <div className="bg-muted flex h-5 w-5 flex-shrink-0 items-center justify-center overflow-hidden rounded-full">
-          {avatarUrl ? (
-            <img src={avatarUrl} alt={session.user.username} className="h-5 w-5 object-cover" />
-          ) : (
-            <User className="text-muted-foreground h-3 w-3" />
-          )}
-        </div>
-        <span className="text-xs font-medium">
-          {session.user.identityName ?? session.user.username}
-        </span>
-      </Link>
+      {(() => {
+        const body = (
+          <>
+            <div className="bg-muted flex h-5 w-5 flex-shrink-0 items-center justify-center overflow-hidden rounded-full">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt={session.user.username} className="h-5 w-5 object-cover" />
+              ) : (
+                <User className="text-muted-foreground h-3 w-3" />
+              )}
+            </div>
+            <span className="text-xs font-medium">
+              {session.user.identityName ?? session.user.username}
+            </span>
+          </>
+        );
+        return canOpenUser ? (
+          <Link
+            to={`/users/${session.user.id}`}
+            className="mt-2 flex items-center gap-2 py-1 transition-opacity hover:opacity-80"
+          >
+            {body}
+          </Link>
+        ) : (
+          <div className="mt-2 flex items-center gap-2 py-1">{body}</div>
+        );
+      })()}
 
       <div className="text-muted-foreground mt-1 flex items-center gap-2 text-[11px]">
         {(session.geoCity || session.geoCountry) && (
