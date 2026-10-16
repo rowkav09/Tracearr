@@ -38,6 +38,7 @@ import { uuidArraySql } from '../../utils/sqlArrays.js';
 import { localSessionSql } from '../../utils/localSession.js';
 
 export const fullRoutes: FastifyPluginAsync = async (app) => {
+  const readUsers = { preHandler: [app.requirePermission('users', 'read')] };
   /**
    * GET /:id/full - Get complete user details in one request
    *
@@ -49,7 +50,7 @@ export const fullRoutes: FastifyPluginAsync = async (app) => {
    * `identity` block (roster, aggregate trust, combined stats) is always
    * identity-wide regardless of scope.
    */
-  app.get('/:id/full', { preHandler: [app.authenticate] }, async (request, reply) => {
+  app.get('/:id/full', readUsers, async (request, reply) => {
     const params = userIdParamSchema.safeParse(request.params);
     if (!params.success) {
       return reply.badRequest('Invalid user ID');
@@ -93,6 +94,9 @@ export const fullRoutes: FastifyPluginAsync = async (app) => {
           identityName: users.name,
           identityContactEmail: users.contactEmail,
           role: users.role,
+          loginAccess: users.loginAccess,
+          lastLoginAt: users.lastLoginAt,
+          loginCount: users.loginCount,
           identityAggregateTrustScore: users.aggregateTrustScore,
           identityTotalViolations: users.totalViolations,
         })
@@ -217,7 +221,8 @@ export const fullRoutes: FastifyPluginAsync = async (app) => {
           gs.progress_ms, gs.total_duration_ms, gs.segment_count, gs.watched, gs.state,
           s.server_id, sv.name AS server_name, s.server_user_id, s.session_key,
           s.media_type, s.media_title, s.grandparent_title, s.season_number,
-          s.episode_number, s.year, s.thumb_path, s.rating_key, s.external_session_id,
+          s.episode_number, s.year, s.thumb_path, s.media_id, s.show_media_id,
+          s.rating_key, s.external_session_id,
           s.reference_id, s.ip_address, s.geo_city, s.geo_region, s.geo_country,
           s.geo_continent, s.geo_postal, s.geo_lat, s.geo_lon,
           s.geo_asn_number, s.geo_asn_organization,
@@ -244,6 +249,8 @@ export const fullRoutes: FastifyPluginAsync = async (app) => {
         episodeNumber: row.episode_number as number | null,
         year: row.year as number | null,
         thumbPath: row.thumb_path as string | null,
+        mediaId: row.media_id as string | null,
+        showMediaId: row.show_media_id as string | null,
         ratingKey: row.rating_key as string | null,
         externalSessionId: row.external_session_id as string | null,
         startedAt: row.started_at as Date,

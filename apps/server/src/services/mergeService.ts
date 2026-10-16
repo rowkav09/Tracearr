@@ -7,8 +7,26 @@
  */
 
 import { alias } from 'drizzle-orm/pg-core';
-import { and, asc, desc, eq, inArray, isNull, like, lt, ne, or, sql } from 'drizzle-orm';
-import { canLogin, rankMergeTarget, type MergeRankInput, type UserRole } from '@tracearr/shared';
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  inArray,
+  isNull,
+  like,
+  lt,
+  ne,
+  notInArray,
+  or,
+  sql,
+} from 'drizzle-orm';
+import {
+  rankMergeTarget,
+  type LoginAccess,
+  type MergeRankInput,
+  type UserRole,
+} from '@tracearr/shared';
 import type {
   DismissedMergeSuggestion,
   MergeSuggestion,
@@ -39,6 +57,7 @@ import {
 import { uncapDecompressionForTx } from '../db/timescale.js';
 import { invalidateAutomationsCache } from '../jobs/poller/database.js';
 import { getAuth } from '../lib/auth.js';
+import { refreshUserSessionSnapshots, revokeSessionsForUsers } from '../lib/revoke.js';
 import { representativeAccountOrderSql } from '../utils/representativeAccount.js';
 import {
   recomputeIdentityAggregates,
@@ -82,9 +101,27 @@ export class SameServerCombineNotConfirmedError extends MergeValidationError {
   }
 }
 
+// A merge never lets the combined person in where either half was kept out: losing an allow is
+// the fail-closed direction, and a value this code does not know counts as block.
+const strictness = (access: string): number =>
+  access === 'allow' ? 0 : access === 'default' ? 1 : 2;
+
+export function stricterLoginAccess(a: LoginAccess, b: LoginAccess): LoginAccess {
+  const stricter = strictness(a) >= strictness(b) ? a : b;
+  return strictness(stricter) === 2 ? 'block' : stricter;
+}
+
+/**
+ * Media server sign-in finds the person through their server account and then writes this row onto
+ * whoever owns it, so the row is no way in on its own and follows the account through a merge or
+ * split. A password or OIDC row is the lookup itself, so it still makes its identity login-capable.
+ */
+export const MEDIA_AUTH_PROVIDERS = ['plex', 'jellyfin', 'emby'];
+
 export function isLoginCapable(user: MergeIdentitySnapshot): boolean {
   return (
-    canLogin(user.role) ||
+    user.role === 'owner' ||
+    user.role === 'admin' ||
     user.passwordHash !== null ||
     user.plexAccountId !== null ||
     user.linkedPlexAccountCount > 0 ||
@@ -151,7 +188,12 @@ async function loadIdentitySnapshot(tx: Tx, userId: string): Promise<MergeIdenti
   const [authAccountCountRow] = await tx
     .select({ count: sql<number>`count(*)::int` })
     .from(authAccounts)
-    .where(eq(authAccounts.userId, userId));
+    .where(
+      and(
+        eq(authAccounts.userId, userId),
+        notInArray(authAccounts.providerId, MEDIA_AUTH_PROVIDERS)
+      )
+    );
   return {
     id: user.id,
     role: user.role,
@@ -225,11 +267,22 @@ async function repointIdentityRows(
   // reverse: it records which admin manually triggered a termination, not an
   // attribute of the terminated account, so there is no source-identity row to
   // faithfully hand back. It stays on the target after both merge and split.
-  // Better Auth login rows (auth_accounts / auth_sessions) are deliberately
-  // never touched here. assertMergeDirection already proved the source owns
-  // zero auth_accounts rows, so there is nothing to repoint; its sessions are
-  // revoked (not moved) through internalAdapter in mergeUsers instead, since
-  // Better Auth has no primitive to re-key a session onto another user.
+  // assertMergeDirection already proved the source owns no password or OIDC
+  // row, so only media server rows are left, and they follow the server
+  // accounts that just moved. Moving them keeps each Jellyfin or Emby token
+  // where the next sign-in looks for it to log out, instead of stranding it.
+  // Not recorded for split: split moves them by the account they name. The
+  // source's sessions are revoked (not moved) through internalAdapter in
+  // mergeUsers, since Better Auth has no primitive to re-key a session.
+  await tx
+    .update(authAccounts)
+    .set({ userId: targetUserId, updatedAt: new Date() })
+    .where(
+      and(
+        eq(authAccounts.userId, sourceUserId),
+        inArray(authAccounts.providerId, MEDIA_AUTH_PROVIDERS)
+      )
+    );
   return {
     plexAccountIds: movedPlexAccounts.map((r) => r.id),
     mobileSessionIds: movedMobileSessions.map((r) => r.id),
@@ -434,15 +487,16 @@ export async function mergeUsers(
       );
     }
 
-    // The direction check above already proved the source owns zero
-    // auth_accounts rows. Revoke its Better Auth sessions before the first
+    // The direction check above already proved the source has no password or
+    // OIDC login, and its media server sign-in lands on the target once the
+    // accounts move. Revoke its Better Auth sessions before the first
     // destructive write below so a ghost Redis session cannot keep working
     // for up to 30 days after the source row is deleted (deleting the row by
     // SQL clears the DB session rows via cascade but never touches the Redis
     // secondary storage). This writes through Better Auth's own connection,
     // not this transaction: if the transaction later aborts, the worst case
-    // is a revoked session for a user who could not log in anyway (safe
-    // direction, fail-closed). It must stay after the confirmation guard
+    // is a revoked session that signing in again restores (safe direction,
+    // fail-closed). It must stay after the confirmation guard
     // above so a rejected merge leaves the source's sessions untouched.
     await (await getAuth().$context).internalAdapter.deleteUserSessions(sourceUserId);
 
@@ -537,6 +591,21 @@ export async function mergeUsers(
         )
       );
 
+    const [targetAccess] = await tx
+      .select({ loginAccess: users.loginAccess })
+      .from(users)
+      .where(eq(users.id, targetUserId))
+      .limit(1);
+    if (targetAccess) {
+      const loginAccess = stricterLoginAccess(sourceUser.loginAccess, targetAccess.loginAccess);
+      if (loginAccess !== targetAccess.loginAccess) {
+        await tx
+          .update(users)
+          .set({ loginAccess, updatedAt: new Date() })
+          .where(eq(users.id, targetUserId));
+      }
+    }
+
     await tx.delete(users).where(eq(users.id, sourceUserId));
 
     const [audit] = await tx
@@ -579,11 +648,8 @@ export async function mergeUsers(
   // (the snapshot freezes the user object at write time). Refresh it here so
   // stale identity data does not survive until the snapshot expires (up to
   // 30 days).
-  const authCtx = await getAuth().$context;
-  const freshTarget = await authCtx.internalAdapter.findUserById(targetUserId);
-  if (freshTarget) {
-    await authCtx.internalAdapter.refreshUserSessions(freshTarget);
-  }
+  await refreshUserSessionSnapshots(targetUserId);
+  await revokeSessionsForUsers([sourceUserId, targetUserId]);
 
   return result;
 }
@@ -669,7 +735,14 @@ export async function splitServerUser(
     // Raw insert, not Better Auth's create-user path: user.create.before
     // enforces single-owner/claim-code signup rules that would wrongly
     // reject or mutate this restored identity, which is not a new signup.
-    // Role is always member on a split identity; splitting never grants login.
+    // Role is always member on a split identity, and anything stricter than
+    // default on the person it came from stays block; splitting never grants
+    // login.
+    const [splitFrom] = await tx
+      .select({ loginAccess: users.loginAccess })
+      .from(users)
+      .where(eq(users.id, serverUser.userId))
+      .limit(1);
     const [newUser] = await tx
       .insert(users)
       .values({
@@ -679,6 +752,10 @@ export async function splitServerUser(
         contactEmail: identity.contactEmail ?? null,
         thumbnail: identity.thumbnail,
         role: 'member',
+        loginAccess:
+          splitFrom?.loginAccess === 'allow' || splitFrom?.loginAccess === 'default'
+            ? 'default'
+            : 'block',
       })
       .returning();
 
@@ -687,6 +764,40 @@ export async function splitServerUser(
       .update(serverUsers)
       .set({ userId: newUser!.id, updatedAt: new Date() })
       .where(eq(serverUsers.id, serverUserId));
+
+    // The sign-in rows that name this account go with it, so blocking the old identity later can
+    // never log out this person's Jellyfin or Emby token. A plex.tv account the old identity still
+    // has on another Plex server keeps its row there.
+    const [plexStillOnOld] = serverUser.plexAccountId
+      ? await tx
+          .select({ id: serverUsers.id })
+          .from(serverUsers)
+          .where(
+            and(
+              eq(serverUsers.userId, oldUserId),
+              eq(serverUsers.plexAccountId, serverUser.plexAccountId)
+            )
+          )
+          .limit(1)
+      : [];
+    const namesThisAccount = [
+      and(
+        inArray(authAccounts.providerId, ['jellyfin', 'emby']),
+        eq(authAccounts.accountId, `${serverUser.serverId}:${serverUser.externalId}`)
+      ),
+      ...(serverUser.plexAccountId && !plexStillOnOld
+        ? [
+            and(
+              eq(authAccounts.providerId, 'plex'),
+              eq(authAccounts.accountId, serverUser.plexAccountId)
+            ),
+          ]
+        : []),
+    ];
+    await tx
+      .update(authAccounts)
+      .set({ userId: newUser!.id, updatedAt: new Date() })
+      .where(and(eq(authAccounts.userId, oldUserId), or(...namesThisAccount)));
 
     if (audit) {
       // Move exactly the plex_accounts / mobile_sessions / mobile_tokens rows
@@ -752,11 +863,8 @@ export async function splitServerUser(
   // target does not keep stale identity data until the snapshot expires (up
   // to 30 days). The new identity is skipped: it was just created and
   // cannot have any sessions yet.
-  const authCtx = await getAuth().$context;
-  const freshOldUser = await authCtx.internalAdapter.findUserById(result.oldUserId);
-  if (freshOldUser) {
-    await authCtx.internalAdapter.refreshUserSessions(freshOldUser);
-  }
+  await refreshUserSessionSnapshots(result.oldUserId);
+  await revokeSessionsForUsers([result.oldUserId, result.newUserId]);
 
   return { newUserId: result.newUserId, serverUserId: result.serverUserId };
 }
@@ -905,7 +1013,12 @@ async function loadMergeIdentities(
     db
       .select({ userId: authAccounts.userId, count: sql<number>`count(*)::int` })
       .from(authAccounts)
-      .where(inArray(authAccounts.userId, userIds))
+      .where(
+        and(
+          inArray(authAccounts.userId, userIds),
+          notInArray(authAccounts.providerId, MEDIA_AUTH_PROVIDERS)
+        )
+      )
       .groupBy(authAccounts.userId),
     // All-time count, so there is no started_at bound to prune chunks with. The
     // daily_bandwidth_by_user aggregate would be cheaper but only exists when the
