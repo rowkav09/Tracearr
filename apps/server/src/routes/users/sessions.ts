@@ -15,13 +15,14 @@ import { uuidArraySql } from '../../utils/sqlArrays.js';
 import { localSessionSql } from '../../utils/localSession.js';
 
 export const sessionsRoutes: FastifyPluginAsync = async (app) => {
+  const readSessions = { preHandler: [app.requirePermission('sessions', 'read')] };
   /**
    * GET /:id/sessions - Get user's session history (grouped by play)
    *
    * scope=identity expands the result to every account under the same
    * person that the caller can access.
    */
-  app.get('/:id/sessions', { preHandler: [app.authenticate] }, async (request, reply) => {
+  app.get('/:id/sessions', readSessions, async (request, reply) => {
     const params = userIdParamSchema.safeParse(request.params);
     if (!params.success) {
       return reply.badRequest('Invalid user ID');
@@ -37,7 +38,7 @@ export const sessionsRoutes: FastifyPluginAsync = async (app) => {
     const authUser = request.user;
     const offset = (page - 1) * pageSize;
 
-    const scoped = await resolveIdentityScopedServerUserIds(db, authUser, id, scope);
+    const scoped = await resolveIdentityScopedServerUserIds(db, authUser, id, scope, request.scope);
     if ('error' in scoped) {
       if (scoped.error === 'notFound') {
         return reply.notFound('User not found');
@@ -105,6 +106,8 @@ export const sessionsRoutes: FastifyPluginAsync = async (app) => {
         s.episode_number,
         s.year,
         s.thumb_path,
+        s.media_id,
+        s.show_media_id,
         s.rating_key,
         s.external_session_id,
         s.reference_id,
@@ -156,6 +159,8 @@ export const sessionsRoutes: FastifyPluginAsync = async (app) => {
         episode_number: number | null;
         year: number | null;
         thumb_path: string | null;
+        media_id: string | null;
+        show_media_id: string | null;
         rating_key: string | null;
         external_session_id: string | null;
         reference_id: string | null;
@@ -195,6 +200,8 @@ export const sessionsRoutes: FastifyPluginAsync = async (app) => {
       episodeNumber: row.episode_number,
       year: row.year,
       thumbPath: row.thumb_path,
+      mediaId: row.media_id,
+      showMediaId: row.show_media_id,
       ratingKey: row.rating_key,
       externalSessionId: row.external_session_id,
       startedAt: row.started_at,

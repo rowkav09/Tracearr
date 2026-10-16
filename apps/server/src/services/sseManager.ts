@@ -36,7 +36,7 @@ import {
 import { recordServerStatsSample } from './serverLiveStats.js';
 import { getRedis } from '../lib/redisShared.js';
 import { probeSsePlugin } from './mediaServer/shared/ssePluginProbe.js';
-import { broadcastToAll } from '../websocket/index.js';
+import { broadcastToSessions } from '../websocket/index.js';
 import { isLeader } from './leaderLease.js';
 import { triggerServerPoll } from '../jobs/poller/index.js';
 import { compareVersions } from '../utils/pluginVersion.js';
@@ -611,7 +611,7 @@ export class SSEManager extends EventEmitter {
         });
     }
 
-    broadcastToAll(WS_EVENTS.SERVER_CONNECTION as 'server:connection', connectionStatus);
+    broadcastToSessions(WS_EVENTS.SERVER_CONNECTION as 'server:connection', connectionStatus);
   }
 
   /**
@@ -621,7 +621,8 @@ export class SSEManager extends EventEmitter {
    */
   private diagnoseUnsupported(serverId: string): void {
     const connection = this.connections.get(serverId);
-    if (!connection || connection.serverType === 'plex' || connection.serverType === 'navidrome') return;
+    if (!connection || connection.serverType === 'plex' || connection.serverType === 'navidrome')
+      return;
     if (this.pluginProbesInFlight.has(serverId)) return;
 
     const now = Date.now();
@@ -695,7 +696,7 @@ export class SSEManager extends EventEmitter {
         console.error(`[SSEManager] Failed to write connection status for ${serverName}:`, err);
       });
 
-      broadcastToAll(WS_EVENTS.SERVER_CONNECTION as 'server:connection', connStatus);
+      broadcastToSessions(WS_EVENTS.SERVER_CONNECTION as 'server:connection', connStatus);
     }
   }
 

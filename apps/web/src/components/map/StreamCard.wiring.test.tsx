@@ -112,6 +112,9 @@ vi.mock('pmtiles', () => ({
   },
 }));
 vi.mock('@protomaps/basemaps', () => ({ layers: () => [], namedFlavor: () => ({}) }));
+const auth = vi.hoisted(() => ({ user: { role: 'owner' } }));
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => auth }));
+
 vi.mock('@/components/theme-provider', () => ({
   useTheme: () => ({ theme: 'dark', accentHue: 187 }),
 }));
@@ -156,5 +159,64 @@ describe('StreamCard marker popup wiring', () => {
     await waitFor(() => expect(screen.getByText('Blade Runner')).toBeInTheDocument());
     const connected = new Set(popupInstances.map((i) => i.container).filter((c) => c?.isConnected));
     expect(connected.size).toBe(1);
+  });
+});
+
+describe('StreamCard session popup', () => {
+  it('links the person to their user page for an owner only', async () => {
+    const { unmount } = render(
+      <MemoryRouter>
+        <StreamCard sessions={[session]} />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(markerEls.some((el) => el.isConnected)).toBe(true));
+    let connected = markerEls.filter((el) => el.isConnected);
+    fireEvent.click(connected[connected.length - 1]!);
+    expect(await screen.findByRole('link', { name: /gallapagos/ })).toHaveAttribute(
+      'href',
+      '/users/u1'
+    );
+    unmount();
+
+    auth.user.role = 'member';
+    render(
+      <MemoryRouter>
+        <StreamCard sessions={[session]} />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(markerEls.some((el) => el.isConnected)).toBe(true));
+    connected = markerEls.filter((el) => el.isConnected);
+    fireEvent.click(connected[connected.length - 1]!);
+    expect(await screen.findByText('gallapagos')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /gallapagos/ })).toBeNull();
+    auth.user.role = 'owner';
+  });
+
+  it('links the show and the episode to their media pages', async () => {
+    const episode = {
+      ...(session as object),
+      id: 's2',
+      mediaType: 'episode',
+      mediaTitle: 'Pilot',
+      grandparentTitle: 'Lost',
+      seasonNumber: 1,
+      episodeNumber: 2,
+      mediaId: 'episode-1',
+      showMediaId: 'show-1',
+    } as never;
+    render(
+      <MemoryRouter>
+        <StreamCard sessions={[episode]} />
+      </MemoryRouter>
+    );
+    await waitFor(() => expect(markerEls.some((el) => el.isConnected)).toBe(true));
+    const connected = markerEls.filter((el) => el.isConnected);
+    fireEvent.click(connected[connected.length - 1]!);
+
+    expect(await screen.findByRole('link', { name: 'Lost' })).toHaveAttribute(
+      'href',
+      '/media/show-1'
+    );
+    expect(screen.getByRole('link', { name: /Pilot/ })).toHaveAttribute('href', '/media/episode-1');
   });
 });
