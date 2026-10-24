@@ -5,6 +5,7 @@
 import { Queue, UnrecoverableError, Worker, type Job, type ConnectionOptions } from 'bullmq';
 import type { GroupEvidence } from '@tracearr/shared';
 import { getBullPrefix, queueConnectionOptions } from './queueConnection.js';
+import { WORKER_DEFAULTS, registerQueue, registerWorker, yieldJob } from './jobSafety.js';
 import {
   eventTypeOf,
   type NotificationEvent,
@@ -30,6 +31,8 @@ export interface NotificationJob {
 
 const QUEUE_NAME = 'notifications-v2';
 const DLQ_NAME = 'notifications-v2-dlq';
+/** A rate-limited job waits out the platform's retry_after for this long after it was queued, then fails as usual. */
+const RATE_LIMIT_WAIT_MAX_MS = 60 * 60 * 1000;
 
 // Connection options (will be set during initialization)
 let connectionOptions: ConnectionOptions | null = null;
@@ -74,6 +77,7 @@ export function initNotificationQueue(redisUrl: string): void {
   notificationQueue.on('error', (err) => {
     if (!isMaintenance()) console.error('Notification queue error:', err);
   });
+  registerQueue(notificationQueue);
 
   // Create dead letter queue for jobs that fail all retries
   dlqQueue = new Queue<NotificationJob>(DLQ_NAME, {
@@ -93,6 +97,7 @@ export function initNotificationQueue(redisUrl: string): void {
   dlqQueue.on('error', (err) => {
     if (!isMaintenance()) console.error('Notification DLQ error:', err);
   });
+  registerQueue(dlqQueue);
 
   console.log('Notification queue initialized');
 }
@@ -114,7 +119,7 @@ export function startNotificationWorker(): void {
 
   notificationWorker = new Worker<NotificationJob>(
     QUEUE_NAME,
-    async (job: Job<NotificationJob>) => {
+    async (job: Job<NotificationJob>, token?: string) => {
       const startTime = Date.now();
 
       try {
@@ -125,6 +130,13 @@ export function startNotificationWorker(): void {
           `Notification job ${job.id} (${job.data.event.type}) processed in ${duration}ms`
         );
       } catch (error) {
+        const { retryAfterMs } = error as { retryAfterMs?: number };
+        if (retryAfterMs !== undefined && Date.now() - job.timestamp < RATE_LIMIT_WAIT_MAX_MS) {
+          console.warn(
+            `Notification job ${job.id} (${job.data.event.type}) rate limited; retrying in ${retryAfterMs}ms`
+          );
+          await yieldJob(job, token, retryAfterMs);
+        }
         const duration = Date.now() - startTime;
         console.error(
           `Notification job ${job.id} (${job.data.event.type}) failed after ${duration}ms:`,
@@ -141,8 +153,10 @@ export function startNotificationWorker(): void {
         max: 30, // Max 30 jobs per duration
         duration: 1000, // Per second (rate limit for external services)
       },
+      ...WORKER_DEFAULTS,
     }
   );
+  registerWorker(notificationWorker);
 
   notificationWorker.on('failed', (job, error) => {
     if (!job) return;

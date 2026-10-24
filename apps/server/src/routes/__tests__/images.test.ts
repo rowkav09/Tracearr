@@ -3,7 +3,6 @@
  *
  * Tests the API endpoints for image proxy functionality:
  * - GET /images/proxy - Proxy an image from a media server
- * - GET /images/avatar - Get a user avatar
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -436,23 +435,29 @@ describe('Image Routes', () => {
       expect(mockProxyImage).not.toHaveBeenCalled();
     });
 
-    it('rejects a versioned request whose height does not match the poster size', async () => {
+    it('takes a versioned request only at the poster or the square art size', async () => {
       app = await buildTestApp();
-
-      const response = await app.inject({
-        method: 'GET',
-        url: '/images/proxy',
-        query: {
-          server: validServerId,
-          url: '/path',
-          width: '360',
-          height: '500',
-          v: 'abcd1234',
-        },
+      mockProxyImage.mockResolvedValue({
+        data: Buffer.from('x'),
+        contentType: 'image/webp',
+        cached: true,
       });
+      const versioned = (height: string) =>
+        app.inject({
+          method: 'GET',
+          url: '/images/proxy',
+          query: { server: validServerId, url: '/path', width: '360', height, v: 'abcd1234' },
+        });
 
-      expect(response.statusCode).toBe(400);
+      expect((await versioned('500')).statusCode).toBe(400);
       expect(mockProxyImage).not.toHaveBeenCalled();
+
+      const square = await versioned('360');
+      expect(square.statusCode).toBe(200);
+      expect(square.headers['cache-control']).toBe('public, max-age=31536000, immutable');
+      expect(mockProxyImage).toHaveBeenLastCalledWith(
+        expect.objectContaining({ width: 360, height: 360, version: 'abcd1234' })
+      );
     });
 
     it('passes lqip through only when the query says 1', async () => {
@@ -472,145 +477,6 @@ describe('Image Routes', () => {
         url: `/images/proxy?server=${validServerId}&url=/p&width=360&height=540`,
       });
       expect(mockProxyImage).toHaveBeenLastCalledWith(expect.objectContaining({ lqip: false }));
-    });
-  });
-
-  describe('GET /images/avatar', () => {
-    it('returns avatar from media server when server and url provided', async () => {
-      app = await buildTestApp();
-
-      const mockImageData = Buffer.from('avatar-data');
-      mockProxyImage.mockResolvedValue({
-        data: mockImageData,
-        contentType: 'image/png',
-        cached: false,
-      });
-
-      const response = await app.inject({
-        method: 'GET',
-        url: '/images/avatar',
-        query: {
-          server: validServerId,
-          url: '/users/123/avatar',
-        },
-      });
-
-      expect(response.statusCode).toBe(200);
-      expect(response.headers['content-type']).toBe('image/png');
-      expect(response.headers['cache-control']).toContain('public');
-      expect(response.rawPayload).toEqual(mockImageData);
-
-      expect(mockProxyImage).toHaveBeenCalledWith({
-        serverId: validServerId,
-        imagePath: '/users/123/avatar',
-        width: 100,
-        height: 100,
-        fallback: 'avatar',
-      });
-    });
-
-    it('accepts custom size parameter', async () => {
-      app = await buildTestApp();
-
-      mockProxyImage.mockResolvedValue({
-        data: Buffer.from('avatar'),
-        contentType: 'image/jpeg',
-        cached: false,
-      });
-
-      const response = await app.inject({
-        method: 'GET',
-        url: '/images/avatar',
-        query: {
-          server: validServerId,
-          url: '/avatar',
-          size: '200',
-        },
-      });
-
-      expect(response.statusCode).toBe(200);
-      expect(mockProxyImage).toHaveBeenCalledWith(
-        expect.objectContaining({
-          width: 200,
-          height: 200,
-        })
-      );
-    });
-
-    it('returns fallback avatar when no server provided', async () => {
-      app = await buildTestApp();
-
-      const mockFallbackData = Buffer.from('fallback-avatar');
-      mockProxyImage.mockResolvedValue({
-        data: mockFallbackData,
-        contentType: 'image/svg+xml',
-        cached: false,
-      });
-
-      const response = await app.inject({
-        method: 'GET',
-        url: '/images/avatar',
-      });
-
-      expect(response.statusCode).toBe(200);
-      expect(response.headers['cache-control']).toContain('public');
-
-      expect(mockProxyImage).toHaveBeenCalledWith({
-        serverId: 'fallback',
-        imagePath: 'fallback',
-        width: 100,
-        height: 100,
-        fallback: 'avatar',
-      });
-    });
-
-    it('returns fallback avatar when server provided but no url', async () => {
-      app = await buildTestApp();
-
-      const mockFallbackData = Buffer.from('fallback-avatar');
-      mockProxyImage.mockResolvedValue({
-        data: mockFallbackData,
-        contentType: 'image/svg+xml',
-        cached: false,
-      });
-
-      const response = await app.inject({
-        method: 'GET',
-        url: '/images/avatar',
-        query: {
-          server: validServerId,
-        },
-      });
-
-      expect(response.statusCode).toBe(200);
-
-      // Without URL, should use fallback
-      expect(mockProxyImage).toHaveBeenCalledWith({
-        serverId: 'fallback',
-        imagePath: 'fallback',
-        width: 100,
-        height: 100,
-        fallback: 'avatar',
-      });
-    });
-
-    it('sets longer cache for fallback avatars', async () => {
-      app = await buildTestApp();
-
-      mockProxyImage.mockResolvedValue({
-        data: Buffer.from('fallback'),
-        contentType: 'image/svg+xml',
-        cached: false,
-      });
-
-      const response = await app.inject({
-        method: 'GET',
-        url: '/images/avatar',
-      });
-
-      expect(response.statusCode).toBe(200);
-      // Fallback should have longer cache (86400 seconds = 1 day)
-      expect(response.headers['cache-control']).toContain('max-age=86400');
     });
   });
 

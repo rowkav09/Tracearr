@@ -90,7 +90,7 @@
     "criticalOverrideDescription": "Erittäin vakavat rikkomukset silti ilmoitetaan hiljaisena aikana",
     "rateLimitDescription": "Rajoitukset estävät ilmoitustulvaa. Nykyiset rajat:  {{perMinute}}/min, {{perHour}}/h.",
     "sendTestNotification": "Lähetä testi-ilmoitus",
-    "testDescription": "Vahvista, että push-ilmoitukset toimivat oikein",
+    "testReach": "",
     "pushNotifications": "Push-ilmoitukset",
     "ruleTypes": {
       "accountInactivity": "Tilin passiivisuus",
@@ -102,7 +102,18 @@
     "severityAll": "Kaikki",
     "severityHighOnly": "Vain korkeat",
     "severityWarningUp": "Varoitus+",
-    "violationTypes": "Rikkomustyypit"
+    "violationTypes": "Rikkomustyypit",
+    "backgroundRefreshOff": "",
+    "permissionOff": "",
+    "openSettings": "",
+    "tokenMissing": "",
+    "destinationOff": "",
+    "everyViolationSent": "",
+    "noViolationSender": "",
+    "noAutomationSends": "",
+    "eventsFooter": "",
+    "sentByAutomations_one": "",
+    "sentByAutomations_other": ""
   },
   "session": {
     "streamTerminated": "Striimi lopetettu",
@@ -138,6 +149,7 @@
     "allServers": "Kaikki palvelimet",
     "noAlertsRecorded": "Hälytyksiä ei ole vielä tallennettu.",
     "noMatches": "Ei vastaavia hälytyksiä",
+    "selectAlert": "",
     "acknowledgeAllTitle_one": "Kuittaa {{count}} hälytys?",
     "acknowledgeAllTitle_other": "Kuittaa {{count}} hälytystä?",
     "pendingCount_one": "{{count}} odottaa",
@@ -146,6 +158,7 @@
   "history": {
     "adjustFilters": "Kokeile muokata suodattimia",
     "historyWillAppear": "Istuntohistoria ilmestyy tänne, kun käyttäjät alkavat suoratoistaa",
+    "selectSession": "",
     "filters": {
       "clearCount": "Tyhjennä ({{count}})",
       "countries": "Maat",
@@ -165,7 +178,8 @@
     "noUsersMatch": "Ei täsmääviä käyttäjiä \"{{query}}\"",
     "joinedRelative": "Liittynyt {{relative}}",
     "sortActive": "Aktiiviset",
-    "sortTrust": "Luottamus"
+    "sortTrust": "Luottamus",
+    "selectUser": ""
   },
   "activity": {
     "playsOverTime": "Toistot ajan mittaan",
@@ -175,15 +189,15 @@
   },
   "unauthenticated": {
     "connectionLost": "Yhteys katkesi",
-    "accessRevoked": "Sinun käyttöoikeutesi {{serverName}} on kumottu. Kysy palvelimen omistajalta uutta parikoodia.",
-    "deviceRemoved": "",
-    "expired": "",
+    "accessRevoked": "Käyttöoikeutesi palvelimella {{serverName}} on kumottu. Parita se uudelleen verkkosovelluksesta saatavalla uudella koodilla.",
+    "deviceRemoved": "Tämä laite poistettiin palvelimelta {{serverName}}. Parita se uudelleen verkkosovelluksesta saatavalla uudella koodilla.",
+    "expired": "Palvelin {{serverName}} kirjasi tämän laitteen ulos 30 päivän käyttämättömyyden jälkeen. Parita se uudelleen verkkosovelluksesta saatavalla uudella koodilla.",
     "scanQrCode": "Skannaa QR-koodi"
   },
   "clientTooOld": {
-    "title": "",
-    "body": "",
-    "update": ""
+    "title": "Päivitä Tracearr",
+    "body": "Palvelin {{serverName}} tarvitsee uudemman Tracearr-version.",
+    "update": "Päivitä"
   },
   "serverSelector": {
     "servers": "Palvelimet",

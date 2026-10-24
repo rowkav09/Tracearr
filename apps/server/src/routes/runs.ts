@@ -58,9 +58,10 @@ const INSTALL_SUBJECT_KEY = 'install';
 
 /**
  * A media subject names its library item after the prefix; every other subject key
- * is an id of its own, so the cast only ever sees the media rows.
+ * is an id of its own, so the cast only ever sees the media rows. The offset is cast
+ * because Postgres types a bare parameter there as text and runs the regex substring().
  */
-const mediaSubjectId = sql`CASE WHEN ${automationRuns.subjectKey} LIKE ${`${MEDIA_SUBJECT_PREFIX}%`} THEN substring(${automationRuns.subjectKey} FROM ${MEDIA_SUBJECT_PREFIX.length + 1})::uuid END`;
+const mediaSubjectId = sql`CASE WHEN ${automationRuns.subjectKey} LIKE ${`${MEDIA_SUBJECT_PREFIX}%`} THEN substring(${automationRuns.subjectKey} FROM ${MEDIA_SUBJECT_PREFIX.length + 1}::int)::uuid END`;
 
 /** Everything the summary shape needs; the step log stays out by construction. */
 const runSummaryColumns = {
@@ -218,6 +219,8 @@ async function loadSessionContext(sessionId: string | null): Promise<RunSessionC
       mediaTitle: sessions.mediaTitle,
       mediaType: sessions.mediaType,
       grandparentTitle: sessions.grandparentTitle,
+      mediaId: sessions.mediaId,
+      showMediaId: sessions.showMediaId,
       player: sessions.playerName,
       device: sessions.device,
       product: sessions.product,
@@ -258,6 +261,8 @@ function storedSessionContext(row: {
     city: null,
     country: null,
     isLocal: false,
+    mediaId: null,
+    showMediaId: null,
   };
 }
 
@@ -299,10 +304,11 @@ function emptyCounts(): RunCounts {
 }
 
 export const runRoutes: FastifyPluginAsync = async (app) => {
+  const readRuns = { preHandler: [app.requirePermission('runs', 'read')] };
   /**
    * GET /runs/counts - How many runs each outcome holds, under the same filters
    */
-  app.get('/counts', { preHandler: [app.authenticate] }, async (request, reply) => {
+  app.get('/counts', readRuns, async (request, reply) => {
     const query = runCountsQuerySchema.safeParse(request.query);
     if (!query.success) {
       return reply.badRequest('Invalid query parameters');
@@ -340,7 +346,7 @@ export const runRoutes: FastifyPluginAsync = async (app) => {
   /**
    * GET /runs - Every automation's runs, newest first
    */
-  app.get('/', { preHandler: [app.authenticate] }, async (request, reply) => {
+  app.get('/', readRuns, async (request, reply) => {
     const query = runListQuerySchema.safeParse(request.query);
     if (!query.success) {
       return reply.badRequest('Invalid query parameters');
@@ -373,7 +379,7 @@ export const runRoutes: FastifyPluginAsync = async (app) => {
   /**
    * GET /runs/:id - One run with its step log
    */
-  app.get('/:id', { preHandler: [app.authenticate] }, async (request, reply) => {
+  app.get('/:id', readRuns, async (request, reply) => {
     const params = runIdParamSchema.safeParse(request.params);
     if (!params.success) {
       return reply.badRequest('Invalid run ID');

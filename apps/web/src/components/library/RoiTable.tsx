@@ -1,8 +1,7 @@
 import { BarChart } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import type { RoiResponse } from '@tracearr/shared';
-import type { Server } from '@tracearr/shared';
-import { Badge } from '@/components/ui/badge';
+import type { LibraryRoiQueryInput, RoiResponse, Server } from '@tracearr/shared';
+import { formatIsoDay } from '@/lib/dateFormat';
 import { DataTablePager } from '@/components/ui/data-table';
 import {
   Select,
@@ -19,9 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useServerColorMap } from '@/hooks/useServerColorMap';
 import { ServerColumnCell } from '@/components/server';
-import { ValueCategoryBadge } from '@/components/library';
 import { EmptyState } from '@/components/ui/empty-state';
 import { MediaTypeBadge } from './badges';
 import {
@@ -30,8 +27,8 @@ import {
   type SortOrder,
 } from '@/components/ui/sortable-table-head';
 
-type SortBy = 'watch_hours_per_gb' | 'value_score' | 'file_size' | 'title';
-type MediaTypeFilter = 'all' | 'movie' | 'show' | 'artist';
+type SortBy = LibraryRoiQueryInput['sortBy'];
+type MediaTypeFilter = LibraryRoiQueryInput['mediaType'];
 
 interface RoiTableProps {
   data: RoiResponse | undefined;
@@ -49,7 +46,7 @@ interface RoiTableProps {
 
 /**
  * Table component for displaying ROI (Return on Investment) analysis.
- * Server-side sortable by watch hours, file size, hours per GB, and title.
+ * Server-side sortable by title, file size, watch hours, hours per GB, and last watched.
  */
 export function RoiTable({
   data,
@@ -64,9 +61,7 @@ export function RoiTable({
   isMultiServer = false,
   selectedServers = [],
 }: RoiTableProps) {
-  const { t } = useTranslation('common');
-
-  const colorMap = useServerColorMap();
+  const { t } = useTranslation(['pages', 'common']);
 
   const handleSort = (field: SortBy) => {
     onSortChange(field, nextSortOrder(field, sortBy, sortOrder, 'asc'));
@@ -78,10 +73,9 @@ export function RoiTable({
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="all">All Types</SelectItem>
-        <SelectItem value="movie">Movies</SelectItem>
-        <SelectItem value="show">TV Shows</SelectItem>
-        <SelectItem value="artist">Music</SelectItem>
+        <SelectItem value="all">{t('library.storage.stale.allTypes')}</SelectItem>
+        <SelectItem value="movie">{t('common:media.movie_plural')}</SelectItem>
+        <SelectItem value="show">{t('common:media.tvShows')}</SelectItem>
       </SelectContent>
     </Select>
   );
@@ -91,7 +85,7 @@ export function RoiTable({
       <div className="space-y-4">
         <div className="flex items-center justify-end">{filterSelect}</div>
         <div className="flex h-48 items-center justify-center">
-          <div className="text-muted-foreground">Loading ROI data...</div>
+          <div className="text-muted-foreground">{t('common:states.loading')}</div>
         </div>
       </div>
     );
@@ -103,8 +97,8 @@ export function RoiTable({
         <div className="flex items-center justify-end">{filterSelect}</div>
         <EmptyState
           icon={BarChart}
-          title="No ROI data available"
-          description="ROI analysis requires watch history data to calculate content value."
+          title={t('library.storage.roi.empty.title')}
+          description={t('library.storage.roi.empty.description')}
         />
       </div>
     );
@@ -120,76 +114,79 @@ export function RoiTable({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[60px]">Type</TableHead>
+            <TableHead className="w-[60px]">{t('common:labels.type')}</TableHead>
             <SortableTableHead
               field="title"
               sortBy={sortBy}
               sortOrder={sortOrder}
               onSort={handleSort}
             >
-              Title
+              {t('library.storage.colTitle')}
             </SortableTableHead>
-            {isMultiServer && <TableHead>Server</TableHead>}
+            {isMultiServer && <TableHead>{t('common:labels.server')}</TableHead>}
             <SortableTableHead
               field="file_size"
               sortBy={sortBy}
               sortOrder={sortOrder}
               onSort={handleSort}
             >
-              Size
+              {t('common:labels.size')}
             </SortableTableHead>
-            <TableHead>Watch Hours</TableHead>
+            <SortableTableHead
+              field="watch_hours"
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSort={handleSort}
+            >
+              {t('common:labels.watchHours')}
+            </SortableTableHead>
             <SortableTableHead
               field="watch_hours_per_gb"
               sortBy={sortBy}
               sortOrder={sortOrder}
               onSort={handleSort}
             >
-              Hours/GB
+              {t('library.storage.roi.columns.hoursPerGb')}
             </SortableTableHead>
-            <TableHead>Value</TableHead>
+            <SortableTableHead
+              field="last_watched"
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSort={handleSort}
+            >
+              {t('library.storage.roi.columns.lastWatched')}
+            </SortableTableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {data.items.map((item) => {
-            const serverColor = isMultiServer ? (colorMap.get(item.serverId) ?? null) : null;
-            const accentStyle = serverColor
-              ? { boxShadow: `inset 3px 0 0 0 ${serverColor}` }
-              : undefined;
-            const rowServer = isMultiServer
-              ? (selectedServers.find((s) => s.id === item.serverId) ?? null)
-              : null;
-
-            return (
-              <TableRow key={item.id} style={accentStyle}>
+          {data.items.map((item) => (
+            <TableRow key={item.id}>
+              <TableCell>
+                <MediaTypeBadge mediaType={item.mediaType} />
+              </TableCell>
+              <TableCell>
+                <span className="font-medium">{item.title}</span>
+                {item.year && <span className="text-muted-foreground ml-1">({item.year})</span>}
+              </TableCell>
+              {isMultiServer && (
                 <TableCell>
-                  <MediaTypeBadge mediaType={item.mediaType} />
+                  <div className="flex flex-wrap gap-1">
+                    {item.serverIds.map((sid) => {
+                      const server = selectedServers.find((s) => s.id === sid);
+                      if (!server) return null;
+                      return <ServerColumnCell key={sid} server={server} />;
+                    })}
+                  </div>
                 </TableCell>
-                <TableCell>
-                  <span className="font-medium">{item.title}</span>
-                  {item.year && <span className="text-muted-foreground ml-1">({item.year})</span>}
-                </TableCell>
-                {isMultiServer && (
-                  <TableCell>
-                    {rowServer ? (
-                      <ServerColumnCell server={rowServer} />
-                    ) : (
-                      <Badge variant="outline">{item.serverName}</Badge>
-                    )}
-                  </TableCell>
-                )}
-                <TableCell>{item.fileSizeGb.toFixed(1)} GB</TableCell>
-                <TableCell>{item.totalWatchHours.toFixed(1)}</TableCell>
-                <TableCell>{item.watchHoursPerGb.toFixed(2)}</TableCell>
-                <TableCell>
-                  <ValueCategoryBadge
-                    category={item.valueCategory}
-                    suggestDeletion={item.suggestDeletion}
-                  />
-                </TableCell>
-              </TableRow>
-            );
-          })}
+              )}
+              <TableCell>{item.fileSizeGb.toFixed(1)} GB</TableCell>
+              <TableCell>{item.totalWatchHours.toFixed(1)}</TableCell>
+              <TableCell>{item.watchHoursPerGb.toFixed(2)}</TableCell>
+              <TableCell>
+                {item.lastWatchedAt ? formatIsoDay(item.lastWatchedAt) : t('common:labels.never')}
+              </TableCell>
+            </TableRow>
+          ))}
         </TableBody>
       </Table>
 
@@ -202,11 +199,11 @@ export function RoiTable({
         onNext={() => onPageChange(page + 1)}
         onPage={onPageChange}
         labels={{
-          navigation: t('table.pagination'),
-          status: t('table.pageOf', { page, total: totalPages }),
-          previous: t('actions.previous'),
-          next: t('actions.next'),
-          goToPage: t('table.goToPage'),
+          navigation: t('common:table.pagination'),
+          status: t('common:table.pageOf', { page, total: totalPages }),
+          previous: t('common:actions.previous'),
+          next: t('common:actions.next'),
+          goToPage: t('common:table.goToPage'),
         }}
         className="px-2"
       />

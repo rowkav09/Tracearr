@@ -34,6 +34,8 @@ import {
   mergeMediaRows,
 } from '../../src/services/library/mediaResolutionService.js';
 import { setSetting } from '../../src/services/settings.js';
+import { permissionGuard } from '../../src/lib/scope.js';
+import { seedArtistOnTwoServers } from './musicFixtures.js';
 
 async function buildApp(authUser: AuthUser): Promise<FastifyInstance> {
   const app = Fastify({ logger: false });
@@ -41,6 +43,7 @@ async function buildApp(authUser: AuthUser): Promise<FastifyInstance> {
   app.decorate('authenticate', async (request: FastifyRequest) => {
     (request as FastifyRequest & { user: AuthUser }).user = authUser;
   });
+  app.decorate('requirePermission', permissionGuard(app));
   app.decorate('redis', createMockRedis() as unknown as Redis);
   await app.register(libraryCatalogRoute, { prefix: '/library' });
   return app;
@@ -51,7 +54,7 @@ function ownerFor(serverIds: string[] = []): AuthUser {
 }
 
 function viewerFor(serverIds: string[]): AuthUser {
-  return { userId: randomUUID(), username: 'viewer', role: 'viewer', serverIds };
+  return { userId: randomUUID(), username: 'viewer', role: 'admin', serverIds };
 }
 
 async function refreshPlaysAggregate(): Promise<void> {
@@ -1952,5 +1955,35 @@ describe('catalog letter index and offset windows against a real database', () =
     const { body: past } = await fetchCatalog(app, 'type=movie&sort=title&offset=50&pageSize=2');
     expect(past.data).toEqual([]);
     expect(past.meta.totalItems).toBe(5);
+  });
+});
+
+describe('catalog artists against a real database', () => {
+  it('counts each track chain once toward the artist and folds its albums across servers', async () => {
+    const music = await seedArtistOnTwoServers();
+    const app = await buildApp(ownerFor());
+
+    for (const sort of ['title', 'plays']) {
+      const res = await app.inject({
+        method: 'GET',
+        url: `/library/catalog?type=artist&sort=${sort}`,
+      });
+      expect(res.statusCode).toBe(200);
+      const body = res.json<CatalogResponse>();
+      expect(body.meta.totalItems).toBe(1);
+      expect(body.data).toEqual([
+        expect.objectContaining({
+          mediaId: music.artistMediaId,
+          mediaType: 'artist',
+          title: 'Daft Punk',
+          year: null,
+          albumCount: 2,
+          plays: 3,
+          viewers: 2,
+          posterUrl: expect.any(String),
+        }),
+      ]);
+      expect(body.data[0]).not.toHaveProperty('watchedStateSelf');
+    }
   });
 });

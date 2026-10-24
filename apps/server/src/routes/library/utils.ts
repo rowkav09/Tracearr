@@ -7,7 +7,22 @@
 
 import { sql, type SQL } from 'drizzle-orm';
 import type { Redis } from 'ioredis';
-import { REDIS_KEYS } from '@tracearr/shared';
+import { REDIS_KEYS, TIME_MS } from '@tracearr/shared';
+import { scopeFragment, type Scope } from '../../lib/scope.js';
+import { buildMultiServerFragment } from '../../utils/serverFiltering.js';
+
+// A library_items row `li` whose thumb_path names a real image. Jellyfin/Emby paths carry
+// ?tag= only when the item had a Primary image at sync time; an untagged one 404s. The same
+// test as HAS_KNOWN_IMAGE in jobs/imagePrecacheQueue.ts, and false rather than NULL for a
+// NULL path so it sorts as a boolean.
+export const LI_HAS_KNOWN_IMAGE = sql`(li.thumb_path IS NOT NULL
+  AND (li.thumb_path NOT LIKE '/Items/%' OR li.thumb_path LIKE '%?tag=%'))`;
+
+// The active artist row a track rolls up to; t is the track, matched on the outer row.
+export const ARTIST_OF_TRACK = sql`
+  FROM library_items t
+  JOIN library_items ar ON ar.server_id = t.server_id AND ar.rating_key = t.grandparent_rating_key
+    AND ar.media_type = 'artist' AND ar.removed_at IS NULL`;
 
 /**
  * Bytes for one canonical title. Identical file_size across copies of the same
@@ -44,6 +59,31 @@ export function mediaSizeSubquery(mediaIdExpr: SQL, serverFragment: SQL): SQL {
 }
 
 /**
+ * True when a canonical title has no counted play on the servers, alias-aware (a merged
+ * loser's plays count for the canonical row) and, for shows, episode-aware.
+ * user_media_plays_daily admits every session with a media_id, so the test is `counted`
+ * rather than row existence. A member's scope narrows the plays to their own accounts.
+ */
+export function neverPlayedSql(
+  type: 'movie' | 'show',
+  mediaIdExpr: SQL,
+  serverIds: string[] | undefined,
+  scope: Scope = 'all'
+): SQL {
+  const mediaCol = sql.raw(type === 'movie' ? 'media_id' : 'show_media_id');
+  return sql`NOT EXISTS (
+    SELECT 1 FROM user_media_plays_daily p
+    WHERE p.${mediaCol} = ${mediaIdExpr} AND p.counted
+      ${buildMultiServerFragment(serverIds, 'p.server_id')}${scopeFragment(scope, sql`p.server_user_id`)}
+    UNION ALL
+    SELECT 1 FROM media loser
+    JOIN user_media_plays_daily p2 ON p2.${mediaCol} = loser.id
+    WHERE loser.merged_into_id = ${mediaIdExpr} AND p2.counted
+      ${buildMultiServerFragment(serverIds, 'p2.server_id')}${scopeFragment(scope, sql`p2.server_user_id`)}
+  )`;
+}
+
+/**
  * Mirror-deduped total bytes for a scope: the same physical file indexed by
  * several libraries or servers counts once (#478). Identity is the canonical
  * media id (item id fallback) + per-version file size; two distinct files
@@ -63,6 +103,125 @@ export function dedupedStorageBytesSql(serverFilter: SQL, libraryFilter: SQL): S
         ${libraryFilter}
     ) d
   )`;
+}
+
+const LIBRARY_PERIOD_DAYS = { '7d': 7, '30d': 30, '90d': 90, '1y': 365 } as const;
+
+export type LibraryPeriod = keyof typeof LIBRARY_PERIOD_DAYS | 'all';
+
+/**
+ * The window a library period endpoint reads: [startDate, endDate) when both are given (the
+ * period token is then ignored), else the token's length ending now, with a null start for all
+ * time. `lastDay` is the bound for queries that compare whole days inclusively: a custom end
+ * minus a millisecond, so a day-aligned end does not pull in a day past the selection, and now
+ * for presets so today is included. `cacheSegment` names the window in a cache key.
+ */
+export function resolveLibraryWindow(
+  query: { period: LibraryPeriod; startDate?: string; endDate?: string },
+  now = new Date()
+): { startDate: Date | null; endDate: Date; lastDay: Date; cacheSegment: string } {
+  if (query.startDate && query.endDate) {
+    const endDate = new Date(query.endDate);
+    return {
+      startDate: new Date(query.startDate),
+      endDate,
+      lastDay: new Date(endDate.getTime() - 1),
+      cacheSegment: `custom:${query.startDate}:${query.endDate}`,
+    };
+  }
+  const days = query.period === 'all' ? null : LIBRARY_PERIOD_DAYS[query.period];
+  return {
+    startDate: days === null ? null : new Date(now.getTime() - days * TIME_MS.DAY),
+    endDate: now,
+    lastDay: now,
+    cacheSegment: query.period,
+  };
+}
+
+/** The first UTC midnight at or after a date; a date already on a midnight is unchanged. */
+export function ceilToUtcDay(date: Date): Date {
+  return new Date(Math.ceil(date.getTime() / TIME_MS.DAY) * TIME_MS.DAY);
+}
+
+/**
+ * A window over a user_media_plays_daily day column. `day` is a UTC bucket, so a preset's start
+ * rounds up to the next UTC midnight: N days cover exactly N UTC days ending today, like the
+ * show page. A custom start is already a midnight and is exact.
+ */
+export function rollupDayWindowSql(
+  window: { startDate: Date | null; endDate: Date },
+  dayCol: SQL
+): SQL {
+  const lower = window.startDate
+    ? sql` AND ${dayCol} >= ${ceilToUtcDay(window.startDate)}::timestamptz`
+    : sql``;
+  return sql`${lower} AND ${dayCol} < ${window.endDate}::timestamptz`;
+}
+
+// Movie and episode plays keyed by the top-level title they count for: the show for an
+// episode, the movie itself otherwise, a merged alias folded one hop into its winner.
+function rollupIdentPlaysSql(filters: SQL): SQL {
+  return sql`
+    SELECT p.chain_id, p.counted, p.watched_ms, p.day,
+      (CASE WHEN p.show_media_id IS NOT NULL THEN COALESCE(sh.merged_into_id, p.show_media_id)
+            ELSE COALESCE(pm.merged_into_id, p.media_id) END)::text AS ident
+    FROM user_media_plays_daily p
+    LEFT JOIN media pm ON pm.id = p.media_id
+    LEFT JOIN media sh ON sh.id = p.show_media_id
+    WHERE p.media_type IN ('movie', 'episode') ${filters}`;
+}
+
+/** Plays and watch time per title ident within the window. Filters reference the aggregate as p. */
+export function rollupIdentWatchCte(
+  window: { startDate: Date | null; endDate: Date },
+  serverFilterOnP: SQL
+): SQL {
+  return sql`
+    SELECT ident,
+      COUNT(DISTINCT chain_id) FILTER (WHERE counted) AS watch_count,
+      SUM(watched_ms) AS total_watch_ms,
+      MAX(day) AS last_day
+    FROM (${rollupIdentPlaysSql(sql`${rollupDayWindowSql(window, sql`p.day`)} ${serverFilterOnP}`)}) x
+    GROUP BY ident`;
+}
+
+/** The last UTC day each title ident was played, over all time. */
+export function identLastWatchedCte(serverFilterOnP: SQL): SQL {
+  return sql`
+    SELECT ident, MAX(day) AS last_day
+    FROM (${rollupIdentPlaysSql(serverFilterOnP)}) x
+    GROUP BY ident`;
+}
+
+/**
+ * Bytes per title ident at episode grain: DISTINCT (title, file, size) keeps two episodes of
+ * equal size apart and counts a file mirrored across servers or libraries once. An episode
+ * with no media link still belongs to the show item its grandparent rating key names, so
+ * the show's size stays whole while matching is incomplete. Filters reference library_items
+ * as li, the same fragments a top-level item query uses.
+ */
+export function identSizesCte(serverFilterOnLi: SQL, libraryFilter: SQL): SQL {
+  return sql`
+    SELECT ident, SUM(sz) AS file_size FROM (
+      SELECT DISTINCT
+        COALESCE(sh.merged_into_id, m.show_media_id, gpm.merged_into_id, gp.media_id, gp.id,
+                 m.merged_into_id, li.media_id, li.id)::text AS ident,
+        COALESCE(m.merged_into_id, li.media_id, li.id)::text AS file_ident,
+        v.file_size AS sz
+      FROM library_items li
+      JOIN library_item_versions v
+        ON v.library_item_id = li.id AND v.removed_at IS NULL AND v.file_size IS NOT NULL
+      LEFT JOIN media m ON m.id = li.media_id
+      LEFT JOIN media sh ON sh.id = m.show_media_id
+      LEFT JOIN library_items gp ON li.media_id IS NULL AND li.media_type = 'episode'
+        AND gp.server_id = li.server_id AND gp.rating_key = li.grandparent_rating_key
+        AND gp.media_type = 'show' AND gp.removed_at IS NULL
+      LEFT JOIN media gpm ON gpm.id = gp.media_id
+      WHERE li.removed_at IS NULL AND li.media_type IN ('movie', 'episode')
+        ${serverFilterOnLi}
+        ${libraryFilter}
+    ) d
+    GROUP BY ident`;
 }
 
 /**

@@ -14,6 +14,7 @@ import { randomUUID } from 'node:crypto';
 import type { Redis } from 'ioredis';
 import { createLogger } from '../utils/logger.js';
 import type { PendingSessionData } from '../jobs/poller/types.js';
+import { PUBLIC_CHANNEL_EVENTS, publishPublicEvent } from './publicEvents/channel.js';
 
 const cacheLogger = createLogger('Cache');
 
@@ -58,7 +59,12 @@ export interface CacheService {
 
   // Server health tracking
   getServerHealth(serverId: string): Promise<boolean | null>;
-  setServerHealth(serverId: string, isHealthy: boolean, reason?: ServerDownReason): Promise<void>;
+  /** Swaps in one step and returns the health it replaced, so concurrent writers see one transition. */
+  setServerHealth(
+    serverId: string,
+    isHealthy: boolean,
+    reason?: ServerDownReason
+  ): Promise<boolean | null>;
   getServerDownReason(serverId: string): Promise<ServerDownReason | null>;
   incrServerFailCount(serverId: string): Promise<number>;
   resetServerFailCount(serverId: string): Promise<void>;
@@ -104,12 +110,14 @@ export interface CacheService {
   // Session write retry queue (for failed DB writes during session stop)
   addSessionWriteRetry(
     sessionId: string,
+    startedAt: number,
     stopData: { stoppedAt: number; forceStopped: boolean }
   ): Promise<void>;
   getSessionWriteRetries(): Promise<
     Array<{
       sessionId: string;
       attempts: number;
+      startedAt?: number;
       stopData: { stoppedAt: number; forceStopped: boolean };
     }>
   >;
@@ -136,6 +144,11 @@ async function releaseLockIfHeld(redis: Redis, lockKey: string, token: string): 
     lockKey,
     token
   );
+}
+
+/** A down key holds its reason ('unauthorized') or 'false'; anything but 'true' is down. */
+function parseServerHealth(data: string | null): boolean | null {
+  return data === null ? null : data === 'true';
 }
 
 export function createCacheService(redis: Redis): CacheService {
@@ -437,21 +450,24 @@ export function createCacheService(redis: Redis): CacheService {
 
     // Server health tracking
     async getServerHealth(serverId: string): Promise<boolean | null> {
-      const data = await redis.get(REDIS_KEYS.SERVER_HEALTH(serverId));
-      if (data === null) return null;
-      return data === 'true';
+      return parseServerHealth(await redis.get(REDIS_KEYS.SERVER_HEALTH(serverId)));
     },
 
     async setServerHealth(
       serverId: string,
       isHealthy: boolean,
       reason?: ServerDownReason
-    ): Promise<void> {
-      await redis.setex(
-        REDIS_KEYS.SERVER_HEALTH(serverId),
-        CACHE_TTL.SERVER_HEALTH,
-        isHealthy ? 'true' : (reason ?? 'false')
-      );
+    ): Promise<boolean | null> {
+      const key = REDIS_KEYS.SERVER_HEALTH(serverId);
+      const results = await redis
+        .multi()
+        .get(key)
+        .setex(key, CACHE_TTL.SERVER_HEALTH, isHealthy ? 'true' : (reason ?? 'false'))
+        .exec();
+      if (!results || results.some(([err]) => err !== null)) {
+        throw new Error(`setServerHealth failed for ${serverId}`);
+      }
+      return parseServerHealth(results[0]?.[1] as string | null);
     },
 
     async getServerDownReason(serverId: string): Promise<ServerDownReason | null> {
@@ -627,12 +643,14 @@ export function createCacheService(redis: Redis): CacheService {
     // Session write retry queue methods
     async addSessionWriteRetry(
       sessionId: string,
+      startedAt: number,
       stopData: { stoppedAt: number; forceStopped: boolean }
     ): Promise<void> {
       const key = REDIS_KEYS.SESSION_WRITE_RETRY(sessionId);
       // hsetnx: a re-add for a session already queued must not reset its
       // attempt count back to 1, or MAX_TOTAL_ATTEMPTS never triggers.
       await redis.hsetnx(key, 'attempts', '1');
+      await redis.hset(key, 'startedAt', String(startedAt));
       await redis.hset(key, 'stopData', JSON.stringify(stopData));
       await redis.sadd(REDIS_KEYS.SESSION_WRITE_RETRY_SET, sessionId);
       // Auto-expire after 1 hour (safety net)
@@ -644,6 +662,7 @@ export function createCacheService(redis: Redis): CacheService {
       Array<{
         sessionId: string;
         attempts: number;
+        startedAt?: number;
         stopData: { stoppedAt: number; forceStopped: boolean };
       }>
     > {
@@ -651,6 +670,7 @@ export function createCacheService(redis: Redis): CacheService {
       const results: Array<{
         sessionId: string;
         attempts: number;
+        startedAt?: number;
         stopData: { stoppedAt: number; forceStopped: boolean };
       }> = [];
       // Members whose hash already expired are zombies: srem them here so the
@@ -665,6 +685,7 @@ export function createCacheService(redis: Redis): CacheService {
           results.push({
             sessionId,
             attempts: parseInt(data.attempts, 10),
+            ...(data.startedAt && { startedAt: Number(data.startedAt) }),
             stopData: JSON.parse(data.stopData) as { stoppedAt: number; forceStopped: boolean },
           });
         } else {
@@ -769,6 +790,11 @@ export function createPubSubService(publisher: Redis, subscriber: Redis): PubSub
         REDIS_KEYS.PUBSUB_EVENTS,
         JSON.stringify({ event, data, timestamp: Date.now() })
       );
+      if (PUBLIC_CHANNEL_EVENTS.has(event)) {
+        await publishPublicEvent(publisher, event, data).catch((err: unknown) => {
+          cacheLogger.error('Public channel publish failed', { err });
+        });
+      }
     },
 
     async subscribe(channel: string, callback: (message: string) => void): Promise<void> {

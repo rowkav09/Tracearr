@@ -1,12 +1,14 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import Highcharts from 'highcharts';
 import { HighchartsReact } from 'highcharts-react-official';
 import { BarChart3 } from 'lucide-react';
 import { RESOLUTION_LABELS, resolutionBucket, type LibraryQualityResponse } from '@tracearr/shared';
 import { ChartSkeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
+import { formatDate, axisDateTimeLabelFormats, parseChartDate } from '@/lib/dateFormat';
 import { RESOLUTION_COLORS } from '@/lib/resolutionColors';
-import { parseChartDate } from './chartUtils';
+import { chartLang } from './chartUtils';
 
 interface QualityTimelineChartProps {
   data: LibraryQualityResponse | undefined;
@@ -16,6 +18,7 @@ interface QualityTimelineChartProps {
 }
 
 export function QualityTimelineChart({ data, isLoading, height = 250 }: QualityTimelineChartProps) {
+  const { t } = useTranslation(['pages', 'common']);
   const options = useMemo<Highcharts.Options>(() => {
     if (!data?.data || data.data.length === 0) {
       return {};
@@ -30,6 +33,7 @@ export function QualityTimelineChart({ data, isLoading, height = 250 }: QualityT
       .filter((label) => data.data.some((d) => countOf(label, d) > 0));
 
     return {
+      lang: chartLang(),
       chart: {
         type: 'line',
         height,
@@ -62,12 +66,7 @@ export function QualityTimelineChart({ data, isLoading, height = 250 }: QualityT
       xAxis: {
         type: 'datetime',
         tickPixelInterval: 120,
-        dateTimeLabelFormats: {
-          day: { main: '%b %e' },
-          week: { main: '%b %e' },
-          month: { main: `%b '%y` },
-          year: { main: '%Y' },
-        },
+        dateTimeLabelFormats: axisDateTimeLabelFormats(),
         labels: {
           style: {
             color: 'hsl(var(--muted-foreground))',
@@ -82,7 +81,7 @@ export function QualityTimelineChart({ data, isLoading, height = 250 }: QualityT
       },
       yAxis: {
         title: {
-          text: 'Items',
+          text: t('common:labels.items'),
           style: {
             color: 'hsl(var(--muted-foreground))',
             fontSize: '11px',
@@ -135,12 +134,7 @@ export function QualityTimelineChart({ data, isLoading, height = 250 }: QualityT
         shared: true,
         formatter: function () {
           const points = this.points || [];
-          const date = new Date(this.x);
-          const dateStr = date.toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-          });
+          const dateStr = formatDate(this.x, { month: 'short', day: 'numeric', year: 'numeric' });
 
           // Tiers overlap (a 4K+1080p title counts in both), so the
           // denominator is the day's real title count, never the tier sum
@@ -150,7 +144,7 @@ export function QualityTimelineChart({ data, isLoading, height = 250 }: QualityT
             const pct = total > 0 ? (((point.y || 0) / total) * 100).toFixed(1) : '0';
             html += `<br/><span style="color:${point.color}">●</span> ${point.series.name}: ${point.y?.toLocaleString()} (${pct}%)`;
           });
-          html += `<br/><b>${total.toLocaleString()} titles</b>`;
+          html += `<br/><b>${t('library.charts.qualityTimeline.titles', { count: total })}</b>`;
           return html;
         },
       },
@@ -193,7 +187,7 @@ export function QualityTimelineChart({ data, isLoading, height = 250 }: QualityT
         ],
       },
     };
-  }, [data, height]);
+  }, [data, height, t]);
 
   if (isLoading) {
     return <ChartSkeleton height={height} />;
@@ -203,8 +197,8 @@ export function QualityTimelineChart({ data, isLoading, height = 250 }: QualityT
     return (
       <EmptyState
         icon={BarChart3}
-        title="No quality data"
-        description="Quality evolution data will appear here once available"
+        title={t('library.charts.qualityTimeline.empty.title')}
+        description={t('library.charts.qualityTimeline.empty.description')}
       />
     );
   }

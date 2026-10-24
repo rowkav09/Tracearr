@@ -23,6 +23,7 @@ import { db } from '../../src/db/client.js';
 import { sessionRoutes } from '../../src/routes/sessions.js';
 import { locationsRoutes } from '../../src/routes/stats/locations.js';
 import { queryUserDevices, queryUserLocations } from '../../src/routes/users/queries.js';
+import { permissionGuard } from '../../src/lib/scope.js';
 
 const CHICAGO = {
   geoCity: 'Chicago',
@@ -45,6 +46,11 @@ async function buildApp(plugin: Parameters<typeof Fastify.prototype.register>[0]
   app.decorate('redis', createMockRedis() as unknown as Redis);
   app.decorate('authenticate', async (request: any) => {
     request.user = { userId: 'owner', username: 'owner', role: 'owner', serverIds: [] };
+  });
+  app.decorate('requirePermission', permissionGuard(app));
+  app.decorate('requireOwner', async (request: any, reply: any) => {
+    await app.authenticate(request, reply);
+    if (request.user.role !== 'owner') return reply.forbidden('Owner access required');
   });
   await app.register(plugin as any);
   return app;
@@ -108,6 +114,7 @@ describe('local flag readers', () => {
       'Chicago|false|2',
       'Chicago|true|1',
       'Paris|false|1',
+      'null|true|1',
     ]);
     for (const row of rows) {
       expect(row.servers).toEqual([{ serverId: server.id, count: row.count }]);

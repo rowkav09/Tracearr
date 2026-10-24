@@ -22,7 +22,14 @@ import {
 import { getBullPrefix, queueConnectionOptions } from './queueConnection.js';
 import { isMaintenance } from '../serverState.js';
 import { getRedisPrefix } from '@tracearr/shared';
-import { extendJobLock, MAINTENANCE_LOCK_DURATION_MS } from './lockUtils.js';
+import { DEFAULT_LOCK_DURATION_MS, extendJobLock } from './lockUtils.js';
+import {
+  WORKER_DEFAULTS,
+  addSingleton,
+  registerQueue,
+  registerWorker,
+  yieldJob,
+} from './jobSafety.js';
 import {
   acquireHeavyOpsLock,
   releaseHeavyOpsLock,
@@ -35,10 +42,11 @@ import type {
   MaintenanceJobResult,
   MaintenanceJobType,
 } from '@tracearr/shared';
-import { WS_EVENTS, classifyByDimensions, RESOLUTION_TIERS } from '@tracearr/shared';
+import { WS_EVENTS, resolutionDisplayName, RESOLUTION_TIERS } from '@tracearr/shared';
 import { sql, isNotNull, isNull, inArray, or, and, eq, ne } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { servers, sessions, serverUsers } from '../db/schema.js';
+import { storedSessionRowById } from '../db/sessionRow.js';
 import { normalizeClient, normalizePlatformName } from '../utils/platformNormalizer.js';
 import {
   bucketMembershipColumns,
@@ -56,10 +64,14 @@ import {
   withSessionsCompressionPaused,
   invalidateTimescaleStatusCache,
   getCompressedSessionChunkRanges,
+  getSessionChunkRanges,
   type AggregateRefreshProgress,
   type FailedRefreshBatch,
 } from '../db/timescale.js';
-import { runSessionIdentityBackfillWalk } from './sessionIdentityBackfill.js';
+import {
+  IDENTITY_PASSES_VERSION,
+  runSessionIdentityBackfillWalk,
+} from './sessionIdentityBackfill.js';
 import { runImportDuplicateCleanupWalk } from './importDuplicateCleanup.js';
 import {
   importedHistoryLinkDeps,
@@ -130,7 +142,10 @@ let maintenanceWorker: Worker<MaintenanceJobData> | null = null;
 // Track active job state
 let activeJobProgress: MaintenanceJobProgress | null = null;
 
-const LOCK_EXTENSION_INTERVAL = 60 * 1000;
+// Throttled lock checks must run more often than the lock can expire.
+const LOCK_EXTENSION_INTERVAL = DEFAULT_LOCK_DURATION_MS / 2;
+
+const WALK_BATCH_PAUSE_MS = 100;
 
 /**
  * Initialize the maintenance queue with Redis connection
@@ -162,6 +177,7 @@ export function initMaintenanceQueue(redisUrl: string): void {
   maintenanceQueue.on('error', (err) => {
     if (!isMaintenance()) console.error('[Maintenance] Queue error:', err);
   });
+  registerQueue(maintenanceQueue);
 
   console.log('Maintenance queue initialized');
 }
@@ -179,6 +195,10 @@ export function initMaintenanceQueue(redisUrl: string): void {
  * blocking `app.listen()` on BullMQ's connection retry. Do not re-add
  * custom recovery here - see lockUtils.ts and heavyOpsLock.ts for the
  * concurrency fixes that make relying on native stalled detection safe.
+ *
+ * Only the heavy-ops wait yields on the abort signal; a running handler stops at
+ * its next fail-closed extendJobLock after a force-close, or is reclaimed by
+ * stalled detection.
  */
 export function startMaintenanceWorker(): void {
   if (!connectionOptions) {
@@ -194,7 +214,7 @@ export function startMaintenanceWorker(): void {
 
   maintenanceWorker = new Worker<MaintenanceJobData>(
     QUEUE_NAME,
-    async (job: Job<MaintenanceJobData>) => {
+    async (job: Job<MaintenanceJobData>, _token?: string, signal?: AbortSignal) => {
       const startTime = Date.now();
       const jobStartedAt = new Date().toISOString();
       const jobDescription = getMaintenanceJobDescription(job.data.type);
@@ -231,6 +251,11 @@ export function startMaintenanceWorker(): void {
           runToken
         )) !== null
       ) {
+        if (signal?.aborted) {
+          activeJobProgress = null;
+          await yieldJob(job, job.token, 0);
+        }
+
         // Update cached progress with waiting status
         activeJobProgress = {
           type: job.data.type,
@@ -302,19 +327,11 @@ export function startMaintenanceWorker(): void {
       connection: connectionOptions,
       prefix: bullPrefix,
       concurrency: 1, // Only 1 maintenance job at a time
-      // BullMQ's native stalled detection is THE recovery mechanism for jobs
-      // orphaned by a crash or restart - do not re-add custom recovery (see
-      // the comment on startMaintenanceWorker above). A job's lock key
-      // expires after lockDuration with nobody renewing it, gets swept every
-      // stalledInterval, and is poison-capped by maxStalledCount before
-      // failing out for good. Net recovery latency after a hard crash is
-      // ~2.5-5 minutes (time since the last lock renewal before lockDuration
-      // expiry) plus up to 30s for the next stalledInterval sweep.
-      lockDuration: MAINTENANCE_LOCK_DURATION_MS, // 5 minutes - batch loops extend it well before expiry
-      stalledInterval: 30 * 1000, // Check for stalled jobs every 30 seconds
-      maxStalledCount: 2, // Retry stalled jobs up to 2 times before failing
+      // Stalled detection is the crash recovery; see startMaintenanceWorker's doc comment.
+      ...WORKER_DEFAULTS,
     }
   );
+  registerWorker(maintenanceWorker);
 
   // Handle stalled jobs - clear state so UI updates correctly
   maintenanceWorker.on('stalled', (jobId) => {
@@ -485,6 +502,7 @@ async function processNormalizePlayersJob(
       const batch = await db
         .select({
           id: sessions.id,
+          startedAt: sessions.startedAt,
           product: sessions.product,
           playerName: sessions.playerName,
           device: sessions.device,
@@ -505,7 +523,7 @@ async function processNormalizePlayersJob(
       if (lastRecord) lastId = lastRecord.id;
 
       // Collect updates for batch processing
-      const updates: Array<{ id: string; device: string; platform: string }> = [];
+      const updates: Array<{ id: string; startedAt: Date; device: string; platform: string }> = [];
 
       for (const session of batch) {
         try {
@@ -536,6 +554,7 @@ async function processNormalizePlayersJob(
           if (needsUpdate) {
             updates.push({
               id: session.id,
+              startedAt: session.startedAt,
               device: normalized.device,
               platform: normalizedPlatform,
             });
@@ -559,7 +578,7 @@ async function processNormalizePlayersJob(
                 device: update.device,
                 platform: update.platform,
               })
-              .where(eq(sessions.id, update.id));
+              .where(storedSessionRowById(update));
             totalUpdated++;
           } catch (error) {
             console.error(`[Maintenance] Error updating session ${update.id}:`, error);
@@ -705,6 +724,7 @@ async function processNormalizeCountriesJob(
       const batch = await db
         .select({
           id: sessions.id,
+          startedAt: sessions.startedAt,
           geoCity: sessions.geoCity,
           geoCountry: sessions.geoCountry,
         })
@@ -723,7 +743,12 @@ async function processNormalizeCountriesJob(
       if (lastRecord) lastId = lastRecord.id;
 
       // Collect updates for batch processing
-      const updates: Array<{ id: string; geoCity: string | null; geoCountry: string }> = [];
+      const updates: Array<{
+        id: string;
+        startedAt: Date;
+        geoCity: string | null;
+        geoCountry: string;
+      }> = [];
 
       for (const session of batch) {
         try {
@@ -734,6 +759,7 @@ async function processNormalizeCountriesJob(
           if (currentCity?.toLowerCase() === 'local') {
             updates.push({
               id: session.id,
+              startedAt: session.startedAt,
               geoCity: null,
               geoCountry: 'Local Network',
             });
@@ -754,6 +780,7 @@ async function processNormalizeCountriesJob(
             if (currentCountry !== 'Local Network') {
               updates.push({
                 id: session.id,
+                startedAt: session.startedAt,
                 geoCity: currentCity,
                 geoCountry: 'Local Network',
               });
@@ -769,6 +796,7 @@ async function processNormalizeCountriesJob(
           if (isoCode) {
             updates.push({
               id: session.id,
+              startedAt: session.startedAt,
               geoCity: currentCity,
               geoCountry: isoCode,
             });
@@ -789,7 +817,7 @@ async function processNormalizeCountriesJob(
             await db
               .update(sessions)
               .set({ geoCity: update.geoCity, geoCountry: update.geoCountry })
-              .where(eq(sessions.id, update.id));
+              .where(storedSessionRowById(update));
             totalUpdated++;
           } catch (error) {
             console.error(`[Maintenance] Error updating session ${update.id}:`, error);
@@ -933,6 +961,7 @@ export async function processFixImportedProgressJob(
       const batch = await db
         .select({
           id: sessions.id,
+          startedAt: sessions.startedAt,
           durationMs: sessions.durationMs,
           watched: sessions.watched,
           mediaType: sessions.mediaType,
@@ -952,7 +981,12 @@ export async function processFixImportedProgressJob(
       if (lastRecord) lastId = lastRecord.id;
 
       // Collect updates for batch processing
-      const updates: Array<{ id: string; progressMs: number; totalDurationMs: number }> = [];
+      const updates: Array<{
+        id: string;
+        startedAt: Date;
+        progressMs: number;
+        totalDurationMs: number;
+      }> = [];
 
       for (const session of batch) {
         try {
@@ -991,6 +1025,7 @@ export async function processFixImportedProgressJob(
 
           updates.push({
             id: session.id,
+            startedAt: session.startedAt,
             progressMs,
             totalDurationMs,
           });
@@ -1010,7 +1045,7 @@ export async function processFixImportedProgressJob(
                 progressMs: update.progressMs,
                 totalDurationMs: update.totalDurationMs,
               })
-              .where(and(eq(sessions.id, update.id), missingBoth))
+              .where(and(storedSessionRowById(update), missingBoth))
               .returning({ id: sessions.id });
             if (written.length > 0) totalUpdated++;
             else totalSkipped++;
@@ -1208,6 +1243,25 @@ export async function processRebuildTimescaleViewsJob(
 async function processBackfillSessionIdentityJob(
   job: Job<MaintenanceJobData>
 ): Promise<MaintenanceJobResult> {
+  let result: MaintenanceJobResult;
+  try {
+    result = await walkSessionIdentity(job);
+  } catch (error) {
+    if (job.data.options?.trigger === 'auto') {
+      await getSetting('identityBackfillAutoAttempts')
+        .then((attempts) => setSetting('identityBackfillAutoAttempts', attempts + 1))
+        .catch((err: unknown) =>
+          console.error('[Maintenance] Could not count the failed identity backfill:', err)
+        );
+    }
+    throw error;
+  }
+  await setSetting('identityBackfillAutoAttempts', 0);
+  await setSetting('identityPassesVersion', IDENTITY_PASSES_VERSION);
+  return result;
+}
+
+function walkSessionIdentity(job: Job<MaintenanceJobData>): Promise<MaintenanceJobResult> {
   return runSessionMaintenanceWalk(job, {
     type: 'backfill_session_identity',
     startMessage: 'Backfilling media identity onto history sessions...',
@@ -1221,6 +1275,7 @@ async function processBackfillSessionIdentityJob(
       ...(await runSessionIdentityBackfillWalk({
         batchSize: 5000,
         getCompressedRanges: getCompressedSessionChunkRanges,
+        getChunkRanges: getSessionChunkRanges,
         onBatch,
         onCommit,
       })),
@@ -1316,6 +1371,8 @@ export async function runSessionMaintenanceWalk(
     failurePrefix: string;
     /** False when the running total counts rows looked at, not rows changed. */
     totalCountsUpdates: boolean;
+    /** Sleep after every batch, so a single-core Postgres can serve the poller between them. */
+    batchPauseMs?: number;
     walk: (
       onBatch: (total: number) => Promise<void>,
       onCommit: (oldest: Date | null) => void
@@ -1421,6 +1478,9 @@ export async function runSessionMaintenanceWalk(
               await extendLock();
               lastLockExtension = Date.now();
             }
+            await new Promise((resolve) =>
+              setTimeout(resolve, opts.batchPauseMs ?? WALK_BATCH_PAUSE_MS)
+            );
           },
           (oldest) => {
             if (oldest && (!earliest || oldest < earliest)) earliest = oldest;
@@ -1451,11 +1511,13 @@ export async function runSessionMaintenanceWalk(
 
     // Fail-closed like every other handler in this file: skipped ranges and
     // failed refresh batches must surface as a failed job, but only after the
-    // successful ranges' work (including the refresh above) has landed.
+    // successful ranges' work (including the refresh above) has landed. Not
+    // retried: a retry re-walks from the newest chunk and re-refreshes, only
+    // to fail on the same ranges.
     if (allFailures.length > 0) {
       const shown = allFailures.slice(0, 5).join(', ');
       const more = allFailures.length > 5 ? ` … and ${allFailures.length - 5} more` : '';
-      throw new Error(
+      throw new UnrecoverableError(
         `${opts.failurePrefix} ${allFailures.length} range(s)/refresh batch(es): ${shown}${more}`
       );
     }
@@ -1731,6 +1793,7 @@ export async function processNormalizeResolutionsJob(
       const batch = await db
         .select({
           id: sessions.id,
+          startedAt: sessions.startedAt,
           quality: sessions.quality,
           sourceVideoWidth: sessions.sourceVideoWidth,
           sourceVideoHeight: sessions.sourceVideoHeight,
@@ -1750,17 +1813,17 @@ export async function processNormalizeResolutionsJob(
       if (lastRecord) lastId = lastRecord.id;
 
       // Collect updates for batch processing
-      const updates: Array<{ id: string; quality: string }> = [];
+      const updates: Array<{ id: string; startedAt: Date; quality: string }> = [];
 
       for (const session of batch) {
         try {
-          const recomputed = classifyByDimensions(
-            session.sourceVideoWidth,
-            session.sourceVideoHeight
-          );
+          const recomputed = resolutionDisplayName({
+            width: session.sourceVideoWidth,
+            height: session.sourceVideoHeight,
+          });
 
           if (recomputed && recomputed !== session.quality) {
-            updates.push({ id: session.id, quality: recomputed });
+            updates.push({ id: session.id, startedAt: session.startedAt, quality: recomputed });
           } else {
             totalSkipped++;
           }
@@ -1777,7 +1840,7 @@ export async function processNormalizeResolutionsJob(
             await db
               .update(sessions)
               .set({ quality: update.quality })
-              .where(eq(sessions.id, update.id));
+              .where(storedSessionRowById(update));
             totalUpdated++;
           } catch (error) {
             console.error(`[Maintenance] Error updating session ${update.id}:`, error);
@@ -3018,32 +3081,22 @@ export async function maybeEnqueueMaintenanceJob(
   type: MaintenanceJobType,
   userId: string,
   options?: MaintenanceJobData['options'],
-  jobOptions?: Omit<JobsOptions, 'jobId'>
+  jobOptions?: Pick<JobsOptions, 'attempts'>
 ): Promise<string | null> {
   if (!maintenanceQueue) {
     return null;
   }
 
-  // Check for existing active job
-  const activeJobs = await maintenanceQueue.getJobs(['active', 'waiting', 'delayed']);
-  if (activeJobs.length > 0) {
-    return null;
-  }
-
-  // Use a deterministic job ID to prevent race conditions
-  // BullMQ will reject if a job with this ID already exists
-  const newJobId = `maintenance-${type}-${Date.now()}`;
-  const job = await maintenanceQueue.add(
+  // One maintenance job of any type at a time, so every type shares the key.
+  const { jobId, accepted } = await addSingleton(
+    maintenanceQueue,
     `maintenance-${type}`,
-    {
-      type,
-      userId,
-      options,
-    },
-    { ...jobOptions, jobId: newJobId }
+    { type, userId, options },
+    'maintenance',
+    jobOptions
   );
+  if (!accepted) return null;
 
-  const jobId = job.id ?? newJobId;
   console.log(`[Maintenance] Enqueued job ${jobId} (${type})`);
   return jobId;
 }
@@ -3388,6 +3441,7 @@ async function processRepairCorruptedChunksJob(
           try {
             // Attempt to decompress the corrupted chunk
             await db.execute(sql.raw(`SELECT decompress_chunk('${chunkFqn}')`));
+            invalidateTimescaleStatusCache();
             totalRepaired++;
             console.log(`[Maintenance] Successfully decompressed corrupted chunk: ${chunkFqn}`);
 

@@ -90,7 +90,7 @@
     "criticalOverrideDescription": "Schwere Verstöße auch während der Ruhezeit benachrichtigen",
     "rateLimitDescription": "Grenzwerte verhindern Benachrichtigungs-Spam. Aktuelle Limits:\n{{perMinute}}/min, {{perHour}}/Stunde.",
     "sendTestNotification": "Testbenachrichtigung senden",
-    "testDescription": "Überprüfe ob Push-Benachrichtigungen korrekt funktionieren",
+    "testReach": "",
     "pushNotifications": "",
     "ruleTypes": {
       "accountInactivity": "",
@@ -102,7 +102,18 @@
     "severityAll": "",
     "severityHighOnly": "",
     "severityWarningUp": "",
-    "violationTypes": ""
+    "violationTypes": "",
+    "backgroundRefreshOff": "",
+    "permissionOff": "",
+    "openSettings": "",
+    "tokenMissing": "",
+    "destinationOff": "",
+    "everyViolationSent": "",
+    "noViolationSender": "",
+    "noAutomationSends": "",
+    "eventsFooter": "",
+    "sentByAutomations_one": "",
+    "sentByAutomations_other": ""
   },
   "session": {
     "streamTerminated": "Stream beendet",
@@ -138,6 +149,7 @@
     "allServers": "",
     "noAlertsRecorded": "",
     "noMatches": "",
+    "selectAlert": "",
     "acknowledgeAllTitle_one": "",
     "acknowledgeAllTitle_other": "",
     "pendingCount_one": "",
@@ -146,13 +158,14 @@
   "history": {
     "adjustFilters": "Versuche die Filter anzupassen",
     "historyWillAppear": "Sitzungsverlauf wird hier angezeigt, sobald Benutzer mit dem Streaming beginnen",
+    "selectSession": "",
     "filters": {
       "clearCount": "",
       "countries": "",
       "filterBy": "",
       "mediaType": "",
       "noCountries": "",
-      "noPlatforms": "",
+      "noPlatforms": "Keine Plattformen verfügbar",
       "noUsers": "",
       "sectionSelected_one": "",
       "sectionSelected_other": ""
@@ -165,7 +178,8 @@
     "noUsersMatch": "Keine Benutzer gefunden zu \"{{query}}\"",
     "joinedRelative": "",
     "sortActive": "",
-    "sortTrust": ""
+    "sortTrust": "",
+    "selectUser": ""
   },
   "activity": {
     "playsOverTime": "Wiedergaben im Zeitverlauf",
@@ -247,7 +261,7 @@
     "mono": "",
     "noDetails": "",
     "notAvailable": "",
-    "profile": "",
+    "profile": "Profil",
     "sampleRate": "",
     "source": "",
     "speed": "",
@@ -263,6 +277,6 @@
     "serversDown_one": "",
     "serversDown_other": "",
     "transcodes_one": "",
-    "transcodes_other": ""
+    "transcodes_other": "{{count}} Transcodes"
   }
 }

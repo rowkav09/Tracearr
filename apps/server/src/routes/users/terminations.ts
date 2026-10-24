@@ -5,13 +5,14 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify';
-import { eq, desc, sql, inArray } from 'drizzle-orm';
+import { sql, inArray } from 'drizzle-orm';
 import { userIdParamSchema, identityScopedPaginationSchema } from '@tracearr/shared';
 import { db } from '../../db/client.js';
-import { terminationLogs, users, automations, sessions, servers } from '../../db/schema.js';
-import { resolveIdentityScopedServerUserIds } from './queries.js';
+import { terminationLogs } from '../../db/schema.js';
+import { queryTerminationHistory, resolveIdentityScopedServerUserIds } from './queries.js';
 
 export const terminationsRoutes: FastifyPluginAsync = async (app) => {
+  const readUsers = { preHandler: [app.requirePermission('users', 'read')] };
   /**
    * GET /:id/terminations - Get termination history for a user
    *
@@ -20,7 +21,7 @@ export const terminationsRoutes: FastifyPluginAsync = async (app) => {
    * scope=identity expands the result to every account under the same
    * person that the caller can access.
    */
-  app.get('/:id/terminations', { preHandler: [app.authenticate] }, async (request, reply) => {
+  app.get('/:id/terminations', readUsers, async (request, reply) => {
     const params = userIdParamSchema.safeParse(request.params);
     if (!params.success) {
       return reply.badRequest('Invalid user ID');
@@ -36,7 +37,7 @@ export const terminationsRoutes: FastifyPluginAsync = async (app) => {
     const authUser = request.user;
     const offset = (page - 1) * pageSize;
 
-    const scoped = await resolveIdentityScopedServerUserIds(db, authUser, id, scope);
+    const scoped = await resolveIdentityScopedServerUserIds(db, authUser, id, scope, request.scope);
     if ('error' in scoped) {
       if (scoped.error === 'notFound') {
         return reply.notFound('User not found');
@@ -46,43 +47,11 @@ export const terminationsRoutes: FastifyPluginAsync = async (app) => {
 
     const ids = scoped.ids;
 
-    // Get termination logs with joined data
-    const terminations = await db
-      .select({
-        id: terminationLogs.id,
-        sessionId: terminationLogs.sessionId,
-        serverId: terminationLogs.serverId,
-        serverName: servers.name,
-        serverUserId: terminationLogs.serverUserId,
-        trigger: terminationLogs.trigger,
-        triggeredByUserId: terminationLogs.triggeredByUserId,
-        triggeredByUsername: users.username,
-        ruleId: terminationLogs.ruleId,
-        ruleName: automations.name,
-        violationId: terminationLogs.violationId,
-        reason: terminationLogs.reason,
-        success: terminationLogs.success,
-        errorMessage: terminationLogs.errorMessage,
-        createdAt: terminationLogs.createdAt,
-        // Session info
-        mediaTitle: sessions.mediaTitle,
-        mediaType: sessions.mediaType,
-        grandparentTitle: sessions.grandparentTitle,
-        seasonNumber: sessions.seasonNumber,
-        episodeNumber: sessions.episodeNumber,
-        year: sessions.year,
-        artistName: sessions.artistName,
-        albumName: sessions.albumName,
-      })
-      .from(terminationLogs)
-      .leftJoin(users, eq(terminationLogs.triggeredByUserId, users.id))
-      .leftJoin(automations, eq(terminationLogs.ruleId, automations.id))
-      .leftJoin(sessions, eq(terminationLogs.sessionId, sessions.id))
-      .leftJoin(servers, eq(terminationLogs.serverId, servers.id))
-      .where(inArray(terminationLogs.serverUserId, ids))
-      .orderBy(desc(terminationLogs.createdAt))
-      .limit(pageSize)
-      .offset(offset);
+    const terminations = await queryTerminationHistory(
+      db,
+      inArray(terminationLogs.serverUserId, ids),
+      { limit: pageSize, offset }
+    );
 
     // Get total count
     const countResult = await db

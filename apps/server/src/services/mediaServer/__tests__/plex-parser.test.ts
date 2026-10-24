@@ -24,6 +24,8 @@ import {
   parsePlexTvUser,
   parseMediaMetadataResponse,
   parseLibraryItemsResponse,
+  parsePartDetails,
+  parseDevicesResponse,
   parseStatisticsBandwidthResponse,
   parseStatisticsResourcesResponse,
   getTranscodingSessionRatingKeys,
@@ -838,6 +840,24 @@ describe('Plex XML Parser', () => {
 
       const user200 = userMap.get('200');
       expect(user200?.sharedLibraries).toEqual(['1']);
+    });
+
+    it('leaves the library list off a share of every library', () => {
+      const xml = `
+        <MediaContainer>
+          <SharedServer id="1" userID="100" accessToken="token-100" allLibraries="1">
+            <Section key="1" title="Movies" shared="1" />
+          </SharedServer>
+          <SharedServer id="2" userID="200" accessToken="token-200" allLibraries="0">
+            <Section key="1" title="Movies" shared="0" />
+          </SharedServer>
+        </MediaContainer>
+      `;
+
+      const userMap = parseSharedServersXml(xml);
+
+      expect(userMap.get('100')?.sharedLibraries).toBeUndefined();
+      expect(userMap.get('200')?.sharedLibraries).toEqual([]);
     });
 
     it('should return empty map for no shared servers', () => {
@@ -2261,5 +2281,68 @@ describe('transcode progress fields', () => {
     const info = sessions[0]?.quality.transcodeInfo;
     expect(info?.progress).toBeUndefined();
     expect(info?.maxOffsetAvailable).toBeUndefined();
+  });
+});
+
+describe('download enrichment parsing', () => {
+  it('finds the version holding a part in a /library/metadata response', () => {
+    const metadata = {
+      MediaContainer: {
+        Metadata: [
+          {
+            ratingKey: '181284',
+            Media: [
+              {
+                id: 110988,
+                videoResolution: '1080',
+                videoCodec: 'h264',
+                audioCodec: 'eac3',
+                container: 'mkv',
+                Part: [{ id: 111093, size: 3181199596, container: 'mkv' }],
+              },
+            ],
+          },
+        ],
+      },
+    };
+
+    expect(parsePartDetails(metadata, '111093')).toEqual({
+      mediaId: '110988',
+      size: 3181199596,
+      container: 'mkv',
+      videoResolution: '1080p',
+      videoCodec: 'H264',
+      videoDynamicRange: null,
+      audioCodec: 'EAC3',
+    });
+    expect(parsePartDetails(metadata, '999')).toBeNull();
+  });
+
+  it('lists /devices by clientIdentifier', () => {
+    expect(
+      parseDevicesResponse({
+        MediaContainer: {
+          size: 2,
+          Device: [
+            { id: 1, name: 'Chromecast', platform: 'Chromecast', clientIdentifier: '' },
+            {
+              id: 3,
+              name: 'iPhone',
+              platform: 'iOS',
+              product: 'Plex for iOS',
+              clientIdentifier: 'o2wsbz6wagpn4g7e8g9kqge9',
+            },
+          ],
+        },
+      })
+    ).toEqual([
+      { clientIdentifier: '', name: 'Chromecast', platform: 'Chromecast', product: '' },
+      {
+        clientIdentifier: 'o2wsbz6wagpn4g7e8g9kqge9',
+        name: 'iPhone',
+        platform: 'iOS',
+        product: 'Plex for iOS',
+      },
+    ]);
   });
 });

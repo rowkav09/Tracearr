@@ -1,8 +1,19 @@
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
+import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { Database, HardDrive, Film, Tv, Calendar, TrendingUp } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import {
+  Database,
+  HardDrive,
+  Film,
+  Tv,
+  Calendar,
+  TrendingUp,
+  Library as LibraryIcon,
+} from 'lucide-react';
 import { TIME_MS } from '@tracearr/shared';
 import type {
+  AlbumShelfRow,
   CatalogRowServerEntry,
   GrowthDataPoint,
   LibraryGrowthResponse,
@@ -10,18 +21,24 @@ import type {
   RecentlyUpdatedShelfRow,
   RecentlyAddedShelfRow,
   Server,
-  ServerType,
+  ShelvesResponse,
 } from '@tracearr/shared';
-import { Shelf } from '@/components/media-browse/Shelf';
-import { PosterCard, type PosterCardServer } from '@/components/media-browse/PosterCard';
+import { Shelf, ShelfSkeleton } from '@/components/media-browse/Shelf';
+import {
+  PosterCard,
+  toPosterCardServers,
+  type ServerLookupEntry,
+} from '@/components/media-browse/PosterCard';
 import { ErrorState } from '@/components/library/ErrorState';
 import { LibraryEmptyState } from '@/components/library/LibraryEmptyState';
 import { LibraryGrowthChart } from '@/components/charts';
 import { ServerBadge } from '@/components/server';
-import { Skeleton, LibraryStatsSkeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/ui/empty-state';
+import { LibraryStatsSkeleton } from '@/components/ui/skeleton';
 import { StatCard, formatNumber } from '@/components/ui/stat-card';
-import { TimeRangePicker } from '@/components/ui/time-range-picker';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import type { TimeRangeValue } from '@/components/ui/time-range-picker';
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   useLibraryStats,
   useLibraryGrowth,
@@ -29,23 +46,12 @@ import {
   useShelves,
   type LibraryStatusResponse,
 } from '@/hooks/queries';
+import { useAuth } from '@/hooks/useAuth';
 import { useServer } from '@/hooks/useServer';
-import { useTimeRange } from '@/hooks/useTimeRange';
-import { formatBytes, formatCompactAge } from '@/lib/formatters';
-import { getHour12 } from '@/lib/timeFormat';
-
-function formatLastUpdated(dateStr: string | null | undefined): string {
-  if (!dateStr) return '';
-  const date = new Date(dateStr);
-  return date.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: getHour12(),
-  });
-}
+import { toApiDayParams, useTimeRange } from '@/hooks/useTimeRange';
+import { browseHref } from '@/lib/browseLinks';
+import { formatBytes } from '@/lib/formatters';
+import { formatCompactAge, formatLastUpdated } from '@/lib/dateFormat';
 
 /**
  * Aggregate multi-server growth response into a single-server-shaped object.
@@ -94,30 +100,6 @@ function serversNeedingSync(
     const data = result?.data;
     if (!data) return false;
     return !data.isSynced || data.needsBackfill || data.isBackfillRunning;
-  });
-}
-
-interface ServerLookupEntry {
-  name: string;
-  type: ServerType;
-  color?: string | null;
-}
-
-function resolvePosterCardServers(
-  entries: CatalogRowServerEntry[],
-  serverById: Map<string, ServerLookupEntry>
-): PosterCardServer[] {
-  return entries.map((entry) => {
-    const server = serverById.get(entry.serverId);
-    return {
-      serverId: entry.serverId,
-      name: server?.name ?? entry.serverId,
-      type: server?.type ?? 'plex',
-      color: server?.color ?? null,
-      addedAt: entry.addedAt,
-      videoResolution: entry.videoResolution,
-      versionCount: entry.versionCount,
-    };
   });
 }
 
@@ -172,7 +154,7 @@ function RecentlyAddedCard({
         posterUrl={row.posterUrl}
         posterVersion={row.posterVersion}
         dominantColor={row.dominantColor}
-        servers={resolvePosterCardServers(row.servers, serverById)}
+        servers={toPosterCardServers(row.servers, serverById)}
         resolutionBest={row.resolutionBest}
         watchedState={row.watchedState}
         newEpisodes={row.newEpisodes ?? undefined}
@@ -209,7 +191,7 @@ function RecentlyUpdatedCard({
         posterUrl={row.posterUrl}
         posterVersion={row.posterVersion}
         dominantColor={row.dominantColor}
-        servers={resolvePosterCardServers(row.servers, serverById)}
+        servers={toPosterCardServers(row.servers, serverById)}
         resolutionBest={row.resolutionBest}
         watchedState={row.watchedState}
       />
@@ -234,13 +216,59 @@ function MostPopularCard({
         posterUrl={row.posterUrl}
         posterVersion={row.posterVersion}
         dominantColor={row.dominantColor}
-        servers={resolvePosterCardServers(row.servers, serverById)}
+        servers={toPosterCardServers(row.servers, serverById)}
         resolutionBest={row.resolutionBest}
         watchedState={row.watchedState}
         plays={row.plays}
         viewers={row.viewers}
         rank={row.rank}
+        mediaType={row.mediaType}
+        albumCount={row.albumCount}
       />
+    </div>
+  );
+}
+
+/** An album row is one server's copy; the card opens its artist when the artist is known. */
+function RecentlyAddedAlbumCard({
+  row,
+  serverById,
+}: {
+  row: AlbumShelfRow;
+  serverById: Map<string, ServerLookupEntry>;
+}) {
+  const { t } = useTranslation('pages');
+  const meta = joinMeta([
+    row.artistTitle,
+    t('media.landing.card.addedCompactAgo', { age: formatCompactAge(row.addedAt) }),
+  ]);
+
+  return (
+    <div className="space-y-1.5">
+      <PosterCard
+        mediaId={row.artistMediaId}
+        mediaType="album"
+        title={row.title}
+        year={row.year}
+        posterUrl={row.posterUrl}
+        posterVersion={row.posterVersion}
+        dominantColor={null}
+        servers={toPosterCardServers(
+          [
+            {
+              serverId: row.serverId,
+              addedAt: row.addedAt,
+              videoResolution: null,
+              fileSize: null,
+              versionCount: 0,
+            },
+          ],
+          serverById
+        )}
+        resolutionBest={null}
+        watchedState="unwatched"
+      />
+      <CardMeta>{meta}</CardMeta>
     </div>
   );
 }
@@ -261,22 +289,20 @@ function EmptyShelf({ id, title, message }: { id: string; title: string; message
   );
 }
 
-function ShelfSkeleton({ title }: { title: string }) {
-  return (
-    <div className="space-y-3">
-      <h2 className="text-[16px] font-semibold tracking-[-0.01em]">{title}</h2>
-      <div className="flex gap-4 overflow-x-hidden">
-        {Array.from({ length: 6 }).map((_, index) => (
-          <div key={index} className="w-[138px] shrink-0 space-y-1.5">
-            <Skeleton className="aspect-[2/3] w-full rounded-md" />
-            <Skeleton className="h-3.5 w-full" />
-            <Skeleton className="h-3 w-2/3" />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+interface ShelfSection {
+  id: string;
+  title: string;
+  caption?: string;
+  viewAllHref?: string;
+  emptyMessage: string;
+  itemWidthClassName?: string;
+  /** Recently Updated is a file-replacement log the owner reads; members never see it. */
+  staffOnly?: boolean;
+  cards: ReactNode[];
 }
+
+const MEMBER_TIME_RANGE: TimeRangeValue = { period: 'month' };
+const NO_SERVERS: string[] = [];
 
 /**
  * The merged media Overview: library stat cards and growth from the old
@@ -295,9 +321,15 @@ export function MediaOverview() {
     isMultiServer,
     isLoading: serversLoading,
   } = useServer();
-  const { value: timeRange, setValue: setTimeRange } = useTimeRange();
+  const { user } = useAuth();
+  const isMember = user?.role === 'member';
+  const queryClient = useQueryClient();
+  const { value: pickedRange } = useTimeRange();
+  const timeRange = isMember ? MEMBER_TIME_RANGE : pickedRange;
 
-  const statusResult = useLibraryStatus(selectedServerIds);
+  // A member has no sync state or growth to read, and an empty list keeps both hooks idle
+  const ownerServerIds = isMember ? NO_SERVERS : selectedServerIds;
+  const statusResult = useLibraryStatus(ownerServerIds);
   const {
     data: stats,
     isLoading: statsIsLoading,
@@ -328,21 +360,17 @@ export function MediaOverview() {
           endDate: endDate.toISOString(),
         };
       }
-      case 'custom':
-        return timeRange.startDate && timeRange.endDate
-          ? {
-              period: '30d',
-              startDate: timeRange.startDate.toISOString(),
-              endDate: timeRange.endDate.toISOString(),
-            }
-          : { period: '30d' };
+      case 'custom': {
+        const { startDate, endDate } = toApiDayParams(timeRange);
+        return startDate && endDate ? { period: '30d', startDate, endDate } : { period: '30d' };
+      }
       default:
         return { period: '30d' };
     }
   }, [timeRange]);
 
   const growth = useLibraryGrowth(
-    selectedServerIds,
+    ownerServerIds,
     null,
     growthParams.period,
     growthParams.startDate,
@@ -391,12 +419,13 @@ export function MediaOverview() {
   const allTimeLabel = t('common:time.allTime').toLowerCase();
 
   const unreadyServers = useMemo(
-    () => serversNeedingSync(statusResult.byServer, selectedServers),
-    [statusResult.byServer, selectedServers]
+    () => (isMember ? [] : serversNeedingSync(statusResult.byServer, selectedServers)),
+    [isMember, statusResult.byServer, selectedServers]
   );
 
   const allStatusLoaded = !statusResult.isLoading;
   const allServersUnready =
+    !isMember &&
     allStatusLoaded &&
     selectedServerIds.length > 0 &&
     unreadyServers.length === selectedServerIds.length;
@@ -406,14 +435,7 @@ export function MediaOverview() {
     [servers]
   );
 
-  const apiTimeRange = useMemo(
-    () => ({
-      period: timeRange.period,
-      startDate: timeRange.startDate?.toISOString(),
-      endDate: timeRange.endDate?.toISOString(),
-    }),
-    [timeRange]
-  );
+  const apiTimeRange = useMemo(() => toApiDayParams(timeRange), [timeRange]);
 
   const {
     data: shelves,
@@ -429,7 +451,9 @@ export function MediaOverview() {
     !shelvesIsError &&
     !!shelves &&
     shelves.meta.movies === 0 &&
-    shelves.meta.shows === 0;
+    shelves.meta.shows === 0 &&
+    shelves.meta.artists === 0;
+  const hasMusic = !!shelves && shelves.meta.artists > 0;
 
   const recentlyAddedCaption = t('media.landing.shelves.captionRecentlyAdded');
   const mostPopularCaption = t(`media.landing.shelves.captionMostPopular.${timeRange.period}`);
@@ -440,232 +464,274 @@ export function MediaOverview() {
     void refetchShelves();
   };
 
-  const header = (
-    <div className="flex items-center justify-between">
-      <div>
-        <h1 className="text-2xl font-bold">{t('library.title')}</h1>
-        <p className="text-muted-foreground text-sm">{t('library.overview.description')}</p>
-        {!statsIsLoading && !statsIsError && (
-          <div className="text-muted-foreground mt-1 flex items-center gap-1 text-xs">
-            <Calendar className="h-3 w-3" />
-            <span>
-              {t('library.overview.lastUpdated')} {formatLastUpdated(stats?.asOf)}
-            </span>
-          </div>
-        )}
-      </div>
-      <TimeRangePicker value={timeRange} onChange={setTimeRange} />
+  const movieCount = stats?.movieCount ?? 0;
+  const showCount = stats?.showCount ?? 0;
+  const memberCounts = joinMeta([
+    movieCount > 0 ? t('library.overview.movieCount', { count: movieCount }) : null,
+    showCount > 0 ? t('library.overview.showCount', { count: showCount }) : null,
+  ]);
+
+  const toolbar = isMember ? (
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <p className="text-muted-foreground text-xs">{memberCounts}</p>
+      <Button variant="outline" size="sm" asChild>
+        <Link to={browseHref('movie', { watched: 'unwatched' })}>
+          {t('library.overview.notWatchedByYou')}
+        </Link>
+      </Button>
     </div>
-  );
+  ) : null;
 
   if (hasNoServers || allServersUnready || hasEmptyLibrary) {
     return (
       <div className="space-y-6">
-        {header}
-        <LibraryEmptyState onComplete={refetchAll} />
+        {toolbar}
+        {isMember ? (
+          <EmptyState
+            icon={LibraryIcon}
+            title={t('library.overview.memberEmpty.title')}
+            description={t('library.overview.memberEmpty.description')}
+          />
+        ) : (
+          <LibraryEmptyState onComplete={refetchAll} />
+        )}
       </div>
     );
   }
 
+  const shelfSkeletons: { title: string; aspect?: 'square' }[] = [
+    { title: t('media.landing.shelves.recentlyAddedMovies') },
+    { title: t('media.landing.shelves.recentlyAddedShows') },
+    ...(isMember ? [] : [{ title: t('media.landing.shelves.recentlyUpdated') }]),
+    { title: t('media.landing.shelves.mostPopularMovies') },
+    { title: t('media.landing.shelves.mostPopularShows') },
+    // Music shelves only skeleton in when an earlier response showed artists,
+    // so a movie and show install never sees two shelves appear and vanish.
+    ...(queryClient
+      .getQueriesData<ShelvesResponse>({ queryKey: ['media', 'shelves'] })
+      .some(([, cached]) => (cached?.meta.artists ?? 0) > 0)
+      ? [
+          { title: t('media.landing.shelves.recentlyAddedAlbums'), aspect: 'square' as const },
+          { title: t('media.landing.shelves.mostPlayedArtists'), aspect: 'square' as const },
+        ]
+      : []),
+  ];
+
+  const shelfSections: ShelfSection[] = shelves
+    ? [
+        {
+          id: 'recently-added-movies',
+          title: t('media.landing.shelves.recentlyAddedMovies'),
+          caption: recentlyAddedCaption,
+          viewAllHref: '/media/browse',
+          emptyMessage: t('media.landing.shelves.emptyRecentlyAdded'),
+          cards: shelves.recentlyAddedMovies.map((row) => (
+            <RecentlyAddedCard key={row.mediaId} row={row} serverById={serverById} />
+          )),
+        },
+        {
+          id: 'recently-added-shows',
+          title: t('media.landing.shelves.recentlyAddedShows'),
+          caption: recentlyAddedCaption,
+          viewAllHref: '/media/browse?type=show',
+          emptyMessage: t('media.landing.shelves.emptyRecentlyAdded'),
+          cards: shelves.recentlyAddedShows.map((row) => (
+            <RecentlyAddedCard key={row.mediaId} row={row} serverById={serverById} />
+          )),
+        },
+        {
+          id: 'recently-updated',
+          title: t('media.landing.shelves.recentlyUpdated'),
+          caption: t('media.landing.shelves.captionRecentlyUpdated'),
+          viewAllHref: '/media/browse',
+          emptyMessage: t('media.landing.shelves.emptyRecentlyUpdated'),
+          staffOnly: true,
+          cards: shelves.recentlyUpdated.map((row) => (
+            <RecentlyUpdatedCard key={row.mediaId} row={row} serverById={serverById} />
+          )),
+        },
+        {
+          id: 'most-popular-movies',
+          title: t('media.landing.shelves.mostPopularMovies'),
+          caption: mostPopularCaption,
+          viewAllHref: '/media/browse',
+          emptyMessage: t('media.landing.shelves.emptyMostPopular'),
+          itemWidthClassName: 'w-[174px]',
+          cards: shelves.mostPopularMovies.map((row) => (
+            <MostPopularCard key={row.mediaId} row={row} serverById={serverById} />
+          )),
+        },
+        {
+          id: 'most-popular-shows',
+          title: t('media.landing.shelves.mostPopularShows'),
+          caption: mostPopularCaption,
+          viewAllHref: '/media/browse?type=show',
+          emptyMessage: t('media.landing.shelves.emptyMostPopular'),
+          itemWidthClassName: 'w-[174px]',
+          cards: shelves.mostPopularShows.map((row) => (
+            <MostPopularCard key={row.mediaId} row={row} serverById={serverById} />
+          )),
+        },
+        ...(hasMusic
+          ? [
+              {
+                id: 'recently-added-albums',
+                title: t('media.landing.shelves.recentlyAddedAlbums'),
+                emptyMessage: t('media.landing.shelves.emptyRecentlyAdded'),
+                cards: shelves.recentlyAddedAlbums.map((row) => (
+                  <RecentlyAddedAlbumCard
+                    key={`${row.serverId}:${row.ratingKey}`}
+                    row={row}
+                    serverById={serverById}
+                  />
+                )),
+              },
+              {
+                id: 'most-played-artists',
+                title: t('media.landing.shelves.mostPlayedArtists'),
+                caption: mostPopularCaption,
+                viewAllHref: '/media/browse?type=artist',
+                emptyMessage: t('media.landing.shelves.emptyMostPopular'),
+                itemWidthClassName: 'w-[174px]',
+                cards: shelves.mostPlayedArtists.map((row) => (
+                  <MostPopularCard key={row.mediaId} row={row} serverById={serverById} />
+                )),
+              },
+            ]
+          : []),
+      ].filter((section) => !isMember || (!section.staffOnly && section.cards.length > 0))
+    : [];
+
   return (
     <div className="space-y-8">
-      {header}
+      {toolbar}
 
-      <div className="space-y-6">
-        {statsIsLoading ? (
-          <LibraryStatsSkeleton />
-        ) : statsIsError ? (
-          <ErrorState
-            title={t('library.overview.failedToLoad')}
-            message={statsError?.message ?? t('library.overview.failedToLoadDesc')}
-            onRetry={refetchStats}
-          />
-        ) : (
-          <>
-            {/* Sync-needed banner: shown when some (but not all) servers need attention */}
-            {unreadyServers.length > 0 && (
-              <div className="bg-muted border-border flex flex-wrap items-center gap-2 rounded-lg border px-4 py-3 text-sm">
-                <span className="text-muted-foreground shrink-0">
-                  {t('library.overview.serversNeedSync', 'These servers need to sync:')}
-                </span>
-                {isMultiServer
-                  ? unreadyServers.map((server) => (
-                      <ServerBadge key={server.id} server={server} variant="outlined" />
-                    ))
-                  : null}
-              </div>
-            )}
+      {!isMember && (
+        <div className="space-y-6">
+          {statsIsLoading ? (
+            <LibraryStatsSkeleton />
+          ) : statsIsError ? (
+            <ErrorState
+              title={t('library.overview.failedToLoad')}
+              message={statsError?.message ?? t('library.overview.failedToLoadDesc')}
+              onRetry={refetchStats}
+            />
+          ) : (
+            <>
+              {/* Sync-needed banner: shown when some (but not all) servers need attention */}
+              {unreadyServers.length > 0 && (
+                <div className="bg-muted border-border flex flex-wrap items-center gap-2 rounded-lg border px-4 py-3 text-sm">
+                  <span className="text-muted-foreground shrink-0">
+                    {t('library.overview.serversNeedSync')}
+                  </span>
+                  {isMultiServer
+                    ? unreadyServers.map((server) => (
+                        <ServerBadge key={server.id} server={server} variant="outlined" />
+                      ))
+                    : null}
+                </div>
+              )}
 
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-              <StatCard
-                icon={Database}
-                label={t('library.overview.totalItems')}
-                value={formatNumber(stats?.totalItems ?? 0)}
-                subValue={allTimeLabel}
-              />
-              <StatCard
-                icon={HardDrive}
-                label={t('debug.totalSize')}
-                value={formatBytes(stats?.totalSizeBytes)}
-                subValue={allTimeLabel}
-              />
-              <StatCard
-                icon={Film}
-                label={t('common:media.movie_plural')}
-                value={formatNumber(stats?.movieCount ?? 0)}
-                subValue={allTimeLabel}
-              />
-              <StatCard
-                icon={Tv}
-                label={t('common:media.episode_plural')}
-                value={formatNumber(stats?.episodeCount ?? 0)}
-                subValue={joinMeta([
-                  stats?.showCount
-                    ? `${formatNumber(stats.showCount)} ${t('library.overview.shows')}`
-                    : null,
-                  allTimeLabel,
-                ])}
-              />
-              <StatCard
-                icon={TrendingUp}
-                label={t('library.overview.added')}
-                value={`+${formatNumber(periodChanges.total)}`}
-                subValue={periodLabel}
-                isLoading={growth.isLoading}
-              />
-            </div>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base font-medium">
-                  {t('library.overview.libraryGrowth')}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <LibraryGrowthChart
-                  data={aggregatedGrowth}
-                  isLoading={growth.isLoading}
-                  height={250}
-                  period={timeRange.period}
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                <StatCard
+                  icon={Database}
+                  label={t('library.overview.totalItems')}
+                  value={formatNumber(stats?.totalItems ?? 0)}
+                  subValue={allTimeLabel}
                 />
-              </CardContent>
-            </Card>
-          </>
-        )}
-      </div>
+                <StatCard
+                  icon={HardDrive}
+                  label={t('debug.totalSize')}
+                  value={formatBytes(stats?.totalSizeBytes)}
+                  subValue={allTimeLabel}
+                />
+                <StatCard
+                  icon={Film}
+                  label={t('common:media.movie_plural')}
+                  value={formatNumber(stats?.movieCount ?? 0)}
+                  subValue={allTimeLabel}
+                />
+                <StatCard
+                  icon={Tv}
+                  label={t('common:media.episode_plural')}
+                  value={formatNumber(stats?.episodeCount ?? 0)}
+                  subValue={joinMeta([
+                    stats?.showCount
+                      ? `${formatNumber(stats.showCount)} ${t('library.overview.shows')}`
+                      : null,
+                    allTimeLabel,
+                  ])}
+                />
+                <StatCard
+                  icon={TrendingUp}
+                  label={t('library.overview.added')}
+                  value={`+${formatNumber(periodChanges.total)}`}
+                  subValue={periodLabel}
+                  isLoading={growth.isLoading}
+                />
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base font-medium">
+                    {t('library.overview.libraryGrowth')}
+                  </CardTitle>
+                  {!statsIsLoading && !statsIsError && (
+                    <CardAction className="text-muted-foreground flex items-center gap-1 text-xs">
+                      <Calendar className="h-3 w-3" />
+                      <span>
+                        {t('library.overview.lastUpdated')} {formatLastUpdated(stats?.asOf)}
+                      </span>
+                    </CardAction>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <LibraryGrowthChart
+                    data={aggregatedGrowth}
+                    isLoading={growth.isLoading}
+                    height={250}
+                    period={timeRange.period}
+                  />
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </div>
+      )}
 
       {shelvesIsLoading ? (
         <div className="space-y-8" data-testid="media-landing-skeleton">
-          <ShelfSkeleton title={t('media.landing.shelves.recentlyAddedMovies')} />
-          <ShelfSkeleton title={t('media.landing.shelves.recentlyAddedShows')} />
-          <ShelfSkeleton title={t('media.landing.shelves.recentlyUpdated')} />
-          <ShelfSkeleton title={t('media.landing.shelves.mostPopularMovies')} />
-          <ShelfSkeleton title={t('media.landing.shelves.mostPopularShows')} />
+          {shelfSkeletons.map(({ title, aspect }) => (
+            <ShelfSkeleton key={title} title={title} aspect={aspect} />
+          ))}
         </div>
       ) : shelvesIsError ? (
         <ErrorState message={t('media.landing.loadError')} onRetry={refetchShelves} />
       ) : (
-        shelves && (
-          <div className="space-y-8">
-            {shelves.recentlyAddedMovies.length > 0 ? (
+        <div className="space-y-8">
+          {shelfSections.map((section) =>
+            section.cards.length > 0 ? (
               <Shelf
-                id="recently-added-movies"
-                title={t('media.landing.shelves.recentlyAddedMovies')}
-                caption={recentlyAddedCaption}
-                viewAllHref="/media/browse"
+                key={section.id}
+                id={section.id}
+                itemWidthClassName={section.itemWidthClassName}
+                title={section.title}
+                caption={section.caption}
+                viewAllHref={section.viewAllHref}
                 viewAllLabel={shelfViewAllLabel}
               >
-                {shelves.recentlyAddedMovies.map((row) => (
-                  <RecentlyAddedCard key={row.mediaId} row={row} serverById={serverById} />
-                ))}
+                {section.cards}
               </Shelf>
             ) : (
               <EmptyShelf
-                id="recently-added-movies"
-                title={t('media.landing.shelves.recentlyAddedMovies')}
-                message={t('media.landing.shelves.emptyRecentlyAdded')}
+                key={section.id}
+                id={section.id}
+                title={section.title}
+                message={section.emptyMessage}
               />
-            )}
-            {shelves.recentlyAddedShows.length > 0 ? (
-              <Shelf
-                id="recently-added-shows"
-                title={t('media.landing.shelves.recentlyAddedShows')}
-                caption={recentlyAddedCaption}
-                viewAllHref="/media/browse?type=shows"
-                viewAllLabel={shelfViewAllLabel}
-              >
-                {shelves.recentlyAddedShows.map((row) => (
-                  <RecentlyAddedCard key={row.mediaId} row={row} serverById={serverById} />
-                ))}
-              </Shelf>
-            ) : (
-              <EmptyShelf
-                id="recently-added-shows"
-                title={t('media.landing.shelves.recentlyAddedShows')}
-                message={t('media.landing.shelves.emptyRecentlyAdded')}
-              />
-            )}
-            {shelves.recentlyUpdated.length > 0 ? (
-              <Shelf
-                id="recently-updated"
-                title={t('media.landing.shelves.recentlyUpdated')}
-                caption={t('media.landing.shelves.captionRecentlyUpdated')}
-                viewAllHref="/media/browse"
-                viewAllLabel={shelfViewAllLabel}
-              >
-                {shelves.recentlyUpdated.map((row) => (
-                  <RecentlyUpdatedCard key={row.mediaId} row={row} serverById={serverById} />
-                ))}
-              </Shelf>
-            ) : (
-              <EmptyShelf
-                id="recently-updated"
-                title={t('media.landing.shelves.recentlyUpdated')}
-                message={t('media.landing.shelves.emptyRecentlyUpdated')}
-              />
-            )}
-            {shelves.mostPopularMovies.length > 0 ? (
-              <Shelf
-                id="most-popular-movies"
-                itemWidthClassName="w-[174px]"
-                title={t('media.landing.shelves.mostPopularMovies')}
-                caption={mostPopularCaption}
-                viewAllHref="/media/browse"
-                viewAllLabel={shelfViewAllLabel}
-              >
-                {shelves.mostPopularMovies.map((row) => (
-                  <MostPopularCard key={row.mediaId} row={row} serverById={serverById} />
-                ))}
-              </Shelf>
-            ) : (
-              <EmptyShelf
-                id="most-popular-movies"
-                title={t('media.landing.shelves.mostPopularMovies')}
-                message={t('media.landing.shelves.emptyMostPopular')}
-              />
-            )}
-            {shelves.mostPopularShows.length > 0 ? (
-              <Shelf
-                id="most-popular-shows"
-                itemWidthClassName="w-[174px]"
-                title={t('media.landing.shelves.mostPopularShows')}
-                caption={mostPopularCaption}
-                viewAllHref="/media/browse?type=shows"
-                viewAllLabel={shelfViewAllLabel}
-              >
-                {shelves.mostPopularShows.map((row) => (
-                  <MostPopularCard key={row.mediaId} row={row} serverById={serverById} />
-                ))}
-              </Shelf>
-            ) : (
-              <EmptyShelf
-                id="most-popular-shows"
-                title={t('media.landing.shelves.mostPopularShows')}
-                message={t('media.landing.shelves.emptyMostPopular')}
-              />
-            )}
-          </div>
-        )
+            )
+          )}
+        </div>
       )}
     </div>
   );

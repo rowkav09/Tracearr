@@ -1,12 +1,11 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router';
-import { format } from 'date-fns';
 import { ChevronDown, ExternalLink } from 'lucide-react';
 import { buildMediaServerItemUrl, formatMediaTech } from '@tracearr/shared';
 import type { MediaAvailabilityEntry, MediaRequestEntry, ServerType } from '@tracearr/shared';
 import type { MediaDetailData, MediaDetailStub } from '@/hooks/queries';
-import { buildPosterSrc } from './PosterCard';
+import { buildPosterSrc, POSTER_ASPECT_CLASS, type PosterAspect } from './PosterCard';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -28,12 +27,15 @@ import { heroRequestLine, type Translate } from '@/components/requests/format';
 import { BASE_URL } from '@/lib/basePath';
 import { cn } from '@/lib/utils';
 import { formatBytes } from '@/lib/formatters';
+import { formatDate } from '@/lib/dateFormat';
 
 export interface HeroServerLookupEntry {
   name: string;
   type: ServerType;
   color?: string | null;
-  url: string;
+  /** Absent for members, whose server rows carry no internal address. */
+  url?: string;
+  publicUrl?: string | null;
   machineIdentifier?: string | null;
 }
 
@@ -51,7 +53,7 @@ interface DetailHeroProps {
 function heroRequestText(request: MediaRequestEntry, t: Translate): string {
   const { identityName, username } = request.requester;
   const name = identityName ?? username ?? t('requests.unattributed');
-  return heroRequestLine(request, name, t, 'MMM d, yyyy');
+  return heroRequestLine(request, name, t);
 }
 
 /** Two-letter glyph, mirroring PosterCard's fallback treatment at hero scale. */
@@ -103,11 +105,13 @@ function HeroPoster({
   posterUrl,
   posterVersion,
   dominantColor,
+  aspect,
 }: {
   title: string;
   posterUrl: string | null;
   posterVersion: string | null;
   dominantColor: string | null;
+  aspect: PosterAspect;
 }) {
   const [imgError, setImgError] = useState(false);
 
@@ -120,7 +124,10 @@ function HeroPoster({
   return (
     <div className="w-[150px] min-[761px]:w-[218px]">
       <div
-        className="border-border/50 relative aspect-[2/3] overflow-hidden rounded-[calc(var(--radius)+4px)] border shadow-[0_24px_60px_hsl(240_10%_2%/0.6)]"
+        className={cn(
+          'border-border/50 relative overflow-hidden rounded-[calc(var(--radius)+4px)] border shadow-[0_24px_60px_hsl(240_10%_2%/0.6)]',
+          POSTER_ASPECT_CLASS[aspect]
+        )}
         style={dominantColor ? { backgroundColor: dominantColor } : undefined}
       >
         {showFallback ? (
@@ -141,7 +148,7 @@ function HeroPoster({
           </div>
         ) : (
           <img
-            src={buildPosterSrc(posterUrl, posterVersion)}
+            src={buildPosterSrc(posterUrl, posterVersion, { square: aspect === 'square' })}
             alt=""
             loading="eager"
             fetchPriority="high"
@@ -171,28 +178,34 @@ function HeroBodySkeleton() {
   );
 }
 
-function OpenOnServerAction({
-  activeAvailability,
-  serverById,
-}: {
-  activeAvailability: MediaAvailabilityEntry[];
-  serverById: Map<string, HeroServerLookupEntry>;
-}) {
-  const { t } = useTranslation('pages');
+export interface OpenOnServerTarget {
+  serverId: string;
+  name: string;
+  url: string;
+}
 
-  const targets = activeAvailability
-    .map((entry) => {
-      const server = serverById.get(entry.serverId);
-      if (!server) return null;
-      const itemUrl = buildMediaServerItemUrl({
-        serverType: server.type,
-        baseUrl: server.url,
-        ratingKey: entry.ratingKey,
-        machineIdentifier: server.machineIdentifier,
-      });
-      return { serverId: entry.serverId, name: server.name, url: itemUrl ?? server.url };
-    })
-    .filter((target): target is { serverId: string; name: string; url: string } => !!target);
+/** One deep link per copy whose server is known, falling back to the server's own address. */
+export function openOnServerTargets(
+  copies: Pick<MediaAvailabilityEntry, 'serverId' | 'ratingKey'>[],
+  serverById: Map<string, HeroServerLookupEntry>
+): OpenOnServerTarget[] {
+  return copies.flatMap((entry) => {
+    const server = serverById.get(entry.serverId);
+    if (!server) return [];
+    const base = server.publicUrl ?? server.url;
+    const itemUrl = buildMediaServerItemUrl({
+      serverType: server.type,
+      baseUrl: base ?? '',
+      ratingKey: entry.ratingKey,
+      machineIdentifier: server.machineIdentifier,
+    });
+    const url = itemUrl ?? base;
+    return url ? [{ serverId: entry.serverId, name: server.name, url }] : [];
+  });
+}
+
+export function OpenOnServerAction({ targets }: { targets: OpenOnServerTarget[] }) {
+  const { t } = useTranslation('pages');
 
   if (targets.length === 0) return null;
 
@@ -240,14 +253,13 @@ export function DetailHero({
   onFullHistoryClick,
   request,
 }: DetailHeroProps) {
-  const { t } = useTranslation('pages');
+  const { t } = useTranslation(['pages', 'nav', 'common']);
 
   const title = data?.title ?? stub?.title;
   const year = data?.year ?? stub?.year ?? null;
   const mediaType = data?.mediaType;
   const availability = data?.availability;
-  const removedEverywhere =
-    !!availability && availability.length > 0 && availability.every((a) => a.removedAt != null);
+  const removedEverywhere = !!availability && availability.every((a) => a.removedAt != null);
   const posterUrl = removedEverywhere ? null : (data?.posterUrl ?? stub?.posterUrl ?? null);
   const posterVersion = data?.posterVersion ?? stub?.posterVersion ?? null;
   const dominantColor = data?.dominantColor ?? stub?.dominantColor ?? null;
@@ -260,8 +272,10 @@ export function DetailHero({
     mediaType === 'movie'
       ? { label: t('media.movies.title'), href: '/media/browse' }
       : mediaType === 'show'
-        ? { label: t('media.shows.title'), href: '/media/browse?type=shows' }
-        : null;
+        ? { label: t('media.shows.title'), href: '/media/browse?type=show' }
+        : mediaType === 'artist'
+          ? { label: t('common:media.artist_plural'), href: '/media/browse?type=artist' }
+          : null;
 
   const activeAvailability = (availability ?? []).filter((a) => a.removedAt == null);
   const editionTitles = new Set(
@@ -320,7 +334,7 @@ export function DetailHero({
         <BreadcrumbList>
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
-              <Link to="/media">{t('media.landing.title')}</Link>
+              <Link to="/library">{t('nav:library')}</Link>
             </BreadcrumbLink>
           </BreadcrumbItem>
           {segment && (
@@ -346,6 +360,7 @@ export function DetailHero({
           posterUrl={posterUrl}
           posterVersion={posterVersion}
           dominantColor={dominantColor}
+          aspect={mediaType === 'artist' ? 'square' : 'poster'}
         />
         <div>
           <h1 className="text-[34px] leading-tight font-bold tracking-[-0.025em] text-balance">
@@ -360,18 +375,20 @@ export function DetailHero({
             <>
               {metaLine && <p className="text-muted-foreground mt-1 text-[13px]">{metaLine}</p>}
 
-              {availability && availability.length > 0 && (
+              {availability && (availability.length > 0 || removedEverywhere) && (
                 <div className="mt-3.5 flex flex-col gap-1.5">
                   {availability.map((entry) => {
                     const server = serverById.get(entry.serverId);
                     const removed = entry.removedAt != null;
                     const dateText = removed
                       ? t('media.detail.hero.availability.addedRemoved', {
-                          added: format(new Date(entry.addedAt), 'MMM d, yyyy'),
-                          removed: format(new Date(entry.removedAt as string), 'MMM d, yyyy'),
+                          added: formatDate(new Date(entry.addedAt), { dateStyle: 'medium' }),
+                          removed: formatDate(new Date(entry.removedAt as string), {
+                            dateStyle: 'medium',
+                          }),
                         })
                       : t('media.detail.hero.availability.added', {
-                          date: format(new Date(entry.addedAt), 'MMM d, yyyy'),
+                          date: formatDate(new Date(entry.addedAt), { dateStyle: 'medium' }),
                         });
                     // A witnessed replacement tells the swap as one line, dated by
                     // the removal event rather than the server's claimed added date
@@ -379,7 +396,9 @@ export function DetailHero({
                       entry.replaces && !removed
                         ? joinMeta([
                             t('media.detail.hero.availability.added', {
-                              date: format(new Date(entry.replaces.addedAt), 'MMM d, yyyy'),
+                              date: formatDate(new Date(entry.replaces.addedAt), {
+                                dateStyle: 'medium',
+                              }),
                             }),
                             entry.replaces.videoResolution
                               ? formatMediaTech(entry.replaces.videoResolution)
@@ -388,7 +407,9 @@ export function DetailHero({
                               ? formatBytes(entry.replaces.fileSize, 1, { minUnit: 'GB' })
                               : null,
                             t('media.detail.hero.availability.replaced', {
-                              date: format(new Date(entry.replaces.removedAt), 'MMM d, yyyy'),
+                              date: formatDate(new Date(entry.replaces.removedAt), {
+                                dateStyle: 'medium',
+                              }),
                             }),
                             entry.videoResolution ? formatMediaTech(entry.videoResolution) : null,
                             entry.fileSize != null
@@ -453,8 +474,7 @@ export function DetailHero({
                 </Button>
                 {!removedEverywhere && (
                   <OpenOnServerAction
-                    activeAvailability={activeAvailability}
-                    serverById={serverById}
+                    targets={openOnServerTargets(activeAvailability, serverById)}
                   />
                 )}
               </div>

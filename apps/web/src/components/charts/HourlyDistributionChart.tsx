@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import Highcharts from 'highcharts';
 import { HighchartsReact } from 'highcharts-react-official';
 import type { HourlyDistribution } from '@tracearr/shared';
-import { getHour12 } from '@/lib/timeFormat';
+import { formatHourOfDay } from '@/lib/dateFormat';
 import { ChartSkeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Clock } from 'lucide-react';
@@ -13,20 +14,12 @@ interface HourlyDistributionChartProps {
   height?: number;
 }
 
-const formatHour = (hour: number): string => {
-  if (!getHour12()) {
-    return `${hour.toString().padStart(2, '0')}:00`;
-  }
-  if (hour === 0) return '12am';
-  if (hour === 12) return '12pm';
-  return hour < 12 ? `${hour}am` : `${hour - 12}pm`;
-};
-
 export function HourlyDistributionChart({
   data,
   isLoading,
   height = 250,
 }: HourlyDistributionChartProps) {
+  const { t } = useTranslation('pages');
   const options = useMemo<Highcharts.Options>(() => {
     if (!data || data.length === 0) {
       return {};
@@ -52,7 +45,7 @@ export function HourlyDistributionChart({
         enabled: false,
       },
       xAxis: {
-        categories: data.map((d) => formatHour(d.hour)),
+        categories: data.map((d) => formatHourOfDay(d.hour)),
         labels: {
           rotation: -45,
           style: {
@@ -65,7 +58,7 @@ export function HourlyDistributionChart({
       },
       yAxis: {
         title: {
-          text: 'Watches',
+          text: t('library.charts.hourly.watches'),
           style: {
             color: 'hsl(var(--muted-foreground))',
           },
@@ -100,13 +93,13 @@ export function HourlyDistributionChart({
         formatter: function () {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const label = (this as any).point?.category || this.x;
-          return `<b>${label}</b><br/>Watches: ${this.y}`;
+          return `<b>${label}</b><br/>${t('library.charts.watchesValue', { count: this.y ?? 0 })}`;
         },
       },
       series: [
         {
           type: 'column',
-          name: 'Watches',
+          name: t('library.charts.hourly.watches'),
           data: data.map((d) => d.watchCount),
         },
       ],
@@ -135,7 +128,7 @@ export function HourlyDistributionChart({
         ],
       },
     };
-  }, [data, height]);
+  }, [data, height, t]);
 
   if (isLoading) {
     return <ChartSkeleton height={height} />;
@@ -145,8 +138,8 @@ export function HourlyDistributionChart({
     return (
       <EmptyState
         icon={Clock}
-        title="No hourly data"
-        description="Watch distribution by hour will appear here once data is available"
+        title={t('library.charts.hourly.empty.title')}
+        description={t('library.charts.hourly.empty.description')}
       />
     );
   }

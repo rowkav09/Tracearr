@@ -5,12 +5,23 @@
 import {
   classifyByDimensions,
   normalizeResolutionLabel,
+  resolutionDisplayName,
   type ResolutionLabel,
 } from './resolution.js';
 
 export { IDENTITY_AWARE_CONDITION_FIELDS } from './automations/conditions.js';
 
 // Severity levels
+// A person's own sign-in access. default follows loginMethods.member; allow and block override it.
+export const LOGIN_ACCESS = ['default', 'allow', 'block'] as const;
+
+// Error codes on a refused sign-in. notPermitted is only ever sent after the media server, the
+// identity provider or a Tracearr password proved who the person is.
+export const SIGN_IN_ERROR_CODES = {
+  refused: 'MEMBER_LOGIN_REFUSED',
+  notPermitted: 'MEMBER_NOT_PERMITTED',
+} as const;
+
 export const SEVERITY_LEVELS = {
   low: { label: 'Low', priority: 1 },
   warning: { label: 'Warning', priority: 2 },
@@ -51,6 +62,14 @@ export const WS_EVENTS = {
   DESTINATIONS_CHANGED: 'destinations:changed',
   REQUESTS_CHANGED: 'requests:changed',
   SERVERS_CHANGED: 'servers:changed',
+  /** Internal, once per poll tick: slim progress for every updated session. The socket relay ignores it. */
+  SESSIONS_PROGRESS: 'sessions:progress',
+  /** Internal: an owner regenerated their public API key; open public event connections for that user close. */
+  PUBLIC_API_KEY_CHANGED: 'public-api:key-changed',
+  /** Internal: a person's role or accounts changed; every instance drops their sockets. */
+  USER_ACCESS_CHANGED: 'user:access-changed',
+  /** Internal: a paired mobile device was revoked; every instance drops its sockets. */
+  MOBILE_DEVICE_REVOKED: 'mobile:device-revoked',
 } as const;
 
 // Redis key prefix (set at startup via setRedisPrefix)
@@ -96,6 +115,9 @@ export const REDIS_KEYS = {
   get DASHBOARD_STATS() {
     return `${_redisPrefix}tracearr:stats:dashboard`;
   },
+  get MY_STATS() {
+    return `${_redisPrefix}tracearr:stats:me`;
+  },
   RATE_LIMIT_LOGIN: (ip: string) => `${_redisPrefix}tracearr:ratelimit:login:${ip}`,
   RATE_LIMIT_MOBILE_PAIR: (ip: string) => `${_redisPrefix}tracearr:ratelimit:mobile:pair:${ip}`,
   RATE_LIMIT_MOBILE_REFRESH: (ip: string) =>
@@ -110,9 +132,28 @@ export const REDIS_KEYS = {
     `${_redisPrefix}tracearr:servers:${serverId}:stats:bandwidth`,
   SERVER_STATS_SAMPLES: (serverId: string) =>
     `${_redisPrefix}tracearr:servers:${serverId}:stats:samples`,
+  DOWNLOAD_CURSOR: (serverId: string) =>
+    `${_redisPrefix}tracearr:servers:${serverId}:downloads:cursor`,
+  SYNC_CURSOR: (serverId: string) =>
+    `${_redisPrefix}tracearr:servers:${serverId}:downloads:sync-cursor`,
+  SYNC_RECORDED: (serverId: string) =>
+    `${_redisPrefix}tracearr:servers:${serverId}:downloads:sync-recorded`,
+  TRANSCODE_PULLS: (serverId: string) =>
+    `${_redisPrefix}tracearr:servers:${serverId}:downloads:transcode-pulls`,
+  PLEX_DEVICE: (serverId: string, clientIdentifier: string) =>
+    `${_redisPrefix}tracearr:servers:${serverId}:plex-device:${clientIdentifier}`,
+  EMBY_USER_GUID: (serverId: string, numericId: string) =>
+    `${_redisPrefix}tracearr:servers:${serverId}:emby-user:${numericId}`,
   get PUBSUB_EVENTS() {
     return `${_redisPrefix}tracearr:events`;
   },
+  /** Pub/sub channel behind GET /api/v2/public/events; carries only the events that surface there */
+  get PUBLIC_EVENTS_CHANNEL() {
+    return `${_redisPrefix}tracearr:public:events`;
+  },
+  /** Open public event connections for one API key owner: ZSET of connection id scored by last heartbeat ms */
+  PUBLIC_EVENT_CONNECTIONS: (userId: string) =>
+    `${_redisPrefix}tracearr:public:events:conns:${userId}`,
   // Notification rate limiting (sliding window counters)
   PUSH_RATE_MINUTE: (sessionId: string) => `${_redisPrefix}tracearr:push:rate:minute:${sessionId}`,
   PUSH_RATE_HOUR: (sessionId: string) => `${_redisPrefix}tracearr:push:rate:hour:${sessionId}`,
@@ -169,9 +210,6 @@ export const REDIS_KEYS = {
   get LIBRARY_PATTERNS() {
     return `${_redisPrefix}tracearr:library:patterns`;
   },
-  get LIBRARY_COMPLETION() {
-    return `${_redisPrefix}tracearr:library:completion`;
-  },
   get LIBRARY_TOP_MOVIES() {
     return `${_redisPrefix}tracearr:library:top-movies`;
   },
@@ -227,6 +265,15 @@ export const REDIS_KEYS = {
   // net is time-based so event-sync bursts can't drag it forward
   LIBRARY_SYNC_FULL_SCAN_AT: (serverId: string, libraryId: string) =>
     `${_redisPrefix}tracearr:library:sync:fullscan:${serverId}:${libraryId}`,
+  // When a full scan of the library last completed. Unlike LIBRARY_SYNC_FULL_SCAN_AT, which an
+  // incremental sync seeds for the full-scan-due clock, this is written by a full scan only, so
+  // it says a rating key absent from the library was absent from the server at that time
+  LIBRARY_SYNC_FULL_SCAN_DONE: (serverId: string, libraryId: string) =>
+    `${_redisPrefix}tracearr:library:sync:fullscan-done:${serverId}:${libraryId}`,
+  // The floor (earliest completed-scan marker across the server's libraries) the sync tail last
+  // handled tracked plays on gone rating keys for; the tail looks again only once it advances
+  LIBRARY_SYNC_GONE_KEYS_HANDLED: (serverId: string) =>
+    `${_redisPrefix}tracearr:library:sync:gonekeys-handled:${serverId}`,
   // Accepted structural shortfall from the last full scan - see COUNT_MISMATCH_* in librarySync.ts
   LIBRARY_SYNC_SHORTFALL: (serverId: string, libraryId: string) =>
     `${_redisPrefix}tracearr:library:sync:shortfall:${serverId}:${libraryId}`,
@@ -243,15 +290,21 @@ export const REDIS_KEYS = {
   // trusts a stamp taken against the directory the process is using now.
   LIBRARY_PRECACHE_LAST_FULL_DIR: (serverId: string) =>
     `${_redisPrefix}tracearr:library:precache:last-full-dir:${serverId}`,
-  // Poster cache: one-time boot reconciliation marker, the last sweep's tally,
-  // and the disk-limited flag the precache sets when the guard refused writes.
+  // One-time boot reconciliation markers: the 2.2 poster cache change (no longer
+  // read) and the 2.9 job queue cleanup. Then the last poster sweep's tally and
+  // the disk-limited flag the precache sets when the guard refused writes.
   IMAGE_CACHE_SCHEMA: `${_redisPrefix}tracearr:image-cache:schema`,
+  JOBS_SCHEMA: `${_redisPrefix}tracearr:jobs:schema`,
   IMAGE_CACHE_TALLY: `${_redisPrefix}tracearr:image-cache:tally`,
   IMAGE_CACHE_DISK_LIMITED: `${_redisPrefix}tracearr:image-cache:disk-limited`,
   // Global, not per-server: the cache directory is one path for the whole process.
   IMAGE_CACHE_NOT_PERSISTING: `${_redisPrefix}tracearr:image-cache:not-persisting`,
   // Auth tokens
   PLEX_TEMP_TOKEN: (token: string) => `${_redisPrefix}tracearr:plex_temp:${token}`,
+  PLEX_PIN: (handle: string) => `${_redisPrefix}tracearr:plex_pin:${handle}`,
+  QUICK_CONNECT: (handle: string) => `${_redisPrefix}tracearr:quick_connect:${handle}`,
+  LOGIN_FAILURES: (serverId: string, username: string) =>
+    `${_redisPrefix}tracearr:login_failures:${serverId}:${username}`,
   MOBILE_REFRESH_TOKEN: (hash: string) => `${_redisPrefix}tracearr:mobile_refresh:${hash}`,
   MOBILE_BLACKLISTED_TOKEN: (deviceId: string) =>
     `${_redisPrefix}tracearr:mobile:blacklist:${deviceId}`,
@@ -293,6 +346,8 @@ export const REDIS_KEYS = {
   // Filter options caching
   FILTER_OPTIONS: (userId: string, scopeHash: string) =>
     `${_redisPrefix}tracearr:filter-options:v2:${userId}:${scopeHash}`,
+  // A member's non-removed server account ids and their servers
+  USER_SCOPE: (userId: string) => `${_redisPrefix}tracearr:scope:${userId}`,
   // v1 segment invalidates cached entries if the GeoLocation shape ever changes
   PLEX_GEOIP: (ip: string) => `${_redisPrefix}tracearr:geoip:plex:v1:${ip}`,
   // Public API v2 per-media stats/watchers responses
@@ -308,6 +363,7 @@ export const REDIS_KEYS = {
 // Cache TTLs in seconds
 export const CACHE_TTL = {
   DASHBOARD_STATS: 60,
+  MY_STATS: 60,
   PUBLIC_MEDIA_STATS: 60,
   // Must exceed several SSE reconciliation intervals (30s): paused Plex sessions emit no events,
   // and an expiring entry hides the session from the dashboard and from concurrent-stream limits.
@@ -334,7 +390,6 @@ export const CACHE_TTL = {
   LIBRARY_WATCH: 300, // 5 minutes
   LIBRARY_ROI: 3600, // 1 hour (ROI changes slowly)
   LIBRARY_PATTERNS: 3600, // 1 hour (patterns change slowly)
-  LIBRARY_COMPLETION: 300, // 5 minutes
   LIBRARY_TOP_MOVIES: 300, // 5 minutes
   LIBRARY_TOP_SHOWS: 300, // 5 minutes
   LIBRARY_CODECS: 300, // 5 minutes
@@ -373,8 +428,17 @@ export const NOTIFICATION_EVENTS = {
   TRUST_SCORE_CHANGED: 'trust_score_changed',
 } as const;
 
-/** The one size a poster is cached at. Every poster URL the server hands out uses it. */
+/** The 2:3 size a poster is cached at, for every row but artists and albums. */
 export const POSTER_IMAGE_SIZE = { width: 360, height: 540 } as const;
+
+/** Artist and album art is square; the one other size a versioned poster URL may ask for. */
+export const SQUARE_POSTER_SIZE = { width: 360, height: 360 } as const;
+
+export function posterSizeFor(
+  mediaType: string
+): typeof POSTER_IMAGE_SIZE | typeof SQUARE_POSTER_SIZE {
+  return mediaType === 'artist' || mediaType === 'album' ? SQUARE_POSTER_SIZE : POSTER_IMAGE_SIZE;
+}
 
 // API version
 /**
@@ -773,7 +837,7 @@ export function formatResolutionDisplay(
   width: number | null | undefined,
   height: number | null | undefined
 ): string {
-  const label = getResolutionLabel(width, height);
+  const label = resolutionDisplayName({ width, height });
   if (!label) return '—';
 
   if (width && height) return `${width}×${height} (${label})`;
@@ -932,10 +996,13 @@ export function getClientTimezone(): string {
 /**
  * Validate an IANA timezone identifier.
  *
+ * Intl accepts offset strings like "+05:00" with the opposite sign to Postgres, so they are refused.
+ *
  * @param tz - Timezone string to validate
  * @returns true if valid IANA timezone, false otherwise
  */
 export function isValidTimezone(tz: string): boolean {
+  if (/^[+-]/.test(tz)) return false;
   try {
     Intl.DateTimeFormat('en-US', { timeZone: tz });
     return true;

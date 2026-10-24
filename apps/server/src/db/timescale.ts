@@ -9,6 +9,7 @@ import { createRawPgClient, db, recreatePool } from './client.js';
 import { sql, type SQL } from 'drizzle-orm';
 import type pg from 'pg';
 import { PRIMARY_MEDIA_TYPES_SQL_LITERAL } from '../constants/mediaTypes.js';
+import { countedSession, countedSessionSql } from '../constants/sessions.js';
 
 /**
  * Schema version for continuous aggregate definitions.
@@ -52,8 +53,10 @@ import { PRIMARY_MEDIA_TYPES_SQL_LITERAL } from '../constants/mediaTypes.js';
  * - 17: user_media_plays_daily is grouped by resume chain (chain_id) and the
  *       plays count became a counted flag. A chain counts when any segment
  *       passes the 120s gate, once, instead of only when its head does.
+ * - 18: A session counts toward plays and watch time when it passes the 120s
+ *       gate or is marked watched, so short tracks played to the end count.
  */
-export const AGGREGATE_SCHEMA_VERSION = 17;
+export const AGGREGATE_SCHEMA_VERSION = 18;
 
 /** Config for a continuous aggregate view */
 interface AggregateDefinition {
@@ -80,7 +83,7 @@ function getAggregateDefinitions(): AggregateDefinition[] {
 
   return [
     {
-      // Used by: /stats/engagement, /library/completion, /library/patterns
+      // Used by: /stats/engagement, /stats/me, /library/top-movies, /library/top-shows
       name: 'daily_content_engagement',
       sql: `
         CREATE MATERIALIZED VIEW IF NOT EXISTS daily_content_engagement
@@ -100,9 +103,9 @@ function getAggregateDefinitions(): AggregateDefinition[] {
           MAX(season_number) AS season_number,
           MAX(episode_number) AS episode_number,
           MAX(year) AS year,
-          SUM(CASE WHEN duration_ms >= 120000 THEN duration_ms ELSE 0 END) AS watched_ms,
-          MAX(CASE WHEN duration_ms >= 120000 THEN progress_ms ELSE NULL END) AS max_progress_ms,
-          COUNT(*) FILTER (WHERE duration_ms >= 120000) AS valid_session_count,
+          SUM(CASE WHEN ${countedSession()} THEN duration_ms ELSE 0 END) AS watched_ms,
+          MAX(CASE WHEN ${countedSession()} THEN progress_ms ELSE NULL END) AS max_progress_ms,
+          COUNT(*) FILTER (WHERE ${countedSession()}) AS valid_session_count,
           COUNT(*) AS total_session_count,
           BOOL_OR(watched) AS any_marked_watched
         FROM sessions
@@ -134,8 +137,8 @@ function getAggregateDefinitions(): AggregateDefinition[] {
           COALESCE(reference_id, id) AS chain_id,
           MAX(show_media_id::text)::uuid AS show_media_id,
           MAX(media_type) AS media_type,
-          BOOL_OR(COALESCE(duration_ms, 0) >= 120000) AS counted,
-          SUM(CASE WHEN duration_ms >= 120000 THEN duration_ms ELSE 0 END) AS watched_ms,
+          BOOL_OR(${countedSession()}) AS counted,
+          SUM(CASE WHEN ${countedSession()} THEN duration_ms ELSE 0 END) AS watched_ms,
           MAX(progress_ms) AS max_progress_ms,
           MAX(total_duration_ms) AS content_duration_ms,
           BOOL_OR(watched) AS any_watched
@@ -715,6 +718,10 @@ async function convertToHypertable(): Promise<void> {
     )
   `);
 
+  // create_hypertable builds this default index; idx_sessions_time_play_id
+  // already leads with started_at DESC
+  await db.execute(sql`DROP INDEX IF EXISTS sessions_started_at_idx`);
+
   // Create expression indexes for COALESCE(reference_id, id) pattern
   // This pattern is used throughout the codebase for play grouping
   await db.execute(sql`
@@ -752,8 +759,8 @@ async function createPartialIndexes(): Promise<void> {
   await db.execute(sql`DROP INDEX IF EXISTS idx_automation_runs_unacked_list`);
 
   // idx_sessions_active_partial removed - live "now playing" reads come from the
-  // Redis cache, and the one matching query (violations detail) plans onto the
-  // server_user time index instead
+  // Redis cache, and violations detail reads its sessions by id through
+  // sessions_pkey
 
   // Partial index for the stale-session sweep: open rows only, so the
   // sweep's lastSeenAt filter never seq-scans the current 30-day chunk
@@ -767,25 +774,11 @@ async function createPartialIndexes(): Promise<void> {
   // run retention filters on kind and finished_at, and no other read wants it
   await db.execute(sql`DROP INDEX IF EXISTS idx_automation_runs_dismissed_partial`);
 
-  // Partial index for transcoded sessions (quality analysis)
-  await db.execute(sql`
-    CREATE INDEX IF NOT EXISTS idx_sessions_transcode_partial
-    ON sessions (started_at DESC, quality, bitrate)
-    WHERE is_transcode = true
-  `);
-
   // Partial index for music track queries (artist, album lookups)
   await db.execute(sql`
     CREATE INDEX IF NOT EXISTS idx_sessions_music_partial
     ON sessions (started_at DESC, artist_name, album_name)
     WHERE media_type = 'track'
-  `);
-
-  // Partial index for live TV queries (channel lookups)
-  await db.execute(sql`
-    CREATE INDEX IF NOT EXISTS idx_sessions_live_tv_partial
-    ON sessions (started_at DESC, channel_identifier, channel_title)
-    WHERE media_type = 'live'
   `);
 }
 
@@ -1121,6 +1114,21 @@ export async function getSessionsCompressionHorizon(): Promise<Date | null> {
   `);
   const horizon = (result.rows[0] as { horizon: string | Date | null } | undefined)?.horizon;
   return horizon ? new Date(horizon) : null;
+}
+
+const HORIZON_CACHE_TTL_MS = 60_000;
+let horizonCache: { value: Date | null; expiresAt: number } | null = null;
+
+/**
+ * Poller-only variant of getSessionsCompressionHorizon. A horizon up to a minute
+ * old only makes the stale sweep read one compressed chunk; callers that write
+ * history (library sync backfill) must use the uncached read.
+ */
+export async function getCachedSessionsCompressionHorizon(): Promise<Date | null> {
+  if (horizonCache && horizonCache.expiresAt > Date.now()) return horizonCache.value;
+  const value = await getSessionsCompressionHorizon();
+  horizonCache = { value, expiresAt: Date.now() + HORIZON_CACHE_TTL_MS };
+  return value;
 }
 
 export const MAX_TUPLES_DECOMPRESSED_GUC =
@@ -1809,9 +1817,13 @@ export async function checkAggregateNeedsRebuild(): Promise<{
 const TIMESCALE_STATUS_CACHE_TTL_MS = 5 * 60 * 1000;
 let timescaleStatusCache: { value: TimescaleStatus; expiresAt: number } | null = null;
 
-/** Drop the cached TimescaleDB status. Call after DDL that changes topology. */
+/**
+ * Drop the cached TimescaleDB status and the cached compression horizon. Call
+ * after DDL that changes topology or compresses/decompresses chunks.
+ */
 export function invalidateTimescaleStatusCache(): void {
   timescaleStatusCache = null;
+  horizonCache = null;
 }
 
 async function computeTimescaleStatus(): Promise<TimescaleStatus> {
@@ -2205,6 +2217,10 @@ export async function initTimescaleDB(): Promise<{
     } else {
       actions.push('Compression already enabled with correct settings');
     }
+    // withSessionsCompressionPaused removes the policy for the length of an import or walk
+    // and only a clean finish puts it back. compression_enabled stays true without it, so a
+    // kill mid-run would otherwise leave old chunks uncompressed until someone noticed.
+    await addSessionsCompressionPolicy();
   }
 
   // Create partial indexes for optimized filtered queries
@@ -2416,7 +2432,7 @@ async function ensureEngagementViews(): Promise<void> {
       FROM sessions
       WHERE media_type = 'episode'
         AND grandparent_title IS NOT NULL
-        AND duration_ms >= 120000
+        AND ${countedSessionSql()}
         AND stopped_at IS NOT NULL
     )
     SELECT

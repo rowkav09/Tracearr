@@ -16,10 +16,12 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { db } from '../db/client.js';
 import { servers, serverUserExternalAliases, serverUsers, sessions, users } from '../db/schema.js';
+import { sessionRowById } from '../db/sessionRow.js';
 import { getGeoIPSettings } from '../routes/settings.js';
 import type { CacheService, PubSubService } from '../services/cache.js';
+import { pollAllDownloads } from '../services/downloads/activityLogPoll.js';
 import { createMediaServerClient } from '../services/mediaServer/index.js';
-import { isLiveServer } from '../services/liveServers.js';
+import { isLiveServer, liveServers } from '../services/liveServers.js';
 import { extractLiveUuid } from '../services/mediaServer/plex/plexUtils.js';
 import { resolveSessionGeo } from '../services/serverLocations.js';
 import {
@@ -48,7 +50,7 @@ import {
   recordDbWrite,
   shouldFlushDbWrite,
 } from './poller/dbWriteThrottle.js';
-import { triggerReconciliationPoll } from './poller/index.js';
+import { isPollerRunning, triggerReconciliationPoll } from './poller/index.js';
 import {
   buildActiveSession,
   buildPendingActiveSession,
@@ -81,9 +83,8 @@ let cacheService: CacheService | null = null;
 let pubSubService: PubSubService | null = null;
 let isRunning = false;
 
-// Server down notification threshold in milliseconds
-// Delay prevents false alarms from brief connection blips
-
+// With nothing polling, how long a dropped live connection must stay down before
+// the server is marked down; it rides out brief blips.
 const SERVER_DOWN_THRESHOLD_MS = 60 * 1000;
 
 // Orphan sweep threshold in milliseconds
@@ -97,14 +98,7 @@ const ORPHAN_THRESHOLD_MS = 2 * 60 * 1000; // 2 minutes
 const FAST_PATH_REVALIDATE_MS = 60 * 1000;
 const fastPathWindowStart = new Map<string, number>();
 
-// Track pending server down notifications (can be cancelled if server comes back up)
-const pendingServerDownNotifications = new Map<string, NodeJS.Timeout>();
-
-// Track servers that have been notified as down (server_down was sent)
-// Used to determine if we should send server_up when connection is restored
-const notifiedDownServers = new Set<string>();
-
-const MAX_NOTIFIED_DOWN_SERVERS = 100;
+const downTimers = new Map<string, NodeJS.Timeout>();
 
 // Store wrapped handlers so we can properly remove them
 interface SessionEvent {
@@ -243,6 +237,24 @@ export function startSSEProcessor(): void {
   // Subscribe to server health events (SSE connection state changes)
   sseManager.on('fallback:activated', wrappedHandlers.fallbackActivated);
   sseManager.on('fallback:deactivated', wrappedHandlers.fallbackDeactivated);
+
+  if (!isPollerRunning()) {
+    void armDownTimersForUnconnectedServers().catch((error: unknown) =>
+      console.error('[SSEProcessor] Failed to arm down timers on start:', error)
+    );
+  }
+}
+
+/**
+ * Every server starts in fallback, so one that never connects after a start emits no
+ * fallback:activated; with nothing polling, its down timer has to start here.
+ */
+async function armDownTimersForUnconnectedServers(): Promise<void> {
+  const rows = await liveServers();
+  if (!isRunning) return;
+  for (const server of rows) {
+    if (sseManager.isInFallback(server.id)) armDownTimer(server.id, server.name);
+  }
 }
 
 /**
@@ -268,25 +280,14 @@ export function stopSSEProcessor(): void {
   sseManager.off('fallback:activated', wrappedHandlers.fallbackActivated);
   sseManager.off('fallback:deactivated', wrappedHandlers.fallbackDeactivated);
 
-  // Clear any pending server down notifications
-  for (const [serverId, timeout] of pendingServerDownNotifications) {
-    clearTimeout(timeout);
-    console.log(`[SSEProcessor] Cancelled pending server down notification for ${serverId}`);
-  }
-  pendingServerDownNotifications.clear();
-
-  // Clear notified down servers state
-  notifiedDownServers.clear();
+  for (const timer of downTimers.values()) clearInterval(timer);
+  downTimers.clear();
 }
 
-/** The historical switch forgets the server's pending and sent down state so no up or down follows. */
+/** The historical switch drops the server's down timer; it clears the health key itself. */
 export function clearServerDownState(serverId: string): void {
-  const pending = pendingServerDownNotifications.get(serverId);
-  if (pending) {
-    clearTimeout(pending);
-    pendingServerDownNotifications.delete(serverId);
-  }
-  notifiedDownServers.delete(serverId);
+  clearInterval(downTimers.get(serverId));
+  downTimers.delete(serverId);
 }
 
 /**
@@ -658,7 +659,7 @@ async function applySessionProgress(
         lastSeenAt: now, // Update for stale session detection
         watched,
       })
-      .where(and(eq(sessions.id, existingSession.id), isNull(sessions.stoppedAt)))
+      .where(and(sessionRowById(existingSession), isNull(sessions.stoppedAt)))
       .returning({ id: sessions.id });
 
     if (updateResult.length === 0) {
@@ -753,6 +754,10 @@ async function handleProgress(event: {
 async function handleReconciliation(): Promise<void> {
   sseLogger.debug('Triggering reconciliation poll');
   await triggerReconciliationPoll();
+  // Detached: a slow or unreachable media server must not hold up the sweep and retries
+  void pollAllDownloads().catch((error: unknown) => {
+    console.error('[SSEProcessor] Download poll failed:', error);
+  });
 
   // Run maintenance tasks during reconciliation
   await sweepOrphanedPendingSessions();
@@ -860,11 +865,14 @@ async function processSessionWriteRetries(): Promise<void> {
         continue;
       }
 
-      // Attempt to find the session
+      const row =
+        retry.startedAt === undefined
+          ? eq(sessions.id, retry.sessionId)
+          : sessionRowById({ id: retry.sessionId, startedAt: retry.startedAt });
       const session = await db
         .select()
         .from(sessions)
-        .where(and(eq(sessions.id, retry.sessionId), isNull(sessions.stoppedAt)))
+        .where(and(row, isNull(sessions.stoppedAt)))
         .limit(1)
         .then((rows) => rows[0]);
 
@@ -897,55 +905,46 @@ async function processSessionWriteRetries(): Promise<void> {
 }
 
 /**
- * Handle SSE fallback activated (server became unreachable after SSE retries exhausted)
- * Schedules a server_down notification after a threshold delay to prevent false alarms
+ * The poller owns down detection for every server in fallback. Only with session
+ * sync turned off does a dropped live connection mark the server down, once it has
+ * stayed down past the threshold.
  */
 function handleFallbackActivated(event: FallbackEvent): void {
-  const { serverId, serverName } = event;
+  if (!isPollerRunning()) armDownTimer(event.serverId, event.serverName);
+}
 
-  // Cancel any existing pending notification for this server (shouldn't happen, but be safe)
-  const existing = pendingServerDownNotifications.get(serverId);
-  if (existing) {
-    clearTimeout(existing);
-  }
-
+function armDownTimer(serverId: string, serverName: string): void {
+  clearServerDownState(serverId);
   console.log(
-    `[SSEProcessor] Server ${serverName} SSE connection failed, ` +
-      `scheduling server_down notification in ${SERVER_DOWN_THRESHOLD_MS / 1000}s`
+    `[SSEProcessor] Server ${serverName} has no live connection and nothing polls it, ` +
+      `marking it down in ${SERVER_DOWN_THRESHOLD_MS / 1000}s`
   );
 
-  // Schedule the notification after threshold delay
-  const timeout = setTimeout(() => {
-    pendingServerDownNotifications.delete(serverId);
-
-    void (async () => {
-      if (!(await isLiveServer(serverId))) return;
-
-      if (notifiedDownServers.size >= MAX_NOTIFIED_DOWN_SERVERS) {
-        console.warn(
-          `[SSEProcessor] notifiedDownServers reached ${MAX_NOTIFIED_DOWN_SERVERS}, clearing oldest entries`
-        );
-        notifiedDownServers.clear();
-      }
-
-      notifiedDownServers.add(serverId); // Mark as down so we know to send server_up later
-      console.log(`[SSEProcessor] Server ${serverName} is DOWN (threshold exceeded)`);
-
-      // The closure holds no row: the automations and the server are read when the timer fires.
-      await dispatchServerHealthById('server.down', serverId, new Date());
-    })().catch((error: unknown) => {
+  // Repeats until the reconnect so the health key outlives its TTL through a long outage.
+  const timer = setInterval(() => {
+    void markUnpolledServerDown(serverId, serverName).catch((error: unknown) => {
       console.error(`[SSEProcessor] server.down dispatch failed for ${serverName}:`, error);
     });
   }, SERVER_DOWN_THRESHOLD_MS);
-
-  pendingServerDownNotifications.set(serverId, timeout);
+  downTimers.set(serverId, timer);
 }
 
-/**
- * Handle SSE fallback deactivated (server came back online, SSE connection restored)
- * Cancels pending server_down notification if server recovers before threshold
- * Sends server_up notification if server was previously marked as down
- */
+async function markUnpolledServerDown(serverId: string, serverName: string): Promise<void> {
+  if (!cacheService) return;
+  const live = await isLiveServer(serverId);
+  // A reconnect during the read already marked the server up and cleared this timer.
+  if (!downTimers.has(serverId)) return;
+  if (!live) {
+    clearServerDownState(serverId);
+    return;
+  }
+  if ((await cacheService.setServerHealth(serverId, false)) === false) return;
+
+  console.log(`[SSEProcessor] Server ${serverName} is DOWN (threshold exceeded)`);
+  await dispatchServerHealthById('server.down', serverId, new Date());
+}
+
+/** A restored live connection proves the server is up, whichever path marked it down. */
 async function handleFallbackDeactivated(event: FallbackEvent): Promise<void> {
   const { serverId, serverName } = event;
 
@@ -957,29 +956,14 @@ async function handleFallbackDeactivated(event: FallbackEvent): Promise<void> {
     console.error(`[SSEProcessor] Reconciliation on reconnect failed for ${serverName}:`, error)
   );
 
-  // Check if there's a pending server_down notification to cancel
-  const pending = pendingServerDownNotifications.get(serverId);
-  if (pending) {
-    clearTimeout(pending);
-    pendingServerDownNotifications.delete(serverId);
-    console.log(
-      `[SSEProcessor] Server ${serverName} recovered before threshold, ` +
-        `cancelled pending server_down notification`
-    );
-    // Don't send server_up since we never sent server_down
-    return;
-  }
+  clearServerDownState(serverId);
+  if (!cacheService) return;
 
-  // Only send server_up if we actually sent a server_down notification
-  if (!notifiedDownServers.has(serverId)) {
-    // Server was never marked as down (e.g., initial connection or no prior fallback)
-    return;
-  }
+  const wasHealthy = await cacheService.setServerHealth(serverId, true);
+  await cacheService.resetServerFailCount(serverId);
+  if (wasHealthy !== false) return;
 
-  // Server was previously down (notification was sent), now it's back up
-  notifiedDownServers.delete(serverId);
   console.log(`[SSEProcessor] Server ${serverName} is back UP (SSE restored)`);
-
   await dispatchServerHealthById('server.up', serverId, new Date());
 }
 
@@ -1303,7 +1287,7 @@ async function handleMediaChange(
     await pubSubService.publish('session:stopped', stoppedSession.id);
 
     try {
-      await broadcastViolations(violationResults, insertedSession.id, pubSubService);
+      await broadcastViolations(violationResults, insertedSession, pubSubService);
     } catch (error) {
       console.error('[SSEProcessor] Error broadcasting violations:', error);
     }
@@ -1420,7 +1404,7 @@ async function updateExistingSession(
   const updateResult = await db
     .update(sessions)
     .set(updatePayload)
-    .where(and(eq(sessions.id, existingSession.id), isNull(sessions.stoppedAt)))
+    .where(and(sessionRowById(existingSession), isNull(sessions.stoppedAt)))
     .returning({ id: sessions.id });
 
   if (updateResult.length === 0) {
@@ -1465,7 +1449,7 @@ async function updateExistingSession(
               inputs
             );
             if (violations.length > 0 && pubSubService) {
-              await broadcastViolations(violations, existingSession.id, pubSubService);
+              await broadcastViolations(violations, existingSession, pubSubService);
             }
           }
 
@@ -1489,7 +1473,7 @@ async function updateExistingSession(
               inputs
             );
             if (violations.length > 0 && pubSubService) {
-              await broadcastViolations(violations, existingSession.id, pubSubService);
+              await broadcastViolations(violations, existingSession, pubSubService);
             }
           }
         }
@@ -1790,7 +1774,7 @@ async function confirmPendingSessionAndPersist(
   // Broadcast any violations
   if (pubSubService) {
     try {
-      await broadcastViolations(violationResults, insertedSession.id, pubSubService);
+      await broadcastViolations(violationResults, insertedSession, pubSubService);
     } catch (error) {
       console.error('[SSEProcessor] Error broadcasting violations:', error);
     }
@@ -1847,7 +1831,11 @@ async function stopSession(existingSession: typeof sessions.$inferSelect): Promi
   fastPathWindowStart.delete(existingSession.id);
 
   if (needsRetry && retryData && cacheService) {
-    await cacheService.addSessionWriteRetry(existingSession.id, retryData);
+    await cacheService.addSessionWriteRetry(
+      existingSession.id,
+      existingSession.startedAt.getTime(),
+      retryData
+    );
   }
 
   if (!wasUpdated) {

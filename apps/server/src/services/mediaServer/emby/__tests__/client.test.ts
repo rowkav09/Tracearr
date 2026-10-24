@@ -5,6 +5,14 @@ vi.mock('../../../../utils/http.js', async (importActual) => {
   const actual = await importActual<typeof HttpModule>();
   return { ...actual, fetchJson: vi.fn() };
 });
+vi.mock('../../../../lib/redisShared.js', () => {
+  const store = new Map<string, string>();
+  const redis = {
+    get: async (key: string) => store.get(key) ?? null,
+    set: async (key: string, value: string) => store.set(key, value),
+  };
+  return { getRedis: () => redis };
+});
 
 import { fetchJson, HttpClientError } from '../../../../utils/http.js';
 import { EmbyClient } from '../client.js';
@@ -114,5 +122,55 @@ describe('EmbyClient.verifyServerAdmin', () => {
       code: EmbyClient.AdminVerifyError.CONNECTION_FAILED,
     });
     expect(mockFetchJson).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('EmbyClient member sign-in', () => {
+  beforeEach(() => {
+    mockFetchJson.mockReset();
+  });
+
+  it('posts Pw with the Emby authorization header', async () => {
+    sequence({ resolve: { User: { Id: 'ext-1' }, AccessToken: 'member-token' } });
+
+    const auth = await EmbyClient.authenticateByName(URL, 'alice', 'pw', 'tracearr-u1', '');
+
+    expect(auth).toEqual({ externalId: 'ext-1', token: 'member-token' });
+    const [, options] = mockFetchJson.mock.calls[0] ?? [];
+    const headers = (options?.headers ?? {}) as Record<string, string>;
+    expect(headers['X-Emby-Authorization']).toMatch(/^Emby /);
+    expect(headers['X-Emby-Authorization']).toContain('DeviceId="tracearr-u1"');
+    expect(JSON.parse(String(options?.body))).toEqual({ Username: 'alice', Pw: 'pw' });
+  });
+
+  it('checks a member token against the user it was issued to', async () => {
+    sequence({ resolve: { Id: 'ext-1', Policy: { IsDisabled: false } } });
+
+    await expect(EmbyClient.fetchSelf(URL, 'tok', 'ext-1')).resolves.toEqual({
+      id: 'ext-1',
+      isDisabled: false,
+    });
+    const [url, options] = mockFetchJson.mock.calls[0] ?? [];
+    expect(url).toBe(`${URL}/Users/ext-1`);
+    expect(options?.headers).toMatchObject({ 'X-Emby-Token': 'tok' });
+  });
+});
+
+describe('EmbyClient.resolveUserGuid', () => {
+  beforeEach(() => {
+    mockFetchJson.mockReset();
+  });
+
+  it('caches the guid and caches a 404 as null', async () => {
+    const client = new EmbyClient({ url: URL, token: 'key', id: 'srv-guid' });
+    sequence({ resolve: { Id: 'e5c1a0b2d3f44a5b8c9d0e1f2a3b4c5d' } }, { reject: httpError(404) });
+
+    expect(await client.resolveUserGuid('16')).toBe('e5c1a0b2d3f44a5b8c9d0e1f2a3b4c5d');
+    expect(await client.resolveUserGuid('16')).toBe('e5c1a0b2d3f44a5b8c9d0e1f2a3b4c5d');
+    expect(await client.resolveUserGuid('17')).toBeNull();
+    expect(await client.resolveUserGuid('17')).toBeNull();
+
+    expect(mockFetchJson).toHaveBeenCalledTimes(2);
+    expect(mockFetchJson.mock.calls[0]?.[0]).toBe(`${URL}/Users/16`);
   });
 });

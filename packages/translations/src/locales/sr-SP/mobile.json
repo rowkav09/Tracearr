@@ -90,7 +90,7 @@
     "criticalOverrideDescription": "",
     "rateLimitDescription": "",
     "sendTestNotification": "",
-    "testDescription": "",
+    "testReach": "",
     "pushNotifications": "",
     "ruleTypes": {
       "accountInactivity": "",
@@ -102,7 +102,19 @@
     "severityAll": "",
     "severityHighOnly": "",
     "severityWarningUp": "",
-    "violationTypes": ""
+    "violationTypes": "",
+    "backgroundRefreshOff": "",
+    "permissionOff": "",
+    "openSettings": "",
+    "tokenMissing": "",
+    "destinationOff": "",
+    "everyViolationSent": "",
+    "noViolationSender": "",
+    "noAutomationSends": "",
+    "eventsFooter": "",
+    "sentByAutomations_one": "",
+    "sentByAutomations_few": "",
+    "sentByAutomations_other": ""
   },
   "session": {
     "streamTerminated": "",
@@ -140,6 +152,7 @@
     "allServers": "",
     "noAlertsRecorded": "",
     "noMatches": "",
+    "selectAlert": "",
     "acknowledgeAllTitle_one": "",
     "acknowledgeAllTitle_few": "",
     "acknowledgeAllTitle_other": "",
@@ -150,6 +163,7 @@
   "history": {
     "adjustFilters": "",
     "historyWillAppear": "",
+    "selectSession": "",
     "filters": {
       "clearCount": "",
       "countries": "",
@@ -170,7 +184,8 @@
     "noUsersMatch": "",
     "joinedRelative": "",
     "sortActive": "",
-    "sortTrust": ""
+    "sortTrust": "",
+    "selectUser": ""
   },
   "activity": {
     "playsOverTime": "",

@@ -24,6 +24,7 @@ import {
   type MediaLibraryItem,
 } from './mediaServer/index.js';
 import { resolveMediaBatch, reconcileMediaDuplicates } from './library/mediaResolutionService.js';
+import { albumArtForTracks } from './library/trackArt.js';
 import {
   MEDIA_ANNOUNCE_CAP,
   MEDIA_BUFFER_CAP,
@@ -38,7 +39,12 @@ import {
 } from './library/mediaAnnounce.js';
 import {
   backfillSessionIdentityBatch,
+  fullScanFloors,
+  hasConfirmedAbsentTrackedRows,
   hasStampableSessionsBefore,
+  IDENTITY_PASSES_VERSION,
+  markGoneKeyFloorsHandled,
+  unhandledGoneKeyFloors,
 } from '../jobs/sessionIdentityBackfill.js';
 import { maybeEnqueueMaintenanceJob } from '../jobs/maintenanceQueue.js';
 import {
@@ -59,8 +65,10 @@ import { getHeavyOpsStatus } from '../jobs/heavyOpsLock.js';
 import { sanitizeText, scrubStringFields } from '../utils/sanitizeText.js';
 import {
   getImportedHistoryLinkState,
+  getSetting,
   getSettings,
   setImportedHistoryLinkState,
+  setSetting,
 } from './settings.js';
 import type { Redis } from 'ioredis';
 
@@ -139,36 +147,139 @@ const FLAT_LIBRARY_TYPES = new Set(['movie', 'movies']);
 /**
  * Bump a server type's version when its listing query changes shape. A library
  * stamped with an older version gets one forced full scan, so items the old
- * query left out come back without anyone running a manual sync. Plex is at 3
- * and the other servers at 2: Plex's listing started storing plex_guid, and
- * every parse now reads the Atmos and edition fields, which existing copies
- * only pick up through a full scan.
+ * query left out come back without anyone running a manual sync. Every server
+ * type is at 4 since music libraries store album rows.
  */
-function libraryScanVersionFor(serverType: ServerType): number {
-  return serverType === 'plex' ? 3 : 2;
+function libraryScanVersionFor(_serverType: ServerType): number {
+  return 4;
 }
 
-// Auto-handoff throttles for the compressed-history identity backfill. The
-// probe decompress-scans all compressed history when it comes back false (the
-// steady state - media_id is in neither segmentby nor orderby), so it must
-// not run on every event sync. New library items are what flips the probe
-// from false to true, so item-adding syncs probe freely; a daily allowance
-// catches the rarer flips (an existing item resolving media_id later). The
-// enqueue floor caps the retry loop when a walk keeps failing on a bad chunk
-// - one auto walk per floor interval, while the manual button stays
-// unthrottled. The floor gates the whole probe, not just the enqueue, so it
-// also delays post-success probing: a new item batch landing right after a
-// successful walk still waits out the floor before the next probe runs -
-// a latency trade-off, not a bug. Module-level state: resets on restart,
-// which just allows one extra probe/enqueue - acceptable.
+// Auto-handoff throttles for the compressed-history identity backfill. Only
+// an upserted library item can create identity work for the sessions under its
+// rating key, so the probe asks only about the keys upserted since it last
+// answered, per server. It runs at most once a day; a probe that finds work
+// but cannot queue the job (the queue is busy) spends nothing and keeps its
+// keys for the next sync. The enqueue floor caps the retry loop when a walk
+// keeps failing on a bad chunk - one auto walk per floor interval, while the
+// manual button stays unthrottled - and the failure count stops auto walks
+// altogether after MAX_AUTO_IDENTITY_ATTEMPTS in a row. Module-level state:
+// a restart drops the pending keys and allows one extra probe.
 const AUTO_BACKFILL_PROBE_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const AUTO_BACKFILL_ENQUEUE_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const MAX_AUTO_IDENTITY_ATTEMPTS = 5;
 let lastAutoBackfillProbeAt = 0;
 let lastAutoBackfillEnqueueAt = 0;
+const pendingProbeKeys = new Map<string, Set<string>>();
 
 export function _resetAutoBackfillThrottleForTests(): void {
   lastAutoBackfillProbeAt = 0;
   lastAutoBackfillEnqueueAt = 0;
+  pendingProbeKeys.clear();
+}
+
+/** True when some server's pending keys still have identity work below the horizon. */
+async function pendingKeysHaveIdentityWork(horizon: Date): Promise<boolean> {
+  for (const [serverId, keys] of pendingProbeKeys) {
+    if (await hasStampableSessionsBefore(horizon, serverId, [...keys])) return true;
+  }
+  return false;
+}
+
+/**
+ * Stamp identity onto sessions that predate their library item, at the tail of a library
+ * sync. One bounded batch over the uncompressed region, the plays rollup refreshed for the
+ * stamped days, and compressed history handed to the maintenance walk under the throttles
+ * above. Never runs while an import or maintenance
+ * job holds the heavy-ops lock: its walk may be updating the same session rows, and two
+ * unordered UPDATE ... FROM joins over them can deadlock. A failure here is logged, never
+ * thrown, so the caller's own follow-up work still runs.
+ */
+export async function stampPendingSessionIdentity(libraryChanged: boolean): Promise<void> {
+  if (await getHeavyOpsStatus()) return;
+  try {
+    // An upgrade that added a pass owes compressed history one walk, library change or not.
+    const passesPending = (await getSetting('identityPassesVersion')) < IDENTITY_PASSES_VERSION;
+    // A full scan that completed since the last tail can confirm rating keys gone, and the
+    // tracked plays on them resolve by title from here with no manual step. Each server's
+    // floor is handled once, so a row that cannot resolve costs one attempt per scan cycle.
+    const floors = await fullScanFloors();
+    const unhandledFloors = await unhandledGoneKeyFloors(floors);
+    const goneKeyRows = await hasConfirmedAbsentTrackedRows(unhandledFloors);
+    if (unhandledFloors.size > 0 && !goneKeyRows) await markGoneKeyFloorsHandled(unhandledFloors);
+    if (!libraryChanged && !passesPending && !goneKeyRows) return;
+    const horizon = await getSessionsCompressionHorizon();
+    const options = {
+      resolveImports: passesPending || goneKeyRows,
+      absentKeyFloors: unhandledFloors,
+    };
+    let repaired = await backfillSessionIdentityBatch(
+      10000,
+      horizon ? { start: horizon } : undefined,
+      undefined,
+      options
+    );
+    let updated = repaired.updated;
+    let oldest = repaired.oldest;
+    // With nothing compressed there is no walk to finish the job, so a full batch is followed
+    // from its cursor until one comes back short; the version below is stamped only then.
+    while (!horizon && repaired.examined >= 10000) {
+      repaired = await backfillSessionIdentityBatch(10000, undefined, repaired.cursor, options);
+      updated += repaired.updated;
+      if (repaired.oldest && (!oldest || repaired.oldest < oldest)) oldest = repaired.oldest;
+    }
+    if (updated > 0 && oldest) {
+      await refreshAggregates({ startTime: oldest, endTime: new Date() });
+    }
+    // Gone-key rows the inline batch could not reach are the walk's; the walk marks the
+    // floors it read when it completes, so a throttled or failed hand-off keeps them open.
+    const goneKeyWalkOwed =
+      goneKeyRows && !!horizon && (await hasConfirmedAbsentTrackedRows(unhandledFloors, horizon));
+    // Compressed history can't be stamped here (one sync-tail transaction
+    // must not decompress old chunks) - hand it to the maintenance walk
+    // instead of relying on someone finding the button. maybeEnqueue
+    // dedupes: the queue is single-flight, so a pending job already covers
+    // this. See the interval constants for the throttles.
+    const now = Date.now();
+    if (!horizon) {
+      pendingProbeKeys.clear();
+      if (passesPending) await setSetting('identityPassesVersion', IDENTITY_PASSES_VERSION);
+    } else if (
+      (passesPending || goneKeyWalkOwed) &&
+      now - lastAutoBackfillEnqueueAt >= AUTO_BACKFILL_ENQUEUE_INTERVAL_MS &&
+      (await getSetting('identityBackfillAutoAttempts')) < MAX_AUTO_IDENTITY_ATTEMPTS
+    ) {
+      if (
+        await maybeEnqueueMaintenanceJob('backfill_session_identity', 'system', {
+          trigger: 'auto',
+        })
+      ) {
+        lastAutoBackfillEnqueueAt = now;
+      }
+    } else if (
+      pendingProbeKeys.size > 0 &&
+      now - lastAutoBackfillEnqueueAt >= AUTO_BACKFILL_ENQUEUE_INTERVAL_MS &&
+      now - lastAutoBackfillProbeAt >= AUTO_BACKFILL_PROBE_INTERVAL_MS &&
+      (await getSetting('identityBackfillAutoAttempts')) < MAX_AUTO_IDENTITY_ATTEMPTS
+    ) {
+      if (!(await pendingKeysHaveIdentityWork(horizon))) {
+        lastAutoBackfillProbeAt = now;
+        pendingProbeKeys.clear();
+      } else if (
+        await maybeEnqueueMaintenanceJob('backfill_session_identity', 'system', {
+          trigger: 'auto',
+        })
+      ) {
+        lastAutoBackfillProbeAt = now;
+        lastAutoBackfillEnqueueAt = now;
+        pendingProbeKeys.clear();
+      }
+    }
+    if (goneKeyRows && !goneKeyWalkOwed && repaired.examined < 10000) {
+      await markGoneKeyFloorsHandled(unhandledFloors);
+    }
+  } catch (err) {
+    console.error('[LibrarySync] Session identity backfill failed, continuing sync:', err);
+  }
 }
 
 // The imported history link hand-off keeps its own throttle state on the same
@@ -294,15 +405,32 @@ export interface SyncResult {
 }
 
 /**
+ * Lets a sync job skip the libraries an earlier attempt finished. Libraries are the
+ * only abort points: a force-close mid-library leaves the lock to expire and stalled
+ * detection resumes from the last completed library.
+ */
+export interface SyncResume {
+  completedLibraryIds: ReadonlySet<string>;
+  onLibraryComplete: (libraryId: string) => Promise<void>;
+  signal?: AbortSignal;
+}
+
+export class SyncInterruptedError extends Error {}
+
+/**
  * Progress callback for real-time updates
  */
 export type OnProgressCallback = (progress: LibrarySyncProgress) => void;
 
 /**
- * Helper to delay between batches (rate limiting)
+ * Rate limit between pages. The page's own fetch and write count toward the
+ * pause, so a server slower than the pause is not made to wait twice.
  */
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function paceAfter(pageStartedAt: number, pauseMs: number): Promise<void> {
+  const remainingMs = pauseMs - (Date.now() - pageStartedAt);
+  return remainingMs > 0
+    ? new Promise((resolve) => setTimeout(resolve, remainingMs))
+    : Promise.resolve();
 }
 
 /**
@@ -403,12 +531,14 @@ export class LibrarySyncService {
    * @param serverId - The server ID to sync
    * @param onProgress - Optional callback for progress updates
    * @param triggeredBy - Whether sync was triggered manually or by scheduler
-   * @returns Array of SyncResult for each library
+   * @param resume - Libraries already done by an earlier attempt, and the abort signal
+   * @returns Array of SyncResult for each library synced in this call
    */
   async syncServer(
     serverId: string,
     onProgress?: OnProgressCallback,
-    triggeredBy: 'manual' | 'scheduled' = 'scheduled'
+    triggeredBy: 'manual' | 'scheduled' = 'scheduled',
+    resume?: SyncResume
   ): Promise<SyncResult[]> {
     const results: SyncResult[] = [];
 
@@ -471,8 +601,9 @@ export class LibrarySyncService {
     }
 
     // Sync each library
-    for (let i = 0; i < libraries.length; i++) {
-      const library = libraries[i]!;
+    for (const [i, library] of libraries.entries()) {
+      if (resume?.signal?.aborted) throw new SyncInterruptedError();
+      if (resume?.completedLibraryIds.has(library.id)) continue;
 
       const result = await this.syncLibrary({
         serverId,
@@ -491,6 +622,7 @@ export class LibrarySyncService {
       });
 
       results.push(result);
+      await resume?.onLibraryComplete(library.id);
     }
 
     // Every library is in, so a season can now absorb the episodes that arrived with it.
@@ -572,40 +704,8 @@ export class LibrarySyncService {
     // Single bounded batch over the uncompressed region only - stamping compressed
     // history decompresses chunk segments and belongs to the maintenance backfill
     // job, not the tail of every sync (an unwindowed batch here is what OOM-crash-
-    // looped postgres in the field). Never let a backfill failure skip the
-    // reconcile/cache steps below - the item upserts above already succeeded.
-    try {
-      const horizon = await getSessionsCompressionHorizon();
-      const repaired = await backfillSessionIdentityBatch(
-        10000,
-        horizon ? { start: horizon } : undefined
-      );
-      if (repaired.updated > 0 && repaired.oldest) {
-        await refreshAggregates({ startTime: repaired.oldest, endTime: new Date() });
-      }
-      // Compressed history can't be stamped here (one sync-tail transaction
-      // must not decompress old chunks) - hand it to the maintenance walk
-      // instead of relying on someone finding the button. maybeEnqueue
-      // dedupes: the queue is single-flight, so a pending job already covers
-      // this. Both the probe and the enqueue are throttled (see the interval
-      // constants): the probe is expensive when it answers false, and a walk
-      // that keeps dying on one bad chunk would otherwise re-enqueue on every
-      // sync forever.
-      const addedItems = results.some((r) => r.itemsAdded > 0);
-      const now = Date.now();
-      const probeAllowed =
-        now - lastAutoBackfillEnqueueAt >= AUTO_BACKFILL_ENQUEUE_INTERVAL_MS &&
-        (addedItems || now - lastAutoBackfillProbeAt >= AUTO_BACKFILL_PROBE_INTERVAL_MS);
-      if (horizon && probeAllowed) {
-        lastAutoBackfillProbeAt = now;
-        if (await hasStampableSessionsBefore(horizon)) {
-          const enqueued = await maybeEnqueueMaintenanceJob('backfill_session_identity', 'system');
-          if (enqueued) lastAutoBackfillEnqueueAt = now;
-        }
-      }
-    } catch (err) {
-      console.error('[LibrarySync] Session identity backfill failed, continuing sync:', err);
-    }
+    // looped postgres in the field).
+    await stampPendingSessionIdentity(results.some((r) => r.itemsProcessed > 0));
 
     // Duplicate media rows can only appear when items were actually processed
     // (resolution runs per upserted batch, including updates), so idle syncs
@@ -709,6 +809,9 @@ export class LibrarySyncService {
       syncState.lastFullScanAt !== null &&
       Date.now() - syncState.lastFullScanAt.getTime() >= FULL_SCAN_MAX_AGE_MS;
     const scanQueryChanged = syncState.scanVersion !== libraryScanVersionFor(serverType);
+    // Rows this scan inserts are ones the old listing query skipped. They take the
+    // server's added date so the newsletter and media.added do not report them as new.
+    const firstSeenFromAdded = scanQueryChanged && syncState.lastSyncedAt !== null;
     const forceFullScan =
       triggeredBy === 'manual' || fullScanDue || overcountMismatch || scanQueryChanged;
 
@@ -763,11 +866,12 @@ export class LibrarySyncService {
     // =========================================================================
     // INCREMENTAL PATH
     // =========================================================================
-    if (isIncremental && client.getLibraryItemsSince) {
+    const { lastSyncedAt } = syncState;
+    if (isIncremental && lastSyncedAt && client.getLibraryItemsSince) {
       try {
         const { items: newItems, totalCount: incrementalCount } = await client.getLibraryItemsSince(
           libraryId,
-          syncState.lastSyncedAt!,
+          lastSyncedAt,
           { libraryType }
         );
 
@@ -776,10 +880,7 @@ export class LibrarySyncService {
         let newLeaves: MediaLibraryItem[] = [];
         if (client.getLibraryLeavesSince && !FLAT_LIBRARY_TYPES.has(libraryType.toLowerCase())) {
           try {
-            const { items: leaves } = await client.getLibraryLeavesSince(
-              libraryId,
-              syncState.lastSyncedAt!
-            );
+            const { items: leaves } = await client.getLibraryLeavesSince(libraryId, lastSyncedAt);
             newLeaves = leaves;
           } catch (leafErr) {
             console.warn(
@@ -789,19 +890,24 @@ export class LibrarySyncService {
           }
         }
 
-        // Plex only - JF/Emby seasons already arrived via getLibraryLeavesSince above
-        let newSeasons: MediaLibraryItem[] = [];
-        if (libraryType.toLowerCase() === 'show' && client.getLibrarySeasonsSince) {
+        // Plex only - JF/Emby seasons arrive via getLibraryLeavesSince and albums via
+        // getLibraryItemsSince above
+        let newContainers: MediaLibraryItem[] = [];
+        const sectionType = libraryType.toLowerCase();
+        const fetchContainersSince =
+          sectionType === 'show'
+            ? client.getLibrarySeasonsSince?.bind(client)
+            : sectionType === 'artist'
+              ? client.getLibraryAlbumsSince?.bind(client)
+              : undefined;
+        if (fetchContainersSince) {
           try {
-            const { items: seasons } = await client.getLibrarySeasonsSince(
-              libraryId,
-              syncState.lastSyncedAt!
-            );
-            newSeasons = seasons;
-          } catch (seasonErr) {
+            const { items: containers } = await fetchContainersSince(libraryId, lastSyncedAt);
+            newContainers = containers;
+          } catch (containerErr) {
             console.warn(
-              `[LibrarySync] Incremental season fetch failed for ${libraryName}, skipping seasons:`,
-              seasonErr
+              `[LibrarySync] Incremental season/album fetch failed for ${libraryName}, skipping them:`,
+              containerErr
             );
           }
         }
@@ -809,7 +915,7 @@ export class LibrarySyncService {
         if (
           incrementalCount === 0 &&
           newLeaves.length === 0 &&
-          newSeasons.length === 0 &&
+          newContainers.length === 0 &&
           totalCount === syncState.lastItemCount
         ) {
           if (
@@ -830,13 +936,9 @@ export class LibrarySyncService {
           }
           console.log(`[LibrarySync] ${libraryName}: no changes since last sync, skipping`);
           const snapshot = await this.copyLastSnapshot(serverId, libraryId);
-          await this.saveSyncState(
-            serverId,
-            libraryId,
-            serverType,
-            totalCount,
-            syncState.lastFullScanAt ?? new Date()
-          );
+          await this.saveSyncState(serverId, libraryId, serverType, totalCount, {
+            at: syncState.lastFullScanAt ?? new Date(),
+          });
           return {
             serverId,
             libraryId,
@@ -852,7 +954,7 @@ export class LibrarySyncService {
         // Cap check: if too many items were returned, fall through to full scan
         // which also handles orphan detection
         const incrementalCap = Math.floor(totalCount * INCREMENTAL_CAP_RATIO);
-        const totalIncrementalItems = newItems.length + newLeaves.length + newSeasons.length;
+        const totalIncrementalItems = newItems.length + newLeaves.length + newContainers.length;
 
         if (incrementalCap > 0 && totalIncrementalItems > incrementalCap) {
           console.log(
@@ -862,10 +964,11 @@ export class LibrarySyncService {
         }
 
         const allItems: MediaLibraryItem[] = [];
-        const combinedItems = [...newItems, ...newLeaves, ...newSeasons];
+        const combinedItems = [...newItems, ...newContainers, ...newLeaves];
         let totalSkippedEmpty = 0;
 
         for (let i = 0; i < combinedItems.length; i += BATCH_SIZE) {
+          const pageStartedAt = Date.now();
           const batch = combinedItems.slice(i, i + BATCH_SIZE);
           allItems.push(...batch);
           const { skippedEmpty } = await this.upsertItems(
@@ -878,9 +981,17 @@ export class LibrarySyncService {
           totalSkippedEmpty += skippedEmpty;
 
           if (i + BATCH_SIZE < combinedItems.length) {
-            await delay(BATCH_DELAY_MS_INCREMENTAL);
+            await paceAfter(pageStartedAt, BATCH_DELAY_MS_INCREMENTAL);
           }
         }
+
+        const itemsRemoved = await this.retireReplacedCopies(
+          client,
+          serverId,
+          { id: libraryId, name: libraryName, type: libraryType },
+          allItems.map((item) => item.ratingKey),
+          touchedMediaIds
+        );
 
         // Post-sync undercount check, so ordinary growth isn't mistaken for a wrong tombstone.
         if (
@@ -913,13 +1024,9 @@ export class LibrarySyncService {
           );
         }
 
-        await this.saveSyncState(
-          serverId,
-          libraryId,
-          serverType,
-          totalCount,
-          syncState.lastFullScanAt ?? new Date()
-        );
+        await this.saveSyncState(serverId, libraryId, serverType, totalCount, {
+          at: syncState.lastFullScanAt ?? new Date(),
+        });
 
         return {
           serverId,
@@ -927,7 +1034,7 @@ export class LibrarySyncService {
           libraryName,
           itemsProcessed: allItems.length,
           itemsAdded: allItems.length,
-          itemsRemoved: 0,
+          itemsRemoved,
           itemsSkipped: totalSkippedEmpty,
           snapshotId: snapshot?.id ?? null,
         };
@@ -968,11 +1075,16 @@ export class LibrarySyncService {
     };
     let totalSkippedEmpty = 0;
 
+    // The completed-scan marker carries this time: an item added while the scan runs may
+    // be listed or not, so only a play older than the scan's start is known to be absent.
+    const fullScanStartedAt = new Date();
+
     // Fetch items in batches with pagination
     let offset = 0;
     let processedItems = 0;
 
     while (offset < totalCount) {
+      const pageStartedAt = Date.now();
       const { items, rawCount } = await client.getLibraryItems(libraryId, {
         offset,
         limit: BATCH_SIZE,
@@ -994,7 +1106,8 @@ export class LibrarySyncService {
         libraryId,
         items,
         touchedMediaIds,
-        announce
+        announce,
+        firstSeenFromAdded
       );
       totalSkippedEmpty += itemsRes.skippedEmpty;
 
@@ -1018,215 +1131,115 @@ export class LibrarySyncService {
         });
       }
 
-      // Rate limit between batches
       if (offset < totalCount) {
-        await delay(BATCH_DELAY_MS);
+        await paceAfter(pageStartedAt, BATCH_DELAY_MS);
       }
     }
+
+    // Pages one of the follow-up listings below into the scan. A label turns on
+    // progress reporting for it.
+    const syncListing = async (
+      fetchPage: (page: {
+        offset: number;
+        limit: number;
+      }) => Promise<{ items: MediaLibraryItem[]; totalCount: number; rawCount?: number }>,
+      label?: string
+    ): Promise<void> => {
+      if (label && onProgress) {
+        onProgress({
+          serverId,
+          serverName,
+          status: 'running',
+          currentLibrary: libraryId,
+          currentLibraryName: libraryName,
+          totalLibraries,
+          processedLibraries,
+          totalItems: totalCount,
+          processedItems,
+          message: `${libraryName}: Fetching ${label}...`,
+          startedAt,
+        });
+      }
+
+      const { totalCount: listingCount } = await fetchPage({ offset: 0, limit: 1 });
+
+      let listingOffset = 0;
+      let listingProcessed = 0;
+
+      while (listingOffset < listingCount) {
+        const pageStartedAt = Date.now();
+        const { items: pageItems, rawCount } = await fetchPage({
+          offset: listingOffset,
+          limit: BATCH_SIZE,
+        });
+
+        if ((rawCount ?? pageItems.length) === 0) break;
+
+        for (const item of pageItems) {
+          noteItem(item);
+        }
+
+        const pageRes = await this.upsertItems(
+          serverId,
+          libraryId,
+          pageItems,
+          touchedMediaIds,
+          announce,
+          firstSeenFromAdded
+        );
+        totalSkippedEmpty += pageRes.skippedEmpty;
+
+        listingProcessed += pageItems.length;
+        listingOffset += BATCH_SIZE;
+
+        if (label && onProgress) {
+          onProgress({
+            serverId,
+            serverName,
+            status: 'running',
+            currentLibrary: libraryId,
+            currentLibraryName: libraryName,
+            totalLibraries,
+            processedLibraries,
+            totalItems: totalCount + listingCount,
+            processedItems: processedItems + listingProcessed,
+            message: `${libraryName}: ${listingProcessed}/${listingCount} ${label} processed...`,
+            startedAt,
+          });
+        }
+
+        if (listingOffset < listingCount) {
+          await paceAfter(pageStartedAt, BATCH_DELAY_MS);
+        }
+      }
+
+      processedItems += listingProcessed;
+    };
+
+    const getLeaves = client.getLibraryLeaves?.bind(client);
+    const getSeasons = client.getLibrarySeasons?.bind(client);
+    const getAlbums = client.getLibraryAlbums?.bind(client);
 
     // For TV libraries (contains shows), also fetch all episodes
     const hasShows = (typeCounts.show ?? 0) > 0;
-    if (hasShows && client.getLibraryLeaves) {
-      // Report episode fetching
-      if (onProgress) {
-        onProgress({
-          serverId,
-          serverName,
-          status: 'running',
-          currentLibrary: libraryId,
-          currentLibraryName: libraryName,
-          totalLibraries,
-          processedLibraries,
-          totalItems: totalCount,
-          processedItems,
-          message: `${libraryName}: Fetching episodes...`,
-          startedAt,
-        });
-      }
-
-      // Fetch episode count
-      const { totalCount: episodeCount } = await client.getLibraryLeaves(libraryId, {
-        offset: 0,
-        limit: 1,
-      });
-
-      // Fetch episodes in batches
-      let episodeOffset = 0;
-      let episodesProcessed = 0;
-
-      while (episodeOffset < episodeCount) {
-        const { items: episodes, rawCount } = await client.getLibraryLeaves(libraryId, {
-          offset: episodeOffset,
-          limit: BATCH_SIZE,
-        });
-
-        if ((rawCount ?? episodes.length) === 0) break;
-
-        for (const episode of episodes) {
-          noteItem(episode);
-        }
-
-        // Upsert episodes to database
-        const epRes = await this.upsertItems(
-          serverId,
-          libraryId,
-          episodes,
-          touchedMediaIds,
-          announce
-        );
-        totalSkippedEmpty += epRes.skippedEmpty;
-
-        episodesProcessed += episodes.length;
-        episodeOffset += BATCH_SIZE;
-
-        // Report progress
-        if (onProgress) {
-          onProgress({
-            serverId,
-            serverName,
-            status: 'running',
-            currentLibrary: libraryId,
-            currentLibraryName: libraryName,
-            totalLibraries,
-            processedLibraries,
-            totalItems: totalCount + episodeCount,
-            processedItems: processedItems + episodesProcessed,
-            message: `${libraryName}: ${episodesProcessed}/${episodeCount} episodes processed...`,
-            startedAt,
-          });
-        }
-
-        // Rate limit between batches
-        if (episodeOffset < episodeCount) {
-          await delay(BATCH_DELAY_MS);
-        }
-      }
-
-      processedItems += episodesProcessed;
+    if (hasShows && getLeaves) {
+      await syncListing((page) => getLeaves(libraryId, page), 'episodes');
     }
 
-    // Plex seasons: a dedicated type=3 fetch (JF/Emby get seasons for free
-    // through getLibraryLeaves above, so client.getLibrarySeasons is undefined there)
-    if (hasShows && client.getLibrarySeasons) {
-      const { totalCount: seasonCount } = await client.getLibrarySeasons(libraryId, {
-        offset: 0,
-        limit: 1,
-      });
-
-      let seasonOffset = 0;
-      let seasonsProcessed = 0;
-
-      while (seasonOffset < seasonCount) {
-        const { items: seasons, rawCount } = await client.getLibrarySeasons(libraryId, {
-          offset: seasonOffset,
-          limit: BATCH_SIZE,
-        });
-
-        if ((rawCount ?? seasons.length) === 0) break;
-
-        for (const season of seasons) {
-          noteItem(season);
-        }
-
-        const seasonRes = await this.upsertItems(
-          serverId,
-          libraryId,
-          seasons,
-          touchedMediaIds,
-          announce
-        );
-        totalSkippedEmpty += seasonRes.skippedEmpty;
-
-        seasonsProcessed += seasons.length;
-        seasonOffset += BATCH_SIZE;
-
-        if (seasonOffset < seasonCount) {
-          await delay(BATCH_DELAY_MS);
-        }
-      }
-
-      processedItems += seasonsProcessed;
+    // Plex seasons and albums: dedicated type=3 and type=9 fetches. JF/Emby get
+    // seasons through getLibraryLeaves and albums through getLibraryItems, so
+    // these client methods are undefined there.
+    if (hasShows && getSeasons) {
+      await syncListing((page) => getSeasons(libraryId, page));
     }
 
-    // For music libraries (contains artists), also fetch all tracks
+    // For music libraries (contains artists), also fetch all albums and tracks
     const hasArtists = (typeCounts.artist ?? 0) > 0;
-    if (hasArtists && client.getLibraryLeaves) {
-      // Report track fetching
-      if (onProgress) {
-        onProgress({
-          serverId,
-          serverName,
-          status: 'running',
-          currentLibrary: libraryId,
-          currentLibraryName: libraryName,
-          totalLibraries,
-          processedLibraries,
-          totalItems: totalCount,
-          processedItems,
-          message: `${libraryName}: Fetching tracks...`,
-          startedAt,
-        });
-      }
-
-      // Fetch track count
-      const { totalCount: trackCount } = await client.getLibraryLeaves(libraryId, {
-        offset: 0,
-        limit: 1,
-      });
-
-      // Fetch tracks in batches
-      let trackOffset = 0;
-      let tracksProcessed = 0;
-
-      while (trackOffset < trackCount) {
-        const { items: tracks, rawCount } = await client.getLibraryLeaves(libraryId, {
-          offset: trackOffset,
-          limit: BATCH_SIZE,
-        });
-
-        if ((rawCount ?? tracks.length) === 0) break;
-
-        for (const track of tracks) {
-          noteItem(track);
-        }
-
-        // Upsert tracks to database
-        const trkRes = await this.upsertItems(
-          serverId,
-          libraryId,
-          tracks,
-          touchedMediaIds,
-          announce
-        );
-        totalSkippedEmpty += trkRes.skippedEmpty;
-
-        tracksProcessed += tracks.length;
-        trackOffset += BATCH_SIZE;
-
-        // Report progress
-        if (onProgress) {
-          onProgress({
-            serverId,
-            serverName,
-            status: 'running',
-            currentLibrary: libraryId,
-            currentLibraryName: libraryName,
-            totalLibraries,
-            processedLibraries,
-            totalItems: totalCount + trackCount,
-            processedItems: processedItems + tracksProcessed,
-            message: `${libraryName}: ${tracksProcessed}/${trackCount} tracks processed...`,
-            startedAt,
-          });
-        }
-
-        // Rate limit between batches
-        if (trackOffset < trackCount) {
-          await delay(BATCH_DELAY_MS);
-        }
-      }
-
-      processedItems += tracksProcessed;
+    if (hasArtists && getAlbums) {
+      await syncListing((page) => getAlbums(libraryId, page));
+    }
+    if (hasArtists && getLeaves) {
+      await syncListing((page) => getLeaves(libraryId, page), 'tracks');
     }
 
     // Calculate delta
@@ -1301,7 +1314,7 @@ export class LibrarySyncService {
         libraryId,
         serverType,
         totalCount,
-        new Date(),
+        { at: new Date(), startedAt: fullScanStartedAt },
         acceptedShortfall
       );
       return {
@@ -1341,7 +1354,7 @@ export class LibrarySyncService {
       libraryId,
       serverType,
       totalCount,
-      new Date(),
+      { at: new Date(), startedAt: fullScanStartedAt },
       acceptedShortfall
     );
 
@@ -1403,6 +1416,8 @@ export class LibrarySyncService {
    * lastFullScanAt is passed through on incremental saves (seeded to now when
    * absent, e.g. right after an upgrade from the cycle-counter scheme) and set
    * to now by the full-scan paths.
+   * A completed full scan (startedAt set) also records the marker the identity backfill trusts,
+   * stamped with the time the scan started listing.
    * acceptedShortfall is omitted unless a full scan just recomputed it, leaving the prior baseline in place.
    */
   private async saveSyncState(
@@ -1410,7 +1425,7 @@ export class LibrarySyncService {
     libraryId: string,
     serverType: ServerType,
     itemCount: number,
-    lastFullScanAt: Date,
+    fullScan: { at: Date; startedAt?: Date },
     acceptedShortfall?: number
   ): Promise<void> {
     if (!redisClient) return;
@@ -1432,7 +1447,7 @@ export class LibrarySyncService {
       ),
       redisClient.set(
         REDIS_KEYS.LIBRARY_SYNC_FULL_SCAN_AT(serverId, libraryId),
-        lastFullScanAt.toISOString(),
+        fullScan.at.toISOString(),
         'EX',
         SYNC_STATE_TTL
       ),
@@ -1443,6 +1458,16 @@ export class LibrarySyncService {
         SYNC_STATE_TTL
       ),
     ];
+    if (fullScan.startedAt) {
+      writes.push(
+        redisClient.set(
+          REDIS_KEYS.LIBRARY_SYNC_FULL_SCAN_DONE(serverId, libraryId),
+          fullScan.startedAt.toISOString(),
+          'EX',
+          SYNC_STATE_TTL
+        )
+      );
+    }
     if (acceptedShortfall !== undefined) {
       writes.push(
         redisClient.set(
@@ -1550,7 +1575,8 @@ export class LibrarySyncService {
     libraryId: string,
     items: MediaLibraryItem[],
     touchedMediaIds?: Set<string>,
-    announce?: MediaAnnounce | null
+    announce?: MediaAnnounce | null,
+    firstSeenFromAdded = false
   ): Promise<{ skippedEmpty: number; collapsedDuplicates: number }> {
     if (items.length === 0) return { skippedEmpty: 0, collapsedDuplicates: 0 };
 
@@ -1600,6 +1626,8 @@ export class LibrarySyncService {
         episodeNumber: item.itemIndex ?? null,
       }))
     );
+
+    const albumArt = await albumArtForTracks(serverId, uniqueItems);
 
     // Past the cap the run announces nothing more, so it stops reading and diffing too;
     // the suppressed count then reports the batch that hit the cap, not every later one.
@@ -1661,10 +1689,15 @@ export class LibrarySyncService {
               itemIndex: item.itemIndex ?? null,
               mediaId: mediaIdByRatingKey.get(item.ratingKey) ?? null,
               genres: item.genres ?? null,
-              thumbPath: item.thumbPath ?? null,
+              thumbPath:
+                (item.mediaType === 'track' && item.parentRatingKey
+                  ? albumArt.get(item.parentRatingKey)
+                  : undefined) ??
+                item.thumbPath ??
+                null,
               removedAt: null,
               // insert-only: the conflict update never touches it
-              firstSeenAt: firstSeen,
+              firstSeenAt: firstSeenFromAdded ? createdAt : firstSeen,
               createdAt,
             });
           })
@@ -1846,6 +1879,10 @@ export class LibrarySyncService {
         WHERE m.id = best.media_id AND m.genres IS DISTINCT FROM best.genres
       `);
     }
+
+    const probeKeys = pendingProbeKeys.get(serverId) ?? new Set<string>();
+    for (const item of uniqueItems) probeKeys.add(item.ratingKey);
+    pendingProbeKeys.set(serverId, probeKeys);
 
     const resolvedIds = uniqueItems.map((i) => mediaIdByRatingKey.get(i.ratingKey));
     if (touchedMediaIds) {
@@ -2262,13 +2299,13 @@ export class LibrarySyncService {
    */
   private async getActiveItemCount(serverId: string, libraryId: string): Promise<number> {
     // Top-level items only: the server's totalCount for a section counts
-    // shows/movies/artists, never their episodes/tracks/seasons, and those
+    // shows/movies/artists, never their episodes/tracks/seasons/albums, and those
     // leaves share this library_id - counting them here would make the
     // mismatch check fire on every sync of a non-flat library.
     const result = await db.execute(sql`
       SELECT count(*)::int AS count FROM library_items
       WHERE server_id = ${serverId} AND library_id = ${libraryId} AND removed_at IS NULL
-        AND media_type NOT IN ('episode', 'track', 'season')
+        AND media_type NOT IN ('episode', 'track', 'season', 'album')
     `);
     const row = result?.rows?.[0] as { count: number } | undefined;
     return row?.count ?? 0;
@@ -2333,6 +2370,39 @@ export class LibrarySyncService {
       );
     }
     return missingKeys.filter((k) => !stillPresent.has(k));
+  }
+
+  /**
+   * A server that re-creates an item gives it a new id and leaves the library count alone, so an
+   * incremental sync adds the new copy and the old one would stay live until the next full scan. Other live copies of the media just synced are checked by id, as a
+   * full scan confirms removals, and retired once the server no longer has them.
+   */
+  private async retireReplacedCopies(
+    client: ReturnType<typeof createMediaServerClient>,
+    serverId: string,
+    library: { id: string; name: string; type: string },
+    syncedKeys: string[],
+    touchedMediaIds: Set<string>
+  ): Promise<number> {
+    if (syncedKeys.length === 0 || !client.findExistingRatingKeys) return 0;
+    const keys = JSON.stringify(syncedKeys);
+    const result = await db.execute(sql`
+      SELECT DISTINCT old.rating_key
+      FROM library_items synced
+      JOIN library_items old
+        ON old.server_id = synced.server_id AND old.library_id = synced.library_id
+        AND old.media_id = synced.media_id AND old.removed_at IS NULL
+      WHERE synced.server_id = ${serverId} AND synced.library_id = ${library.id}
+        AND synced.rating_key IN (SELECT jsonb_array_elements_text(${keys}::jsonb))
+        AND old.rating_key NOT IN (SELECT jsonb_array_elements_text(${keys}::jsonb))
+    `);
+    const candidates = (result.rows as { rating_key: string }[]).map((row) => row.rating_key);
+    const gone = await this.confirmRemovals(client, library, candidates);
+    await this.markItemsRemoved(serverId, library.id, gone, touchedMediaIds);
+    if (gone.length > 0) {
+      console.log(`[LibrarySync] ${library.name}: replaced copies retired: ${gone.length}`);
+    }
+    return gone.length;
   }
 
   /**

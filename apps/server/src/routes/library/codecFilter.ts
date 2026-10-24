@@ -9,13 +9,14 @@
  */
 
 import { sql, type SQL } from 'drizzle-orm';
+import type { LibraryMediaType } from '@tracearr/shared';
 import { db } from '../../db/client.js';
 import {
   normalizeAudioChannels,
   normalizeAudioCodec,
   normalizeVideoCodec,
 } from '../../utils/codecNormalizer.js';
-import { buildMultiServerFragment } from '../../utils/serverFiltering.js';
+import { libraryFragment, type Scope } from '../../lib/scope.js';
 
 /** Channel counts ride the same path: the chart folds raw integers into 'Stereo', '5.1'. */
 export type CodecKind = 'video' | 'audio' | 'channels';
@@ -66,11 +67,14 @@ export function codecPredicate(kind: CodecKind, alias: string, rawCodecs: RawCod
 
 /** Display names present among one browse type's files in scope, most common first. */
 export async function fetchCodecOptions(
-  type: 'movie' | 'show',
-  serverIds: string[] | undefined
+  type: LibraryMediaType,
+  serverIds: string[] | undefined,
+  scope: Scope
 ): Promise<Record<CodecKind, string[]>> {
+  // The catalog filters match an artist copy's own versions, and artist rows carry no files.
+  if (type === 'artist') return { video: [], audio: [], channels: [] };
   const itemType = type === 'movie' ? 'movie' : 'episode';
-  const serverFragment = buildMultiServerFragment(serverIds, 'li.server_id');
+  const serverFragment = libraryFragment(serverIds, scope, 'li');
   const options = async (kind: CodecKind): Promise<string[]> => {
     const column = COLUMNS[kind];
     const result = await db.execute(sql`

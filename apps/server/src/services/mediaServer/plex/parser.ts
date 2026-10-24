@@ -1029,7 +1029,7 @@ export function parsePlexTvUser(
     isAdmin: parseBoolean(user.isAdmin),
     isDisabled: false,
     isHomeUser: parseBoolean(user.home) || parseBoolean(user.isHomeUser),
-    sharedLibraries: sharedLibraries ?? [],
+    sharedLibraries,
     // Plex.tv API returns joinedAt (Unix timestamp) for when user joined Plex
     joinedAt: parseUnixTimestamp(user.joinedAt) ?? parseUnixTimestamp(user.createdAt),
   };
@@ -1302,7 +1302,6 @@ export function parseXmlUser(userXml: string): MediaUser {
     thumb: extractXmlAttribute(userXml, 'thumb') || undefined,
     isAdmin: false,
     isHomeUser: extractXmlAttribute(userXml, 'home') === '1',
-    sharedLibraries: [],
     // Plex provides createdAt (account creation) - use as joinedAt
     joinedAt: parseXmlTimestamp(userXml, 'createdAt'),
   };
@@ -1321,8 +1320,8 @@ export function parseXmlUsersResponse(xml: string): MediaUser[] {
  */
 export function parseSharedServersXml(
   xml: string
-): Map<string, { serverToken: string; sharedLibraries: string[] }> {
-  const userMap = new Map<string, { serverToken: string; sharedLibraries: string[] }>();
+): Map<string, { serverToken: string; sharedLibraries?: string[] }> {
+  const userMap = new Map<string, { serverToken: string; sharedLibraries?: string[] }>();
   const serverMatches = Array.from(xml.matchAll(/<SharedServer[^>]*>[\s\S]*?<\/SharedServer>/g));
 
   for (const match of serverMatches) {
@@ -1330,11 +1329,14 @@ export function parseSharedServersXml(
     const userId = extractXmlAttribute(serverXml, 'userID');
     const serverToken = extractXmlAttribute(serverXml, 'accessToken');
 
-    // Get shared libraries - sections with shared="1"
-    const sectionMatches = Array.from(serverXml.matchAll(/<Section[^>]*shared="1"[^>]*>/g));
-    const sharedLibraries = sectionMatches
-      .map((sectionMatch) => extractXmlAttribute(sectionMatch[0], 'key'))
-      .filter((key): key is string => key !== '');
+    // allLibraries="1" also covers sections added after the share. Otherwise the sections with
+    // shared="1", by their local key.
+    const sharedLibraries =
+      extractXmlAttribute(serverXml, 'allLibraries') === '1'
+        ? undefined
+        : Array.from(serverXml.matchAll(/<Section[^>]*shared="1"[^>]*>/g))
+            .map((sectionMatch) => extractXmlAttribute(sectionMatch[0], 'key'))
+            .filter((key) => key !== '');
 
     if (userId) {
       userMap.set(userId, { serverToken, sharedLibraries });
@@ -1588,6 +1590,71 @@ function versionResolution(media: Record<string, unknown>): string | undefined {
   })?.toLowerCase();
 }
 
+function mediaQuality(media: Record<string, unknown>) {
+  return {
+    videoResolution: versionResolution(media),
+    videoDynamicRange:
+      normalizeDynamicRange(parseOptionalString(media.videoDynamicRange)) ?? undefined,
+    videoCodec: parseOptionalString(media.videoCodec)?.toUpperCase(),
+    audioCodec: parseOptionalString(media.audioCodec)?.toUpperCase(),
+  };
+}
+
+export interface PlexPartDetails {
+  /** The Media id holding the part, our serverVersionKey */
+  mediaId: string;
+  size: number | null;
+  container: string | null;
+  videoResolution: string | null;
+  videoCodec: string | null;
+  videoDynamicRange: string | null;
+  audioCodec: string | null;
+}
+
+/** The part with this id and the quality of its Media, from a /library/metadata/{ratingKey} response */
+export function parsePartDetails(data: unknown, partId: string): PlexPartDetails | null {
+  const item = (data as { MediaContainer?: { Metadata?: Array<Record<string, unknown>> } })
+    ?.MediaContainer?.Metadata?.[0];
+  const mediaList = Array.isArray(item?.Media)
+    ? (item.Media as Array<Record<string, unknown>>)
+    : [];
+  for (const media of mediaList) {
+    const parts = Array.isArray(media.Part) ? (media.Part as Array<Record<string, unknown>>) : [];
+    const part = parts.find((candidate) => String(candidate.id) === partId);
+    if (!part || media.id == null) continue;
+    const quality = mediaQuality(media);
+    return {
+      mediaId: String(media.id),
+      size: parseOptionalNumber(part.size) ?? null,
+      container: parseOptionalString(part.container)?.toLowerCase() ?? null,
+      videoResolution: quality.videoResolution ?? null,
+      videoCodec: quality.videoCodec ?? null,
+      videoDynamicRange: quality.videoDynamicRange ?? null,
+      audioCodec: quality.audioCodec ?? null,
+    };
+  }
+  return null;
+}
+
+export interface PlexDevice {
+  clientIdentifier: string;
+  name: string;
+  platform: string;
+  product: string;
+}
+
+/** GET /devices: every client the server has seen, by clientIdentifier */
+export function parseDevicesResponse(data: unknown): PlexDevice[] {
+  const devices = (data as { MediaContainer?: { Device?: unknown } })?.MediaContainer?.Device;
+  if (!Array.isArray(devices)) return [];
+  return (devices as Array<Record<string, unknown>>).map((device) => ({
+    clientIdentifier: parseString(device.clientIdentifier),
+    name: parseString(device.name),
+    platform: parseString(device.platform),
+    product: parseString(device.product),
+  }));
+}
+
 /**
  * Map Plex type to MediaLibraryItem mediaType
  */
@@ -1635,11 +1702,7 @@ function parseLibraryItem(item: Record<string, unknown>): MediaLibraryItem {
       // Media.id is always present in practice; the index form only guards
       // malformed payloads so a version is never silently dropped
       serverVersionKey: media.id != null ? String(media.id) : `idx:${index}`,
-      videoResolution: versionResolution(media),
-      videoDynamicRange:
-        normalizeDynamicRange(parseOptionalString(media.videoDynamicRange)) ?? undefined,
-      videoCodec: parseOptionalString(media.videoCodec)?.toUpperCase(),
-      audioCodec: parseOptionalString(media.audioCodec)?.toUpperCase(),
+      ...mediaQuality(media),
       audioChannels: parseOptionalNumber(media.audioChannels),
       audioAtmos: isAtmos(parseOptionalString(media.audioProfile)),
       editionTitle: parseOptionalBoundedString(item.editionTitle, 100) || undefined,

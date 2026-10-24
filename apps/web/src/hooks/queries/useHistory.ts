@@ -23,6 +23,8 @@ export interface HistoryFilters {
   geoCountries?: string[];
   geoCity?: string;
   geoRegion?: string;
+  geoCityMissing?: boolean;
+  geoRegionMissing?: boolean;
   network?: 'local' | 'remote';
   transcodeDecisions?: PlaybackDecision[];
   watched?: boolean;
@@ -52,7 +54,10 @@ export function useHistorySessions(filters: HistoryFilters = {}, pageSize = 50) 
   });
 }
 
-export type AggregateFilters = Partial<HistoryAggregatesQueryInput> & { serverIds?: string[] };
+export type AggregateFilters = Partial<HistoryAggregatesQueryInput> & {
+  serverIds?: string[];
+  self?: boolean;
+};
 
 export function useHistoryAggregates(filters: AggregateFilters = {}) {
   const serverIdsKey = serverScopeKey(serverScopeFromIds(filters.serverIds));

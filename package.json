@@ -41,7 +41,7 @@
   "devDependencies": {
     "@types/node": "^24.13.3",
     "@types/react": "19.3.0",
-    "@vitest/coverage-v8": "^4.1.5",
+    "@vitest/coverage-v8": "^5.0.0",
     "globals": "^17.3.0",
     "husky": "^9.1.7",
     "lint-staged": "^17.0.8",
@@ -49,12 +49,12 @@
     "oxlint-tsgolint": "^7.0.2001",
     "prettier": "^3.8.1",
     "prettier-plugin-tailwindcss": "^0.8.0",
-    "shadcn": "^4.16.1",
+    "shadcn": "^4.21.5",
     "turbo": "^2.10.11",
     "typescript": "^7.0.2",
-    "vitest": "^4.1.5"
+    "vitest": "^5.0.0"
   },
-  "packageManager": "pnpm@12.4.2+sha512.08adc6613180275c7c9edada39dcf08c9c61ad4e7eaf330a4f3461f102b0f907423454d117f98e72d47fef0616070644d7bffc973a6a57f5090a6d7c368b07c9",
+  "packageManager": "pnpm@12.14.0+sha512.c18ba6d87993d3d164cb5e8948f32b2c06ee854487e06cd8d86781342fb3e5bb4634367034711e86802baa9c37bea906ce1929ad08d70884c97d801df13389a6",
   "engines": {
     "node": ">=22.22.2",
     "pnpm": ">=12.0.0"

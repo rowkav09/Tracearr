@@ -44,6 +44,13 @@ import { isLocalSession, localSessionSql } from '../utils/localSession.js';
 import { playbackDecisionSql, subtitleBurnInSql } from '../utils/playbackDecisionSql.js';
 import { terminateSession } from '../services/termination.js';
 import { getCacheService } from '../services/cache.js';
+import {
+  assertInScope,
+  scopeSessionsRaw,
+  seesServerActivity,
+  viewScope,
+  type Scope,
+} from '../lib/scope.js';
 
 // Register English locale for country name lookups
 countries.registerLocale(countriesEn);
@@ -73,7 +80,8 @@ function buildWhereClause(conditions: ReturnType<typeof sql>[]): ReturnType<type
  */
 function buildHistoryFilterConditions(
   params: HistoryAggregatesQueryInput,
-  authUser: AuthUser
+  authUser: AuthUser,
+  scope: Scope
 ): HistoryFilterResult {
   const {
     serverUserIds,
@@ -92,6 +100,8 @@ function buildHistoryFilterConditions(
     geoCountries,
     geoCity,
     geoRegion,
+    geoCityMissing,
+    geoRegionMissing,
     network,
     transcodeDecisions,
     subtitleBurnIn,
@@ -114,6 +124,8 @@ function buildHistoryFilterConditions(
       conditions.push(sql`s.server_id IN (${sql.join(ids, sql`, `)})`);
     }
   }
+  const scoped = scopeSessionsRaw(scope, sql`s.server_user_id`);
+  if (scoped) conditions.push(scoped);
 
   if (serverUserIds && serverUserIds.length > 0) {
     const ids = serverUserIds as string[];
@@ -137,12 +149,7 @@ function buildHistoryFilterConditions(
     conditions.push(sql`s.media_type <> 'trailer'`);
   }
   if (startDate) conditions.push(sql`s.started_at >= ${startDate}`);
-  if (endDate) {
-    // Adjust endDate to end of day (23:59:59.999) to include all sessions from that day
-    const endOfDay = new Date(endDate);
-    endOfDay.setHours(23, 59, 59, 999);
-    conditions.push(sql`s.started_at <= ${endOfDay}`);
-  }
+  if (endDate) conditions.push(sql`s.started_at < ${endDate}`);
 
   // Full-text search across multiple fields
   if (search) {
@@ -191,6 +198,8 @@ function buildHistoryFilterConditions(
   }
   if (geoCity) conditions.push(sql`s.geo_city = ${geoCity}`);
   if (geoRegion) conditions.push(sql`s.geo_region = ${geoRegion}`);
+  if (geoCityMissing) conditions.push(sql`s.geo_city IS NULL`);
+  if (geoRegionMissing) conditions.push(sql`s.geo_region IS NULL`);
   if (network === 'local') conditions.push(localSessionSql('s'));
   if (network === 'remote') conditions.push(sql`NOT ${localSessionSql('s')}`);
 
@@ -232,6 +241,9 @@ function buildCacheFingerprint(params: Record<string, unknown>, userId: string):
 }
 
 export const sessionRoutes: FastifyPluginAsync = async (app) => {
+  const readSessions = { preHandler: [app.requirePermission('sessions', 'read')] };
+  const readHistory = { preHandler: [app.requirePermission('history', 'read')] };
+  const terminateSessions = { preHandler: [app.requirePermission('sessions', 'terminate')] };
   /**
    * GET /sessions - Query historical sessions with pagination and filters
    *
@@ -242,7 +254,7 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
    * - Last session's stop time
    * - Segment count (how many pause/resume cycles)
    */
-  app.get('/', { preHandler: [app.authenticate] }, async (request, reply) => {
+  app.get('/', readSessions, async (request, reply) => {
     const query = sessionQuerySchema.safeParse(request.query);
     if (!query.success) {
       return reply.badRequest('Invalid query parameters');
@@ -279,6 +291,9 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
       }
     }
 
+    const scoped = scopeSessionsRaw(request.scope, sql`s.server_user_id`);
+    if (scoped) conditions.push(scoped);
+
     if (serverUserId) {
       conditions.push(sql`s.server_user_id = ${serverUserId}`);
     }
@@ -302,10 +317,7 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
     }
 
     if (endDate) {
-      // Adjust endDate to end of day (23:59:59.999) to include all sessions from that day
-      const endOfDay = new Date(endDate);
-      endOfDay.setHours(23, 59, 59, 999);
-      conditions.push(sql`s.started_at <= ${endOfDay}`);
+      conditions.push(sql`s.started_at < ${endDate}`);
     }
 
     // Build the WHERE clause
@@ -361,6 +373,8 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
           s.artist_name,
           s.album_name,
           s.thumb_path,
+          s.media_id,
+          s.show_media_id,
           s.reference_id,
           s.ip_address,
           s.geo_city,
@@ -397,7 +411,11 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
           s.transcode_info,
           s.subtitle_info
         FROM grouped_sessions gs
-        JOIN sessions s ON s.id = gs.first_session_id
+        -- gs.started_at is not a planner-time constant; the InitPlan bounds are what let
+        -- TimescaleDB exclude chunks at runtime
+        JOIN sessions s ON s.id = gs.first_session_id AND s.started_at = gs.started_at
+          AND s.started_at >= (SELECT MIN(started_at) FROM grouped_sessions)
+          AND s.started_at <= (SELECT MAX(started_at) FROM grouped_sessions)
         JOIN server_users su ON su.id = s.server_user_id
         JOIN servers sv ON sv.id = s.server_id
         LEFT JOIN users u ON u.id = su.user_id
@@ -434,6 +452,8 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
         artist_name: string | null;
         album_name: string | null;
         thumb_path: string | null;
+        media_id: string | null;
+        show_media_id: string | null;
         reference_id: string | null;
         ip_address: string | null;
         geo_city: string | null;
@@ -496,6 +516,8 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
       artistName: row.artist_name,
       albumName: row.album_name,
       thumbPath: row.thumb_path,
+      mediaId: row.media_id,
+      showMediaId: row.show_media_id,
       startedAt: row.started_at ? new Date(row.started_at).toISOString() : null,
       stoppedAt: row.stopped_at ? new Date(row.stopped_at).toISOString() : null,
       durationMs: row.duration_ms ? Number(row.duration_ms) : null,
@@ -570,7 +592,7 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
    * - Status filters (watched, excludeShortSessions)
    * - Cursor-based pagination for efficient infinite scroll
    */
-  app.get('/history', { preHandler: [app.authenticate] }, async (request, reply) => {
+  app.get('/history', readHistory, async (request, reply) => {
     const query = historyQuerySchema.safeParse(request.query);
     if (!query.success) {
       return reply.badRequest('Invalid query parameters');
@@ -581,7 +603,7 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
     const authUser = request.user;
 
     // Build WHERE conditions using shared helper
-    const filterResult = buildHistoryFilterConditions(query.data, authUser);
+    const filterResult = buildHistoryFilterConditions(query.data, authUser, request.scope);
     if (!filterResult) {
       // No server access - return empty result
       return { data: [], hasMore: false } satisfies HistorySessionResponse;
@@ -733,6 +755,8 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
           s.artist_name,
           s.album_name,
           s.thumb_path,
+          s.media_id,
+          s.show_media_id,
           s.reference_id,
           s.ip_address,
           s.geo_city,
@@ -772,8 +796,11 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
           (SELECT count(*) FROM history_page)::int as page_candidate_count
         FROM grouped_sessions gs
         JOIN history_page_ids hp ON hp.play_id = gs.play_id
-        -- bounds the join for chunk pruning
+        -- gs.started_at is not a planner-time constant; the InitPlan bounds are what let
+        -- TimescaleDB exclude chunks at runtime
         JOIN sessions s ON s.id = gs.first_session_id AND s.started_at = gs.started_at
+          AND s.started_at >= (SELECT MIN(started_at) FROM history_page_ids)
+          AND s.started_at <= (SELECT MAX(started_at) FROM history_page_ids)
         JOIN server_users su ON su.id = s.server_user_id
         JOIN servers sv ON sv.id = s.server_id
         LEFT JOIN users u ON u.id = su.user_id
@@ -837,6 +864,8 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
         artist_name: string | null;
         album_name: string | null;
         thumb_path: string | null;
+        media_id: string | null;
+        show_media_id: string | null;
         reference_id: string | null;
         ip_address: string | null;
         geo_city: string | null;
@@ -899,6 +928,8 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
       artistName: row.artist_name,
       albumName: row.album_name,
       thumbPath: row.thumb_path,
+      mediaId: row.media_id,
+      showMediaId: row.show_media_id,
       startedAt: row.started_at ? new Date(row.started_at).toISOString() : null,
       stoppedAt: row.stopped_at ? new Date(row.stopped_at).toISOString() : null,
       durationMs: row.duration_ms ? Number(row.duration_ms) : null,
@@ -983,7 +1014,7 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
    * so that sorting changes don't trigger a refetch of these stats (since aggregates
    * are not affected by sort order).
    */
-  app.get('/history/aggregates', { preHandler: [app.authenticate] }, async (request, reply) => {
+  app.get('/history/aggregates', readHistory, async (request, reply) => {
     const query = historyAggregatesQuerySchema.safeParse(request.query);
     if (!query.success) {
       return reply.badRequest('Invalid query parameters');
@@ -992,11 +1023,16 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
     const authUser = request.user;
 
     // Build WHERE clause using shared helper (also enforces server access via resolveServerIds)
-    const filterResult = buildHistoryFilterConditions(query.data, authUser);
+    const filterResult = buildHistoryFilterConditions(
+      query.data,
+      authUser,
+      await viewScope(request)
+    );
     if (!filterResult) {
       // No server access - return empty result
       const emptyAggregates: HistoryAggregates = {
         totalWatchTimeMs: 0,
+        listenTimeMs: 0,
         playCount: 0,
         uniqueUsers: 0,
         uniqueContent: 0,
@@ -1034,6 +1070,7 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
       SELECT
         COUNT(DISTINCT COALESCE(s.reference_id, s.id))::int as play_count,
         COALESCE(SUM(s.duration_ms), 0)::bigint as total_watch_time_ms,
+        COALESCE(SUM(s.duration_ms) FILTER (WHERE s.media_type = 'track'), 0)::bigint as listen_time_ms,
         COUNT(DISTINCT su_agg.user_id)::int as unique_users,
         ${uniqueContentExpr}::int as unique_content
       FROM sessions s
@@ -1045,12 +1082,14 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
     const result = aggregateResult.rows[0] as {
       play_count: number;
       total_watch_time_ms: string;
+      listen_time_ms: string;
       unique_users: number;
       unique_content: number;
     };
 
     const aggregates: HistoryAggregates = {
       totalWatchTimeMs: Number(result.total_watch_time_ms),
+      listenTimeMs: Number(result.listen_time_ms),
       playCount: result.play_count,
       uniqueUsers: result.unique_users,
       uniqueContent: result.unique_content,
@@ -1068,12 +1107,12 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
    * Query params:
    * - serverId: Filter by specific server
    * - startDate: Filter by start date (ISO 8601)
-   * - endDate: Filter by end date (ISO 8601)
+   * - endDate: Filter by end date, exclusive (ISO 8601)
    * - includeAllCountries: When true, returns all countries with hasSessions indicator
    *                        (for rules builder). When false/omitted, returns only
    *                        countries with sessions (for history page).
    */
-  app.get('/filter-options', { preHandler: [app.authenticate] }, async (request, reply) => {
+  app.get('/filter-options', readHistory, async (request, reply) => {
     const query = filterOptionsQuerySchema.safeParse(request.query);
     if (!query.success) {
       return reply.badRequest('Invalid query parameters');
@@ -1145,13 +1184,13 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
       }
     }
 
+    const scoped = scopeSessionsRaw(request.scope, sql`s.server_user_id`);
+    if (scoped) serverConditions.push(scoped);
     if (startDate) {
       serverConditions.push(sql`s.started_at >= ${startDate}`);
     }
     if (endDate) {
-      const endOfDay = new Date(endDate);
-      endOfDay.setHours(23, 59, 59, 999);
-      serverConditions.push(sql`s.started_at <= ${endOfDay}`);
+      serverConditions.push(sql`s.started_at < ${endDate}`);
     }
 
     // Helper to build WHERE clause with additional conditions
@@ -1283,12 +1322,13 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
         a.id.localeCompare(b.id)
     );
 
-    // Transform servers result
-    const serversData = serversResult.map((row) => ({
-      id: row.id,
-      name: row.name,
-      type: row.type,
-    }));
+    const serversData = serversResult
+      .filter((row) => request.scope === 'all' || authUser.serverIds.includes(row.id))
+      .map((row) => ({
+        id: row.id,
+        name: row.name,
+        type: row.type,
+      }));
 
     // Get countries that have sessions
     const countriesWithSessions = new Set(
@@ -1361,7 +1401,7 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
   /**
    * GET /sessions/active - Get currently active streams from cache
    */
-  app.get('/active', { preHandler: [app.authenticate] }, async (request, _reply) => {
+  app.get('/active', readSessions, async (request, _reply) => {
     const authUser = request.user;
 
     // Parse optional server filter (supports both legacy serverId and serverIds[])
@@ -1386,13 +1426,21 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
     }
     // else: owner with no filter, keep all
 
-    return { data: activeSessions };
+    const scope = await viewScope(request);
+    if (scope === 'all') return { data: activeSessions };
+    const own = new Set(scope.serverUserIds);
+    const mine = activeSessions.filter((s) => own.has(s.serverUserId));
+    // The count is a member's view of others; an owner asking for self wants only their streams.
+    if (request.scope === 'all' || !(await seesServerActivity(request.scope))) {
+      return { data: mine };
+    }
+    return { data: mine, othersActive: activeSessions.length - mine.length };
   });
 
   /**
    * GET /sessions/:id - Get detailed info for a specific session
    */
-  app.get('/:id', { preHandler: [app.authenticate] }, async (request, reply) => {
+  app.get('/:id', readSessions, async (request, reply) => {
     const params = sessionIdParamSchema.safeParse(request.params);
     if (!params.success) {
       return reply.badRequest('Invalid session ID');
@@ -1407,7 +1455,10 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
       try {
         const activeSession = JSON.parse(cached) as ActiveSession;
         // Verify access (owners can see all servers)
-        if (hasServerAccess(authUser, activeSession.serverId)) {
+        if (
+          hasServerAccess(authUser, activeSession.serverId) &&
+          assertInScope(request.scope, activeSession.serverUserId)
+        ) {
           // Return ActiveSession directly - both types now use nested user/server
           return activeSession;
         }
@@ -1438,6 +1489,8 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
         artistName: sessions.artistName,
         albumName: sessions.albumName,
         thumbPath: sessions.thumbPath,
+        mediaId: sessions.mediaId,
+        showMediaId: sessions.showMediaId,
         startedAt: sessions.startedAt,
         stoppedAt: sessions.stoppedAt,
         durationMs: sessions.durationMs,
@@ -1489,7 +1542,8 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
       .limit(1);
 
     const row = sessionData[0];
-    if (!row) {
+    // Out of scope answers exactly like a missing id, so a member cannot probe for others' rows.
+    if (!row || !assertInScope(request.scope, row.serverUserId)) {
       return reply.notFound('Session not found');
     }
 
@@ -1525,6 +1579,8 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
       artistName: row.artistName,
       albumName: row.albumName,
       thumbPath: row.thumbPath,
+      mediaId: row.mediaId,
+      showMediaId: row.showMediaId,
       startedAt: row.startedAt,
       stoppedAt: row.stoppedAt,
       durationMs: row.durationMs,
@@ -1576,7 +1632,7 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
    * Requires admin access. Sends a stop command to the media server
    * and logs the termination for auditing.
    */
-  app.post('/:id/terminate', { preHandler: [app.authenticate] }, async (request, reply) => {
+  app.post('/:id/terminate', terminateSessions, async (request, reply) => {
     const params = sessionIdParamSchema.safeParse(request.params);
     if (!params.success) {
       return reply.badRequest('Invalid session ID');
@@ -1590,11 +1646,6 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
     const { id } = params.data;
     const { reason } = body.data;
     const authUser = request.user;
-
-    // Only admins and owners can terminate sessions
-    if (authUser.role !== 'owner' && authUser.role !== 'admin') {
-      return reply.forbidden('Only administrators can terminate sessions');
-    }
 
     // Verify the session exists and user has access to its server
     const session = await db
@@ -1657,13 +1708,8 @@ export const sessionRoutes: FastifyPluginAsync = async (app) => {
    * DELETE /sessions/bulk - Bulk delete historical sessions
    * Owner-only. Accepts array of session IDs.
    */
-  app.delete('/bulk', { preHandler: [app.authenticate] }, async (request, reply) => {
+  app.delete('/bulk', { preHandler: [app.requireOwner] }, async (request, reply) => {
     const authUser = request.user;
-
-    // Only owners can delete sessions
-    if (authUser.role !== 'owner') {
-      return reply.forbidden('Only owners can delete sessions');
-    }
 
     const body = request.body as { ids: string[] };
 

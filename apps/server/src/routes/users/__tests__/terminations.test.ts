@@ -21,6 +21,7 @@ vi.mock('../../../db/client.js', () => ({
 // Import the mocked db and the routes
 import { db } from '../../../db/client.js';
 import { terminationsRoutes } from '../terminations.js';
+import { permissionGuard } from '../../../lib/scope.js';
 
 /**
  * Build a test Fastify instance with mocked auth
@@ -35,6 +36,7 @@ async function buildTestApp(authUser: AuthUser): Promise<FastifyInstance> {
   app.decorate('authenticate', async (request: any) => {
     request.user = authUser;
   });
+  app.decorate('requirePermission', permissionGuard(app));
 
   // Register routes under /users prefix (matching real app structure)
   await app.register(terminationsRoutes, { prefix: '/users' });
@@ -60,8 +62,7 @@ interface MockTerminationLog {
   success: boolean;
   errorMessage: string | null;
   createdAt: Date;
-  mediaTitle: string | null;
-  mediaType: MediaType | null;
+  sessionStartedAt?: Date;
 }
 
 function createTestTermination(overrides: Partial<MockTerminationLog> = {}): MockTerminationLog {
@@ -83,8 +84,7 @@ function createTestTermination(overrides: Partial<MockTerminationLog> = {}): Moc
     success: overrides.success ?? true,
     errorMessage: overrides.errorMessage ?? null,
     createdAt: overrides.createdAt ?? new Date(),
-    mediaTitle: overrides.mediaTitle ?? 'Test Movie',
-    mediaType: overrides.mediaType ?? 'movie',
+    sessionStartedAt: overrides.sessionStartedAt,
   };
 }
 
@@ -124,7 +124,7 @@ function createViewerUser(serverIds: string[] = [randomUUID()]): AuthUser {
   return {
     userId: randomUUID(),
     username: 'viewer',
-    role: 'viewer',
+    role: 'admin',
     serverIds,
   };
 }
@@ -143,8 +143,8 @@ function createServerUserSelectMock(resolvedValue: unknown) {
 }
 
 /**
- * Helper to create mock chain for terminations query (4 leftJoins: users,
- * rules, sessions, servers)
+ * Helper to create mock chain for terminations query (3 leftJoins: users,
+ * rules, servers)
  */
 function createTerminationsSelectMock(resolvedValue: unknown) {
   return {
@@ -152,18 +152,28 @@ function createTerminationsSelectMock(resolvedValue: unknown) {
       leftJoin: vi.fn().mockReturnValue({
         leftJoin: vi.fn().mockReturnValue({
           leftJoin: vi.fn().mockReturnValue({
-            leftJoin: vi.fn().mockReturnValue({
-              where: vi.fn().mockReturnValue({
-                orderBy: vi.fn().mockReturnValue({
-                  limit: vi.fn().mockReturnValue({
-                    offset: vi.fn().mockResolvedValue(resolvedValue),
-                  }),
+            where: vi.fn().mockReturnValue({
+              orderBy: vi.fn().mockReturnValue({
+                limit: vi.fn().mockReturnValue({
+                  offset: vi.fn().mockResolvedValue(resolvedValue),
                 }),
               }),
             }),
           }),
         }),
       }),
+    }),
+  };
+}
+
+/**
+ * Helper to create mock chain for the bounded sessions read that follows the
+ * terminations query when any log carries a session started_at
+ */
+function createSessionsSelectMock(resolvedValue: unknown) {
+  return {
+    from: vi.fn().mockReturnValue({
+      where: vi.fn().mockResolvedValue(resolvedValue),
     }),
   };
 }
@@ -433,12 +443,17 @@ describe('User Terminations Routes', () => {
       const termination = createTestTermination({
         serverUserId,
         serverId,
+        sessionStartedAt: new Date(),
+      });
+      const session: { id: string; mediaTitle: string; mediaType: MediaType } = {
+        id: termination.sessionId,
         mediaTitle: 'Breaking Bad S01E01',
         mediaType: 'episode',
-      });
+      };
 
       mockDb.select.mockReturnValueOnce(createServerUserSelectMock([serverUser]));
       mockDb.select.mockReturnValueOnce(createTerminationsSelectMock([termination]));
+      mockDb.select.mockReturnValueOnce(createSessionsSelectMock([session]));
       mockDb.select.mockReturnValueOnce(createCountSelectMock(1));
 
       const response = await app.inject({
@@ -450,6 +465,7 @@ describe('User Terminations Routes', () => {
       const body = JSON.parse(response.body);
       expect(body.data[0].mediaTitle).toBe('Breaking Bad S01E01');
       expect(body.data[0].mediaType).toBe('episode');
+      expect(body.data[0]).not.toHaveProperty('sessionStartedAt');
     });
 
     it('should include failed termination details', async () => {

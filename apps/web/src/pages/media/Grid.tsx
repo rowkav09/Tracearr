@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
-import { Link, useLocation, useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
+import type { LibraryMediaType, WatchedState } from '@tracearr/shared';
 import { AlphabetScrubber, type ScrubberLetter } from '@/components/media-browse/AlphabetScrubber';
 import {
   CatalogToolbar,
+  filtersForType,
+  visibleSort,
   activeFilterCount,
   loadPersistedFilters,
   persistFilters,
@@ -21,6 +24,7 @@ import {
   type ViewportInfo,
   type ScrollRestoreTarget,
 } from '@/components/media-browse/VirtualPosterGrid';
+import { POSTER_ASPECT_CLASS, type PosterAspect } from '@/components/media-browse/PosterCard';
 import { LibraryEmptyState } from '@/components/library/LibraryEmptyState';
 import { ErrorState, InlineErrorState } from '@/components/library/ErrorState';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -28,6 +32,7 @@ import { EmptyState } from '@/components/ui/empty-state';
 import {
   useCatalogWindow,
   useCatalogLetters,
+  useDashboardStats,
   useGenres,
   useCatalogCodecs,
   useLibraries,
@@ -37,11 +42,17 @@ import {
   stableSerialize,
   CATALOG_PAGE_SIZE,
 } from '@/hooks/queries';
+import { useAuth } from '@/hooks/useAuth';
+import { useMediaType } from '@/hooks/useMediaType';
 import { useServer } from '@/hooks/useServer';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { cn } from '@/lib/utils';
 
-/** Filters a link can set on arrival: `?genre=` from the Genres page, and
- * resolution, codec, channel and server params from the Quality page charts. */
+const WATCHED_STATES: readonly WatchedState[] = ['watched', 'partial', 'unwatched'];
+
+/** Filters a link can set on arrival: `?genre=` from the Genres page,
+ * resolution, codec, channel and server params from the Quality page charts, and
+ * `?watched=` from a member's "Not watched by you" link. */
 function linkedFilters(search: string): Partial<PersistedGridFilters> {
   const params = new URLSearchParams(search);
   const linked: Partial<PersistedGridFilters> = {};
@@ -56,30 +67,31 @@ function linkedFilters(search: string): Partial<PersistedGridFilters> {
     const value = params.get(key);
     if (value) linked[key] = value;
   }
+  const watched = params.get('watched');
+  const watchedState = WATCHED_STATES.find((state) => state === watched);
+  if (watchedState) linked.watched = watchedState;
   return linked;
 }
 
-function typeFromSearch(search: string): 'movie' | 'show' {
-  return new URLSearchParams(search).get('type') === 'shows' ? 'show' : 'movie';
-}
-
-function typeSegment(type: 'movie' | 'show'): 'movies' | 'shows' {
-  return type === 'movie' ? 'movies' : 'shows';
-}
+const GRID_TITLE_KEYS = {
+  movie: 'media.movies.title',
+  show: 'media.shows.title',
+  artist: 'common:media.artist_plural',
+} as const satisfies Record<LibraryMediaType, string>;
 
 interface GridHistoryState {
-  type: 'movie' | 'show';
+  type: LibraryMediaType;
   offset: number;
 }
 
-function readHistoryState(type: 'movie' | 'show'): GridHistoryState | null {
+function readHistoryState(type: LibraryMediaType): GridHistoryState | null {
   const raw = window.history.state as { mediaGrid?: GridHistoryState } | null;
   const mediaGrid = raw?.mediaGrid;
   return mediaGrid?.type === type ? mediaGrid : null;
 }
 
 interface BrowseLocationState {
-  /** Set by the movies/shows toggle nav so the target list lands at the top
+  /** Set by the media type control's nav so the target list lands at the top
    * with default filters, instead of restoring whatever this type last had. */
   freshBrowse?: boolean;
 }
@@ -116,7 +128,7 @@ function consumeFreshBrowseFlag(): void {
  * CSS auto-fill algorithm rounding differently, or not accounting for the
  * letter-rail column) shows up as layout shift the moment data arrives.
  */
-function StaticSkeletonGrid() {
+function StaticSkeletonGrid({ aspect }: { aspect: PosterAspect }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [columnCount, setColumnCount] = useState(2);
 
@@ -141,7 +153,7 @@ function StaticSkeletonGrid() {
     >
       {Array.from({ length: 18 }).map((_, index) => (
         <div key={index} className="space-y-1.5">
-          <Skeleton className="aspect-[2/3] w-full rounded-md" />
+          <Skeleton className={cn('w-full rounded-md', POSTER_ASPECT_CLASS[aspect])} />
           <Skeleton className="h-3.5 w-full" />
         </div>
       ))}
@@ -150,17 +162,32 @@ function StaticSkeletonGrid() {
 }
 
 export function MediaGrid() {
-  const { t } = useTranslation('pages');
+  const { t } = useTranslation(['pages', 'common']);
   const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const queryClient = useQueryClient();
   const { selectedServerIds, servers, isLoading: serversLoading } = useServer();
+  const { user } = useAuth();
+  const isMember = user?.role === 'member';
+  // The server leaves othersActive out of the dashboard stats exactly when it
+  // withholds popularity data from members.
+  const seesActivity =
+    useDashboardStats(selectedServerIds, { enabled: isMember, keepPrevious: true }).data
+      ?.othersActive !== undefined;
+  const hidePopularitySorts = isMember && !seesActivity;
 
-  const type = typeFromSearch(location.search);
-  const segment = typeSegment(type);
+  const { value: type } = useMediaType();
+  const aspect: PosterAspect = type === 'artist' ? 'square' : 'poster';
+  const gridTitle = t(GRID_TITLE_KEYS[type]);
 
-  const [filters, setFilters] = useState<PersistedGridFilters>(() => loadPersistedFilters(type));
+  const [storedFilters, setFilters] = useState<PersistedGridFilters>(() =>
+    loadPersistedFilters(type)
+  );
+  // Derived at render: the render that first sees a new type still holds the
+  // previous type's filters, and its requests must already fit the new type.
+  const filters = useMemo(() => filtersForType(storedFilters, type), [storedFilters, type]);
+  const sort = visibleSort(filters.sort, hidePopularitySorts);
   const [search, setSearch] = useState('');
   const [activeLetter, setActiveLetter] = useState<ScrubberLetter | null>(null);
   // Seeded synchronously so the very first render already has the right offset (needed for the cached-data mount path).
@@ -186,12 +213,21 @@ export function MediaGrid() {
     });
   }
 
+  /** Artists have no watched state or year; a link carrying either loses it. */
+  const dropArtistParams = (search: string, state: unknown) => {
+    const params = new URLSearchParams(search);
+    const hadParams = params.has('watched') || params.get('sort') === 'year';
+    params.delete('watched');
+    if (params.get('sort') === 'year') params.delete('sort');
+    if (hadParams) void navigate({ search: `?${params.toString()}` }, { replace: true, state });
+  };
+
   // Filters/search are per media type; reset them (rather than relying on a
   // route remount, which react-router doesn't guarantee here) whenever the
-  // movies/shows toggle changes the route.
+  // media type control changes the route.
   useEffect(() => {
     if (isFreshBrowse(location.state)) {
-      // The movies/shows toggle: always land at the top with default filters
+      // The media type control: always land at the top with default filters
       // and empty search, ignoring whatever this type had saved.
       const freshFilters = { ...DEFAULT_GRID_FILTERS };
       suppressedFiltersRef.current = freshFilters;
@@ -204,6 +240,7 @@ export function MediaGrid() {
       // on every location.search change would fight the toolbar's own filter
       // state once the viewer edits filters.
       setFilters({ ...loadPersistedFilters(type), ...linkedFilters(location.search) });
+      if (type === 'artist') dropArtistParams(location.search, location.state);
     }
     setSearch('');
     setActiveLetter(null);
@@ -291,11 +328,11 @@ export function MediaGrid() {
 
   useEffect(() => {
     if (suppressedFiltersRef.current) {
-      if (filters === suppressedFiltersRef.current) suppressedFiltersRef.current = null;
+      if (storedFilters === suppressedFiltersRef.current) suppressedFiltersRef.current = null;
       return;
     }
-    persistFilters(type, filters);
-  }, [type, filters]);
+    persistFilters(type, filtersForType(storedFilters, type));
+  }, [type, storedFilters]);
 
   // An explicit single-element array when the server filter is set - never
   // an intersection that could collapse to [] and be read as "unscoped".
@@ -304,9 +341,9 @@ export function MediaGrid() {
   const catalogArgs = {
     type,
     serverIds: catalogServerIds,
-    // Watched always means "any user has watched it" now - the per-identity
-    // lens picker is gone, so this is a fixed constant, not state.
-    lens: 'all',
+    // Watched means "any user has watched it" for staff. A member's lens is
+    // their own identity, since the server would otherwise list what others watched.
+    lens: isMember && user ? user.userId : 'all',
     filters: {
       resolution: filters.resolution,
       genre: filters.genre,
@@ -323,7 +360,7 @@ export function MediaGrid() {
       audioCodec: filters.audioCodec,
       audioChannels: filters.audioChannels,
     },
-    sort: filters.sort,
+    sort,
   };
 
   const lettersQuery = useCatalogLetters(catalogArgs);
@@ -359,7 +396,7 @@ export function MediaGrid() {
     type,
     serverIds: [...catalogServerIds].sort(),
     filters: catalogArgs.filters,
-    sort: filters.sort,
+    sort,
   });
   const knownTotalsRef = useRef<{ key: string; totalItems: number; totalFileSize: number } | null>(
     null
@@ -393,7 +430,7 @@ export function MediaGrid() {
           : info
       );
       // While a jump is still settling, trust the clicked letter over the transient topItem reading.
-      if (filters.sort === 'title' && pendingJumpItem === null) {
+      if (sort === 'title' && pendingJumpItem === null) {
         const letter = activeLetterForRow(
           info.topItem,
           info.columnCount,
@@ -402,7 +439,7 @@ export function MediaGrid() {
         if (letter) setActiveLetter(letter);
       }
     },
-    [filters.sort, letterOffsets, pendingJumpItem]
+    [sort, letterOffsets, pendingJumpItem]
   );
 
   const handleScrollIdle = useCallback(
@@ -429,8 +466,8 @@ export function MediaGrid() {
     gridRef.current?.scrollToItem(bucket.start);
   };
 
-  const handleTypeChange = (nextType: 'movie' | 'show') => {
-    void navigate(`/media/browse${nextType === 'show' ? '?type=shows' : ''}`, {
+  const handleTypeChange = (nextType: LibraryMediaType) => {
+    void navigate(`/media/browse${nextType === 'movie' ? '' : `?type=${nextType}`}`, {
       state: { freshBrowse: true } satisfies BrowseLocationState,
     });
   };
@@ -448,19 +485,9 @@ export function MediaGrid() {
         ? 'filter'
         : 'library';
 
-  const showScrubber = filters.sort === 'title';
+  const showScrubber = sort === 'title';
 
-  const header = (
-    <div className="space-y-1">
-      <p className="text-muted-foreground text-xs">
-        <Link to="/media" className="hover:text-foreground">
-          {t('media.landing.title')}
-        </Link>{' '}
-        / <span>{t(`media.${segment}.title`)}</span>
-      </p>
-      <h1 className="text-2xl font-bold tracking-[-0.02em]">{t(`media.${segment}.title`)}</h1>
-    </div>
-  );
+  const header = <h1 className="sr-only">{gridTitle}</h1>;
 
   if (hasNoServers) {
     return (
@@ -508,6 +535,7 @@ export function MediaGrid() {
         totalItems={totalItems ?? undefined}
         totalFileSize={totalFileSize ?? undefined}
         mobileScrubber={showScrubber ? mobileScrubber : null}
+        hidePopularitySorts={hidePopularitySorts}
       />
 
       {totalItems === null ? (
@@ -524,7 +552,7 @@ export function MediaGrid() {
             className="grid gap-2"
             style={{ gridTemplateColumns: isMobile || !showScrubber ? '1fr' : '1fr 26px' }}
           >
-            <StaticSkeletonGrid />
+            <StaticSkeletonGrid aspect={aspect} />
           </div>
         )
       ) : emptyVariant === 'library' ? (
@@ -545,11 +573,13 @@ export function MediaGrid() {
           ) : (
             <div className="min-w-0 space-y-3">
               <VirtualPosterGrid
+                key={aspect}
                 ref={gridRef}
                 totalItems={totalItems}
                 getRow={getRow}
                 serverById={serverById}
-                ariaLabel={t(`media.${segment}.title`)}
+                ariaLabel={gridTitle}
+                aspect={aspect}
                 onViewportChange={handleViewportChange}
                 scrollRestore={scrollRestore}
                 onScrollRestored={() =>

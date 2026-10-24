@@ -19,6 +19,7 @@ import {
 import { and, eq, gte, inArray, isNull, lte } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { db } from '../../db/client.js';
+import { getCachedSessionsCompressionHorizon } from '../../db/timescale.js';
 import {
   servers,
   serverUserExternalAliases,
@@ -26,9 +27,11 @@ import {
   sessions,
   users,
 } from '../../db/schema.js';
+import { sessionRowById } from '../../db/sessionRow.js';
 import { getGeoIPSettings } from '../../routes/settings.js';
 import { isMaintenance } from '../../serverState.js';
 import { isLeader } from '../../services/leaderLease.js';
+import { requestSyncForUnknownKeys } from '../../services/libraryEventSync.js';
 import { isLiveRow } from '../../services/liveServers.js';
 import type { CacheService, PubSubService } from '../../services/cache.js';
 import { geoipService } from '../../services/geoip.js';
@@ -331,10 +334,11 @@ async function resolveVanishedPendingSession(
         return null;
       }
 
+      // A row persisted from this pending entry starts no earlier than the entry.
       const [existingById] = await db
         .select({ id: sessions.id })
         .from(sessions)
-        .where(and(eq(sessions.id, stillPending.id), isNull(sessions.stoppedAt)))
+        .where(and(sessionRowById(stillPending), isNull(sessions.stoppedAt)))
         .limit(1);
       if (existingById) {
         await cache.deletePendingSession(serverId, pendingKey);
@@ -372,7 +376,7 @@ async function resolveVanishedPendingSession(
     try {
       await broadcastViolations(
         lockResult.violationResults,
-        lockResult.insertedSession.id,
+        lockResult.insertedSession,
         pubSubService
       );
     } catch (err) {
@@ -387,7 +391,11 @@ async function resolveVanishedPendingSession(
   });
   clearDbWriteTracking(lockResult.insertedSession.id);
   if (stopResult.needsRetry && stopResult.retryData) {
-    await cache.addSessionWriteRetry(lockResult.insertedSession.id, stopResult.retryData);
+    await cache.addSessionWriteRetry(
+      lockResult.insertedSession.id,
+      lockResult.insertedSession.startedAt.getTime(),
+      stopResult.retryData
+    );
   }
 
   console.log(
@@ -463,7 +471,11 @@ async function sweepGracePeriod(
             });
             clearDbWriteTracking(session.id);
             if (needsRetry && retryData && cacheService) {
-              await cacheService.addSessionWriteRetry(session.id, retryData);
+              await cacheService.addSessionWriteRetry(
+                session.id,
+                session.startedAt.getTime(),
+                retryData
+              );
             }
           } else {
             console.log(
@@ -618,7 +630,7 @@ async function resolvePendingSession(
       const [existingById] = await db
         .select({ id: sessions.id })
         .from(sessions)
-        .where(and(eq(sessions.id, updatedData.id), isNull(sessions.stoppedAt)))
+        .where(and(sessionRowById(updatedData), isNull(sessions.stoppedAt)))
         .limit(1);
       if (existingById) {
         // A concurrent caller already persisted this row. The pending entry is
@@ -672,7 +684,7 @@ async function resolvePendingSession(
 
   if (violationResults.length > 0 && pubSubService) {
     try {
-      await broadcastViolations(violationResults, insertedSession.id, pubSubService);
+      await broadcastViolations(violationResults, insertedSession, pubSubService);
     } catch (err) {
       console.error('[Poller] Failed to broadcast violations:', err);
     }
@@ -980,6 +992,19 @@ async function processServerSessions(
     for (const p of processedSessions) {
       p.identity = libraryItemIdentityMap.get(p.ratingKey) ?? null;
     }
+    // Only movies and episodes: live TV keys change per channel, and photos and extras are
+    // never library items, so a sync could not bring them in.
+    requestSyncForUnknownKeys(
+      { id: server.id, name: server.name },
+      processedSessions
+        .filter(
+          (p) =>
+            (p.mediaType === 'movie' || p.mediaType === 'episode') &&
+            p.ratingKey &&
+            !libraryItemIdentityMap.has(p.ratingKey)
+        )
+        .map((p) => p.ratingKey)
+    );
 
     // OPTIMIZATION: Batch load sibling server_user ids per identity for cross-server
     // rule aggregation on merged users. One query per poll tick covers every server
@@ -1255,7 +1280,7 @@ async function processServerSessions(
               const touchResult = await db
                 .update(sessions)
                 .set({ lastSeenAt: new Date() })
-                .where(and(eq(sessions.id, existing.id), isNull(sessions.stoppedAt)))
+                .where(and(sessionRowById(existing), isNull(sessions.stoppedAt)))
                 .returning({ id: sessions.id });
 
               if (touchResult.length === 0) {
@@ -1500,7 +1525,7 @@ async function processServerSessions(
                   `[Poller] Stale recovery session ${processed.sessionKey} was terminated by rule, skipping cache add`
                 );
                 try {
-                  await broadcastViolations(violationResults, insertedSession.id, pubSubService);
+                  await broadcastViolations(violationResults, insertedSession, pubSubService);
                 } catch (err) {
                   console.error('[Poller] Failed to broadcast violations:', err);
                 }
@@ -1521,7 +1546,7 @@ async function processServerSessions(
               cachedSessionKeys.add(sessionKey);
 
               try {
-                await broadcastViolations(violationResults, insertedSession.id, pubSubService);
+                await broadcastViolations(violationResults, insertedSession, pubSubService);
               } catch (err) {
                 console.error('[Poller] Failed to broadcast violations:', err);
               }
@@ -1577,7 +1602,7 @@ async function processServerSessions(
 
               // Broadcast violations for new session
               try {
-                await broadcastViolations(violationResults, insertedSession.id, pubSubService);
+                await broadcastViolations(violationResults, insertedSession, pubSubService);
               } catch (err) {
                 console.error('[Poller] Failed to broadcast violations:', err);
               }
@@ -1708,7 +1733,7 @@ async function processServerSessions(
             const updateResult = await db
               .update(sessions)
               .set(updatePayload)
-              .where(and(eq(sessions.id, existingSession.id), isNull(sessions.stoppedAt)))
+              .where(and(sessionRowById(existingSession), isNull(sessions.stoppedAt)))
               .returning({ id: sessions.id });
 
             if (updateResult.length === 0) {
@@ -1753,7 +1778,7 @@ async function processServerSessions(
                 { activeAutomations, activeSessions: ruleEvalSessions, recentSessions }
               );
               if (violations.length > 0 && pubSubService) {
-                await broadcastViolations(violations, existingSession.id, pubSubService);
+                await broadcastViolations(violations, existingSession, pubSubService);
               }
             } catch (error) {
               console.error(
@@ -1788,7 +1813,7 @@ async function processServerSessions(
                 { activeAutomations, activeSessions: ruleEvalSessions, recentSessions }
               );
               if (violations.length > 0 && pubSubService) {
-                await broadcastViolations(violations, existingSession.id, pubSubService);
+                await broadcastViolations(violations, existingSession, pubSubService);
               }
             } catch (error) {
               console.error(
@@ -1987,9 +2012,6 @@ async function pollServers(): Promise<void> {
       }
 
       try {
-        // Get previous health state for transition detection
-        const wasHealthy = cacheService ? await cacheService.getServerHealth(server.id) : null;
-
         const {
           success,
           unauthorized,
@@ -2009,20 +2031,21 @@ async function pollServers(): Promise<void> {
         if (cacheService) {
           const healthServer = { id: server.id, name: server.name, type: server.type };
           if (success) {
-            const wasDown = wasHealthy === false;
-            await cacheService.setServerHealth(server.id, true);
+            const wasHealthy = await cacheService.setServerHealth(server.id, true);
             await cacheService.resetServerFailCount(server.id);
 
-            if (wasDown) {
+            if (wasHealthy === false) {
               console.log(`[Poller] Server ${server.name} is back UP`);
               await dispatchServerHealth('server.up', healthServer, new Date());
             }
           } else {
             const failCount = await cacheService.incrServerFailCount(server.id);
 
-            if (failCount >= POLLER_CONFIG.DOWN_THRESHOLD) {
+            // A live connection that opened during this tick proves the server is
+            // reachable, and once it is out of fallback no poll would ever undo a down.
+            if (failCount >= POLLER_CONFIG.DOWN_THRESHOLD && sseManager.isInFallback(server.id)) {
               const reason = unauthorized ? 'unauthorized' : undefined;
-              await cacheService.setServerHealth(server.id, false, reason);
+              const wasHealthy = await cacheService.setServerHealth(server.id, false, reason);
 
               if (wasHealthy !== false) {
                 console.log(
@@ -2121,7 +2144,7 @@ async function pollServers(): Promise<void> {
  */
 export async function forceStopSessions(
   rows: (typeof sessions.$inferSelect)[],
-  stoppedAt: Date = new Date()
+  stopTimeOf: (row: typeof sessions.$inferSelect) => Date = () => new Date()
 ): Promise<number> {
   let stopped = 0;
   let dashboardStatsDirty = false;
@@ -2129,13 +2152,13 @@ export async function forceStopSessions(
     for (const row of rows) {
       const { wasUpdated, needsRetry, retryData } = await stopSessionAtomic({
         session: row,
-        stoppedAt,
+        stoppedAt: stopTimeOf(row),
         forceStopped: true,
       });
       clearDbWriteTracking(row.id);
 
       if (needsRetry && retryData && cacheService) {
-        await cacheService.addSessionWriteRetry(row.id, retryData);
+        await cacheService.addSessionWriteRetry(row.id, row.startedAt.getTime(), retryData);
       }
 
       if (!wasUpdated) continue;
@@ -2174,7 +2197,9 @@ export async function forceStopSessions(
  * Sessions with insufficient play time (< MIN_PLAY_TIME_MS) are still recorded for
  * audit purposes but can be filtered from stats queries.
  */
-export async function sweepStaleSessions(): Promise<number> {
+export async function sweepStaleSessions(
+  options: { includeCompressed?: boolean } = {}
+): Promise<number> {
   if (!acquireRunGuard(sweepGuard, 'stale sweep')) return 0;
 
   try {
@@ -2183,10 +2208,10 @@ export async function sweepStaleSessions(): Promise<number> {
       Date.now() - SESSION_LIMITS.STALE_SESSION_TIMEOUT_SECONDS * 1000
     );
 
-    // Only check recent chunks to avoid locking all TimescaleDB partitions.
-    // Active sessions can only exist in recent data - anything older would have
-    // been force-stopped by previous sweeps. 7 days gives ample buffer.
-    const chunkBound = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    // Uncompressed chunks answer from idx_sessions_open_last_seen whatever their age. Compressed
+    // ones have no index on stopped_at, so reading them decompresses all of history: the recurring
+    // sweep stays above the horizon and startPoller reads below it once.
+    const horizon = options.includeCompressed ? null : await getCachedSessionsCompressionHorizon();
 
     // Find all active sessions that haven't been seen recently
     const staleSessions = await db
@@ -2196,7 +2221,7 @@ export async function sweepStaleSessions(): Promise<number> {
         and(
           isNull(sessions.stoppedAt), // Still active
           lte(sessions.lastSeenAt, staleThreshold), // Not seen recently
-          gte(sessions.startedAt, chunkBound) // Only recent chunks (reduces lock count)
+          horizon ? gte(sessions.startedAt, horizon) : undefined
         )
       );
 
@@ -2206,8 +2231,15 @@ export async function sweepStaleSessions(): Promise<number> {
 
     console.log(`[Poller] Force-stopping ${staleSessions.length} stale session(s)`);
 
+    // A row swept in the normal course stops now, as it always has. One unseen for longer than
+    // the poller could have missed it was left open through downtime, and stops where the last
+    // poll saw it so the outage is not credited as play time.
+    const now = new Date();
+    const downtimeMs = 2 * SESSION_LIMITS.STALE_SESSION_TIMEOUT_SECONDS * 1000;
     await forceStopSessions(
-      staleSessions.filter((session) => shouldForceStopStaleSession(session.lastSeenAt))
+      staleSessions.filter((session) => shouldForceStopStaleSession(session.lastSeenAt)),
+      (session) =>
+        now.getTime() - session.lastSeenAt.getTime() > downtimeMs ? session.lastSeenAt : now
     );
 
     return staleSessions.length;
@@ -2276,6 +2308,7 @@ export function startPoller(config: Partial<PollerConfig> = {}): void {
     console.log(
       `Starting stale session sweep with ${SESSION_LIMITS.STALE_SWEEP_INTERVAL_MS}ms interval`
     );
+    void sweepStaleSessions({ includeCompressed: true });
     staleSweepInterval = setInterval(
       () => void sweepStaleSessions(),
       SESSION_LIMITS.STALE_SWEEP_INTERVAL_MS
@@ -2308,6 +2341,11 @@ export function stopPoller(): void {
   resetDbWriteThrottle();
   previousPollHadSessions = false;
   currentPollIntervalMs = POLLING_INTERVALS.SESSIONS_IDLE;
+}
+
+/** False when session sync is turned off, so nothing polls servers in fallback. */
+export function isPollerRunning(): boolean {
+  return pollingInterval !== null;
 }
 
 /**

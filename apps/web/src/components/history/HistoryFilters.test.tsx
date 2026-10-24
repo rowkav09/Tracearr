@@ -1,9 +1,14 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { beforeAll, describe, it, expect, vi } from 'vitest';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { initI18n } from '@tracearr/translations';
 import type { HistoryFilterOptions } from '@tracearr/shared';
 import { HistoryFiltersBar, DEFAULT_COLUMN_VISIBILITY } from './HistoryFilters';
 import type { HistoryFilters } from '@/hooks/queries/useHistory';
+
+beforeAll(async () => {
+  await initI18n({ lng: 'en' });
+});
 
 const mergedPerson = {
   id: 'su-representative',
@@ -42,6 +47,8 @@ function renderBar(
     <HistoryFiltersBar
       filters={{ ...filters, ...overrides }}
       onFiltersChange={onFiltersChange}
+      timeRange={{ period: 'month' }}
+      onTimeRangeChange={vi.fn()}
       filterOptions={filterOptions}
       columnVisibility={DEFAULT_COLUMN_VISIBILITY}
       onColumnVisibilityChange={vi.fn()}
@@ -138,5 +145,63 @@ describe('HistoryFiltersBar', () => {
     expect(onFiltersChange).toHaveBeenLastCalledWith(
       expect.objectContaining({ mediaTypes: ['trailer'] })
     );
+  });
+
+  const renderMemberBar = () =>
+    render(
+      <HistoryFiltersBar
+        filters={{}}
+        onFiltersChange={vi.fn()}
+        timeRange={{ period: 'month' }}
+        onTimeRangeChange={vi.fn()}
+        filterOptions={filterOptions}
+        columnVisibility={DEFAULT_COLUMN_VISIBILITY}
+        onColumnVisibilityChange={vi.fn()}
+        isMember
+      />
+    );
+
+  it('has no Users filter for a member', async () => {
+    renderMemberBar();
+
+    await userEvent.click(screen.getByRole('button', { name: /Filters/ }));
+
+    expect(screen.queryByText('Users')).not.toBeInTheDocument();
+    expect(screen.getByText('Platforms')).toBeInTheDocument();
+  });
+
+  it('has no User column toggle for a member', async () => {
+    renderMemberBar();
+
+    await userEvent.click(screen.getByRole('button', { name: /Columns/ }));
+
+    expect(screen.queryByRole('menuitemcheckbox', { name: 'User' })).not.toBeInTheDocument();
+    expect(screen.getByRole('menuitemcheckbox', { name: 'Date' })).toBeInTheDocument();
+  });
+  it('shows the city and region as chips and removes only the one clicked', async () => {
+    const { onFiltersChange } = renderBar({
+      geoCountries: ['US'],
+      geoCity: 'Ogden',
+      geoRegion: 'Utah',
+    });
+
+    const cityChip = screen.getByText('Ogden').closest('[data-slot="badge"]');
+    expect(screen.getByText('Utah')).toBeInTheDocument();
+    if (!(cityChip instanceof HTMLElement)) throw new Error('no city chip');
+    await userEvent.click(within(cityChip).getByRole('button'));
+
+    expect(onFiltersChange).toHaveBeenCalledWith({ geoCountries: ['US'], geoRegion: 'Utah' });
+  });
+
+  it('shows a missing city and region as Unknown chips', async () => {
+    const { onFiltersChange } = renderBar({ geoCityMissing: true, geoRegionMissing: true });
+
+    const chips = screen.getAllByText('Unknown');
+    expect(chips).toHaveLength(2);
+    const regionChip = chips[1]?.closest('[data-slot="badge"]');
+    if (!(regionChip instanceof HTMLElement)) throw new Error('no region chip');
+    await userEvent.click(within(regionChip).getByRole('button'));
+
+    expect(onFiltersChange).toHaveBeenCalledWith({ geoCityMissing: true });
   });
 });

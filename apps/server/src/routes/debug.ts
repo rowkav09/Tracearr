@@ -41,6 +41,7 @@ import {
 import { seedBuiltinDestinations } from '../services/notifications/destinationsMigration.js';
 import { violationAliasConditions } from '../services/automations/aliasFilter.js';
 import { getAllServices } from '../services/serviceTracker.js';
+import { getPublicEventConnectionStats } from '../services/publicEvents/connections.js';
 import { getAuth } from '../lib/auth.js';
 import { revokeMobileDeviceSession } from './mobile.js';
 import {
@@ -330,13 +331,7 @@ const readLogTail = async (filePath: string, limit: number): Promise<DebugLogEnt
 };
 
 export const debugRoutes: FastifyPluginAsync = async (app) => {
-  // All debug routes require owner
-  app.addHook('preHandler', async (request, reply) => {
-    await app.authenticate(request, reply);
-    if (request.user?.role !== 'owner') {
-      return reply.forbidden('Owner access required');
-    }
-  });
+  app.addHook('preHandler', app.requireOwner);
 
   /**
    * GET /debug/stats - Database statistics
@@ -928,6 +923,7 @@ export const debugRoutes: FastifyPluginAsync = async (app) => {
         newsletters,
       },
       services: getAllServices(),
+      publicEventConnections: getPublicEventConnectionStats(),
       timestamp: new Date().toISOString(),
     };
   });

@@ -5,6 +5,7 @@
  * - GET /sessions - List historical sessions with filters
  * - GET /sessions/active - Get currently active streams
  * - GET /sessions/:id - Get a specific session
+ * - GET /sessions/history/aggregates - Totals over the filtered history
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -14,7 +15,7 @@ import { randomUUID } from 'node:crypto';
 import type { SQL } from 'drizzle-orm';
 import type { AuthUser } from '@tracearr/shared';
 import { createMockActiveSession } from '../../test/fixtures.js';
-import { renderSql } from '../../test/helpers.js';
+import { queryChain, renderSql } from '../../test/helpers.js';
 
 // Mock the database module before importing routes
 vi.mock('../../db/client.js', () => ({
@@ -41,6 +42,7 @@ vi.mock('../../services/termination.js', () => ({
 import { db } from '../../db/client.js';
 import { terminateSession } from '../../services/termination.js';
 import { sessionRoutes } from '../sessions.js';
+import { permissionGuard } from '../../lib/scope.js';
 
 /**
  * Build a test Fastify instance with mocked auth and redis
@@ -56,6 +58,11 @@ async function buildTestApp(
   // Mock the authenticate decorator
   app.decorate('authenticate', async (request: any) => {
     request.user = authUser;
+  });
+  app.decorate('requirePermission', permissionGuard(app));
+  app.decorate('requireOwner', async (request: any, reply: any) => {
+    request.user = authUser;
+    if (authUser.role !== 'owner') return reply.forbidden('Owner access required');
   });
 
   // Mock Redis (cast to never for test mock)
@@ -75,11 +82,11 @@ function createOwnerUser(serverIds?: string[]): AuthUser {
   };
 }
 
-function createViewerUser(serverIds?: string[]): AuthUser {
+function createAdminUser(serverIds?: string[]): AuthUser {
   return {
     userId: randomUUID(),
-    username: 'viewer',
-    role: 'viewer',
+    username: 'admin',
+    role: 'admin',
     serverIds: serverIds ?? [randomUUID()],
   };
 }
@@ -231,6 +238,34 @@ describe('Session Routes', () => {
       expect(body.totalPages).toBe(4);
     });
 
+    it('returns the media ids on each row', async () => {
+      app = await buildTestApp(createOwnerUser());
+      const mediaId = randomUUID();
+      const showMediaId = randomUUID();
+      mockDb.execute.mockResolvedValueOnce({
+        rows: [
+          {
+            id: randomUUID(),
+            started_at: new Date(),
+            segment_count: '1',
+            media_type: 'episode',
+            media_id: mediaId,
+            show_media_id: showMediaId,
+          },
+        ],
+      });
+      mockDb.execute.mockResolvedValueOnce({ rows: [{ count: 1 }] });
+
+      const response = await app.inject({ method: 'GET', url: '/sessions' });
+
+      const { sql: query } = renderSql(mockDb.execute.mock.calls[0][0] as SQL);
+      expect(query).toContain('s.media_id,');
+      expect(query).toContain('s.show_media_id,');
+      const [row] = JSON.parse(response.body).data;
+      expect(row.mediaId).toBe(mediaId);
+      expect(row.showMediaId).toBe(showMediaId);
+    });
+
     it('should reject invalid query parameters', async () => {
       const ownerUser = createOwnerUser();
       app = await buildTestApp(ownerUser);
@@ -321,7 +356,7 @@ describe('Session Routes', () => {
     it('should filter sessions by user serverIds', async () => {
       const serverId1 = randomUUID();
       const serverId2 = randomUUID();
-      const viewerUser = createViewerUser([serverId1]);
+      const adminUser = createAdminUser([serverId1]);
 
       const activeSessions = [
         createMockActiveSession({ serverId: serverId1 }),
@@ -331,7 +366,7 @@ describe('Session Routes', () => {
       // Mock the cache service response
       mockGetAllActiveSessions.mockResolvedValueOnce(activeSessions);
 
-      app = await buildTestApp(viewerUser);
+      app = await buildTestApp(adminUser);
 
       const response = await app.inject({
         method: 'GET',
@@ -360,6 +395,27 @@ describe('Session Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
       expect(body.data).toHaveLength(0);
+    });
+
+    it('gives the owner only their own streams with self, and every stream without', async () => {
+      const ownAccount = randomUUID();
+      const streams = [
+        createMockActiveSession({ serverUserId: ownAccount }),
+        createMockActiveSession(),
+      ];
+      mockGetAllActiveSessions.mockResolvedValueOnce(streams).mockResolvedValueOnce(streams);
+      vi.mocked(db.select).mockReturnValue(
+        queryChain(vi.fn, [{ id: ownAccount, serverId: randomUUID() }])
+      );
+      app = await buildTestApp(createOwnerUser());
+
+      const self = (await app.inject({ url: '/sessions/active?self=true' })).json();
+      const all = (await app.inject({ url: '/sessions/active' })).json();
+
+      expect(self.data.map((s: { serverUserId: string }) => s.serverUserId)).toEqual([ownAccount]);
+      expect(self).not.toHaveProperty('othersActive');
+      expect(all.data).toHaveLength(2);
+      expect(all).not.toHaveProperty('othersActive');
     });
   });
 
@@ -469,6 +525,41 @@ describe('Session Routes', () => {
       expect(body.id).toBe(sessionId);
     });
 
+    it('returns the media ids for a finished session', async () => {
+      const serverId = randomUUID();
+      const sessionId = randomUUID();
+      const mediaId = randomUUID();
+      const showMediaId = randomUUID();
+      app = await buildTestApp(createOwnerUser([serverId]));
+
+      const limit = vi
+        .fn()
+        .mockResolvedValue([
+          { id: sessionId, serverId, mediaType: 'episode', mediaId, showMediaId },
+        ]);
+      mockDb.select.mockReturnValue({
+        from: vi.fn().mockReturnValue({
+          innerJoin: vi.fn().mockReturnValue({
+            innerJoin: vi.fn().mockReturnValue({
+              leftJoin: vi.fn().mockReturnValue({
+                where: vi.fn().mockReturnValue({ limit }),
+              }),
+            }),
+          }),
+        }),
+      });
+
+      const response = await app.inject({ method: 'GET', url: `/sessions/${sessionId}` });
+
+      expect(mockDb.select.mock.calls[0][0]).toMatchObject({
+        mediaId: expect.anything(),
+        showMediaId: expect.anything(),
+      });
+      const body = JSON.parse(response.body);
+      expect(body.mediaId).toBe(mediaId);
+      expect(body.showMediaId).toBe(showMediaId);
+    });
+
     it('should return 404 for non-existent session', async () => {
       const ownerUser = createOwnerUser();
       const redisMock = {
@@ -515,13 +606,13 @@ describe('Session Routes', () => {
       const serverId = randomUUID();
       const sessionId = randomUUID();
       const differentServerId = randomUUID();
-      const viewerUser = createViewerUser([differentServerId]);
+      const adminUser = createAdminUser([differentServerId]);
 
       const redisMock = {
         get: vi.fn().mockResolvedValue(null),
       };
 
-      app = await buildTestApp(viewerUser, redisMock);
+      app = await buildTestApp(adminUser, redisMock);
 
       const dbSession = {
         id: sessionId,
@@ -594,7 +685,7 @@ describe('Session Routes', () => {
       const serverId = randomUUID();
       const sessionId = randomUUID();
       const differentServerId = randomUUID();
-      const viewerUser = createViewerUser([differentServerId]);
+      const adminUser = createAdminUser([differentServerId]);
 
       const activeSession = createMockActiveSession({ id: sessionId, serverId });
 
@@ -602,7 +693,7 @@ describe('Session Routes', () => {
         get: vi.fn().mockResolvedValue(JSON.stringify(activeSession)),
       };
 
-      app = await buildTestApp(viewerUser, redisMock);
+      app = await buildTestApp(adminUser, redisMock);
 
       // Should fall through to DB since server access denied
       mockDb.select.mockReturnValue({
@@ -1006,6 +1097,55 @@ describe('Session Routes', () => {
       const response = await app.inject({ method: 'GET', url: '/sessions/history' });
 
       expect(JSON.parse(response.body).data[0].isLocal).toBe(true);
+    });
+
+    it('returns the media ids on each history row', async () => {
+      app = await buildTestApp(createOwnerUser());
+      const mediaId = randomUUID();
+      const showMediaId = randomUUID();
+      mockDb.execute.mockResolvedValueOnce({
+        rows: [createMockHistoryRow({ media_id: mediaId, show_media_id: showMediaId })],
+      });
+
+      const response = await app.inject({ method: 'GET', url: '/sessions/history' });
+
+      const { sql: query } = renderSql(mockDb.execute.mock.calls[0][0] as SQL);
+      expect(query).toContain('s.media_id,');
+      expect(query).toContain('s.show_media_id,');
+      const [row] = JSON.parse(response.body).data;
+      expect(row.mediaId).toBe(mediaId);
+      expect(row.showMediaId).toBe(showMediaId);
+    });
+  });
+
+  describe('GET /sessions/history/aggregates', () => {
+    it('returns listen time as the track share of the same sum as watch time', async () => {
+      app = await buildTestApp(createOwnerUser());
+      mockDb.execute.mockResolvedValueOnce({
+        rows: [
+          {
+            play_count: 3,
+            total_watch_time_ms: '5400000',
+            listen_time_ms: '1800000',
+            unique_users: 1,
+            unique_content: 2,
+          },
+        ],
+      });
+
+      const response = await app.inject({ method: 'GET', url: '/sessions/history/aggregates' });
+
+      expect(response.statusCode).toBe(200);
+      expect(JSON.parse(response.body)).toEqual({
+        totalWatchTimeMs: 5400000,
+        listenTimeMs: 1800000,
+        playCount: 3,
+        uniqueUsers: 1,
+        uniqueContent: 2,
+      });
+      const { sql: query } = renderSql(mockDb.execute.mock.calls[0][0] as SQL);
+      expect(query).toContain("SUM(s.duration_ms) FILTER (WHERE s.media_type = 'track')");
+      expect(query).toContain("s.media_type <> 'trailer'");
     });
   });
 });

@@ -5,6 +5,7 @@
 
 import { lazy, memo, Suspense, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '@/hooks/useAuth';
 import { Link } from 'react-router';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -37,15 +38,27 @@ import {
   Clapperboard,
   Subtitles,
 } from 'lucide-react';
-import { cn, getCountryName, getMediaDisplay, getSessionProgress } from '@/lib/utils';
+import {
+  cn,
+  getCountryName,
+  getMediaDisplay,
+  getMediaLinks,
+  getSessionProgress,
+} from '@/lib/utils';
 import { imageProxyUrl } from '@/lib/api';
-import { formatDuration } from '@/lib/formatters';
 import { playbackBadge } from '@/lib/playbackBadge';
+import { DATE_TIME_OPTIONS, formatDate, formatDuration } from '@/lib/dateFormat';
 import { getAvatarUrl } from '@/components/users/utils';
 import { LocalBadge } from '@/components/sessions/LocalBadge';
+import { MediaPageLink } from '@/components/media/MediaPageLink';
 import { StreamDetailsPanel } from './StreamDetailsPanel';
 
-import { PLAYBACK_DECISION_LABEL_KEYS, POSTER_IMAGE_SIZE } from '@tracearr/shared';
+import {
+  PLAYBACK_DECISION_LABEL_KEYS,
+  POSTER_IMAGE_SIZE,
+  isStaff,
+  verbKeysFor,
+} from '@tracearr/shared';
 import type {
   SessionWithDetails,
   ActiveSession,
@@ -54,8 +67,7 @@ import type {
   MediaType,
   ServerType,
 } from '@tracearr/shared';
-import { format, formatDistanceToNow } from 'date-fns';
-import { getDateTimeFormatString } from '@/lib/timeFormat';
+import { formatDistanceToNow } from 'date-fns';
 
 // Accept both SessionWithDetails (history) and ActiveSession (now playing)
 // Both types have the same nested user/server structure
@@ -73,23 +85,21 @@ const SERVER_CONFIG: Record<ServerType, { label: string; color: string }> = {
   emby: { label: 'Emby', color: 'text-green-500' },
 };
 
-// State configuration
-const STATE_CONFIG: Record<SessionState, { icon: typeof Play; color: string; label: string }> = {
-  playing: { icon: Play, color: 'text-green-500', label: 'Playing' },
-  paused: { icon: Pause, color: 'text-yellow-500', label: 'Paused' },
-  stopped: { icon: Square, color: 'text-muted-foreground', label: 'Stopped' },
-};
+const STATE_CONFIG = {
+  playing: { icon: Play, color: 'text-green-500', labelKey: 'common:playback.playing' },
+  paused: { icon: Pause, color: 'text-yellow-500', labelKey: 'common:playback.paused' },
+  stopped: { icon: Square, color: 'text-muted-foreground', labelKey: 'common:playback.stopped' },
+} as const satisfies Record<SessionState, { icon: typeof Play; color: string; labelKey: string }>;
 
-// Media type configuration
-const MEDIA_CONFIG: Record<MediaType, { icon: typeof Film; label: string }> = {
-  movie: { icon: Film, label: 'Movie' },
-  episode: { icon: Tv, label: 'Episode' },
-  track: { icon: Music, label: 'Track' },
-  live: { icon: Radio, label: 'Live TV' },
-  photo: { icon: Image, label: 'Photo' },
-  trailer: { icon: Clapperboard, label: 'Trailer' },
-  unknown: { icon: CircleHelp, label: 'Unknown' },
-};
+const MEDIA_CONFIG = {
+  movie: { icon: Film, labelKey: 'common:media.movie' },
+  episode: { icon: Tv, labelKey: 'common:media.episode' },
+  track: { icon: Music, labelKey: 'common:media.track' },
+  live: { icon: Radio, labelKey: 'common:media.liveTV' },
+  photo: { icon: Image, labelKey: 'common:media.photo' },
+  trailer: { icon: Clapperboard, labelKey: 'pages:history.trailer' },
+  unknown: { icon: CircleHelp, labelKey: 'common:labels.unknown' },
+} as const satisfies Record<MediaType, { icon: typeof Film; labelKey: string }>;
 
 // Format transcode reason codes into human-friendly labels
 function formatReason(reason: string): string {
@@ -160,7 +170,7 @@ function SegmentTable({
   segments: SessionSegment[];
   segmentCount?: number;
 }) {
-  const timeFormat = getDateTimeFormatString();
+  const { t } = useTranslation(['common', 'pages']);
 
   return (
     <div className="text-sm">
@@ -168,10 +178,12 @@ function SegmentTable({
         <thead>
           <tr className="text-muted-foreground text-xs">
             <th className="pr-3 pb-1.5 text-left font-medium">#</th>
-            <th className="pr-3 pb-1.5 text-left font-medium">Started</th>
-            <th className="pr-3 pb-1.5 text-left font-medium">Stopped</th>
-            <th className="pr-3 pb-1.5 text-right font-medium">Watch</th>
-            <th className="pb-1.5 text-right font-medium">Paused</th>
+            <th className="pr-3 pb-1.5 text-left font-medium">{t('labels.started')}</th>
+            <th className="pr-3 pb-1.5 text-left font-medium">{t('labels.stopped')}</th>
+            <th className="pr-3 pb-1.5 text-right font-medium">
+              {t('pages:history.detail.watch')}
+            </th>
+            <th className="pb-1.5 text-right font-medium">{t('playback.paused')}</th>
           </tr>
         </thead>
         <tbody>
@@ -182,15 +194,17 @@ function SegmentTable({
             return (
               <tr key={i} className="border-border/50 border-t">
                 <td className="text-muted-foreground py-1 pr-3">{i + 1}</td>
-                <td className="py-1 pr-3">{format(startDate, timeFormat)}</td>
-                <td className="py-1 pr-3">{stopDate ? format(stopDate, timeFormat) : '—'}</td>
+                <td className="py-1 pr-3">{formatDate(startDate, DATE_TIME_OPTIONS)}</td>
+                <td className="py-1 pr-3">
+                  {stopDate ? formatDate(stopDate, DATE_TIME_OPTIONS) : '-'}
+                </td>
                 <td className="py-1 pr-3 text-right">
                   {formatDuration(seg.durationMs, { style: 'compact' })}
                 </td>
                 <td className="py-1 text-right">
                   {seg.pausedDurationMs > 0
                     ? formatDuration(seg.pausedDurationMs, { style: 'compact' })
-                    : '—'}
+                    : '-'}
                 </td>
               </tr>
             );
@@ -199,7 +213,10 @@ function SegmentTable({
       </table>
       {segmentCount && segmentCount > segments.length && (
         <p className="text-muted-foreground mt-1.5 text-xs">
-          Showing {segments.length} of {segmentCount} segments
+          {t('pages:history.detail.segmentsShown', {
+            shown: segments.length,
+            count: segmentCount,
+          })}
         </p>
       )}
     </div>
@@ -207,8 +224,16 @@ function SegmentTable({
 }
 
 // Inner content component - keeps state hooks and derived values together
-function SessionContent({ session }: { session: SessionWithDetails | ActiveSession }) {
-  const { t } = useTranslation();
+function SessionContent({
+  session,
+  onNavigate,
+}: {
+  session: SessionWithDetails | ActiveSession;
+  onNavigate: () => void;
+}) {
+  const { t } = useTranslation(['common', 'pages']);
+  const viewer = useAuth().user;
+  const canOpenUser = !!viewer && isStaff(viewer.role);
   const [locationOpen, setLocationOpen] = useState(false);
   const [segmentsOpen, setSegmentsOpen] = useState(false);
 
@@ -225,8 +250,8 @@ function SessionContent({ session }: { session: SessionWithDetails | ActiveSessi
   const mediaConfig = MEDIA_CONFIG[session.mediaType];
   const MediaIcon = mediaConfig.icon;
   const { title: primary, subtitle: secondary } = getMediaDisplay(session);
+  const mediaLinks = getMediaLinks(session);
   const progress = getSessionProgress(session);
-  const hasLocation = session.geoLat !== null && session.geoLon !== null;
   const geoCountryName = getCountryName(session.geoCountry);
   const geoCoordinates =
     session.geoLat !== null && session.geoLon !== null
@@ -255,7 +280,7 @@ function SessionContent({ session }: { session: SessionWithDetails | ActiveSessi
       <SheetHeader className="pb-4">
         <SheetTitle className="flex items-center gap-2 pr-8 text-base">
           <stateConfig.icon className={cn('h-4 w-4', stateConfig.color)} />
-          Session Details
+          {t('labels.sessionDetails')}
           <Badge
             variant={
               session.state === 'playing'
@@ -266,7 +291,7 @@ function SessionContent({ session }: { session: SessionWithDetails | ActiveSessi
             }
             className="ml-auto"
           >
-            {stateConfig.label}
+            {t(stateConfig.labelKey)}
           </Badge>
         </SheetTitle>
       </SheetHeader>
@@ -287,15 +312,23 @@ function SessionContent({ session }: { session: SessionWithDetails | ActiveSessi
           <div className="min-w-0 flex-1">
             <div className="text-muted-foreground mb-1 flex items-center gap-1.5 text-xs">
               <MediaIcon className="h-3 w-3" />
-              {mediaConfig.label}
+              {t(mediaConfig.labelKey)}
               {session.year && <span>· {session.year}</span>}
             </div>
             <div className="flex items-center gap-1.5 leading-tight font-medium">
-              <span className="truncate">{primary}</span>
+              <span className="truncate">
+                <MediaPageLink to={mediaLinks.title} onNavigate={onNavigate}>
+                  {primary}
+                </MediaPageLink>
+              </span>
               {session.watched && <Eye className="h-3.5 w-3.5 flex-shrink-0 text-green-500" />}
             </div>
             {secondary && (
-              <div className="text-muted-foreground mt-0.5 truncate text-sm">{secondary}</div>
+              <div className="text-muted-foreground mt-0.5 truncate text-sm">
+                <MediaPageLink to={mediaLinks.subtitle} onNavigate={onNavigate}>
+                  {secondary}
+                </MediaPageLink>
+              </div>
             )}
             {progress !== null && (
               <div className="mt-2 flex items-center gap-2">
@@ -306,37 +339,51 @@ function SessionContent({ session }: { session: SessionWithDetails | ActiveSessi
           </div>
         </div>
 
-        {/* User */}
-        <Link
-          to={`/users/${session.serverUserId}`}
-          className="hover:bg-muted/50 flex items-center gap-3 rounded-lg border p-3 transition-colors"
-        >
-          <Avatar className="h-9 w-9">
-            <AvatarImage
-              src={getAvatarUrl(session.serverId, session.user.thumbUrl, 36) ?? undefined}
-            />
-            <AvatarFallback>
-              {(session.user.identityName ?? session.user.username)?.[0]?.toUpperCase() ?? '?'}
-            </AvatarFallback>
-          </Avatar>
-          <div className="min-w-0 flex-1">
-            <p className="truncate font-medium">
-              {session.user.identityName ?? session.user.username}
-            </p>
-            {session.user.identityName && session.user.identityName !== session.user.username && (
-              <p className="text-muted-foreground truncate text-xs">@{session.user.username}</p>
-            )}
-            {!session.user.identityName && (
-              <p className="text-muted-foreground text-xs">View profile</p>
-            )}
-          </div>
-          <ExternalLink className="text-muted-foreground h-4 w-4" />
-        </Link>
+        {/* User: a member sees their own account without a page to open */}
+        {(() => {
+          const body = (
+            <>
+              <Avatar className="h-9 w-9">
+                <AvatarImage
+                  src={getAvatarUrl(session.serverId, session.user.thumbUrl, 36) ?? undefined}
+                />
+                <AvatarFallback>
+                  {(session.user.identityName ?? session.user.username)?.[0]?.toUpperCase() ?? '?'}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium">
+                  {session.user.identityName ?? session.user.username}
+                </p>
+                {session.user.identityName &&
+                  session.user.identityName !== session.user.username && (
+                    <p className="text-muted-foreground truncate text-xs">
+                      @{session.user.username}
+                    </p>
+                  )}
+                {canOpenUser && !session.user.identityName && (
+                  <p className="text-muted-foreground text-xs">{t('actions.viewProfile')}</p>
+                )}
+              </div>
+            </>
+          );
+          return canOpenUser ? (
+            <Link
+              to={`/users/${session.serverUserId}`}
+              className="hover:bg-muted/50 flex items-center gap-3 rounded-lg border p-3 transition-colors"
+            >
+              {body}
+              <ExternalLink className="text-muted-foreground h-4 w-4" />
+            </Link>
+          ) : (
+            <div className="flex items-center gap-3 rounded-lg border p-3">{body}</div>
+          );
+        })()}
 
         {/* Server */}
-        <Section icon={Server} title="Server">
+        <Section icon={Server} title={t('labels.server')}>
           <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Server</span>
+            <span className="text-muted-foreground">{t('labels.server')}</span>
             <span className="flex items-center gap-1.5">
               <span className={serverConfig.color}>{serverConfig.label}</span>
               <span className="text-muted-foreground">·</span>
@@ -348,7 +395,7 @@ function SessionContent({ session }: { session: SessionWithDetails | ActiveSessi
         {/* Playback Info */}
         <Section
           icon={Clock}
-          title="Playback"
+          title={t('labels.playback')}
           badge={
             'segmentCount' in session && session.segmentCount && session.segmentCount > 1 ? (
               <button
@@ -360,11 +407,11 @@ function SessionContent({ session }: { session: SessionWithDetails | ActiveSessi
                   {segmentsOpen ? (
                     <>
                       <ChevronLeft className="h-3 w-3" />
-                      Summary
+                      {t('pages:history.detail.summary')}
                     </>
                   ) : (
                     <>
-                      {session.segmentCount} Segments
+                      {t('count.segment', { count: session.segmentCount })}
                       <ChevronRight className="h-3 w-3" />
                     </>
                   )}
@@ -381,9 +428,9 @@ function SessionContent({ session }: { session: SessionWithDetails | ActiveSessi
           ) : (
             <div className="space-y-1.5 text-sm">
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Started</span>
+                <span className="text-muted-foreground">{t('labels.started')}</span>
                 <span>
-                  {format(new Date(session.startedAt), getDateTimeFormatString())}
+                  {formatDate(new Date(session.startedAt), DATE_TIME_OPTIONS)}
                   <span className="text-muted-foreground ml-1.5 text-xs">
                     ({formatDistanceToNow(new Date(session.startedAt), { addSuffix: true })})
                   </span>
@@ -391,23 +438,25 @@ function SessionContent({ session }: { session: SessionWithDetails | ActiveSessi
               </div>
               {session.stoppedAt && (
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Stopped</span>
-                  <span>{format(new Date(session.stoppedAt), getDateTimeFormatString())}</span>
+                  <span className="text-muted-foreground">{t('labels.stopped')}</span>
+                  <span>{formatDate(new Date(session.stoppedAt), DATE_TIME_OPTIONS)}</span>
                 </div>
               )}
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Watch time</span>
+                <span className="text-muted-foreground">
+                  {t(verbKeysFor(session.mediaType).watchTime)}
+                </span>
                 <span>{formatDuration(getWatchTime(session), { style: 'compact' })}</span>
               </div>
               {session.pausedDurationMs > 0 && (
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Paused</span>
+                  <span className="text-muted-foreground">{t('playback.paused')}</span>
                   <span>{formatDuration(session.pausedDurationMs, { style: 'compact' })}</span>
                 </div>
               )}
               {session.totalDurationMs && (
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Media length</span>
+                  <span className="text-muted-foreground">{t('labels.mediaLength')}</span>
                   <span>{formatDuration(session.totalDurationMs, { style: 'compact' })}</span>
                 </div>
               )}
@@ -416,14 +465,14 @@ function SessionContent({ session }: { session: SessionWithDetails | ActiveSessi
         </Section>
 
         {/* Location & Network */}
-        <Section icon={MapPin} title="Location">
+        <Section icon={MapPin} title={t('labels.location')}>
           <Collapsible open={locationOpen} onOpenChange={setLocationOpen} className="space-y-2">
             <CollapsibleTrigger asChild>
               <button
                 type="button"
                 className="hover:text-foreground flex w-full items-center justify-between text-sm transition-colors"
               >
-                <span className="text-muted-foreground">IP Address</span>
+                <span className="text-muted-foreground">{t('labels.ipAddress')}</span>
                 <span className="flex items-center gap-2">
                   <span className="font-mono text-xs">{session.ipAddress || '—'}</span>
                   <ChevronDown
@@ -435,7 +484,9 @@ function SessionContent({ session }: { session: SessionWithDetails | ActiveSessi
                 </span>
               </button>
             </CollapsibleTrigger>
-            {hasLocation && <MiniMap lat={session.geoLat!} lon={session.geoLon!} />}
+            {session.geoLat !== null && session.geoLon !== null && (
+              <MiniMap lat={session.geoLat} lon={session.geoLon} />
+            )}
             {locationString && (
               <div className="flex items-center gap-1.5 text-sm">
                 <Globe className="text-muted-foreground h-3.5 w-3.5 flex-shrink-0" />
@@ -446,36 +497,48 @@ function SessionContent({ session }: { session: SessionWithDetails | ActiveSessi
             <CollapsibleContent className="space-y-2">
               <div className="space-y-1.5 text-sm">
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Continent</span>
+                  <span className="text-muted-foreground">
+                    {t('pages:history.location.continent')}
+                  </span>
                   <span>{session.geoContinent ?? '—'}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Country</span>
+                  <span className="text-muted-foreground">
+                    {t('pages:history.location.country')}
+                  </span>
                   <span>{geoCountryName ?? '—'}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Region</span>
+                  <span className="text-muted-foreground">
+                    {t('pages:history.location.region')}
+                  </span>
                   <span>{session.geoRegion ?? '—'}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">City</span>
+                  <span className="text-muted-foreground">{t('pages:history.location.city')}</span>
                   <span>{session.geoCity ?? '—'}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Postal Code</span>
+                  <span className="text-muted-foreground">
+                    {t('pages:history.location.postalCode')}
+                  </span>
                   <span>{session.geoPostal ?? '—'}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Coordinates</span>
+                  <span className="text-muted-foreground">
+                    {t('pages:history.location.coordinates')}
+                  </span>
                   <span className="font-mono text-xs">{geoCoordinates ?? '—'}</span>
                 </div>
                 <Separator className="my-2" />
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">ASN</span>
+                  <span className="text-muted-foreground">{t('pages:history.location.asn')}</span>
                   <span>{geoAsnNumber ?? '—'}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">ASN Org</span>
+                  <span className="text-muted-foreground">
+                    {t('pages:history.location.asnOrg')}
+                  </span>
                   <span className="max-w-[180px] truncate text-right">
                     {session.geoAsnOrganization ?? '—'}
                   </span>
@@ -486,35 +549,35 @@ function SessionContent({ session }: { session: SessionWithDetails | ActiveSessi
         </Section>
 
         {/* Device */}
-        <Section icon={Smartphone} title="Device">
+        <Section icon={Smartphone} title={t('labels.device')}>
           <div className="space-y-1.5 text-sm">
             {session.platform && (
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Platform</span>
+                <span className="text-muted-foreground">{t('labels.platform')}</span>
                 <span>{session.platform}</span>
               </div>
             )}
             {session.product && (
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Product</span>
+                <span className="text-muted-foreground">{t('labels.product')}</span>
                 <span>{session.product}</span>
               </div>
             )}
             {session.device && (
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Device</span>
+                <span className="text-muted-foreground">{t('labels.device')}</span>
                 <span>{session.device}</span>
               </div>
             )}
             {session.playerName && (
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Player</span>
+                <span className="text-muted-foreground">{t('labels.player')}</span>
                 <span>{session.playerName}</span>
               </div>
             )}
             {session.deviceId && (
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Device ID</span>
+                <span className="text-muted-foreground">{t('labels.deviceId')}</span>
                 <span className="max-w-[160px] truncate font-mono text-xs">{session.deviceId}</span>
               </div>
             )}
@@ -524,7 +587,7 @@ function SessionContent({ session }: { session: SessionWithDetails | ActiveSessi
         {/* Stream Details */}
         <Section
           icon={Gauge}
-          title="Stream Details"
+          title={t('labels.streamDetails')}
           badge={(() => {
             const { decision, Icon, variant, isBurnIn } = playbackBadge(session);
             const content = (
@@ -596,7 +659,7 @@ export function SessionDetailSheet({ session, open, onOpenChange }: Props) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full overflow-y-auto sm:max-w-[500px]">
-        <SessionContent session={session} />
+        <SessionContent session={session} onNavigate={() => onOpenChange(false)} />
       </SheetContent>
     </Sheet>
   );

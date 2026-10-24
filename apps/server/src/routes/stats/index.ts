@@ -1,7 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { dashboardRoutes } from './dashboard.js';
 import { playsRoutes } from './plays.js';
-import { usersRoutes } from './users.js';
 import { contentRoutes } from './content.js';
 import { locationsRoutes } from './locations.js';
 import { engagementRoutes } from './engagement.js';
@@ -10,13 +9,15 @@ import { bandwidthRoutes } from './bandwidth.js';
 import { platformsRoutes } from './platforms.js';
 import { qualityRoutes } from './quality.js';
 import { concurrentRoutes } from './concurrent.js';
+import { meRoutes } from './me.js';
+import { peopleRoutes } from './people.js';
+import { downloadsRoutes } from './downloads.js';
 
 export const statsRoutes: FastifyPluginAsync = async (app) => {
   // Register all sub-route plugins
   // Each plugin defines its own paths (no additional prefix needed)
   await app.register(dashboardRoutes);
   await app.register(playsRoutes);
-  await app.register(usersRoutes);
   await app.register(contentRoutes);
   await app.register(locationsRoutes);
   await app.register(engagementRoutes);
@@ -25,6 +26,9 @@ export const statsRoutes: FastifyPluginAsync = async (app) => {
   await app.register(platformsRoutes);
   await app.register(qualityRoutes);
   await app.register(concurrentRoutes);
+  await app.register(meRoutes);
+  await app.register(peopleRoutes);
+  await app.register(downloadsRoutes);
 };
 
 // Re-export utilities for potential use by other modules

@@ -3,7 +3,7 @@
  */
 
 import { z } from 'zod';
-import { isValidTimezone } from './constants.js';
+import { LOGIN_ACCESS, isValidTimezone } from './constants.js';
 import { listDateBoundSchema, listSortSchema } from './listQuery.js';
 import { PLAYBACK_DECISIONS } from './playbackDecision.js';
 
@@ -54,15 +54,35 @@ function validateDateOrder(data: { startDate?: string; endDate?: string }) {
   return true;
 }
 
+/**
+ * Refinement: If dates provided, startDate must not be after endDate. For endpoints that include
+ * the end day, where equal dates mean that one day.
+ */
+function validateDateOrderInclusive(data: { startDate?: string; endDate?: string }) {
+  if (data.startDate && data.endDate) {
+    return new Date(data.startDate) <= new Date(data.endDate);
+  }
+  return true;
+}
+
 /** Standard date validation refinements for stats queries */
 export const dateValidationRefinements = {
   customPeriodRequiresDates: {
     refinement: requireDatesForCustomPeriod,
     message: 'Custom period requires startDate and endDate',
   },
+  datesTogether: {
+    refinement: (data: { startDate?: string; endDate?: string }) =>
+      !data.startDate === !data.endDate,
+    message: 'startDate and endDate go together',
+  },
   startBeforeEnd: {
     refinement: validateDateOrder,
     message: 'startDate must be before endDate',
+  },
+  startNotAfterEnd: {
+    refinement: validateDateOrderInclusive,
+    message: 'startDate must not be after endDate',
   },
 };
 
@@ -107,6 +127,9 @@ export const booleanStringSchema = z
   .union([z.boolean(), z.string()])
   .transform((val) => (typeof val === 'boolean' ? val : val === 'true'));
 
+// Opt-in on the stats reads the personal dashboard uses: the viewer's own accounts, for every role.
+export const selfQuerySchema = z.object({ self: booleanStringSchema.default(false) });
+
 // IANA timezone string validation (e.g., 'America/Los_Angeles', 'Europe/London')
 // Uses shared isValidTimezone helper which validates via Intl API
 export const timezoneSchema = z
@@ -130,6 +153,16 @@ export const callbackSchema = z.object({
   token: z.string().optional(),
   serverType: serverTypeSchema,
 });
+
+export const memberPasswordSignInSchema = z.object({
+  serverId: z.uuid(),
+  username: z.string().min(1).max(255),
+  password: z.string().min(1).max(1024),
+});
+
+export const quickConnectInitiateSchema = z.object({ serverId: z.uuid() });
+
+export const quickConnectCheckSchema = z.object({ handle: z.string().regex(/^[0-9a-f]{64}$/) });
 
 const permissiveUrlSchema = z.string().refine(
   (val) => {
@@ -210,6 +243,7 @@ export const updateServerSchema = z
       .nullable(),
     publicUrl: publicUrlSchema.optional(),
     apiKey: z.string().trim().min(1).optional(),
+    allowMemberLogin: z.boolean().optional(),
   })
   .refine(
     (data) =>
@@ -217,8 +251,12 @@ export const updateServerSchema = z
       data.url !== undefined ||
       data.color !== undefined ||
       data.publicUrl !== undefined ||
-      data.apiKey !== undefined,
-    { message: 'At least one of name, url, color, publicUrl, or apiKey is required' }
+      data.apiKey !== undefined ||
+      data.allowMemberLogin !== undefined,
+    {
+      message:
+        'At least one of name, url, color, publicUrl, apiKey, or allowMemberLogin is required',
+    }
   );
 
 const locationTextSchema = z
@@ -260,8 +298,15 @@ export const serverLocationsSchema = z
 // ============================================================================
 
 export const updateUserSchema = z.object({
-  allowGuest: z.boolean().optional(),
   trustScore: z.number().int().min(0).max(100).optional(),
+});
+
+// ?all on the login page lists every live server, not only those that let members sign in.
+export const setupStatusQuerySchema = z.object({ all: z.enum(['', '1', 'true']).optional() });
+
+export const updateUserAccessSchema = z.object({
+  loginAccess: z.enum(LOGIN_ACCESS).optional(),
+  role: z.enum(['admin', 'member']).optional(),
 });
 
 export const updateUserIdentitySchema = z.object({
@@ -306,7 +351,14 @@ export const mergeSuggestionDismissalSchema = z
 export const mergeSuggestionPairParamSchema = z.object({ userA: uuidSchema, userB: uuidSchema });
 export const splitServerUserParamSchema = z.object({ id: uuidSchema });
 
-export const USER_SORT_FIELDS = ['username', 'trustScore', 'joinedAt', 'lastActivityAt'] as const;
+export const USER_SORT_FIELDS = [
+  'username',
+  'trustScore',
+  'joinedAt',
+  'lastActivityAt',
+  'role',
+  'pendingViolations',
+] as const;
 export const userSortFieldSchema = z.enum(USER_SORT_FIELDS);
 export type UserSortField = z.infer<typeof userSortFieldSchema>;
 
@@ -332,11 +384,17 @@ export const userRosterFilterSchema = serverIdFilterSchema.extend({
    * view is narrowed to one server.
    */
   hasAccessTo: serverIdsQuerySchema,
+  /** Only people whose sign-in access is set to Allow or Block on their user page. */
+  signInOverride: booleanStringSchema.default(false),
   // Identity-level bounds: earliest account join, latest account activity.
   joinedAfter: listDateBoundSchema,
   joinedBefore: listDateBoundSchema,
   activeAfter: listDateBoundSchema,
   activeBefore: listDateBoundSchema,
+  role: z.enum(['owner', 'admin', 'member']).optional(),
+  signIn: z.enum(['allow', 'default', 'block']).optional(),
+  /** Only people with at least one unacknowledged violation on the scoped servers. */
+  pendingOnly: booleanStringSchema.optional(),
 });
 export type UserRosterFilters = z.infer<typeof userRosterFilterSchema>;
 
@@ -408,6 +466,8 @@ export const historyQuerySchema = z.object({
   geoCountries: commaSeparatedArray(z.string().max(100)),
   geoCity: z.string().max(255).optional(), // City name
   geoRegion: z.string().max(255).optional(), // State/province
+  geoCityMissing: booleanStringSchema.optional(),
+  geoRegionMissing: booleanStringSchema.optional(),
   network: z.enum(['local', 'remote']).optional(),
 
   transcodeDecisions: commaSeparatedArray(z.enum(PLAYBACK_DECISIONS)),
@@ -667,20 +727,71 @@ export const dashboardQuerySchema = z.object({
   timezone: timezoneSchema,
 });
 
-export const statsQuerySchema = z
-  .object({
-    period: statPeriodSchema.default('week'),
-    startDate: z.iso.datetime().optional(),
-    endDate: z.iso.datetime().optional(),
-    serverId: uuidSchema.optional(),
-    serverIds: serverIdsQuerySchema,
-    timezone: timezoneSchema,
-  })
+const statsQueryObjectSchema = z.object({
+  period: statPeriodSchema.default('week'),
+  startDate: z.iso.datetime().optional(),
+  endDate: z.iso.datetime().optional(),
+  serverId: uuidSchema.optional(),
+  serverIds: serverIdsQuerySchema,
+  timezone: timezoneSchema,
+});
+
+export const statsQuerySchema = statsQueryObjectSchema
   .refine(dateValidationRefinements.customPeriodRequiresDates.refinement, {
     message: dateValidationRefinements.customPeriodRequiresDates.message,
   })
   .refine(dateValidationRefinements.startBeforeEnd.refinement, {
     message: dateValidationRefinements.startBeforeEnd.message,
+  });
+
+export const downloadsListQuerySchema = statsQuerySchema.safeExtend(paginationSchema.shape);
+
+export const PLAYS_MEDIA_GROUPS = ['movie', 'show', 'music'] as const;
+export type PlaysMediaGroup = (typeof PLAYS_MEDIA_GROUPS)[number];
+
+// groupBy=mediaType splits an Activity series into one series per media group.
+export const playsBreakdownQuerySchema = statsQuerySchema.safeExtend({
+  groupBy: z.literal('mediaType').optional(),
+});
+
+export const playsQuerySchema = playsBreakdownQuerySchema.safeExtend({
+  mediaType: z.enum(['movie', 'episode']).optional(),
+});
+
+export const PEOPLE_RANKS = [
+  'plays',
+  'hours',
+  'data',
+  'transcodes',
+  'requests',
+  'lastSeen',
+] as const;
+export const peopleRankSchema = z.enum(PEOPLE_RANKS);
+export type PeopleRank = z.infer<typeof peopleRankSchema>;
+
+// Day-aligned windows include the end day, so a one-day custom range has equal dates.
+const dayWindowQuerySchema = statsQueryObjectSchema.refine(
+  dateValidationRefinements.customPeriodRequiresDates.refinement,
+  { message: dateValidationRefinements.customPeriodRequiresDates.message }
+);
+
+export const peopleQuerySchema = dayWindowQuerySchema
+  .safeExtend({
+    rank: peopleRankSchema.default('plays'),
+    page: paginationSchema.shape.page,
+    pageSize: paginationSchema.shape.pageSize,
+    search: z.string().trim().min(1).max(100).optional(),
+  })
+  .refine(dateValidationRefinements.startNotAfterEnd.refinement, {
+    message: dateValidationRefinements.startNotAfterEnd.message,
+  });
+
+export const userRangeStatsQuerySchema = dayWindowQuerySchema
+  .safeExtend({
+    scope: z.literal('identity').optional(),
+  })
+  .refine(dateValidationRefinements.startNotAfterEnd.refinement, {
+    message: dateValidationRefinements.startNotAfterEnd.message,
   });
 
 // Location stats with full filtering - uses same period system as statsQuerySchema
@@ -703,6 +814,38 @@ export const locationStatsQuerySchema = z
   .refine(dateValidationRefinements.startBeforeEnd.refinement, {
     message: dateValidationRefinements.startBeforeEnd.message,
   });
+
+const placeNameSchema = z.string().nullable();
+
+// The full people of one place, named by its key (the JSON of [country, region, city, isLocal]),
+// or of every placed location whose coordinate lies inside a box.
+export const locationPeopleQuerySchema = locationStatsQuerySchema
+  .safeExtend({
+    place: z
+      .string()
+      .transform((key): unknown => {
+        try {
+          return JSON.parse(key);
+        } catch {
+          return undefined;
+        }
+      })
+      .pipe(z.tuple([placeNameSchema, placeNameSchema, placeNameSchema, z.boolean()]))
+      .optional(),
+    west: z.coerce.number().optional(),
+    south: z.coerce.number().optional(),
+    east: z.coerce.number().optional(),
+    north: z.coerce.number().optional(),
+  })
+  .refine(
+    (q) => {
+      const box = [q.west, q.south, q.east, q.north];
+      return q.place === undefined
+        ? box.every((v) => v !== undefined)
+        : box.every((v) => v === undefined);
+    },
+    { message: 'Pass place, or west, south, east and north' }
+  );
 
 // ============================================================================
 // Webhook & Settings Schemas
@@ -733,7 +876,10 @@ const nullableStringSchema = (maxLength?: number) =>
 
 // Settings schemas
 export const updateSettingsSchema = z.object({
-  allowGuestAccess: z.boolean().optional(),
+  loginMethods: z
+    .object({ local: z.boolean(), plex: z.boolean(), oidc: z.boolean(), member: z.boolean() })
+    .partial()
+    .optional(),
   // Display preferences
   unitSystem: unitSystemSchema.optional(),
   // Poller settings
@@ -776,6 +922,8 @@ export const updateSettingsSchema = z.object({
   imagePrecacheEnabled: z.boolean().optional(),
   // Media browsing: server whose poster wins when a title exists on multiple servers
   preferredPosterServerId: z.string().uuid().nullable().optional(),
+  // Members see anonymous counts of other people's activity
+  memberServerActivity: z.boolean().optional(),
 });
 
 // ============================================================================
@@ -1077,26 +1225,97 @@ export const libraryGrowthQuerySchema = z
     endDate: z.iso.datetime().optional(),
     timezone: timezoneSchema,
   })
-  .refine(dateValidationRefinements.startBeforeEnd.refinement, {
-    message: dateValidationRefinements.startBeforeEnd.message,
+  .refine(dateValidationRefinements.startNotAfterEnd.refinement, {
+    message: dateValidationRefinements.startNotAfterEnd.message,
   });
 
-// Library quality evolution query schema
-export const libraryQualityQuerySchema = z.object({
-  serverId: z.uuid().optional(),
-  period: z.enum(['7d', '30d', '90d', '1y', 'all']).default('30d'),
-  mediaType: z.enum(['all', 'movies', 'shows']).default('all'),
-  timezone: timezoneSchema,
+export const LIBRARY_MEDIA_TYPES = ['movie', 'show', 'artist'] as const;
+export const libraryMediaTypeSchema = z.enum(LIBRARY_MEDIA_TYPES);
+export type LibraryMediaType = z.infer<typeof libraryMediaTypeSchema>;
+/** A media type picker value; 'all' is for pages that can also show every type at once. */
+export type MediaTypeOption = LibraryMediaType | 'all';
+
+export const genresQuerySchema = statsQueryObjectSchema
+  .extend({
+    type: libraryMediaTypeSchema.default('movie'),
+    period: statPeriodSchema.default('month'),
+  })
+  .refine(dateValidationRefinements.customPeriodRequiresDates.refinement, {
+    message: dateValidationRefinements.customPeriodRequiresDates.message,
+  })
+  .refine(dateValidationRefinements.startNotAfterEnd.refinement, {
+    message: dateValidationRefinements.startNotAfterEnd.message,
+  });
+export const genreDetailQuerySchema = genresQuerySchema;
+
+/** Sane upper bound for the catalog's size-on-disk filter inputs, in GB. */
+const CATALOG_SIZE_GB_MAX = 10000;
+
+export const catalogQuerySchema = z.object({
+  type: libraryMediaTypeSchema,
+  serverId: uuidSchema.optional(),
+  serverIds: serverIdsQuerySchema,
+  resolution: z.string().optional(),
+  genre: z.string().optional(),
+  yearFrom: z.coerce.number().int().optional(),
+  yearTo: z.coerce.number().int().optional(),
+  watched: z.enum(['watched', 'partial', 'unwatched']).optional(),
+  lens: z.union([uuidSchema, z.literal('all')]).default('all'),
+  search: z.string().max(100).optional(),
+  sort: z.enum(['title', 'added', 'year', 'plays', 'watch_time', 'viewers']).default('title'),
+  offset: z.coerce.number().int().min(0).default(0),
+  pageSize: z.coerce.number().int().min(1).max(100).default(60),
+  // `${serverId}:${libraryId}` - a library id is only unique within its server.
+  libraryKey: libraryKeySchema.optional(),
+  hdr: booleanStringSchema.default(false),
+  atmos: booleanStringSchema.default(false),
+  sizeGbMin: z.coerce.number().min(0).max(CATALOG_SIZE_GB_MAX).optional(),
+  sizeGbMax: z.coerce.number().min(0).max(CATALOG_SIZE_GB_MAX).optional(),
+  /** Display names as the codec charts show them ('HEVC', 'EAC3'). */
+  videoCodec: z.string().max(50).optional(),
+  audioCodec: z.string().max(50).optional(),
+  audioChannels: z.string().max(20).optional(),
 });
 
+// A custom window on a library period endpoint: both dates or neither; with them the period
+// token is ignored.
+const customWindowFields = {
+  startDate: z.iso.datetime().optional(),
+  endDate: z.iso.datetime().optional(),
+};
+
+function withCustomWindow<T extends z.ZodObject>(schema: T) {
+  return schema
+    .refine(dateValidationRefinements.datesTogether.refinement, {
+      message: dateValidationRefinements.datesTogether.message,
+    })
+    .refine(dateValidationRefinements.startBeforeEnd.refinement, {
+      message: dateValidationRefinements.startBeforeEnd.message,
+    });
+}
+
+// Library quality evolution query schema
+export const libraryQualityQuerySchema = withCustomWindow(
+  z.object({
+    serverId: z.uuid().optional(),
+    period: z.enum(['7d', '30d', '90d', '1y', 'all']).default('30d'),
+    ...customWindowFields,
+    mediaType: z.enum(['all', 'movie', 'show']).default('all'),
+    timezone: timezoneSchema,
+  })
+);
+
 // Library storage analytics query schema
-export const libraryStorageQuerySchema = z.object({
-  serverId: z.uuid().optional(),
-  serverIds: serverIdsQuerySchema, // Combined scope so mirror dedup spans servers
-  libraryId: z.uuid().optional(),
-  period: z.enum(['7d', '30d', '90d', '1y', 'all']).default('30d'),
-  timezone: timezoneSchema,
-});
+export const libraryStorageQuerySchema = withCustomWindow(
+  z.object({
+    serverId: z.uuid().optional(),
+    serverIds: serverIdsQuerySchema, // Combined scope so mirror dedup spans servers
+    libraryId: z.uuid().optional(),
+    period: z.enum(['7d', '30d', '90d', '1y', 'all']).default('30d'),
+    ...customWindowFields,
+    timezone: timezoneSchema,
+  })
+);
 
 // Library duplicates query schema (cross-server duplicate detection)
 export const libraryDuplicatesQuerySchema = z.object({
@@ -1121,7 +1340,7 @@ export const libraryStaleQuerySchema = z.object({
   serverId: z.uuid().optional(),
   serverIds: serverIdsQuerySchema,
   libraryId: z.uuid().optional(),
-  mediaType: z.enum(['movie', 'show', 'artist']).optional(),
+  mediaType: libraryMediaTypeSchema.optional(),
   staleDays: z.coerce.number().int().min(1).default(90), // Configurable threshold
   category: z.enum(['all', 'never_watched', 'stale']).default('all'),
   sortBy: z.enum(['size', 'days_stale', 'title', 'added_at']).default('size'),
@@ -1132,92 +1351,72 @@ export const libraryStaleQuerySchema = z.object({
 });
 
 // Library watch statistics query schema
-export const libraryWatchQuerySchema = z.object({
-  serverId: uuidSchema.optional(),
-  serverIds: serverIdsQuerySchema,
-  libraryId: z.string().optional(),
-  mediaType: z.enum(['movie', 'episode', 'show']).optional(),
-  minWatchCount: z.coerce.number().int().min(0).optional(),
-  maxWatchCount: z.coerce.number().int().min(0).optional(),
-  includeUnwatched: z.coerce.boolean().default(true),
-  sortBy: z.enum(['watch_count', 'last_watched', 'title', 'file_size']).default('watch_count'),
-  sortOrder: z.enum(['asc', 'desc']).default('desc'),
-  page: z.coerce.number().int().positive().default(1),
-  pageSize: z.coerce.number().int().positive().max(100).default(20),
-});
+export const libraryWatchQuerySchema = withCustomWindow(
+  z.object({
+    serverId: uuidSchema.optional(),
+    serverIds: serverIdsQuerySchema,
+    libraryId: z.string().optional(),
+    period: z.enum(['7d', '30d', '90d', '1y', 'all']).default('30d'),
+    ...customWindowFields,
+  })
+);
 
 // Library ROI (Return on Investment) query schema
-export const libraryRoiQuerySchema = z.object({
-  serverId: uuidSchema.optional(),
-  serverIds: serverIdsQuerySchema,
-  libraryId: z.string().optional(),
-  mediaType: z.enum(['movie', 'show', 'artist', 'all']).default('all'),
-  // Filter by value category
-  valueCategory: z.enum(['low_value', 'moderate_value', 'high_value', 'all']).default('all'),
-  // Time range for watch calculations (affects recency weighting)
-  periodDays: z.coerce.number().int().min(30).max(365).default(90),
-  // Include age decay in value calculation
-  includeAgeDecay: z.coerce.boolean().default(true),
-  // Minimum file size to include (bytes) - filter out tiny files
-  minFileSize: z.coerce.number().int().min(0).default(0),
-  sortBy: z
-    .enum(['watch_hours_per_gb', 'value_score', 'file_size', 'title'])
-    .default('watch_hours_per_gb'),
-  sortOrder: z.enum(['asc', 'desc']).default('asc'), // Low value first by default
-  page: z.coerce.number().int().positive().default(1),
-  pageSize: z.coerce.number().int().positive().max(100).default(20),
-});
+export const libraryRoiQuerySchema = withCustomWindow(
+  z.object({
+    serverId: uuidSchema.optional(),
+    serverIds: serverIdsQuerySchema,
+    libraryId: z.string().optional(),
+    mediaType: z.enum(['movie', 'show', 'all']).default('all'),
+    period: z.enum(['7d', '30d', '90d', '1y', 'all']).default('30d'),
+    ...customWindowFields,
+    sortBy: z
+      .enum(['watch_hours_per_gb', 'watch_hours', 'file_size', 'last_watched', 'title'])
+      .default('watch_hours_per_gb'),
+    sortOrder: z.enum(['asc', 'desc']).default('desc'),
+    page: z.coerce.number().int().positive().default(1),
+    pageSize: z.coerce.number().int().positive().max(100).default(20),
+  })
+);
 
-// Library watch patterns query schema (binge, peak times, seasonal)
-export const libraryPatternsQuerySchema = z.object({
-  serverId: uuidSchema.optional(),
-  serverIds: serverIdsQuerySchema,
-  libraryId: z.string().optional(),
-  // Time range for pattern analysis (default: 52 weeks per CONTEXT.md)
-  periodWeeks: z.coerce.number().int().min(4).max(104).default(52),
-  // Scope: per-user patterns or server-wide aggregate
-  scope: z.enum(['user', 'server']).default('server'),
-  // Which patterns to include
-  includeBinge: z.coerce.boolean().default(true),
-  includePeakTimes: z.coerce.boolean().default(true),
-  includeSeasonalTrends: z.coerce.boolean().default(true),
-  // For binge: minimum episodes to consider a binge session
-  bingeThreshold: z.coerce.number().int().min(2).max(10).default(3),
-  // Limit for top binge shows
-  limit: z.coerce.number().int().positive().max(50).default(10),
-  // Timezone for hour/day extraction (defaults to UTC on backend)
-  timezone: timezoneSchema,
-});
-
-// Library completion rate analysis query schema
-export const libraryCompletionQuerySchema = z.object({
-  serverId: uuidSchema.optional(),
-  libraryId: z.string().optional(),
-  mediaType: z.enum(['movie', 'episode', 'show']).optional(),
-  // For TV: aggregate to episode, season, or series level
-  aggregateLevel: z.enum(['item', 'season', 'series']).default('item'),
-  // Completion status filter
-  status: z.enum(['completed', 'in_progress', 'not_started', 'all']).default('all'),
-  minCompletionPct: z.coerce.number().min(0).max(100).optional(),
-  maxCompletionPct: z.coerce.number().min(0).max(100).optional(),
-  sortBy: z.enum(['completion_pct', 'title', 'last_watched']).default('completion_pct'),
-  sortOrder: z.enum(['asc', 'desc']).default('desc'),
-  page: z.coerce.number().int().positive().default(1),
-  pageSize: z.coerce.number().int().positive().max(100).default(20),
-});
+// Library watch patterns query schema (binge, peak times, viewing trend)
+export const libraryPatternsQuerySchema = withCustomWindow(
+  z.object({
+    serverId: uuidSchema.optional(),
+    serverIds: serverIdsQuerySchema,
+    libraryId: z.string().optional(),
+    period: z.enum(['7d', '30d', '90d', '1y', 'all']).default('30d'),
+    ...customWindowFields,
+    // Scope: per-user patterns or server-wide aggregate
+    scope: z.enum(['user', 'server']).default('server'),
+    // Which patterns to include
+    includeBinge: z.coerce.boolean().default(true),
+    includePeakTimes: z.coerce.boolean().default(true),
+    includeSeasonalTrends: z.coerce.boolean().default(true),
+    // For binge: minimum episodes to consider a binge session
+    bingeThreshold: z.coerce.number().int().min(2).max(10).default(3),
+    // Limit for top binge shows
+    limit: z.coerce.number().int().positive().max(50).default(10),
+    // Timezone for hour/day extraction and trend buckets (defaults to UTC on backend)
+    timezone: timezoneSchema,
+  })
+);
 
 // Library top content query schema (for top movies and top shows endpoints)
-export const topContentQuerySchema = z.object({
-  serverId: uuidSchema.optional(),
-  serverIds: serverIdsQuerySchema,
-  period: z.enum(['7d', '30d', '90d', '1y', 'all']).default('30d'),
-  sortBy: z
-    .enum(['plays', 'watch_hours', 'viewers', 'completion_rate', 'binge_score'])
-    .default('plays'),
-  sortOrder: z.enum(['asc', 'desc']).default('desc'),
-  page: z.coerce.number().int().positive().default(1),
-  pageSize: z.coerce.number().int().positive().max(50).default(20),
-});
+export const topContentQuerySchema = withCustomWindow(
+  z.object({
+    serverId: uuidSchema.optional(),
+    serverIds: serverIdsQuerySchema,
+    period: z.enum(['7d', '30d', '90d', '1y', 'all']).default('30d'),
+    ...customWindowFields,
+    sortBy: z
+      .enum(['plays', 'watch_hours', 'viewers', 'completion_rate', 'binge_score'])
+      .default('plays'),
+    sortOrder: z.enum(['asc', 'desc']).default('desc'),
+    page: z.coerce.number().int().positive().default(1),
+    pageSize: z.coerce.number().int().positive().max(50).default(20),
+  })
+);
 
 // Library shelves query schema (windowed recently-added/most-popular/dead-weight
 // command center) - same day/week/month/year/all/custom period convention as
@@ -1244,6 +1443,7 @@ export const shelvesQuerySchema = z
 export type LibraryStatsQueryInput = z.infer<typeof libraryStatsQuerySchema>;
 export type LibraryStatusQueryInput = z.infer<typeof libraryStatusQuerySchema>;
 export type LibraryGrowthQueryInput = z.infer<typeof libraryGrowthQuerySchema>;
+export type GenresQueryInput = z.infer<typeof genresQuerySchema>;
 export type LibraryQualityQueryInput = z.infer<typeof libraryQualityQuerySchema>;
 export type LibraryStorageQueryInput = z.infer<typeof libraryStorageQuerySchema>;
 export type LibraryDuplicatesQueryInput = z.infer<typeof libraryDuplicatesQuerySchema>;
@@ -1252,7 +1452,6 @@ export type LibraryStaleQueryInput = z.infer<typeof libraryStaleQuerySchema>;
 export type LibraryWatchQueryInput = z.infer<typeof libraryWatchQuerySchema>;
 export type LibraryRoiQueryInput = z.infer<typeof libraryRoiQuerySchema>;
 export type LibraryPatternsQueryInput = z.infer<typeof libraryPatternsQuerySchema>;
-export type LibraryCompletionQueryInput = z.infer<typeof libraryCompletionQuerySchema>;
 export type TopContentQueryInput = z.infer<typeof topContentQuerySchema>;
 export type ShelvesQueryInput = z.infer<typeof shelvesQuerySchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
@@ -1261,6 +1460,7 @@ export type CreateServerInput = z.infer<typeof createServerSchema>;
 export type ReorderServersInput = z.infer<typeof reorderServersSchema>;
 export type UpdateServerInput = z.infer<typeof updateServerSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
+export type UpdateUserAccessInput = z.infer<typeof updateUserAccessSchema>;
 export type SessionQueryInput = z.infer<typeof sessionQuerySchema>;
 export type HistoryQueryInput = z.infer<typeof historyQuerySchema>;
 export type HistoryAggregatesQueryInput = z.infer<typeof historyAggregatesQuerySchema>;
@@ -1273,6 +1473,7 @@ export type ServerIdFilterInput = z.infer<typeof serverIdFilterSchema>;
 export type DashboardQueryInput = z.infer<typeof dashboardQuerySchema>;
 export type StatsQueryInput = z.infer<typeof statsQuerySchema>;
 export type LocationStatsQueryInput = z.infer<typeof locationStatsQuerySchema>;
+export type LocationPeopleQueryInput = z.infer<typeof locationPeopleQuerySchema>;
 export type UpdateSettingsInput = z.infer<typeof updateSettingsSchema>;
 export type TautulliImportInput = z.infer<typeof tautulliImportSchema>;
 

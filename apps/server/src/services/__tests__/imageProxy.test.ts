@@ -32,6 +32,11 @@ vi.mock('../../db/client.js', () => ({
   },
 }));
 
+vi.mock('sharp', async (importOriginal) => {
+  const real = (await importOriginal<typeof import('sharp')>()).default;
+  return { default: Object.assign(vi.fn(real), real) };
+});
+
 vi.mock('../imageCacheGuard.js', () => ({
   cacheWriteAllowed: vi.fn(async () => true),
   noteCacheWrite: vi.fn(),
@@ -144,22 +149,28 @@ describe('posterCacheFileName', () => {
 });
 
 describe('proxyImage poster fingerprint derivation', () => {
-  it('derives the fingerprint for a 360x540 poster even when no version was passed', async () => {
-    const serverId = randomUUID();
-    const path = '/library/metadata/1/thumb/2';
-    const version = posterVersionFor(path);
-    const baseHash = createHash('sha256')
-      .update(`${serverId}:${path}:360:540`)
-      .digest('hex')
-      .slice(0, 16);
-    vi.mocked(stat).mockResolvedValue({ mtimeMs: Date.now() } as never);
-    vi.mocked(readFile).mockResolvedValue(Buffer.from('webp'));
-    const result = await proxyImage({ serverId, imagePath: path, width: 360, height: 540 });
-    expect(result.cached).toBe(true);
-    expect(vi.mocked(readFile).mock.calls[0]?.[0]).toBe(
-      join(CACHE_DIR, baseHash.slice(0, 2), `${baseHash}:v${version}.webp`)
-    );
-  });
+  it.each([
+    { width: 360, height: 540 },
+    { width: 360, height: 360 },
+  ])(
+    'derives the fingerprint for a $width x $height poster even when no version was passed',
+    async ({ width, height }) => {
+      const serverId = randomUUID();
+      const path = '/library/metadata/1/thumb/2';
+      const version = posterVersionFor(path);
+      const baseHash = createHash('sha256')
+        .update(`${serverId}:${path}:${width}:${height}`)
+        .digest('hex')
+        .slice(0, 16);
+      vi.mocked(stat).mockResolvedValue({ mtimeMs: Date.now() } as never);
+      vi.mocked(readFile).mockResolvedValue(Buffer.from('webp'));
+      const result = await proxyImage({ serverId, imagePath: path, width, height });
+      expect(result.cached).toBe(true);
+      expect(vi.mocked(readFile).mock.calls[0]?.[0]).toBe(
+        join(CACHE_DIR, baseHash.slice(0, 2), `${baseHash}:v${version}.webp`)
+      );
+    }
+  );
 
   it('does not derive a fingerprint for another size or fallback', async () => {
     const serverId = randomUUID();
@@ -300,6 +311,35 @@ describe('proxyImage cache-miss pipeline', () => {
     // The fire-and-forget color persist still runs regardless of the write
     // failure; drain it so it doesn't leak into the next test.
     await vi.waitFor(() => expect(vi.mocked(db.update)).toHaveBeenCalledTimes(1));
+  });
+
+  it('warns once per error code when the cache directory cannot be written', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.mocked(writeFile).mockRejectedValue(Object.assign(new Error('denied'), { code: 'EACCES' }));
+    vi.mocked(unlink).mockResolvedValue(undefined);
+    // A Response body reads once, and this test fetches twice.
+    fetchSpy.mockImplementation(
+      async () =>
+        new Response(testImage, { status: 200, headers: { 'content-type': 'image/jpeg' } })
+    );
+
+    for (const id of ['5', '6']) {
+      mockSelectChain([
+        { id: 'server-5', type: 'plex', url: 'http://localhost:32400', token: 'token' },
+      ]);
+      await proxyImage({
+        serverId: randomUUID(),
+        imagePath: `/library/metadata/${id}/thumb/${id}`,
+        width: 240,
+        height: 360,
+      });
+    }
+
+    expect(vi.mocked(writeFile)).toHaveBeenCalledTimes(2);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('EACCES'));
+    warn.mockRestore();
+    await vi.waitFor(() => expect(vi.mocked(db.update)).toHaveBeenCalledTimes(2));
   });
 
   it('persists the dominant color only when the row does not have one yet', async () => {
@@ -508,6 +548,10 @@ describe('persistDominantColorIfNeeded', () => {
       .png()
       .toBuffer();
 
+  beforeEach(() => {
+    mockSelectChain([{ id: 'uncolored-row' }]);
+  });
+
   it('coalesces concurrent persists for the same image into one write', async () => {
     // Fire-and-forget persists from earlier proxyImage tests can settle
     // during this one and hit the shared db.update mock - drain them and
@@ -562,6 +606,39 @@ describe('persistDominantColorIfNeeded', () => {
     await persistDominantColorIfNeeded(randomUUID(), '/thumb/wrapped', await red1x1());
 
     expect(chain.where).toHaveBeenCalledTimes(2);
+  });
+
+  it('skips decode and write when every row for the image already has a color', async () => {
+    const select = mockSelectChain([]);
+    const buffer = await red1x1();
+    vi.mocked(sharp).mockClear();
+    vi.mocked(db.update).mockClear();
+
+    await persistDominantColorIfNeeded(randomUUID(), '/thumb/known', buffer);
+
+    expect(select.limit).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(sharp)).not.toHaveBeenCalled();
+    expect(vi.mocked(db.update)).not.toHaveBeenCalled();
+  });
+
+  it('writes when any row for the image still has no color, using the same predicate', async () => {
+    const select = mockSelectChain([{ id: 'uncolored-row' }]);
+    const chain = mockUpdateChain();
+
+    await persistDominantColorIfNeeded(randomUUID(), '/thumb/unknown', await red1x1());
+
+    expect(chain.set).toHaveBeenCalledWith({ dominantColor: '#ff0000' });
+    expect(chain.where.mock.calls[0]?.[0]).toBe(select.where.mock.calls[0]?.[0]);
+  });
+
+  it('still writes when the fast-path read fails', async () => {
+    const select = mockSelectChain([]);
+    select.limit.mockRejectedValueOnce(new Error('read failed'));
+    const chain = mockUpdateChain();
+
+    await persistDominantColorIfNeeded(randomUUID(), '/thumb/read-failed', await red1x1());
+
+    expect(chain.set).toHaveBeenCalledWith({ dominantColor: '#ff0000' });
   });
 
   it('does not retry non-deadlock failures and never throws', async () => {
@@ -641,6 +718,36 @@ describe('buildUpstreamRequest', () => {
   });
 
   describe('path allowlist', () => {
+    it.each([
+      ['plex', '/library/metadata/1/thumb/..\\..\\..\\..\\library\\sections\\1\\refresh'],
+      ['plex', '/library/metadata/1/thumb/../../../../library/sections/1/refresh'],
+      ['plex', '/library/metadata/1/thumb/%2e%2e%2f%2e%2e%2flibrary%2fsections'],
+      ['plex', '/library/metadata/1/thumb/%5C..%5Clibrary'],
+      ['plex', '/library/metadata/1/thumb/2%00'],
+      ['plex', '/library/metadata/1/thumb/%252e%252e%252flibrary%252fsections'],
+      ['jellyfin', '/Items/..\\..\\System\\Info/Images/Primary'],
+      ['jellyfin', '/Items/%2E%2E/Images/Primary'],
+      ['emby', '/Users/..\\..\\System\\Info/Images/Primary'],
+    ])('rejects a %s path that walks out of the image route: %s', (type, path) => {
+      const server = { ...baseServer, type } as never;
+      expect(() => buildUpstreamRequest(server, path)).toThrow(SsrfBlockedError);
+    });
+
+    it('still builds an ordinary image path, also under a base path', () => {
+      const plex = { ...baseServer, type: 'plex' } as never;
+      expect(buildUpstreamRequest(plex, '/library/metadata/1/thumb/1700000000').imageUrl).toContain(
+        '/library/metadata/1/thumb/1700000000?X-Plex-Token='
+      );
+      const jf = {
+        ...baseServer,
+        type: 'jellyfin',
+        url: 'http://jf.local:8096/jellyfin/',
+      } as never;
+      expect(buildUpstreamRequest(jf, '/Items/abc/Images/Primary?tag=f00').imageUrl).toBe(
+        'http://jf.local:8096/jellyfin/Items/abc/Images/Primary?tag=f00'
+      );
+    });
+
     it('rejects a plex path outside library image routes', () => {
       const server = { ...baseServer, type: 'plex' } as never;
       expect(() => buildUpstreamRequest(server, '/library/sections')).toThrow(SsrfBlockedError);
@@ -752,6 +859,24 @@ describe('resizedOnly (background warms)', () => {
     expect(String(fetchSpy.mock.calls[0]?.[0])).toContain('width=360');
   });
 
+  it('treats a redirect from the media server as a failed fetch instead of following it', async () => {
+    fetchSpy.mockResolvedValue(
+      new Response(null, { status: 302, headers: { location: 'http://elsewhere.example/x' } })
+    );
+    const result = await proxyImage({
+      serverId: randomUUID(),
+      imagePath: '/library/metadata/4/thumb/1',
+      width: 360,
+      height: 540,
+      fallback: 'poster',
+    });
+
+    expect(result.contentType).toBe('image/svg+xml');
+    for (const [, init] of fetchSpy.mock.calls) {
+      expect((init as RequestInit).redirect).toBe('manual');
+    }
+  });
+
   it('still retries the original for a live request', async () => {
     await proxyImage({
       serverId: randomUUID(),
@@ -776,6 +901,22 @@ describe('resizedOnly (background warms)', () => {
 
     expect(result.degraded).toBe(true);
     expect(result.contentType).toBe('image/svg+xml');
+    expect(result.failure).toEqual({ reason: 'HTTP 500 (no content-type)', itemFault: true });
+  });
+
+  it('blames the server, not the image, when it never answers', async () => {
+    fetchSpy.mockRejectedValue(new TypeError('fetch failed'));
+
+    const result = await proxyImage({
+      serverId: randomUUID(),
+      imagePath: '/library/metadata/5/thumb/1',
+      width: 360,
+      height: 540,
+      fallback: 'poster',
+      resizedOnly: true,
+    });
+
+    expect(result.failure).toEqual({ reason: 'fetch failed', itemFault: false });
   });
 
   it('does not flag a successful fetch as degraded', async () => {

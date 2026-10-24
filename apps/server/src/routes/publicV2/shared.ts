@@ -18,6 +18,7 @@ import {
 } from '@tracearr/shared';
 import { sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
+import { countedSessionSql } from '../../constants/index.js';
 import { db } from '../../db/client.js';
 import { buildAvatarUrl, buildPosterUrl } from '../../services/imageProxy.js';
 import { encodeCursor } from '../../utils/cursor.js';
@@ -337,7 +338,7 @@ async function aggregateChainPage(
       FROM sessions s
       ${whereClause}
       GROUP BY COALESCE(s.reference_id, s.id)
-      HAVING BOOL_OR(COALESCE(s.duration_ms, 0) >= 120000)${watchedFilter}
+      HAVING BOOL_OR(${countedSessionSql('s')})${watchedFilter}
     ),
     page AS (
       SELECT * FROM chains
@@ -410,7 +411,11 @@ async function aggregateChainPage(
       u.name as user_name,
       u.username as user_username
     FROM page p
-    JOIN sessions s ON s.id = p.first_session_id
+    -- p.chain_started_at is not a planner-time constant; the InitPlan bounds are what let
+    -- TimescaleDB exclude chunks at runtime
+    JOIN sessions s ON s.id = p.first_session_id AND s.started_at = p.chain_started_at
+      AND s.started_at >= (SELECT MIN(chain_started_at) FROM page)
+      AND s.started_at <= (SELECT MAX(chain_started_at) FROM page)
     JOIN server_users su ON su.id = s.server_user_id
     JOIN servers sv ON sv.id = s.server_id
     LEFT JOIN users u ON u.id = su.user_id

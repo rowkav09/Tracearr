@@ -1,14 +1,17 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import type { SessionWithDetails } from '@tracearr/shared';
 import { SessionDetailSheet } from './SessionDetailSheet';
+
+const auth = vi.hoisted(() => ({ user: { role: 'owner' } }));
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => auth }));
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 
-function renderSheet(overrides: Partial<SessionWithDetails>) {
+function renderSheet(overrides: Partial<SessionWithDetails>, onOpenChange = vi.fn()) {
   const session = {
     id: 'session-1',
     serverId: 'server-1',
@@ -30,12 +33,24 @@ function renderSheet(overrides: Partial<SessionWithDetails>) {
 
   return render(
     <MemoryRouter>
-      <SessionDetailSheet session={session} open onOpenChange={vi.fn()} />
+      <SessionDetailSheet session={session} open onOpenChange={onOpenChange} />
     </MemoryRouter>
   );
 }
 
 describe('SessionDetailSheet', () => {
+  it('links the person to their user page for an owner, and shows them unlinked to a member', () => {
+    const { unmount } = renderSheet({});
+    expect(screen.getByRole('link', { name: /alice/ })).toHaveAttribute('href', '/users/su-1');
+    unmount();
+
+    auth.user.role = 'member';
+    renderSheet({});
+    expect(screen.getByText('alice')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /alice/ })).toBeNull();
+    auth.user.role = 'owner';
+  });
+
   it('shows no progress percentage for a play without a total', () => {
     renderSheet({ progressMs: 3_600_000, totalDurationMs: null });
 
@@ -61,5 +76,57 @@ describe('SessionDetailSheet', () => {
 
     expect(screen.getByText('50%')).toBeInTheDocument();
     expect(screen.getByRole('progressbar')).toBeInTheDocument();
+  });
+
+  it('labels the time spent as listen time for a track and watch time for a movie', () => {
+    const { unmount } = renderSheet({ mediaType: 'track', mediaTitle: 'Teardrop' });
+    expect(screen.getByText('common:labels.listenTime')).toBeInTheDocument();
+    unmount();
+
+    renderSheet({});
+    expect(screen.getByText('common:labels.watchTime')).toBeInTheDocument();
+  });
+
+  it('links a movie title to its media page', () => {
+    renderSheet({ mediaId: 'movie-1' });
+
+    expect(screen.getByRole('link', { name: 'Heat' })).toHaveAttribute('href', '/media/movie-1');
+  });
+
+  it('links the show name to the show and the episode line to the episode', () => {
+    renderSheet({
+      mediaType: 'episode',
+      mediaTitle: 'Pilot',
+      grandparentTitle: 'Lost',
+      seasonNumber: 1,
+      episodeNumber: 2,
+      mediaId: 'episode-1',
+      showMediaId: 'show-1',
+    });
+
+    expect(screen.getByRole('link', { name: 'Lost' })).toHaveAttribute('href', '/media/show-1');
+    expect(screen.getByRole('link', { name: /Pilot/ })).toHaveAttribute('href', '/media/episode-1');
+  });
+
+  it('leaves the titles as plain text when the ids are missing', () => {
+    renderSheet({
+      mediaType: 'episode',
+      mediaTitle: 'Pilot',
+      grandparentTitle: 'Lost',
+      mediaId: null,
+      showMediaId: null,
+    });
+
+    expect(screen.getByText('Lost').closest('a')).toBeNull();
+    expect(screen.getByText(/Pilot/).closest('a')).toBeNull();
+  });
+
+  it('closes the sheet when a title link is followed', () => {
+    const onOpenChange = vi.fn();
+    renderSheet({ mediaId: 'movie-1' }, onOpenChange);
+
+    fireEvent.click(screen.getByRole('link', { name: 'Heat' }));
+
+    expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 });

@@ -1,8 +1,7 @@
 import { useState, useMemo, lazy, Suspense } from 'react';
 import { useParams, Link, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { formatDistanceToNow, format } from 'date-fns';
-import { getFullDateTimeFormatString } from '@/lib/timeFormat';
+import { formatDistanceToNow } from 'date-fns';
 import type {
   ViolationSessionInfo,
   LocationStats,
@@ -36,7 +35,10 @@ import { ActionResultsList } from '@/components/violations/ActionResultsList';
 import { getAvatarUrl } from '@/components/users/utils';
 import { LocalBadge } from '@/components/sessions/LocalBadge';
 import { fieldLabel, operatorLabel } from '@/lib/automations';
-import { getCountryName, getMediaDisplay } from '@/lib/utils';
+import { getCountryName, getMediaDisplay, getMediaLinks } from '@/lib/utils';
+import { formatDate } from '@/lib/dateFormat';
+import { locationKey } from '@/components/map/locationKey';
+import { MediaPageLink } from '@/components/media/MediaPageLink';
 import { ServerBadge } from '@/components/server';
 import { useServerColorMap } from '@/hooks/useServerColorMap';
 import {
@@ -45,14 +47,7 @@ import {
   useDismissViolation,
   useSettings,
 } from '@/hooks/queries';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import {
   User,
   ArrowLeft,
@@ -231,21 +226,20 @@ export function ViolationDetail() {
 
     for (const session of allSessions) {
       if (session.geoLat == null || session.geoLon == null) continue;
-      const key = `${session.geoLat},${session.geoLon},${session.isLocal}`;
+      const location: LocationStats = {
+        city: session.geoCity,
+        region: session.geoRegion,
+        country: session.geoCountry,
+        isLocal: session.isLocal,
+        lat: session.geoLat,
+        lon: session.geoLon,
+        count: 1,
+        peopleCount: 1,
+      };
+      const key = locationKey(location);
       const existing = locationMap.get(key);
-      if (existing) {
-        existing.count += 1;
-      } else {
-        locationMap.set(key, {
-          city: session.geoCity,
-          region: session.geoRegion,
-          country: session.geoCountry,
-          isLocal: session.isLocal,
-          lat: session.geoLat,
-          lon: session.geoLon,
-          count: 1,
-        });
-      }
+      if (existing) existing.count += 1;
+      else locationMap.set(key, location);
     }
 
     return Array.from(locationMap.values());
@@ -263,13 +257,18 @@ export function ViolationDetail() {
           cell: ({ row }) => {
             const session = row.original;
             const { title, subtitle } = getMediaDisplay(session);
+            const mediaLinks = getMediaLinks(session);
             const isTriggering = violation?.session?.id === session.id;
             return (
               <div className="flex items-center gap-2">
                 <div className="max-w-[200px]">
-                  <p className="truncate font-medium">{title}</p>
+                  <p className="truncate font-medium">
+                    <MediaPageLink to={mediaLinks.title}>{title}</MediaPageLink>
+                  </p>
                   {subtitle ? (
-                    <p className="text-muted-foreground text-xs">{subtitle}</p>
+                    <p className="text-muted-foreground text-xs">
+                      <MediaPageLink to={mediaLinks.subtitle}>{subtitle}</MediaPageLink>
+                    </p>
                   ) : (
                     <p className="text-muted-foreground text-xs capitalize">{session.mediaType}</p>
                   )}
@@ -468,25 +467,6 @@ export function ViolationDetail() {
             {t('common:actions.dismiss')}
           </Button>
         </div>
-      </div>
-
-      {/* Timestamps row */}
-      <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-        <span className="flex items-center gap-1.5">
-          <Clock className="h-4 w-4" />
-          {t('pages:violations.detail.detected')}{' '}
-          {formatDistanceToNow(new Date(violation.createdAt), { addSuffix: true })}
-        </span>
-        {violation.acknowledgedAt && (
-          <>
-            <span>·</span>
-            <span className="flex items-center gap-1.5">
-              <Check className="h-4 w-4 text-green-600" />
-              {t('common:states.acknowledged')}{' '}
-              {formatDistanceToNow(new Date(violation.acknowledgedAt), { addSuffix: true })}
-            </span>
-          </>
-        )}
       </div>
 
       {/* Top row: Violation Details + User Info */}
@@ -701,10 +681,10 @@ export function ViolationDetail() {
                 ) : violation.data.lastActivityAt ? (
                   <div>
                     <p className="font-medium">
-                      {format(
-                        new Date(violation.data.lastActivityAt as string),
-                        getFullDateTimeFormatString()
-                      )}
+                      {formatDate(new Date(violation.data.lastActivityAt as string), {
+                        dateStyle: 'medium',
+                        timeStyle: 'medium',
+                      })}
                     </p>
                     <p className="text-muted-foreground text-xs">
                       {formatDistanceToNow(new Date(violation.data.lastActivityAt as string), {
@@ -745,7 +725,10 @@ export function ViolationDetail() {
                 {t('pages:violations.detail.created')}
               </p>
               <p className="text-sm font-medium">
-                {format(new Date(violation.createdAt), getFullDateTimeFormatString())}
+                {formatDate(new Date(violation.createdAt), {
+                  dateStyle: 'medium',
+                  timeStyle: 'medium',
+                })}
               </p>
               <p className="text-muted-foreground text-xs">
                 {formatDistanceToNow(new Date(violation.createdAt), { addSuffix: true })}
@@ -757,7 +740,10 @@ export function ViolationDetail() {
                   {t('pages:violations.detail.acknowledged')}
                 </p>
                 <p className="text-sm font-medium">
-                  {format(new Date(violation.acknowledgedAt), getFullDateTimeFormatString())}
+                  {formatDate(new Date(violation.acknowledgedAt), {
+                    dateStyle: 'medium',
+                    timeStyle: 'medium',
+                  })}
                 </p>
                 <p className="text-muted-foreground text-xs">
                   {formatDistanceToNow(new Date(violation.acknowledgedAt), { addSuffix: true })}
@@ -769,28 +755,17 @@ export function ViolationDetail() {
       </Card>
 
       {/* Dismiss Confirmation Dialog */}
-      <Dialog open={dismissConfirmOpen} onOpenChange={setDismissConfirmOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('pages:violations.dismissViolation')}</DialogTitle>
-            <DialogDescription>{t('pages:violations.dismissViolationConfirm')}</DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDismissConfirmOpen(false)}>
-              {t('common:actions.cancel')}
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDismiss}
-              disabled={dismissViolation.isPending}
-            >
-              {dismissViolation.isPending
-                ? t('common:states.dismissing')
-                : t('common:actions.dismiss')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        open={dismissConfirmOpen}
+        onOpenChange={setDismissConfirmOpen}
+        title={t('pages:violations.dismissViolation')}
+        description={t('pages:violations.dismissViolationConfirm')}
+        confirmLabel={t('common:actions.dismiss')}
+        confirmLoadingLabel={t('common:states.dismissing')}
+        cancelLabel={t('common:actions.cancel')}
+        onConfirm={handleDismiss}
+        isLoading={dismissViolation.isPending}
+      />
     </div>
   );
 }

@@ -1,14 +1,16 @@
 // Stats hooks
 export {
   useDashboardStats,
+  useMyStats,
+  useMyTopTitles,
   usePlaysStats,
-  useUserStats,
   useLocationStats,
+  useLocationPeople,
   usePlaysByDayOfWeek,
   usePlaysByHourOfDay,
   usePlatformStats,
   useQualityStats,
-  useTopUsers,
+  usePeople,
   useTopContent,
   useConcurrentStats,
   useEngagementStats,
@@ -18,10 +20,9 @@ export {
   useDeviceCompatibilityMatrix,
   useDeviceHealth,
   useTranscodeHotspots,
-  useTopTranscodingUsers,
+  useDownloadsStats,
   // Bandwidth stats
   useBandwidthDaily,
-  useBandwidthTopUsers,
   useBandwidthSummary,
   type LocationStatsFilters,
   type StatsTimeRange,
@@ -30,7 +31,13 @@ export {
 } from './useStats';
 
 // Session hooks
-export { useSessions, useActiveSessions, useSession, useBulkDeleteSessions } from './useSessions';
+export {
+  useSessions,
+  useActiveSessions,
+  useOthersActive,
+  useSession,
+  useBulkDeleteSessions,
+} from './useSessions';
 export { useTerminateSession } from './useTerminateSession';
 
 // History hooks (advanced session queries with infinite scroll)
@@ -47,9 +54,12 @@ export {
   useUsers,
   useUser,
   useUserFull,
+  useUserRangeStats,
   useUserSessions,
+  useUserDownloads,
   useUpdateUser,
   useUpdateUserIdentity,
+  useUpdateUserAccess,
   useUserLocations,
   useUserDevices,
   useUserTerminations,
@@ -101,6 +111,7 @@ export {
   useBulkAcknowledgeViolations,
   useBulkDismissViolations,
 } from './useViolations';
+export { usePendingViolationsCount } from './usePendingViolationsCount';
 
 // Server hooks
 export {
@@ -142,10 +153,10 @@ export {
   REQUESTS_KEY,
   useMediaRequests,
   useUserRequests,
+  useMyRequests,
   useRequestsAnalytics,
   useRequestsConfigured,
   useRequestsUnplayed,
-  useRequesters,
   useRequestServices,
   useTestRequestService,
   useCreateRequestService,
@@ -219,12 +230,10 @@ export {
   useLibraryStats,
   useLibraryGrowth,
   useLibraryQuality,
-  useLibraryStorage,
   useLibraryStorageScoped,
   useLibraryDuplicates,
   useLibraryStale,
   useLibraryWatch,
-  useLibraryCompletion,
   useLibraryPatterns,
   useLibraryRoi,
   useTopMovies,
@@ -247,12 +256,14 @@ export {
   CATALOG_PAGE_SIZE,
   useShelves,
   useGenres,
+  useGenreDetail,
   useCatalogCodecs,
   useLibraries,
   useMediaDetail,
   useMediaStats,
   useMediaWatchers,
   useSeasonHeat,
+  useMediaChildren,
   useMediaPlatforms,
   useMediaHistory,
   findCachedMediaStub,
@@ -264,3 +275,4 @@ export {
   type MediaDetailStub,
   type MediaDetailData,
 } from './useMediaBrowse';
+export { useAlbumDetail } from './useAlbumDetail';

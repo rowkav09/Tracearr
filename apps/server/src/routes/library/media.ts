@@ -1,7 +1,7 @@
 /**
  * Media detail endpoint
  *
- * GET /media/:id, /children, /stats, /watchers, /history, /platforms - the
+ * GET /media/:id, /children, /album, /stats, /watchers, /history, /platforms - the
  * canonical-media detail surface for the Media detail page, scoped to the
  * caller's accessible servers. :id is a media uuid only; provider refs
  * (movie:tmdb:584, used by the public API) are rejected with 400 here.
@@ -17,6 +17,8 @@ import {
   REDIS_KEYS,
   CACHE_TTL,
   POSTER_IMAGE_SIZE,
+  SQUARE_POSTER_SIZE,
+  type AlbumDetailResponse,
   type MediaAvailabilityEntry,
   type MediaDetailResponse,
   type MediaChildEntry,
@@ -31,12 +33,21 @@ import {
   type SeasonHeatSeason,
 } from '@tracearr/shared';
 import { resolveServerIds } from '../../utils/serverFiltering.js';
+import {
+  assertInScope,
+  libraryCacheSegment,
+  memberCacheSegment,
+  seesServerActivity,
+  type Scope,
+} from '../../lib/scope.js';
 import { decodeCursor } from '../../utils/cursor.js';
 import { cursorPage, cursorPaginationSchema } from '../publicV2/shared.js';
 import { resolveMediaAliases } from '../../services/library/mediaResolutionService.js';
 import { buildProxyUrl, posterVersionFor } from '../../services/imageProxy.js';
 import { listMediaRequests } from '../../services/requests/reads.js';
 import { getSetting } from '../../services/settings.js';
+import { getAlbumDetail } from '../../services/library/albumDetail.js';
+import { queryMediaDownloads } from '../../services/downloads/queries.js';
 import {
   buildMediaScope,
   getAvailability,
@@ -47,6 +58,7 @@ import {
   getMediaWatchers,
   getPosterCopy,
   getSeasonHeat,
+  hiddenByLibraryLimit,
   resolveCanonicalMediaByRef,
   type AvailabilityRow,
   type MediaChildRow,
@@ -129,6 +141,13 @@ function toChildEntry(r: MediaChildRow): MediaChildEntry {
     tvdbId: r.tvdb_id,
     showMediaId: r.show_media_id,
     genres: r.genres,
+    ...(r.media_type === 'album' && {
+      year: r.year ?? null,
+      thumbPath: r.thumb_path ?? null,
+      serverId: r.server_id,
+      addedAt: r.added_at ? new Date(r.added_at).toISOString() : undefined,
+      trackCount: r.track_count,
+    }),
   };
 }
 
@@ -167,6 +186,21 @@ function toWatcherEntry(r: MediaWatcherRow): MediaWatcherEntry {
   };
 }
 
+// The cache holds every watcher; a member gets their own rows, plus a count of the other people
+// when the owner shows members server activity.
+async function ownWatchers(
+  response: MediaWatchersResponse,
+  scope: Scope
+): Promise<MediaWatchersResponse> {
+  if (scope === 'all') return response;
+  const watchers = response.watchers.filter((w) => assertInScope(scope, w.user.serverUserId));
+  if (!(await seesServerActivity(scope))) return { ...response, watchers };
+  const others = new Set(
+    response.watchers.filter((w) => w.user.userId !== scope.userId).map((w) => w.user.userId)
+  );
+  return { ...response, watchers, othersCount: others.size };
+}
+
 function toPlatformEntry(r: MediaPlatformBreakdownRow): MediaPlatformBreakdownEntry {
   return { platform: r.platform, player: r.player, plays: r.plays, watchTimeMs: r.watch_time_ms };
 }
@@ -189,11 +223,12 @@ function toSeasonHeatSeason(r: SeasonHeatSeasonRow): SeasonHeatSeason {
 }
 
 export const libraryMediaRoute: FastifyPluginAsync = async (app) => {
+  const readMedia = { preHandler: [app.requirePermission('media', 'read')] };
   /**
    * GET /media/:id - Canonical media identity with per-server availability,
    * scoped to accessible servers. Cached per (id, sorted serverIds).
    */
-  app.get('/media/:id', { preHandler: [app.authenticate] }, async (request, reply) => {
+  app.get('/media/:id', readMedia, async (request, reply) => {
     const params = mediaIdParamSchema.safeParse(request.params);
     if (!params.success) return reply.badRequest('Invalid media id');
     const { id } = params.data;
@@ -204,23 +239,36 @@ export const libraryMediaRoute: FastifyPluginAsync = async (app) => {
     const resolvedIds = resolveServerIds(authUser, undefined, query.data.serverIds);
     const canonical = await resolveCanonicalMediaByRef(id);
     if (!canonical) return reply.notFound();
+    if (await hiddenByLibraryLimit(canonical.id, resolvedIds, request.scope)) {
+      return reply.notFound();
+    }
 
-    // detail-v4: response gained the poster fields
-    const cacheKey = mediaCacheKey(canonical.id, 'detail-v4', resolvedIds);
+    // detail-v5: artist art became square
+    const cacheKey = mediaCacheKey(
+      canonical.id,
+      `detail-v5${libraryCacheSegment(request.scope)}`,
+      resolvedIds
+    );
+    // Downloads are staff-only and the cached body is shared across scopes, so they are read per request
+    const readDownloads = async (mergedIds: string[]) =>
+      request.scope === 'all' ? queryMediaDownloads([canonical.id, ...mergedIds], resolvedIds) : [];
     const cached = await readCache<MediaDetailResponse>(app.redis, cacheKey);
-    if (cached) return cached;
+    if (cached) return { ...cached, downloads: await readDownloads(cached.mergedIds) };
 
     const aliases = await resolveMediaAliases(canonical.id);
     const mergedIds = aliases.filter((aliasId) => aliasId !== canonical.id);
+
     const { availability, seasonCount, episodeCount } = await getAvailability(
       canonical.id,
       canonical.mediaType,
-      resolvedIds
+      resolvedIds,
+      request.scope
     );
     const poster = await getPosterCopy(
       canonical.id,
       resolvedIds,
-      await getSetting('preferredPosterServerId')
+      await getSetting('preferredPosterServerId'),
+      request.scope
     );
     const posterVersion = poster ? posterVersionFor(poster.thumbPath) : null;
 
@@ -243,23 +291,24 @@ export const libraryMediaRoute: FastifyPluginAsync = async (app) => {
           ? buildProxyUrl({
               serverId: poster.serverId,
               path: poster.thumbPath,
-              ...POSTER_IMAGE_SIZE,
+              ...(canonical.mediaType === 'artist' ? SQUARE_POSTER_SIZE : POSTER_IMAGE_SIZE),
               version: posterVersion,
               fallback: 'poster',
             })
           : null,
       posterVersion,
       dominantColor: poster?.dominantColor ?? null,
+      downloads: [],
     };
     await app.redis.setex(cacheKey, CACHE_TTL.LIBRARY_MEDIA_DETAIL, JSON.stringify(response));
-    return response;
+    return { ...response, downloads: await readDownloads(mergedIds) };
   });
 
   /**
-   * GET /media/:id/children - Seasons of a show, or episodes of a season.
-   * Movie and episode ids have no children and return 404.
+   * GET /media/:id/children - Seasons of a show, episodes of a season, or an
+   * artist's albums. Movie and episode ids have no children and return 404.
    */
-  app.get('/media/:id/children', { preHandler: [app.authenticate] }, async (request, reply) => {
+  app.get('/media/:id/children', readMedia, async (request, reply) => {
     const params = mediaIdParamSchema.safeParse(request.params);
     if (!params.success) return reply.badRequest('Invalid media id');
     const { id } = params.data;
@@ -270,15 +319,58 @@ export const libraryMediaRoute: FastifyPluginAsync = async (app) => {
     const resolvedIds = resolveServerIds(authUser, undefined, query.data.serverIds);
     const canonical = await resolveCanonicalMediaByRef(id);
     if (!canonical) return reply.notFound();
+    if (await hiddenByLibraryLimit(canonical.id, resolvedIds, request.scope)) {
+      return reply.notFound();
+    }
 
-    const cacheKey = mediaCacheKey(canonical.id, 'children', resolvedIds);
+    const cacheKey = mediaCacheKey(
+      canonical.id,
+      `children${libraryCacheSegment(request.scope)}`,
+      resolvedIds
+    );
     const cached = await readCache<MediaChildrenResponse>(app.redis, cacheKey);
     if (cached) return cached;
 
-    const rows = await getChildren(canonical, resolvedIds);
+    const rows = await getChildren(canonical, resolvedIds, request.scope);
     if (rows === null) return reply.notFound();
 
     const response: MediaChildrenResponse = { data: rows.map(toChildEntry) };
+    await app.redis.setex(cacheKey, CACHE_TTL.LIBRARY_MEDIA_DETAIL, JSON.stringify(response));
+    return response;
+  });
+
+  /**
+   * GET /media/:id/album - The album sheet: copies, tracks deduped by number and title, plays over
+   * the last 30 UTC days and all time. 404 unless the id is an album with an active copy in scope.
+   */
+  app.get('/media/:id/album', readMedia, async (request, reply) => {
+    const params = mediaIdParamSchema.safeParse(request.params);
+    if (!params.success) return reply.badRequest('Invalid media id');
+    const query = mediaScopeQuerySchema.safeParse(request.query);
+    if (!query.success) return reply.badRequest('Invalid query parameters');
+
+    const resolvedIds = resolveServerIds(request.user, undefined, query.data.serverIds);
+    const canonical = await resolveCanonicalMediaByRef(params.data.id);
+    if (canonical?.mediaType !== 'album') return reply.notFound();
+
+    const cacheKey = mediaCacheKey(
+      canonical.id,
+      `album${memberCacheSegment(request.scope)}${libraryCacheSegment(request.scope)}`,
+      resolvedIds
+    );
+    const cached = await readCache<AlbumDetailResponse>(app.redis, cacheKey);
+    if (cached) return cached;
+
+    const aliases = await resolveMediaAliases(canonical.id);
+    const response = await getAlbumDetail({
+      album: canonical,
+      aliases: aliases.length > 0 ? aliases : [canonical.id],
+      serverIds: resolvedIds,
+      scope: request.scope,
+      preferredServerId: await getSetting('preferredPosterServerId'),
+    });
+    if (!response) return reply.notFound();
+
     await app.redis.setex(cacheKey, CACHE_TTL.LIBRARY_MEDIA_DETAIL, JSON.stringify(response));
     return response;
   });
@@ -289,7 +381,7 @@ export const libraryMediaRoute: FastifyPluginAsync = async (app) => {
    * no seasons and 404. Whole-audience (no lens query param): the detail
    * page's own stats aggregate across every identity, not one viewer.
    */
-  app.get('/media/:id/season-heat', { preHandler: [app.authenticate] }, async (request, reply) => {
+  app.get('/media/:id/season-heat', readMedia, async (request, reply) => {
     const params = mediaIdParamSchema.safeParse(request.params);
     if (!params.success) return reply.badRequest('Invalid media id');
     const { id } = params.data;
@@ -300,12 +392,21 @@ export const libraryMediaRoute: FastifyPluginAsync = async (app) => {
     const resolvedIds = resolveServerIds(authUser, undefined, query.data.serverIds);
     const canonical = await resolveCanonicalMediaByRef(id);
     if (!canonical) return reply.notFound();
+    if (await hiddenByLibraryLimit(canonical.id, resolvedIds, request.scope)) {
+      return reply.notFound();
+    }
 
-    const cacheKey = mediaCacheKey(canonical.id, 'season-heat', resolvedIds);
+    // A member's heat is what they watched, not what anyone did.
+    const lensUserId = request.scope === 'all' ? null : request.scope.userId;
+    const cacheKey = mediaCacheKey(
+      canonical.id,
+      `season-heat${memberCacheSegment(request.scope)}`,
+      resolvedIds
+    );
     const cached = await readCache<MediaSeasonHeatResponse>(app.redis, cacheKey);
     if (cached) return cached;
 
-    const rows = await getSeasonHeat(canonical, resolvedIds);
+    const rows = await getSeasonHeat(canonical, resolvedIds, lensUserId, request.scope);
     if (rows === null) return reply.notFound();
 
     const response: MediaSeasonHeatResponse = {
@@ -320,7 +421,7 @@ export const libraryMediaRoute: FastifyPluginAsync = async (app) => {
    * GET /media/:id/stats - Play counts, watch time, and distinct viewers
    * across all_time/last_30/last_7 windows, scoped to accessible servers.
    */
-  app.get('/media/:id/stats', { preHandler: [app.authenticate] }, async (request, reply) => {
+  app.get('/media/:id/stats', readMedia, async (request, reply) => {
     const params = mediaIdParamSchema.safeParse(request.params);
     if (!params.success) return reply.badRequest('Invalid media id');
     const { id } = params.data;
@@ -334,11 +435,17 @@ export const libraryMediaRoute: FastifyPluginAsync = async (app) => {
     const scope = await buildMediaScope(canonical);
     if (!scope) return reply.notFound();
 
-    const cacheKey = mediaCacheKey(canonical.id, 'stats', resolvedIds);
+    // Totals across everyone only when the caller may see server activity; otherwise own plays.
+    const rowScope = (await seesServerActivity(request.scope)) ? 'all' : request.scope;
+    const cacheKey = mediaCacheKey(
+      canonical.id,
+      `stats${memberCacheSegment(rowScope)}`,
+      resolvedIds
+    );
     const cached = await readCache<MediaStatsResponse>(app.redis, cacheKey);
     if (cached) return cached;
 
-    const windows = await getMediaStats(scope, resolvedIds);
+    const windows = await getMediaStats(scope, resolvedIds, rowScope);
     const response: MediaStatsResponse = {
       mediaId: canonical.id,
       mediaType: canonical.mediaType,
@@ -357,7 +464,7 @@ export const libraryMediaRoute: FastifyPluginAsync = async (app) => {
    * servers. An explicit serverId query narrows further within that scope
    * (fail-closed 403 if the caller cannot reach it).
    */
-  app.get('/media/:id/watchers', { preHandler: [app.authenticate] }, async (request, reply) => {
+  app.get('/media/:id/watchers', readMedia, async (request, reply) => {
     const params = mediaIdParamSchema.safeParse(request.params);
     if (!params.success) return reply.badRequest('Invalid media id');
     const { id } = params.data;
@@ -379,7 +486,7 @@ export const libraryMediaRoute: FastifyPluginAsync = async (app) => {
     // watchers-v2: rows gained user thumb/serverId for avatars
     const cacheKey = mediaCacheKey(canonical.id, `watchers-v2:${windowKey}`, resolvedIds);
     const cached = await readCache<MediaWatchersResponse>(app.redis, cacheKey);
-    if (cached) return cached;
+    if (cached) return ownWatchers(cached, request.scope);
 
     const watchers = await getMediaWatchers({ scope, windowKey, serverIds: resolvedIds });
     const response: MediaWatchersResponse = {
@@ -389,7 +496,7 @@ export const libraryMediaRoute: FastifyPluginAsync = async (app) => {
       watchers: watchers.map(toWatcherEntry),
     };
     await app.redis.setex(cacheKey, CACHE_TTL.LIBRARY_MEDIA_DETAIL, JSON.stringify(response));
-    return response;
+    return ownWatchers(response, request.scope);
   });
 
   /**
@@ -397,7 +504,7 @@ export const libraryMediaRoute: FastifyPluginAsync = async (app) => {
    * accessible servers. Never cached: the socket event that tells the client
    * to refetch would otherwise land on a stale copy for the rest of the TTL.
    */
-  app.get('/media/:id/requests', { preHandler: [app.authenticate] }, async (request, reply) => {
+  app.get('/media/:id/requests', readMedia, async (request, reply) => {
     const params = mediaIdParamSchema.safeParse(request.params);
     if (!params.success) return reply.badRequest('Invalid media id');
 
@@ -411,14 +518,16 @@ export const libraryMediaRoute: FastifyPluginAsync = async (app) => {
     const scope = await buildMediaScope(canonical);
     if (!scope) return reply.notFound();
 
-    return { data: await listMediaRequests({ scope, serverIds: resolvedIds }) };
+    return {
+      data: await listMediaRequests({ scope, serverIds: resolvedIds, rowScope: request.scope }),
+    };
   });
 
   /**
    * GET /media/:id/history - Watch history for a media item as plays,
    * scoped to accessible servers. Computed live (paginated, never cached).
    */
-  app.get('/media/:id/history', { preHandler: [app.authenticate] }, async (request, reply) => {
+  app.get('/media/:id/history', readMedia, async (request, reply) => {
     const params = mediaIdParamSchema.safeParse(request.params);
     if (!params.success) return reply.badRequest('Invalid media id');
     const { id } = params.data;
@@ -449,6 +558,7 @@ export const libraryMediaRoute: FastifyPluginAsync = async (app) => {
       pageSize,
       cursorValue,
       serverIds: resolvedIds,
+      rowScope: request.scope,
     });
     return cursorPage(data, nextCursor, pageSize);
   });
@@ -458,7 +568,7 @@ export const libraryMediaRoute: FastifyPluginAsync = async (app) => {
    * player, scoped to accessible servers. Season ids fall back to their
    * parent show's breakdown (not filtered to the single season).
    */
-  app.get('/media/:id/platforms', { preHandler: [app.authenticate] }, async (request, reply) => {
+  app.get('/media/:id/platforms', readMedia, async (request, reply) => {
     const params = mediaIdParamSchema.safeParse(request.params);
     if (!params.success) return reply.badRequest('Invalid media id');
     const { id } = params.data;
@@ -472,12 +582,16 @@ export const libraryMediaRoute: FastifyPluginAsync = async (app) => {
     const scope = await buildMediaScope(canonical);
     if (!scope) return reply.notFound();
 
-    const cacheKey = mediaCacheKey(canonical.id, 'platforms', resolvedIds);
+    // Player names are often a person's own ("Sarah's iPad"), so a member sees only theirs.
+    const cacheKey = mediaCacheKey(
+      canonical.id,
+      `platforms${memberCacheSegment(request.scope)}`,
+      resolvedIds
+    );
     const cached = await readCache<MediaPlatformBreakdownResponse>(app.redis, cacheKey);
     if (cached) return cached;
 
-    const aliasIds = scope.kind === 'season' ? scope.showAliases : scope.aliases;
-    const rows = await getMediaPlatformBreakdown(canonical.id, aliasIds, resolvedIds);
+    const rows = await getMediaPlatformBreakdown(scope, resolvedIds, request.scope);
     const response: MediaPlatformBreakdownResponse = { data: rows.map(toPlatformEntry) };
     await app.redis.setex(cacheKey, CACHE_TTL.LIBRARY_MEDIA_DETAIL, JSON.stringify(response));
     return response;

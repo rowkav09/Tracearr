@@ -21,7 +21,7 @@
       "destinations": "",
       "newsletters": "",
       "email": "",
-      "guest": "",
+      "memberLogin": "",
       "mobile": "",
       "remote": "",
       "import": "",
@@ -37,7 +37,7 @@
       "posters": "",
       "plexAccounts": "",
       "destinations": "",
-      "guest": "",
+      "memberLogin": "",
       "mobile": "",
       "remote": "",
       "import": "",
@@ -59,6 +59,11 @@
     "timeFormatDescription": "Vælg hvordan tidspunkter vises.",
     "timeFormat12h": "12-timers (1:30 PM)",
     "timeFormat24h": "24-timers (13:30)",
+    "dateFormat": "",
+    "dateFormatDescription": "",
+    "weekStart": "",
+    "weekStartDescription": "",
+    "automatic": "",
     "theme": "Tema",
     "accentColor": "Accent Farve",
     "default": "(standard)",
@@ -229,14 +234,23 @@
       "autoDetectNote": "",
       "issueBlocked": "",
       "issueRestartRequired": "",
-      "issueMalfunctioned": ""
+      "issueMalfunctioned": "",
+      "jellyfinStep1": "",
+      "jellyfinStep2": "",
+      "jellyfinStep3": "",
+      "jellyfinStep4": "",
+      "embyStep1": "",
+      "embyStep2": "",
+      "embyStep3": ""
     },
     "posterSource": {
       "label": "",
       "description": "",
       "automatic": "",
       "emptyHint": "",
-      "ownerOnly": ""
+      "ownerOnly": "",
+      "precache": "",
+      "precacheDescription": ""
     },
     "version": {
       "installed": "",
@@ -245,11 +259,6 @@
     }
   },
   "mobile": {
-    "title": "Mobil App",
-    "pairDevice": "Par Enhed",
-    "generateToken": "Generer parringstoken",
-    "scanQrCode": "",
-    "tokenExpires": "Token udløber i {{time}}",
     "lastSeen": "",
     "connectedOn": "",
     "noDevices": "Ingen enheder tilsluttet",
@@ -257,7 +266,6 @@
     "revokeAll": "Tilbagekald Alle Sessioner",
     "getOnGooglePlay": "Få det på Google Play",
     "downloadOnAppStore": "Download i App Store",
-    "externalUrlRequired": "En ekstern URL skal konfigureres i generelle indstillinger for at kunne arbejde med mobilparring.",
     "mobileAccessDisabled": "Mobil Adgang Deaktiveret",
     "mobileAccessDisabledDesc": "Aktiver mobil adgang for at tillade Tracearr mobil app at oprette forbindelse til din server.",
     "enableMobileAccess": "Aktiver Mobil Adgang",
@@ -352,10 +360,41 @@
     "automatic": "",
     "startJob": ""
   },
-  "accessControl": {
-    "allowGuestAccess": "Tillad Gæst Adgang",
-    "allowGuestAccessDesc": "Når deaktiveret, kan kun serverejeren logge ind på Tracearr",
-    "singleOwnerNote": "Bemærk: Når gæsteadgang er deaktiveret, kan kun serverejeren logge ind. Alle andre brugere vil se en \"Adgang nægtet\" besked."
+  "memberLogin": {
+    "serverActivity": "",
+    "serverActivityDesc": "",
+    "noServers": "",
+    "addServer": "",
+    "serversLoadFailed": "",
+    "signIn": {
+      "title": "",
+      "titleDesc": "",
+      "local": "",
+      "localDesc": "",
+      "oidc": "",
+      "oidcDesc": "",
+      "plex": "",
+      "plexDesc": "",
+      "onlyWay": "",
+      "membersTitle": "",
+      "media": "",
+      "mediaDesc": "",
+      "servers": "",
+      "overrides": "",
+      "overridesDesc": "",
+      "overridesEmpty": "",
+      "overridesLoadFailed": "",
+      "addPerson": "",
+      "searchPeople": "",
+      "nobodyFound": "",
+      "accessLabel": "",
+      "roleLabel": "",
+      "allow": "",
+      "block": "",
+      "admin": "",
+      "member": "",
+      "backToDefault": ""
+    }
   },
   "import": {
     "noServers": "Ingen Servere Forbundet",
@@ -416,6 +455,13 @@
     "importFullRangeHelp": "",
     "skipOverlap": "",
     "skipDuplicatePlugin": "",
+    "importFailed": "",
+    "dropzone": {
+      "dropHere": "",
+      "dragOrClick": "",
+      "limit": "",
+      "removeFile": ""
+    },
     "overlapSkipped_one": "",
     "overlapSkipped_other": "",
     "duplicates_one": "",
@@ -577,7 +623,6 @@
       "cron": "",
       "inZone": ""
     },
-    "nextRun": "",
     "noNextRun": "",
     "neverSent": "",
     "lastSend": "",
@@ -1015,11 +1060,7 @@
     "neverSynced": "",
     "counts": {
       "requests_one": "",
-      "requests_other": "",
-      "unmatchedMedia_one": "",
-      "unmatchedMedia_other": "",
-      "unmatchedUsers_one": "",
-      "unmatchedUsers_other": ""
+      "requests_other": ""
     },
     "needsKey": "",
     "lastError": "",

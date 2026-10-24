@@ -30,7 +30,12 @@ vi.mock('../mediaServer/index.js', () => ({
 }));
 
 vi.mock('../../jobs/sessionIdentityBackfill.js', () => ({
+  IDENTITY_PASSES_VERSION: 1,
   backfillSessionIdentityBatch: vi.fn().mockResolvedValue({ updated: 0, oldest: null }),
+  fullScanFloors: vi.fn().mockResolvedValue(new Map()),
+  unhandledGoneKeyFloors: vi.fn().mockResolvedValue(new Map()),
+  markGoneKeyFloorsHandled: vi.fn().mockResolvedValue(undefined),
+  hasConfirmedAbsentTrackedRows: vi.fn().mockResolvedValue(false),
 }));
 
 vi.mock('../library/mediaResolutionService.js', () => ({
@@ -199,7 +204,7 @@ describe('LibrarySyncService full-scan cycle', () => {
       new Date(Date.now() - 3600000).toISOString()
     );
     await mockRedis.set('tracearr:library:sync:count:srv-1:1', '100');
-    await mockRedis.set('tracearr:library:sync:scanversion:srv-1:1', '3');
+    await mockRedis.set('tracearr:library:sync:scanversion:srv-1:1', '4');
     await mockRedis.set(
       'tracearr:library:sync:fullscan:srv-1:1',
       new Date(Date.now() - 3600000).toISOString()
@@ -226,7 +231,7 @@ describe('LibrarySyncService full-scan cycle', () => {
       const lastSyncedAt = new Date(Date.now() - 3600000);
       await mockRedis.set('tracearr:library:sync:last:srv-1:1', lastSyncedAt.toISOString());
       await mockRedis.set('tracearr:library:sync:count:srv-1:1', '100');
-      await mockRedis.set('tracearr:library:sync:scanversion:srv-1:1', '3');
+      await mockRedis.set('tracearr:library:sync:scanversion:srv-1:1', '4');
       await mockRedis.set(
         'tracearr:library:sync:fullscan:srv-1:1',
         new Date(Date.now() - 3600000).toISOString()
@@ -251,7 +256,7 @@ describe('LibrarySyncService full-scan cycle', () => {
       new Date(Date.now() - 3600000).toISOString()
     );
     await mockRedis.set('tracearr:library:sync:count:srv-1:1', '100');
-    await mockRedis.set('tracearr:library:sync:scanversion:srv-1:1', '3');
+    await mockRedis.set('tracearr:library:sync:scanversion:srv-1:1', '4');
     // 85 hours ago, past the 84h max age
     await mockRedis.set(
       'tracearr:library:sync:fullscan:srv-1:1',
@@ -274,7 +279,7 @@ describe('LibrarySyncService full-scan cycle', () => {
       new Date(Date.now() - 3600000).toISOString()
     );
     await mockRedis.set('tracearr:library:sync:count:srv-1:1', '100');
-    await mockRedis.set('tracearr:library:sync:scanversion:srv-1:1', '3');
+    await mockRedis.set('tracearr:library:sync:scanversion:srv-1:1', '4');
 
     await service.syncServer('srv-1', undefined, 'scheduled');
 
@@ -286,9 +291,9 @@ describe('LibrarySyncService full-scan cycle', () => {
   });
 
   it.each([
-    { type: 'plex' as const, stored: '2', current: '3' },
-    { type: 'jellyfin' as const, stored: '1', current: '2' },
-    { type: 'emby' as const, stored: '1', current: '2' },
+    { type: 'plex' as const, stored: '3', current: '4' },
+    { type: 'jellyfin' as const, stored: '3', current: '4' },
+    { type: 'emby' as const, stored: '3', current: '4' },
   ])(
     '$type library stored at scan version $stored gets one forced full scan',
     async ({ type, stored, current }) => {
@@ -314,6 +319,53 @@ describe('LibrarySyncService full-scan cycle', () => {
     }
   );
 
+  it('records the completed-scan marker only when a full scan completes', async () => {
+    const client = makeMockClient({ totalCount: 100, itemsSinceCount: 0 });
+    mockCreateClient.mockReturnValue(client);
+    await mockRedis.set(
+      'tracearr:library:sync:last:srv-1:1',
+      new Date(Date.now() - 3600000).toISOString()
+    );
+    await mockRedis.set('tracearr:library:sync:count:srv-1:1', '100');
+    await mockRedis.set('tracearr:library:sync:scanversion:srv-1:1', '4');
+    await mockRedis.set(
+      'tracearr:library:sync:fullscan:srv-1:1',
+      new Date(Date.now() - 3600000).toISOString()
+    );
+
+    await service.syncServer('srv-1', undefined, 'scheduled');
+
+    expect(client.getLibraryItemsSince).toHaveBeenCalled();
+    expect(await mockRedis.get('tracearr:library:sync:fullscan:srv-1:1')).not.toBeNull();
+    expect(await mockRedis.get('tracearr:library:sync:fullscan-done:srv-1:1')).toBeNull();
+
+    setupDbSelectMocks(TEST_SERVER);
+    await service.syncServer('srv-1', undefined, 'manual');
+
+    expect(await mockRedis.get('tracearr:library:sync:fullscan-done:srv-1:1')).not.toBeNull();
+  });
+
+  it('stamps the completed-scan marker with the time the scan started listing', async () => {
+    const client = makeMockClient({ totalCount: 100 });
+    client.getLibraryItems.mockImplementation(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      return { items: [], totalCount: 100 };
+    });
+    mockCreateClient.mockReturnValue(client);
+    const before = Date.now();
+
+    await service.syncServer('srv-1', undefined, 'manual');
+
+    const marker = Date.parse(
+      (await mockRedis.get('tracearr:library:sync:fullscan-done:srv-1:1')) ?? ''
+    );
+    const dueClock = Date.parse(
+      (await mockRedis.get('tracearr:library:sync:fullscan:srv-1:1')) ?? ''
+    );
+    expect(marker).toBeGreaterThanOrEqual(before);
+    expect(dueClock - marker).toBeGreaterThanOrEqual(25);
+  });
+
   it('always forces full scan for manual triggers', async () => {
     const client = makeMockClient({ totalCount: 100 });
     mockCreateClient.mockReturnValue(client);
@@ -323,7 +375,7 @@ describe('LibrarySyncService full-scan cycle', () => {
       new Date(Date.now() - 3600000).toISOString()
     );
     await mockRedis.set('tracearr:library:sync:count:srv-1:1', '100');
-    await mockRedis.set('tracearr:library:sync:scanversion:srv-1:1', '3');
+    await mockRedis.set('tracearr:library:sync:scanversion:srv-1:1', '4');
     await mockRedis.set(
       'tracearr:library:sync:fullscan:srv-1:1',
       new Date(Date.now() - 3600000).toISOString()
@@ -356,7 +408,7 @@ describe('undercount escalation memory (accepted shortfall)', () => {
       new Date(Date.now() - 3600000).toISOString()
     );
     await mockRedis.set('tracearr:library:sync:count:srv-1:1', '100');
-    await mockRedis.set('tracearr:library:sync:scanversion:srv-1:1', '3');
+    await mockRedis.set('tracearr:library:sync:scanversion:srv-1:1', '4');
     await mockRedis.set(
       'tracearr:library:sync:fullscan:srv-1:1',
       new Date(Date.now() - 3600000).toISOString()
@@ -404,7 +456,7 @@ describe('undercount escalation memory (accepted shortfall)', () => {
       new Date(Date.now() - 3600000).toISOString()
     );
     await mockRedis.set('tracearr:library:sync:count:srv-1:1', '100');
-    await mockRedis.set('tracearr:library:sync:scanversion:srv-1:1', '3');
+    await mockRedis.set('tracearr:library:sync:scanversion:srv-1:1', '4');
     await mockRedis.set(
       'tracearr:library:sync:fullscan:srv-1:1',
       new Date(Date.now() - 3600000).toISOString()
@@ -461,6 +513,6 @@ describe('undercount escalation memory (accepted shortfall)', () => {
       limit: 200,
       libraryType: 'movie',
     });
-    expect(await mockRedis.get('tracearr:library:sync:scanversion:srv-1:1')).toBe('3');
+    expect(await mockRedis.get('tracearr:library:sync:scanversion:srv-1:1')).toBe('4');
   });
 });

@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import type {
   CreateRequestServiceInput,
-  RequesterSort,
+  MyRequestsQuery,
   RequestUnplayedSort,
   TestRequestServiceInput,
   UpdateRequestServiceInput,
@@ -30,6 +30,15 @@ export function useUserRequests(
     queryKey: [...REQUESTS_KEY, 'user', id, opts.scope ?? 'account', opts.page, opts.pageSize],
     queryFn: () => api.users.requests(id, opts),
     enabled: !!id,
+    placeholderData: (prev) => prev,
+  });
+}
+
+export function useMyRequests(opts: MyRequestsQuery & { enabled?: boolean }) {
+  return useQuery({
+    queryKey: [...REQUESTS_KEY, 'mine', opts.page, opts.pageSize],
+    queryFn: () => api.requests.mine({ page: opts.page, pageSize: opts.pageSize }),
+    enabled: opts.enabled ?? true,
     placeholderData: (prev) => prev,
   });
 }
@@ -67,20 +76,6 @@ export function useRequestsUnplayed(
   return useQuery({
     queryKey: [...REQUESTS_KEY, 'unplayed', sortedServerIds.join(','), params],
     queryFn: () => api.requests.unplayed({ ...params, serverIds: sortedServerIds }),
-    enabled: enabled ?? true,
-    placeholderData: (prev) => prev,
-  });
-}
-
-export function useRequesters(
-  serverIds: string[],
-  options: RequestsListOptions & { sortBy: RequesterSort }
-) {
-  const sortedServerIds = [...serverIds].sort();
-  const { enabled, ...params } = options;
-  return useQuery({
-    queryKey: [...REQUESTS_KEY, 'requesters', sortedServerIds.join(','), params],
-    queryFn: () => api.requests.requesters({ ...params, serverIds: sortedServerIds }),
     enabled: enabled ?? true,
     placeholderData: (prev) => prev,
   });

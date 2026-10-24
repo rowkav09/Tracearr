@@ -40,6 +40,7 @@ import {
   buildLetterBuckets,
   expandMediaAliases,
 } from '../catalog.js';
+import { permissionGuard } from '../../../lib/scope.js';
 
 function normalize(sql: string): string {
   return sql.replace(/\s+/g, ' ').trim();
@@ -62,6 +63,7 @@ const baseFilterParams = {
   sizeGbMin: null,
   sizeGbMax: null,
   serverIds: undefined,
+  scope: 'all',
 } as const;
 
 describe('buildCatalogPageQuery', () => {
@@ -180,6 +182,7 @@ describe('buildCatalogPageQuery', () => {
         sizeGbMin: null,
         sizeGbMax: null,
         serverIds: undefined,
+        scope: 'all',
         pageSize: 60,
       })
     );
@@ -341,7 +344,7 @@ describe('buildCatalogPageQuery', () => {
     expect(params).toContain(serverId);
   });
 
-  it('poster_copy ORDER BY: no preference is newest-first', () => {
+  it('poster_copy ORDER BY: no preference puts known art first, then newest', () => {
     const { sql } = renderSql(
       buildCatalogPageQuery({
         type: 'movie',
@@ -352,10 +355,12 @@ describe('buildCatalogPageQuery', () => {
         preferredPosterServerId: null,
       })
     );
-    expect(normalize(sql)).toContain('ORDER BY li.created_at DESC LIMIT 1');
+    expect(normalize(sql)).toContain(
+      "ORDER BY (li.thumb_path IS NOT NULL AND (li.thumb_path NOT LIKE '/Items/%' OR li.thumb_path LIKE '%?tag=%')) DESC, li.created_at DESC LIMIT 1"
+    );
   });
 
-  it('poster_copy ORDER BY: a preference sorts that server first, newest as tiebreak', () => {
+  it('poster_copy ORDER BY: known art first, then the preferred server, newest as tiebreak', () => {
     const preferredId = randomUUID();
     const { sql, params } = renderSql(
       buildCatalogPageQuery({
@@ -367,7 +372,9 @@ describe('buildCatalogPageQuery', () => {
         preferredPosterServerId: preferredId,
       })
     );
-    expect(normalize(sql)).toContain('ORDER BY (li.server_id =');
+    expect(normalize(sql)).toContain(
+      "ORDER BY (li.thumb_path IS NOT NULL AND (li.thumb_path NOT LIKE '/Items/%' OR li.thumb_path LIKE '%?tag=%')) DESC, (li.server_id ="
+    );
     expect(params).toContain(preferredId);
   });
 });
@@ -438,6 +445,7 @@ describe('buildLetterCountsQuery', () => {
         sizeGbMin: null,
         sizeGbMax: null,
         serverIds: undefined,
+        scope: 'all',
       })
     );
     const text = normalize(sql);
@@ -540,6 +548,7 @@ async function buildTestApp(
   app.decorate('authenticate', async (request: { user: AuthUser }) => {
     request.user = authUser;
   });
+  app.decorate('requirePermission', permissionGuard(app));
   app.decorate('redis', redis as never);
   await app.register(libraryCatalogRoute, { prefix: '/library' });
   return app;
@@ -550,7 +559,7 @@ function createOwnerUser(): AuthUser {
 }
 
 function createViewerUser(serverIds: string[]): AuthUser {
-  return { userId: randomUUID(), username: 'viewer', role: 'viewer', serverIds };
+  return { userId: randomUUID(), username: 'viewer', role: 'admin', serverIds };
 }
 
 function rawMovieRow(overrides: Partial<Record<string, unknown>> = {}) {
@@ -695,6 +704,70 @@ describe('GET /library/catalog', () => {
       totalItems: 1,
       totalFileSize: 100,
     });
+  });
+
+  it('lists artists with album counts and track-derived plays, no year and no self state', async () => {
+    app = await buildTestApp(createOwnerUser());
+    const artistId = randomUUID();
+    let engagementSql = '';
+    const handlers = dispatchBySql([
+      {
+        match: isPageQuery,
+        rows: [
+          rawMovieRow({
+            id: artistId,
+            media_type: 'artist',
+            title: 'Daft Punk',
+            year: null,
+            genres: ['Electronic'],
+            album_count: 2,
+            poster_copy: {
+              thumbPath: '/library/metadata/41/thumb/1700000000',
+              dominantColor: null,
+              serverId: randomUUID(),
+            },
+          }),
+        ],
+      },
+      { match: isTotalsQuery, rows: [{ total_items: '1', total_file_size: '0' }] },
+      { match: isAliasExpansion, rows: [{ id: artistId }] },
+      { match: isEngagement, rows: [{ canonical_id: artistId, plays: '4', viewers: '2' }] },
+    ]);
+    dbExecute.mockImplementation(((query: unknown) => {
+      const text = normalize(renderSql(query as never).sql);
+      if (isEngagement(text)) engagementSql = text;
+      return handlers(query);
+    }) as never);
+
+    const response = await app.inject({ method: 'GET', url: '/library/catalog?type=artist' });
+    expect(response.statusCode).toBe(200);
+    const row = response.json<CatalogResponse>().data[0]!;
+    expect(row).toMatchObject({
+      mediaId: artistId,
+      mediaType: 'artist',
+      year: null,
+      albumCount: 2,
+      plays: 4,
+      viewers: 2,
+    });
+    expect(row).not.toHaveProperty('watchedStateSelf');
+    expect(row.posterUrl).toContain('width=360&height=360');
+    expect(engagementSql).toContain("p.media_type = 'track'");
+    expect(engagementSql).toContain('ar.rating_key = t.grandparent_rating_key');
+    expect(
+      dbExecute.mock.calls.some(([q]) => isWatchedProbe(normalize(renderSql(q as never).sql)))
+    ).toBe(false);
+  });
+
+  it.each([
+    ['an artist year sort', 'type=artist&sort=year'],
+    ['an artist watched filter', 'type=artist&watched=watched'],
+    ['the album type', 'type=album'],
+  ])('rejects %s', async (_label, query) => {
+    app = await buildTestApp(createOwnerUser());
+    const response = await app.inject({ method: 'GET', url: `/library/catalog?${query}` });
+    expect(response.statusCode).toBe(400);
+    expect(dbExecute).not.toHaveBeenCalled();
   });
 
   describe('watchedStateSelf', () => {

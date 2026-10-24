@@ -1,40 +1,43 @@
 import { useMemo, useRef, useState, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useParams } from 'react-router';
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { format } from 'date-fns';
-import type { MediaRequestEntry } from '@tracearr/shared';
+import { verbKeysFor, type MediaRequestEntry } from '@tracearr/shared';
 import { ApiError } from '@/lib/api';
 import {
   useMediaDetail,
   useMediaStats,
   useMediaWatchers,
   useSeasonHeat,
+  useMediaChildren,
   useMediaPlatforms,
   useMediaHistory,
   useSession,
   useMediaRequests,
   findCachedMediaStub,
 } from '@/hooks/queries';
+import { useAuth } from '@/hooks/useAuth';
 import { useServer } from '@/hooks/useServer';
 import { SessionDetailSheet } from '@/components/history/SessionDetailSheet';
 import { DetailHero } from '@/components/media-browse/DetailHero';
 import { CopiesPanel } from '@/components/media-browse/CopiesPanel';
-import { KpiStrip } from '@/components/media-browse/KpiStrip';
+import { KpiStrip, MemberKpiStrip } from '@/components/media-browse/KpiStrip';
 import { WatchersTable } from '@/components/media-browse/WatchersTable';
 import { SeasonHeatPanel } from '@/components/media-browse/SeasonHeatPanel';
+import { AlbumsPanel } from '@/components/media-browse/AlbumsPanel';
+import { AlbumSheet } from '@/components/media-browse/AlbumSheet';
 import { PlatformPanel } from '@/components/media-browse/PlatformPanel';
 import { MediaRequestsPanel } from '@/components/requests/MediaRequestsPanel';
+import { MediaDownloadsPanel } from '@/components/media/MediaDownloadsPanel';
 import { InlineErrorState } from '@/components/library/ErrorState';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { formatDuration } from '@/lib/formatters';
-import { getTimeFormatString } from '@/lib/timeFormat';
 import { cn } from '@/lib/utils';
+import { formatDate, formatDuration } from '@/lib/dateFormat';
 import { getAvatarUrl } from '@/components/users/utils';
 
 const HISTORY_ROW_HEIGHT = 56;
@@ -42,17 +45,19 @@ const HISTORY_ROW_HEIGHT = 56;
 // Shared by the header row and every virtualized data row so both size their
 // columns identically - date, user, content (flexible), server, duration.
 const HISTORY_GRID_TEMPLATE = '160px 160px minmax(200px,1fr) 140px 100px';
+/** A member's rows are all their own, so the User column goes */
+const HISTORY_GRID_TEMPLATE_NO_USER = '160px minmax(200px,1fr) 140px 100px';
 const HISTORY_HEAD_CLASS = 'text-foreground h-10 px-2 font-medium whitespace-nowrap';
 const HISTORY_CELL_CLASS = 'p-2 whitespace-nowrap';
 
 function NotFoundState() {
-  const { t } = useTranslation(['pages', 'common']);
+  const { t } = useTranslation(['pages', 'common', 'nav']);
   return (
     <div className="flex flex-col items-center justify-center gap-3 px-4 py-20 text-center">
       <h1 className="text-xl font-semibold">{t('media.detail.notFound.title')}</h1>
       <p className="text-muted-foreground max-w-md text-sm">{t('media.detail.notFound.message')}</p>
       <Button asChild variant="outline">
-        <Link to="/media">{t('media.detail.notFound.backLink')}</Link>
+        <Link to="/library">{t('nav:library')}</Link>
       </Button>
     </div>
   );
@@ -99,8 +104,12 @@ function HistoryPanel({
   isFetchingNextPage,
   onLoadMore,
   onRowClick,
+  showUser,
+  mediaType,
 }: {
   historyRef: RefObject<HTMLDivElement | null>;
+  showUser: boolean;
+  mediaType: string | undefined;
   rows: HistoryRow[];
   isLoading: boolean;
   isError: boolean;
@@ -112,6 +121,7 @@ function HistoryPanel({
 }) {
   const { t } = useTranslation(['pages', 'common']);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const gridTemplateColumns = showUser ? HISTORY_GRID_TEMPLATE : HISTORY_GRID_TEMPLATE_NO_USER;
 
   const virtualizer = useVirtualizer({
     count: rows.length,
@@ -164,16 +174,18 @@ function HistoryPanel({
                 className="border-b"
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: HISTORY_GRID_TEMPLATE,
+                  gridTemplateColumns,
                   alignItems: 'center',
                 }}
               >
                 <div role="columnheader" className={HISTORY_HEAD_CLASS}>
                   {t('common:labels.date')}
                 </div>
-                <div role="columnheader" className={HISTORY_HEAD_CLASS}>
-                  {t('common:labels.user')}
-                </div>
+                {showUser && (
+                  <div role="columnheader" className={HISTORY_HEAD_CLASS}>
+                    {t('common:labels.user')}
+                  </div>
+                )}
                 <div role="columnheader" className={HISTORY_HEAD_CLASS}>
                   {t('common:labels.content')}
                 </div>
@@ -217,55 +229,64 @@ function HistoryPanel({
                       width: 'max-content',
                       transform: `translateY(${virtualRow.start}px)`,
                       display: 'grid',
-                      gridTemplateColumns: HISTORY_GRID_TEMPLATE,
+                      gridTemplateColumns,
                       alignItems: 'center',
                     }}
                   >
                     <div role="cell" className={HISTORY_CELL_CLASS}>
                       <div className="text-sm">
-                        {format(new Date(row.started_at), 'MMM d, yyyy')}
+                        {formatDate(new Date(row.started_at), { dateStyle: 'medium' })}
                       </div>
                       <div className="text-muted-foreground text-xs">
-                        {format(new Date(row.started_at), getTimeFormatString())}
+                        {formatDate(new Date(row.started_at), {
+                          hour: 'numeric',
+                          minute: '2-digit',
+                        })}
                       </div>
                     </div>
-                    <div role="cell" className={HISTORY_CELL_CLASS}>
-                      {row.user.server_user_id ? (
-                        <Link
-                          to={`/users/${row.user.server_user_id}`}
-                          onClick={(event) => event.stopPropagation()}
-                          className="flex items-center gap-2 hover:underline"
-                        >
-                          <Avatar className="h-6 w-6">
-                            <AvatarImage
-                              src={getAvatarUrl(row.server_id, row.user.thumb_url, 24) ?? undefined}
-                            />
-                            <AvatarFallback className="text-xs">
-                              {row.user.username[0]?.toUpperCase() ?? '?'}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="truncate text-sm">{row.user.username}</span>
-                        </Link>
-                      ) : (
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-6 w-6">
-                            <AvatarImage
-                              src={getAvatarUrl(row.server_id, row.user.thumb_url, 24) ?? undefined}
-                            />
-                            <AvatarFallback className="text-xs">
-                              {row.user.username[0]?.toUpperCase() ?? '?'}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="truncate text-sm">{row.user.username}</span>
-                        </div>
-                      )}
-                    </div>
+                    {showUser && (
+                      <div role="cell" className={HISTORY_CELL_CLASS}>
+                        {row.user.server_user_id ? (
+                          <Link
+                            to={`/users/${row.user.server_user_id}`}
+                            onClick={(event) => event.stopPropagation()}
+                            className="flex items-center gap-2 hover:underline"
+                          >
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage
+                                src={
+                                  getAvatarUrl(row.server_id, row.user.thumb_url, 24) ?? undefined
+                                }
+                              />
+                              <AvatarFallback className="text-xs">
+                                {row.user.username[0]?.toUpperCase() ?? '?'}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="truncate text-sm">{row.user.username}</span>
+                          </Link>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage
+                                src={
+                                  getAvatarUrl(row.server_id, row.user.thumb_url, 24) ?? undefined
+                                }
+                              />
+                              <AvatarFallback className="text-xs">
+                                {row.user.username[0]?.toUpperCase() ?? '?'}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="truncate text-sm">{row.user.username}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     <div role="cell" className={cn(HISTORY_CELL_CLASS, 'min-w-0')}>
                       <div className="flex items-center gap-2">
                         <span className="truncate">{row.media_title}</span>
                         <Badge variant={row.watched ? 'success' : 'outline'} className="text-xs">
                           {row.watched
-                            ? t('media.detail.history.watched')
+                            ? t(verbKeysFor(mediaType).watched)
                             : t('media.detail.history.notWatched')}
                         </Badge>
                       </div>
@@ -292,12 +313,18 @@ export function MediaDetail() {
   const { id: rawId } = useParams<{ id: string }>();
   const id = rawId ?? '';
   const { selectedServerIds, servers } = useServer();
+  const { user } = useAuth();
+  const isMember = user?.role === 'member';
   const queryClient = useQueryClient();
   const historyRef = useRef<HTMLDivElement>(null);
   // A history row's id is its chain id (the chain's first session id), so the
   // existing single-session endpoint resolves it - same as History deep-links.
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const { data: selectedSession } = useSession(selectedSessionId ?? '');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const albumId = searchParams.get('album') || null;
 
   const serverById = useMemo(
     () =>
@@ -309,6 +336,7 @@ export function MediaDetail() {
             type: server.type,
             color: server.color,
             url: server.url,
+            publicUrl: server.publicUrl,
             machineIdentifier: server.machineIdentifier,
           },
         ])
@@ -326,7 +354,9 @@ export function MediaDetail() {
   const watchersQuery = useMediaWatchers(id, selectedServerIds);
   const mediaType = detailQuery.data?.mediaType;
   const isShow = mediaType === 'show';
+  const isArtist = mediaType === 'artist';
   const seasonHeatQuery = useSeasonHeat(id, selectedServerIds, isShow);
+  const childrenQuery = useMediaChildren(id, selectedServerIds, isArtist);
   const platformsQuery = useMediaPlatforms(id, selectedServerIds);
   const historyQuery = useMediaHistory(id, selectedServerIds);
   const requestsQuery = useMediaRequests(id, selectedServerIds);
@@ -341,6 +371,35 @@ export function MediaDetail() {
       null
     );
   }, [requestsQuery.data]);
+
+  const openAlbum = (next: string) => {
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev);
+        params.set('album', next);
+        return params;
+      },
+      { state: { sheet: true } }
+    );
+  };
+
+  // Same history rule as the genre sheet: a sheet opened here steps back off its own entry, one
+  // reached through an ?album= link replaces it.
+  const closeAlbum = () => {
+    const state: unknown = location.state;
+    if (typeof state === 'object' && state !== null && 'sheet' in state && state.sheet === true) {
+      void navigate(-1);
+      return;
+    }
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev);
+        params.delete('album');
+        return params;
+      },
+      { replace: true }
+    );
+  };
 
   const notFoundStatus =
     detailQuery.error instanceof ApiError &&
@@ -376,6 +435,8 @@ export function MediaDetail() {
         serverById={serverById}
       />
 
+      <MediaDownloadsPanel rows={detailQuery.data?.downloads} />
+
       {mediaType !== 'episode' && (
         <MediaRequestsPanel
           rows={requestsQuery.data?.data}
@@ -385,26 +446,40 @@ export function MediaDetail() {
         />
       )}
 
-      <KpiStrip
-        mediaType={mediaType}
-        stats={statsQuery.data}
-        statsLoading={statsQuery.isLoading}
-        statsError={statsQuery.isError}
-        onRetryStats={() => void statsQuery.refetch()}
-        watchers={watchersQuery.data?.watchers}
-        watchersLoading={watchersQuery.isLoading}
-        watchersError={watchersQuery.isError}
-        onRetryWatchers={() => void watchersQuery.refetch()}
-      />
+      {isMember ? (
+        <MemberKpiStrip
+          mediaType={mediaType}
+          episodeCount={detailQuery.data?.episodeCount}
+          watchers={watchersQuery.data?.watchers}
+          watchersLoading={watchersQuery.isLoading}
+          watchersError={watchersQuery.isError}
+          onRetryWatchers={() => void watchersQuery.refetch()}
+          othersCount={watchersQuery.data?.othersCount}
+        />
+      ) : (
+        <>
+          <KpiStrip
+            mediaType={mediaType}
+            stats={statsQuery.data}
+            statsLoading={statsQuery.isLoading}
+            statsError={statsQuery.isError}
+            onRetryStats={() => void statsQuery.refetch()}
+            watchers={watchersQuery.data?.watchers}
+            watchersLoading={watchersQuery.isLoading}
+            watchersError={watchersQuery.isError}
+            onRetryWatchers={() => void watchersQuery.refetch()}
+          />
 
-      <WatchersTable
-        watchers={watchersQuery.data?.watchers}
-        isLoading={watchersQuery.isLoading}
-        isError={watchersQuery.isError}
-        onRetry={() => void watchersQuery.refetch()}
-        mediaType={mediaType}
-        episodeCount={detailQuery.data?.episodeCount}
-      />
+          <WatchersTable
+            watchers={watchersQuery.data?.watchers}
+            isLoading={watchersQuery.isLoading}
+            isError={watchersQuery.isError}
+            onRetry={() => void watchersQuery.refetch()}
+            mediaType={mediaType}
+            episodeCount={detailQuery.data?.episodeCount}
+          />
+        </>
+      )}
 
       {isShow && (
         <SeasonHeatPanel
@@ -415,11 +490,32 @@ export function MediaDetail() {
         />
       )}
 
+      {isArtist && (
+        <AlbumsPanel
+          albums={childrenQuery.data?.data}
+          isLoading={childrenQuery.isLoading}
+          isError={childrenQuery.isError}
+          onRetry={() => void childrenQuery.refetch()}
+          onSelect={openAlbum}
+        />
+      )}
+
+      {isArtist && (
+        <AlbumSheet
+          albumId={albumId}
+          serverIds={selectedServerIds}
+          serverById={serverById}
+          isMember={isMember}
+          onClose={closeAlbum}
+        />
+      )}
+
       <PlatformPanel
         data={platformsQuery.data?.data}
         isLoading={platformsQuery.isLoading}
         isError={platformsQuery.isError}
         onRetry={() => void platformsQuery.refetch()}
+        mediaType={mediaType}
       />
 
       <HistoryPanel
@@ -432,6 +528,8 @@ export function MediaDetail() {
         isFetchingNextPage={historyQuery.isFetchingNextPage}
         onLoadMore={() => void historyQuery.fetchNextPage()}
         onRowClick={setSelectedSessionId}
+        showUser={!isMember}
+        mediaType={mediaType}
       />
 
       <SessionDetailSheet

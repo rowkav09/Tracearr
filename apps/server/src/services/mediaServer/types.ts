@@ -208,7 +208,7 @@ export interface MediaUser {
   isDisabled?: boolean;
   /** Plex-specific: whether this is a home/managed user */
   isHomeUser?: boolean;
-  /** Library IDs this user has access to (empty = all libraries) */
+  /** Library ids the account can open; undefined when it sees every library */
   sharedLibraries?: string[];
   /** Last login timestamp */
   lastLoginAt?: Date;
@@ -228,6 +228,8 @@ export interface MediaUser {
 export interface MediaLibrary {
   /** Library identifier */
   id: string;
+  /** Emby: folder Guid, the form Emby user policies list enabled folders in */
+  guid?: string;
   /** Library display name */
   name: string;
   /** Library type (movies, shows, music, photos, etc.) */
@@ -243,6 +245,53 @@ export interface MediaLibrary {
 // ============================================================================
 // Library Item Types
 // ============================================================================
+
+/** What a download pulled from the server, as far as the server reports it */
+export interface DeliveredFile {
+  bytes: number | null;
+  videoCodec: string | null;
+  audioCodec: string | null;
+  container: string | null;
+  bitrateKbps: number | null;
+  /** WIDTHxHEIGHT; only an Emby sync item states it */
+  resolution: string | null;
+}
+
+export interface DownloadSourceRequest {
+  /** The server's item id (Plex ratingKey, Jellyfin/Emby ItemId) */
+  itemKey: string | null;
+  /** Plex Context.partID */
+  partId: string | null;
+  /** Set when the signal names its device: Plex clientIdentifier, Emby sync TargetId */
+  deviceId: string | null;
+  /** The account's externalId */
+  userId: string | null;
+  /** Client and device names the server logged with the download */
+  app: string | null;
+  device: string | null;
+}
+
+export interface DownloadSourceDescription {
+  /** The source file; key is our serverVersionKey */
+  version: {
+    key: string;
+    size: number | null;
+    container: string | null;
+    videoResolution: string | null;
+    videoCodec: string | null;
+    videoDynamicRange: string | null;
+  } | null;
+  /** What left the server when nothing converted it */
+  delivered: DeliveredFile | null;
+  /** Named as the sessions table names them */
+  device: {
+    deviceId: string | null;
+    playerName: string | null;
+    product: string | null;
+    platform: string | null;
+  };
+  ipAddress: string | null;
+}
 
 /**
  * One physical file of a library item (a Plex Media child or a JF/Emby
@@ -412,6 +461,12 @@ export interface MediaWatchHistoryItem {
 // Media Server Client Interface
 // ============================================================================
 
+/** A Jellyfin or Emby user token, as the server reported it at sign-in */
+export interface MediaServerAuth {
+  externalId: string;
+  token: string;
+}
+
 /**
  * Configuration for creating a media server client
  */
@@ -471,6 +526,12 @@ export interface IMediaServerClient {
 
   /** The version the server reports for itself, unnormalized (Plex carries a build hash). */
   getSoftwareVersion?(): Promise<string | null>;
+
+  /**
+   * The file and client behind a download. Best effort per lookup: a failed
+   * request leaves its fields null and keeps the rest.
+   */
+  describeDownloadSource?(request: DownloadSourceRequest): Promise<DownloadSourceDescription>;
 
   /**
    * Terminate a playback session
@@ -589,6 +650,35 @@ export interface IMediaServerClient {
    * @returns Promise with season items and total count
    */
   getLibrarySeasonsSince?(
+    libraryId: string,
+    since: Date,
+    options?: { offset?: number; limit?: number }
+  ): Promise<{ items: MediaLibraryItem[]; totalCount: number }>;
+
+  /**
+   * Get all albums for a music library with pagination support. Plex-only:
+   * JF/Emby return MusicAlbum items through getLibraryItems, so this stays
+   * undefined for those clients.
+   *
+   * @param libraryId - The library identifier
+   * @param options - Pagination options
+   * @returns Promise with album items and total count
+   */
+  getLibraryAlbums?(
+    libraryId: string,
+    options?: { offset?: number; limit?: number }
+  ): Promise<{ items: MediaLibraryItem[]; totalCount: number }>;
+
+  /**
+   * Get albums added or changed since a given date. Plex-only counterpart to
+   * getLibraryAlbums.
+   *
+   * @param libraryId - The library identifier
+   * @param since - Only return albums added or modified after this date
+   * @param options - Pagination options
+   * @returns Promise with album items and total count
+   */
+  getLibraryAlbumsSince?(
     libraryId: string,
     since: Date,
     options?: { offset?: number; limit?: number }

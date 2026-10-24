@@ -33,6 +33,7 @@ const { queues, workers, FakeQueue, FakeWorker } = vi.hoisted(() => {
     processor: (job: unknown) => unknown;
     opts: unknown;
     on = vi.fn();
+    once = vi.fn();
     close = vi.fn(async () => undefined);
     constructor(name: string, processor: (job: unknown) => unknown, opts?: unknown) {
       this.name = name;
@@ -263,5 +264,21 @@ describe('delivery worker', () => {
 
     await expect(deliveryWorker().processor(job) as Promise<unknown>).rejects.toBe(error);
     expect(markRecipientFailed).not.toHaveBeenCalled();
+  });
+});
+
+describe('shutdown', () => {
+  it('closes both workers at once and starts fresh ones even when a close never settles', () => {
+    const run = workers.get('newsletters');
+    const stuck = workers.get('newsletter-deliveries');
+    stuck?.close.mockReturnValue(new Promise<undefined>(() => {}));
+
+    void shutdownNewsletterQueues();
+    expect(run?.close).toHaveBeenCalled();
+    expect(stuck?.close).toHaveBeenCalled();
+
+    initNewsletterQueues('redis://localhost:6379');
+    startNewsletterWorkers();
+    expect(workers.get('newsletter-deliveries')).not.toBe(stuck);
   });
 });

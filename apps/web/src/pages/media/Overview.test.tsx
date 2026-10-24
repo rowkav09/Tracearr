@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
-import type { ShelvesResponse } from '@tracearr/shared';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { MostPopularShelfRow, ShelvesResponse } from '@tracearr/shared';
 import { MediaOverview } from './Overview';
 
 vi.mock('react-i18next', () => ({
@@ -24,13 +24,8 @@ vi.mock('@/hooks/useServer', () => ({
   useServer: vi.fn(),
 }));
 
-vi.mock('@/components/ui/time-range-picker', () => ({
-  TimeRangePicker: ({
-    onChange,
-  }: {
-    onChange: (value: { period: string; startDate?: Date; endDate?: Date }) => void;
-  }) => <button onClick={() => onChange({ period: 'year' })}>switch-range</button>,
-}));
+const auth = vi.hoisted(() => ({ user: { role: 'owner' } }));
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => auth }));
 
 vi.mock('@/components/charts', () => ({
   LibraryGrowthChart: () => <div data-testid="library-growth-chart" />,
@@ -200,6 +195,8 @@ function fullShelves(): ShelvesResponse {
         rank: 1,
       },
     ],
+    recentlyAddedAlbums: [],
+    mostPlayedArtists: [],
     deadWeight: [],
     kpis: {
       watchedInPeriod: { titlesTouched: 12, totalTitles: 48 },
@@ -207,15 +204,17 @@ function fullShelves(): ShelvesResponse {
       newlyAdded: { count: 6, totalBytes: 3_000_000_000, playedCount: 2 },
       deadWeight: { count: 9, totalBytes: 45_000_000_000 },
     },
-    meta: { movies: 42, shows: 7, totalFileSize: 123_456_789_000 },
+    meta: { movies: 42, shows: 7, artists: 0, albums: 0, totalFileSize: 123_456_789_000 },
   };
 }
 
-function renderOverview(initialEntries: string[] = ['/']) {
+function renderOverview(initialEntries: string[] = ['/'], client = new QueryClient()) {
   return render(
-    <MemoryRouter initialEntries={initialEntries}>
-      <MediaOverview />
-    </MemoryRouter>
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={initialEntries}>
+        <MediaOverview />
+      </MemoryRouter>
+    </QueryClientProvider>
   );
 }
 
@@ -233,6 +232,7 @@ function mockShelvesReturn(overrides: Partial<ReturnType<typeof useShelves>> = {
 describe('MediaOverview', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    auth.user.role = 'owner';
     mockUseServer.mockReturnValue(serverReturn());
     mockUseLibraryStats.mockReturnValue(statsReturn());
     mockUseLibraryGrowth.mockReturnValue(growthReturn());
@@ -244,9 +244,20 @@ describe('MediaOverview', () => {
 
     renderOverview();
 
-    expect(screen.getByRole('heading', { name: 'library.title', level: 1 })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
     expect(screen.getByText('500')).toBeInTheDocument();
     expect(screen.getByTestId('library-growth-chart')).toBeInTheDocument();
+  });
+
+  it('puts the last-updated text in the Library Growth card header', () => {
+    mockShelvesReturn({ data: fullShelves() });
+
+    renderOverview();
+
+    const header = screen
+      .getByText('library.overview.libraryGrowth')
+      .closest('[data-slot="card-header"]');
+    expect(header).toContainElement(screen.getByText(/library\.overview\.lastUpdated/));
   });
 
   it('marks the four total stat cards as all-time, leaving the Added card on its own period label', () => {
@@ -321,6 +332,95 @@ describe('MediaOverview', () => {
     expect(screen.getByRole('link', { name: /Popular Show/ })).toBeInTheDocument();
   });
 
+  it('adds the album and artist shelves once the library has artists', () => {
+    const data = fullShelves();
+    data.meta = { ...data.meta, artists: 2, albums: 3 };
+    data.recentlyAddedAlbums = [
+      {
+        serverId: 'srv-1',
+        ratingKey: '9001',
+        title: 'Random Access Memories',
+        artistTitle: 'Daft Punk',
+        artistMediaId: 'artist-1',
+        year: 2013,
+        posterUrl: '/api/v1/images/proxy?server=srv-1&url=%2Flibrary%2Fmetadata%2F9001%2Fthumb',
+        posterVersion: '9f2c41ab',
+        addedAt: '2026-10-02T09:30:00.000Z',
+      },
+      {
+        serverId: 'srv-1',
+        ratingKey: '9002',
+        title: 'Orphan Album',
+        artistTitle: null,
+        artistMediaId: null,
+        year: null,
+        posterUrl: null,
+        posterVersion: null,
+        addedAt: '2026-10-01T09:30:00.000Z',
+      },
+    ];
+    data.mostPlayedArtists = [
+      {
+        ...rowBase,
+        mediaId: 'artist-1',
+        mediaType: 'artist',
+        title: 'Daft Punk',
+        year: null,
+        watchedState: 'unwatched',
+        albumCount: 4,
+        plays: 31,
+        viewers: 3,
+        rank: 1,
+      },
+    ];
+    mockShelvesReturn({ data });
+
+    renderOverview();
+
+    const albums = screen.getByRole('region', {
+      name: 'media.landing.shelves.recentlyAddedAlbums',
+    });
+    expect(within(albums).getByRole('link', { name: /Random Access Memories/ })).toHaveAttribute(
+      'href',
+      '/media/artist-1'
+    );
+    expect(within(albums).getAllByRole('link')).toHaveLength(1);
+    expect(albums.querySelector('img')?.getAttribute('src')).toContain('v=9f2c41ab');
+    expect(within(albums).getAllByText('Orphan Album').length).toBeGreaterThan(0);
+    const artists = screen.getByRole('region', {
+      name: 'media.landing.shelves.mostPlayedArtists',
+    });
+    expect(within(artists).getByRole('link', { name: /Daft Punk/ })).toHaveAttribute(
+      'href',
+      '/media/artist-1'
+    );
+    expect(within(artists).getByRole('link', { name: /deadWeight.viewAll/ })).toHaveAttribute(
+      'href',
+      '/media/browse?type=artist'
+    );
+  });
+
+  it('leaves the music shelves out when the library has no artists', () => {
+    mockShelvesReturn({ data: fullShelves() });
+
+    renderOverview();
+
+    expect(screen.queryByText('media.landing.shelves.recentlyAddedAlbums')).toBeNull();
+    expect(screen.queryByText('media.landing.shelves.mostPlayedArtists')).toBeNull();
+  });
+
+  it('links the show shelves to Browse with the singular type', () => {
+    mockShelvesReturn({ data: fullShelves() });
+
+    renderOverview();
+
+    const shows = screen.getByRole('region', { name: 'media.landing.shelves.mostPopularShows' });
+    expect(within(shows).getByRole('link', { name: /deadWeight.viewAll/ })).toHaveAttribute(
+      'href',
+      '/media/browse?type=show'
+    );
+  });
+
   it('shows the heading and an empty note (not a vanished section) when only one type is empty', () => {
     const data = fullShelves();
     data.mostPopularShows = [];
@@ -362,13 +462,10 @@ describe('MediaOverview', () => {
     expect(screen.getByText('media.landing.card.addedCompactAgo:{"age":"3d"}')).toBeInTheDocument();
   });
 
-  it('refetches shelves with the new period when the time range changes', async () => {
-    const user = userEvent.setup();
+  it('reads the shelves period from the time range in the URL', () => {
     mockShelvesReturn({ data: fullShelves() });
 
-    renderOverview();
-
-    await user.click(screen.getByText('switch-range'));
+    renderOverview(['/?period=year']);
 
     expect(mockUseShelves).toHaveBeenLastCalledWith(
       ['srv-1'],
@@ -399,6 +496,24 @@ describe('MediaOverview', () => {
     );
   });
 
+  it('sends custom-range shelves as the UTC days picked, whatever the browser zone', () => {
+    vi.stubEnv('TZ', 'Pacific/Auckland');
+    mockShelvesReturn({ data: fullShelves() });
+
+    renderOverview(['/?period=custom&from=2026-09-01&to=2026-09-30']);
+
+    expect(mockUseShelves).toHaveBeenLastCalledWith(
+      ['srv-1'],
+      {
+        period: 'custom',
+        startDate: '2026-09-01T00:00:00.000Z',
+        endDate: '2026-09-30T00:00:00.000Z',
+      },
+      false
+    );
+    vi.unstubAllEnvs();
+  });
+
   it('sends an explicit 1-day startDate/endDate for the day period instead of silently using 30d', () => {
     mockShelvesReturn({ data: fullShelves() });
 
@@ -420,6 +535,22 @@ describe('MediaOverview', () => {
 
     expect(screen.getByTestId('media-landing-skeleton')).toBeInTheDocument();
     expect(screen.queryAllByRole('link')).toHaveLength(0);
+    expect(screen.getByText('media.landing.shelves.mostPopularShows')).toBeInTheDocument();
+    expect(screen.queryByText('media.landing.shelves.recentlyAddedAlbums')).toBeNull();
+    expect(screen.queryByText('media.landing.shelves.mostPlayedArtists')).toBeNull();
+  });
+
+  it('adds the music shelf skeletons once a cached response says the library has artists', () => {
+    mockShelvesReturn({ data: undefined, isLoading: true });
+    const client = new QueryClient();
+    const cached = fullShelves();
+    cached.meta = { ...cached.meta, artists: 3, albums: 7 };
+    client.setQueryData(['media', 'shelves', 'srv-1', { period: 'week' }, false], cached);
+
+    renderOverview(['/'], client);
+
+    expect(screen.getByText('media.landing.shelves.recentlyAddedAlbums')).toBeInTheDocument();
+    expect(screen.getByText('media.landing.shelves.mostPlayedArtists')).toBeInTheDocument();
   });
 
   it('renders a single error state for the shelves (not one per shelf) when the shelves query fails', () => {
@@ -450,13 +581,27 @@ describe('MediaOverview', () => {
         mostPopularMovies: [],
         mostPopularShows: [],
         deadWeight: [],
-        meta: { movies: 0, shows: 0, totalFileSize: 0 },
+        meta: { movies: 0, shows: 0, artists: 0, albums: 0, totalFileSize: 0 },
       },
     });
 
     renderOverview();
 
     expect(screen.getByTestId('library-empty-state')).toBeInTheDocument();
+  });
+
+  it('keeps the shelves up for a music-only library', () => {
+    mockShelvesReturn({
+      data: {
+        ...fullShelves(),
+        meta: { movies: 0, shows: 0, artists: 5, albums: 9, totalFileSize: 0 },
+      },
+    });
+
+    renderOverview();
+
+    expect(screen.queryByTestId('library-empty-state')).toBeNull();
+    expect(screen.getByText('media.landing.shelves.mostPlayedArtists')).toBeInTheDocument();
   });
 
   it('renders self-describing empty shelves on a quiet window instead of vanishing', () => {
@@ -476,5 +621,118 @@ describe('MediaOverview', () => {
     expect(screen.getByText('media.landing.shelves.mostPopularShows')).toBeInTheDocument();
     expect(screen.getAllByText('media.landing.shelves.emptyRecentlyAdded')).toHaveLength(2);
     expect(screen.getAllByText('media.landing.shelves.emptyMostPopular')).toHaveLength(2);
+  });
+});
+
+describe('MediaOverview as a member', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    auth.user.role = 'member';
+    mockUseServer.mockReturnValue(serverReturn());
+    mockUseLibraryStats.mockReturnValue(statsReturn());
+    mockUseLibraryGrowth.mockReturnValue(growthReturn());
+    mockUseLibraryStatus.mockReturnValue(statusReturn());
+  });
+
+  it('shows the counts line and the not-watched link, with no stat cards or growth chart', () => {
+    mockShelvesReturn({ data: fullShelves() });
+
+    renderOverview();
+
+    expect(screen.getByText(/library\.overview\.movieCount.*300/)).toBeInTheDocument();
+    expect(screen.getByText(/library\.overview\.showCount.*40/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'library.overview.notWatchedByYou' })).toHaveAttribute(
+      'href',
+      '/media/browse?watched=unwatched'
+    );
+    expect(screen.queryByText('library.overview.totalItems')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('library-growth-chart')).not.toBeInTheDocument();
+    expect(screen.queryByText(/library\.overview\.lastUpdated/)).not.toBeInTheDocument();
+  });
+
+  it('skips the sync status and growth reads, and asks for a fixed month of shelves', () => {
+    mockShelvesReturn({ data: fullShelves() });
+
+    renderOverview();
+
+    expect(mockUseLibraryStatus).toHaveBeenCalledWith([]);
+    expect(mockUseLibraryGrowth.mock.calls[0]?.[0]).toEqual([]);
+    expect(mockUseShelves).toHaveBeenCalledWith(
+      ['srv-1'],
+      expect.objectContaining({ period: 'month' }),
+      false
+    );
+  });
+
+  it('shows no sync banner and no sync empty state even when every server is unready', () => {
+    mockUseLibraryStatus.mockReturnValue(
+      statusReturn({ 'srv-1': { isSynced: false, needsBackfill: true, isBackfillRunning: false } })
+    );
+    mockShelvesReturn({ data: fullShelves() });
+
+    renderOverview();
+
+    expect(screen.queryByTestId('library-empty-state')).not.toBeInTheDocument();
+    expect(screen.queryByText('library.overview.serversNeedSync')).not.toBeInTheDocument();
+    expect(screen.getAllByText('Recently Added Movie').length).toBeGreaterThan(0);
+  });
+
+  it('never renders Recently Updated, even when the response has rows for it', () => {
+    mockShelvesReturn({ data: fullShelves() });
+
+    renderOverview();
+
+    expect(screen.queryByText('media.landing.shelves.recentlyUpdated')).not.toBeInTheDocument();
+    expect(screen.queryByText('Replaced Movie')).not.toBeInTheDocument();
+  });
+
+  it('leaves out every shelf with no rows, heading and empty note included', () => {
+    const shelves = fullShelves();
+    mockShelvesReturn({
+      data: { ...shelves, recentlyUpdated: [], mostPopularMovies: [], mostPopularShows: [] },
+    });
+
+    renderOverview();
+
+    expect(screen.getByText('media.landing.shelves.recentlyAddedMovies')).toBeInTheDocument();
+    for (const key of ['recentlyUpdated', 'mostPopularMovies', 'mostPopularShows']) {
+      expect(screen.queryByText(`media.landing.shelves.${key}`)).not.toBeInTheDocument();
+    }
+    expect(screen.queryByText('media.landing.shelves.emptyMostPopular')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('media.landing.shelves.emptyRecentlyUpdated')
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows a plain empty state with no sync buttons when the library has nothing', () => {
+    mockShelvesReturn({
+      data: {
+        ...fullShelves(),
+        meta: { movies: 0, shows: 0, artists: 0, albums: 0, totalFileSize: 0 },
+      },
+    });
+
+    renderOverview();
+
+    expect(screen.getByText('library.overview.memberEmpty.title')).toBeInTheDocument();
+    expect(screen.queryByTestId('library-empty-state')).not.toBeInTheDocument();
+  });
+
+  it('renders Most Popular without play or viewer counts when the server leaves them off', () => {
+    const shelves = fullShelves();
+    const strip = ({ plays: _plays, viewers: _viewers, ...row }: MostPopularShelfRow) => row;
+    mockShelvesReturn({
+      data: {
+        ...shelves,
+        mostPopularMovies: shelves.mostPopularMovies.map(strip),
+        mostPopularShows: shelves.mostPopularShows.map(strip),
+      },
+    });
+
+    renderOverview();
+
+    expect(screen.getAllByText('Popular Movie').length).toBeGreaterThan(0);
+    expect(screen.queryByText(/common:count\.play/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/media\.posterCard\.viewers/)).not.toBeInTheDocument();
   });
 });

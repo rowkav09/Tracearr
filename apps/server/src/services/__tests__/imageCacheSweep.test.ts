@@ -56,6 +56,7 @@ interface LibraryItemRow {
   id: string;
   serverId: string;
   thumbPath: string | null;
+  mediaType?: string;
 }
 
 function makeRedisStub() {
@@ -182,6 +183,30 @@ describe('sweepImageCache', () => {
     expect(result.deletedTmp).toBe(0);
     expect(result.files).toBe(1);
     expect(result.versionedFiles).toBe(1);
+  });
+
+  it('keeps both the square and the 2:3 file of an album, and only the 2:3 file of a track', async () => {
+    const serverId = randomUUID();
+    const albumPath = '/library/metadata/5/thumb/5';
+    const trackPath = '/library/metadata/6/thumb/6';
+    const square = { width: 360, height: 360 };
+    const albumSquare = posterCacheFileName(serverId, albumPath, square);
+    const albumPoster = posterCacheFileName(serverId, albumPath);
+    const trackSquare = posterCacheFileName(serverId, trackPath, square);
+
+    mockLibraryItemsPages([
+      { id: randomUUID(), serverId, thumbPath: albumPath, mediaType: 'album' },
+      { id: randomUUID(), serverId, thumbPath: trackPath, mediaType: 'track' },
+    ]);
+    mockCacheDirFiles([albumSquare, albumPoster, trackSquare]);
+
+    const result = await sweepImageCache({ cacheDir: CACHE_DIR });
+
+    expect(vi.mocked(unlink)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(unlink)).toHaveBeenCalledWith(
+      join(CACHE_DIR, trackSquare.shard, trackSquare.fileName)
+    );
+    expect(result.versionedFiles).toBe(2);
   });
 
   it('keeps the file of a removed item whose row still has a thumb path', async () => {
@@ -586,5 +611,20 @@ describe('getImageCacheStatus', () => {
     expect(status.sweptAt).toBeNull();
     expect(status.freedBytesLastSweep).toBe(0);
     expect(status.deletedFilesLastSweep).toBe(0);
+  });
+
+  it('drops a not-persisting flag as soon as the cache directory is a mounted volume', async () => {
+    const redis = makeRedisStub();
+    vi.mocked(getRedis).mockReturnValue(redis as never);
+    redis.store.set(REDIS_KEYS.IMAGE_CACHE_NOT_PERSISTING, '2026-10-01T00:00:00.000Z');
+    vi.mocked(statfs).mockRejectedValue(new Error('ENOSYS'));
+    mockLibraryItemsCount(0);
+
+    vi.mocked(stat).mockResolvedValue({ dev: 1 } as never);
+    expect((await getImageCacheStatus()).notPersisting).toBe(true);
+
+    mockLibraryItemsCount(0);
+    vi.mocked(stat).mockImplementation(async (path) => ({ dev: path === '/' ? 1 : 2 }) as never);
+    expect((await getImageCacheStatus()).notPersisting).toBe(false);
   });
 });

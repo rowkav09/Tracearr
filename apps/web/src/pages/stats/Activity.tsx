@@ -1,6 +1,5 @@
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { TimeRangePicker } from '@/components/ui/time-range-picker';
 import {
   PlaysChart,
   PlatformChart,
@@ -21,18 +20,23 @@ import {
   useConcurrentStats,
   useEngagementStats,
 } from '@/hooks/queries';
+import { useAuth } from '@/hooks/useAuth';
 import { useServer } from '@/hooks/useServer';
 import { useTimeRange } from '@/hooks/useTimeRange';
 
+const BY_MEDIA_TYPE = { groupBy: 'mediaType' } as const;
+
 export function StatsActivity() {
   const { t } = useTranslation(['pages', 'common']);
-  const { value: timeRange, setValue: setTimeRange, apiParams } = useTimeRange();
-  const { selectedServerIds, selectedServers, isMultiServer } = useServer();
+  const { value: timeRange, apiParams } = useTimeRange();
+  const { selectedServerIds } = useServer();
+  const { user } = useAuth();
+  const isMember = user?.role === 'member';
 
   // Fetch all stats with the same time range and server filter
-  const plays = usePlaysStats(apiParams, selectedServerIds);
-  const dayOfWeek = usePlaysByDayOfWeek(apiParams, selectedServerIds);
-  const hourOfDay = usePlaysByHourOfDay(apiParams, selectedServerIds);
+  const plays = usePlaysStats(apiParams, selectedServerIds, BY_MEDIA_TYPE);
+  const dayOfWeek = usePlaysByDayOfWeek(apiParams, selectedServerIds, BY_MEDIA_TYPE);
+  const hourOfDay = usePlaysByHourOfDay(apiParams, selectedServerIds, BY_MEDIA_TYPE);
   const platforms = usePlatformStats(apiParams, selectedServerIds);
   const quality = useQualityStats(apiParams, selectedServerIds);
   const concurrent = useConcurrentStats(apiParams, selectedServerIds);
@@ -40,21 +44,12 @@ export function StatsActivity() {
 
   // Transform data for charts
   const platformData = platforms.data?.map((p) => ({
-    name: p.platform ?? 'Unknown',
+    name: p.platform ?? t('common:labels.unknown'),
     count: p.count,
   }));
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">{t('activity.title')}</h1>
-          <p className="text-muted-foreground text-sm">{t('activity.description')}</p>
-        </div>
-        <TimeRangePicker value={timeRange} onChange={setTimeRange} />
-      </div>
-
       <div className="grid gap-6 md:grid-cols-2">
         {/* Plays Over Time */}
         <Card>
@@ -73,36 +68,36 @@ export function StatsActivity() {
                 isLoading={plays.isLoading}
                 height={250}
                 period={timeRange.period}
-                isMultiServer={isMultiServer}
-                servers={selectedServers}
+                stackBy="mediaType"
               />
             )}
           </CardContent>
         </Card>
 
-        {/* Concurrent Streams */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base font-medium">
-              {t('activity.concurrentStreams')}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {concurrent.isError ? (
-              <InlineErrorState
-                message={concurrent.error?.message ?? t('common:errors.unexpectedError')}
-                onRetry={() => void concurrent.refetch()}
-              />
-            ) : (
-              <ConcurrentChart
-                data={concurrent.data}
-                isLoading={concurrent.isLoading}
-                height={250}
-                period={timeRange.period}
-              />
-            )}
-          </CardContent>
-        </Card>
+        {!isMember && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base font-medium">
+                {t('activity.concurrentStreams')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {concurrent.isError ? (
+                <InlineErrorState
+                  message={concurrent.error?.message ?? t('common:errors.unexpectedError')}
+                  onRetry={() => void concurrent.refetch()}
+                />
+              ) : (
+                <ConcurrentChart
+                  data={concurrent.data}
+                  isLoading={concurrent.isLoading}
+                  height={250}
+                  period={timeRange.period}
+                />
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Engagement Breakdown */}
         <Card>
@@ -110,7 +105,9 @@ export function StatsActivity() {
             <CardTitle className="text-base font-medium">
               {t('activity.engagementBreakdown')}
             </CardTitle>
-            <CardDescription>{t('activity.howUsersEngage')}</CardDescription>
+            <CardDescription>
+              {isMember ? t('activity.howYouEngage') : t('activity.howUsersEngage')}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {engagement.isError ? (
@@ -128,28 +125,31 @@ export function StatsActivity() {
           </CardContent>
         </Card>
 
-        {/* Plays vs Sessions */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base font-medium">{t('activity.playsVsSessions')}</CardTitle>
-            <CardDescription>{t('activity.playsVsSessionsDesc')}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {engagement.isError ? (
-              <InlineErrorState
-                message={engagement.error?.message ?? t('common:errors.unexpectedError')}
-                onRetry={() => void engagement.refetch()}
-              />
-            ) : (
-              <PlaysVsSessionsChart
-                plays={engagement.data?.summary.totalPlays ?? 0}
-                sessions={engagement.data?.summary.totalAllSessions ?? 0}
-                isLoading={engagement.isLoading}
-                height={200}
-              />
-            )}
-          </CardContent>
-        </Card>
+        {!isMember && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base font-medium">
+                {t('activity.playsVsSessions')}
+              </CardTitle>
+              <CardDescription>{t('activity.playsVsSessionsDesc')}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {engagement.isError ? (
+                <InlineErrorState
+                  message={engagement.error?.message ?? t('common:errors.unexpectedError')}
+                  onRetry={() => void engagement.refetch()}
+                />
+              ) : (
+                <PlaysVsSessionsChart
+                  plays={engagement.data?.summary.totalPlays ?? 0}
+                  sessions={engagement.data?.summary.totalAllSessions ?? 0}
+                  isLoading={engagement.isLoading}
+                  height={200}
+                />
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Day of Week */}
         <Card>

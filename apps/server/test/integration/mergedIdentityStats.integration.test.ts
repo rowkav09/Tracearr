@@ -4,13 +4,14 @@
  * Confirms every leaderboard and user-count surface treats a merged person
  * (one identity, multiple server accounts) as ONE human, not one per account.
  *
- * Run with: pnpm --filter @tracearr/server test:integration -- mergedIdentityStats
+ * Run with: pnpm --filter @tracearr/server test:integration mergedIdentityStats
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
 import Fastify from 'fastify';
 import sensible from '@fastify/sensible';
 import type { Redis } from 'ioredis';
+import type { PersonRow } from '@tracearr/shared';
 import {
   createTestUser,
   createTestServer,
@@ -19,7 +20,7 @@ import {
 } from '@tracearr/test-utils/factories';
 import { createMockRedis } from '@tracearr/test-utils/mocks';
 import { db } from '../../src/db/client.js';
-import { usersRoutes } from '../../src/routes/stats/users.js';
+import { peopleRoutes } from '../../src/routes/stats/people.js';
 import { bandwidthRoutes } from '../../src/routes/stats/bandwidth.js';
 import { contentRoutes } from '../../src/routes/stats/content.js';
 import { engagementRoutes } from '../../src/routes/stats/engagement.js';
@@ -33,6 +34,7 @@ import {
 import { getDashboardStats } from '../../src/services/dashboardStats.js';
 import { initPreparedStatements } from '../../src/db/prepared.js';
 import { sql } from 'drizzle-orm';
+import { permissionGuard } from '../../src/lib/scope.js';
 
 function ownerAuth(userId: string) {
   return { userId, username: 'owner', role: 'owner' as const, serverIds: [] as string[] };
@@ -45,6 +47,11 @@ async function buildApp(plugin: Parameters<typeof Fastify.prototype.register>[0]
   app.decorate('authenticate', async (request: any) => {
     request.user = ownerAuth(request.headers['x-test-user-id'] ?? 'owner');
   });
+  app.decorate('requirePermission', permissionGuard(app));
+  app.decorate('requireOwner', async (request: any, reply: any) => {
+    await app.authenticate(request, reply);
+    if (request.user.role !== 'owner') return reply.forbidden('Owner access required');
+  });
   await app.register(plugin as any);
   return app;
 }
@@ -56,11 +63,23 @@ describe('merged identity stats', () => {
     initPreparedStatements();
   });
 
-  describe('GET /top-users', () => {
+  describe('GET /people ranked by plays', () => {
+    // user_media_plays_daily only holds sessions stamped with a media id
+    const rankedMovie = (serverId: string) =>
+      resolveMediaForItem({
+        mediaType: 'movie',
+        tmdbId: 551,
+        title: 'Ranked Movie',
+        year: 2020,
+        serverId,
+        ratingKey: 'ranked-rk',
+      });
+
     it('returns one entry for a merged person with plays/watch time summed, identity trust, and a representative serverUserId', async () => {
       const admin = await createTestUser({ role: 'owner' });
       const serverA = await createTestServer({ type: 'plex' });
       const serverB = await createTestServer({ type: 'jellyfin' });
+      const mediaId = await rankedMovie(serverA.id);
 
       const target = await createTestUser({ role: 'member', name: 'Merged Person' });
       const source = await createTestUser({ role: 'member' });
@@ -80,12 +99,14 @@ describe('merged identity stats', () => {
       await createTestSession({
         serverId: serverA.id,
         serverUserId: targetSu.id,
+        mediaId,
         durationMs: 600_000,
         totalDurationMs: 7_200_000,
       });
       await createTestSession({
         serverId: serverB.id,
         serverUserId: sourceSu.id,
+        mediaId,
         durationMs: 900_000,
         totalDurationMs: 7_200_000,
       });
@@ -95,46 +116,41 @@ describe('merged identity stats', () => {
       await createTestSession({
         serverId: serverA.id,
         serverUserId: unmergedSu.id,
+        mediaId,
         durationMs: 300_000,
         totalDurationMs: 7_200_000,
       });
 
       await mergeUsers(source.id, target.id, admin.id);
+      await db.execute(
+        sql`CALL refresh_continuous_aggregate('user_media_plays_daily'::regclass, NULL, NULL)`
+      );
 
-      const app = await buildApp(usersRoutes);
-      const response = await app.inject({ method: 'GET', url: '/top-users?period=all' });
+      const app = await buildApp(peopleRoutes);
+      const response = await app.inject({ method: 'GET', url: '/people?period=all&rank=plays' });
       await app.close();
 
       expect(response.statusCode).toBe(200);
       const body = response.json();
-      const rows = body.data as {
-        userId: string;
-        serverUserId: string;
-        playCount: number;
-        watchTimeHours: number;
-        trustScore: number;
-        identityServers?: { id: string; name: string }[];
-      }[];
+      const rows = body.data as PersonRow[];
 
       const mergedRows = rows.filter((r) => r.userId === target.id);
       expect(mergedRows).toHaveLength(1);
-      const mergedRow = mergedRows[0]!;
-      // Watch time summed across both accounts, rounded to 1 decimal by the route:
-      // Math.round((600000 + 900000) / 3600000 * 10) / 10
-      expect(mergedRow.watchTimeHours).toBe(0.4);
-      expect(mergedRow.playCount).toBe(2);
+      const mergedRow = mergedRows[0];
+      expect(mergedRow?.watchMs).toBe(1_500_000);
+      expect(mergedRow?.plays).toBe(2);
       // Representative account chosen by session count tiebreak (source has 30 > target's 10)
-      expect(mergedRow.serverUserId).toBe(sourceSu.id);
+      expect(mergedRow?.serverUserId).toBe(sourceSu.id);
       // Identity aggregate trust is the worst account: min(90, 50) = 50,
       // not the representative account's own score
-      expect(mergedRow.trustScore).toBe(50);
-      expect(mergedRow.identityServers?.map((s) => s.id).sort()).toEqual(
+      expect(mergedRow?.trustScore).toBe(50);
+      expect(mergedRow?.identityServers?.map((s) => s.id).sort()).toEqual(
         [serverA.id, serverB.id].sort()
       );
 
       const unmergedRows = rows.filter((r) => r.userId === unmerged.id);
       expect(unmergedRows).toHaveLength(1);
-      expect(unmergedRows[0]?.playCount).toBe(1);
+      expect(unmergedRows[0]?.plays).toBe(1);
       expect(unmergedRows[0]?.serverUserId).toBe(unmergedSu.id);
     });
 
@@ -142,6 +158,7 @@ describe('merged identity stats', () => {
       const admin = await createTestUser({ role: 'owner' });
       const serverA = await createTestServer({ type: 'plex' });
       const serverB = await createTestServer({ type: 'jellyfin' });
+      const mediaId = await rankedMovie(serverA.id);
 
       const target = await createTestUser({ role: 'member' });
       const source = await createTestUser({ role: 'member' });
@@ -151,34 +168,39 @@ describe('merged identity stats', () => {
       await createTestSession({
         serverId: serverA.id,
         serverUserId: targetSu.id,
+        mediaId,
         durationMs: 600_000,
         totalDurationMs: 7_200_000,
       });
       await createTestSession({
         serverId: serverB.id,
         serverUserId: sourceSu.id,
+        mediaId,
         durationMs: 900_000,
         totalDurationMs: 7_200_000,
       });
 
       await mergeUsers(source.id, target.id, admin.id);
+      await db.execute(
+        sql`CALL refresh_continuous_aggregate('user_media_plays_daily'::regclass, NULL, NULL)`
+      );
 
-      const app = await buildApp(usersRoutes);
+      const app = await buildApp(peopleRoutes);
       const response = await app.inject({
         method: 'GET',
-        url: `/top-users?period=all&serverIds=${serverA.id}`,
+        url: `/people?period=all&rank=plays&serverIds=${serverA.id}`,
       });
       await app.close();
 
       expect(response.statusCode).toBe(200);
       const body = response.json();
-      const rows = body.data as { userId: string; playCount: number; watchTimeHours: number }[];
+      const rows = body.data as PersonRow[];
       const row = rows.find((r) => r.userId === target.id);
 
       expect(row).toBeDefined();
       // Only serverA's session counts - not the 900_000ms serverB session
-      expect(row?.playCount).toBe(1);
-      expect(row?.watchTimeHours).toBe(0.2);
+      expect(row?.plays).toBe(1);
+      expect(row?.watchMs).toBe(600_000);
     });
   });
 
@@ -209,7 +231,11 @@ describe('merged identity stats', () => {
 
       await mergeUsers(source.id, target.id, admin.id);
 
-      const stats = await getDashboardStats({ serverIds: undefined, timezone: 'UTC' });
+      const stats = await getDashboardStats({
+        serverIds: undefined,
+        scope: 'all',
+        timezone: 'UTC',
+      });
       expect(stats.activeUsersToday).toBe(1);
     });
 
@@ -241,6 +267,7 @@ describe('merged identity stats', () => {
 
       const stats = await getDashboardStats({
         serverIds: [serverA.id, serverB.id],
+        scope: 'all',
         timezone: 'UTC',
       });
       expect(stats.activeUsersToday).toBe(1);
@@ -530,7 +557,7 @@ describe('merged identity stats', () => {
       });
 
       await db.execute(
-        sql`CALL refresh_continuous_aggregate('daily_content_engagement'::regclass, NULL, NULL)`
+        sql`CALL refresh_continuous_aggregate('user_media_plays_daily'::regclass, NULL, NULL)`
       );
 
       const app = await buildApp(libraryTopContentRoute);
@@ -595,7 +622,7 @@ describe('merged identity stats', () => {
 
       // The engagement continuous aggregate only reflects data after a refresh.
       await db.execute(
-        sql`CALL refresh_continuous_aggregate('daily_content_engagement'::regclass, NULL, NULL)`
+        sql`CALL refresh_continuous_aggregate('user_media_plays_daily'::regclass, NULL, NULL)`
       );
 
       const app = await buildApp(libraryTopContentRoute);
@@ -613,248 +640,6 @@ describe('merged identity stats', () => {
       expect(merged).toBeDefined();
       expect(merged?.serverIds.sort()).toEqual([serverA.id, serverB.id].sort());
       expect(merged?.uniqueViewers).toBe(1);
-    });
-
-    it('collapses a stamped and an unstamped same-title movie into one row with summed plays and the right viewer count', async () => {
-      const serverA = await createTestServer({ type: 'plex' });
-      const serverB = await createTestServer({ type: 'jellyfin' });
-      const viewerA = await createTestUser({ role: 'member' });
-      const viewerB = await createTestUser({ role: 'member' });
-      const viewerASu = await createTestServerUser({ userId: viewerA.id, serverId: serverA.id });
-      const viewerBSu = await createTestServerUser({ userId: viewerB.id, serverId: serverB.id });
-
-      const title = `Stamp Split Movie ${crypto.randomUUID().slice(0, 8)}`;
-      const mediaId = await resolveMediaForItem({
-        mediaType: 'movie',
-        tmdbId: Math.floor(Math.random() * 1_000_000),
-        title,
-        year: 2020,
-        serverId: serverA.id,
-        ratingKey: 'stamp-split-a',
-      });
-
-      await createTestSession({
-        serverId: serverA.id,
-        serverUserId: viewerASu.id,
-        mediaTitle: title,
-        ratingKey: 'stamp-split-a',
-        year: 2020,
-        mediaId,
-        durationMs: 7_200_000,
-        totalDurationMs: 7_200_000,
-      });
-      await createTestSession({
-        serverId: serverB.id,
-        serverUserId: viewerBSu.id,
-        mediaTitle: title,
-        ratingKey: 'stamp-split-b',
-        year: 2020,
-        mediaId: null,
-        durationMs: 7_200_000,
-        totalDurationMs: 7_200_000,
-      });
-
-      await db.execute(
-        sql`CALL refresh_continuous_aggregate('daily_content_engagement'::regclass, NULL, NULL)`
-      );
-
-      const app = await buildApp(libraryTopContentRoute);
-      const response = await app.inject({
-        method: 'GET',
-        url: `/top-movies?period=all&pageSize=50&serverIds=${serverA.id}&serverIds=${serverB.id}`,
-      });
-      await app.close();
-
-      expect(response.statusCode).toBe(200);
-      const body = response.json();
-      const items = body.items as {
-        title: string;
-        year: number | null;
-        totalPlays: number;
-        uniqueViewers: number;
-        serverIds: string[];
-      }[];
-      const matches = items.filter((i) => i.title === title);
-
-      expect(matches).toHaveLength(1);
-      expect(matches[0]?.serverIds.sort()).toEqual([serverA.id, serverB.id].sort());
-      expect(matches[0]?.totalPlays).toBe(2);
-      expect(matches[0]?.uniqueViewers).toBe(2);
-      expect(body.summary.totalMovies).toBe(1);
-    });
-
-    it('keeps same-title movies from different years as separate rows', async () => {
-      const serverA = await createTestServer({ type: 'plex' });
-      const serverB = await createTestServer({ type: 'jellyfin' });
-      const viewerA = await createTestUser({ role: 'member' });
-      const viewerB = await createTestUser({ role: 'member' });
-      const viewerASu = await createTestServerUser({ userId: viewerA.id, serverId: serverA.id });
-      const viewerBSu = await createTestServerUser({ userId: viewerB.id, serverId: serverB.id });
-
-      const title = `Remake Movie ${crypto.randomUUID().slice(0, 8)}`;
-
-      await createTestSession({
-        serverId: serverA.id,
-        serverUserId: viewerASu.id,
-        mediaTitle: title,
-        ratingKey: 'remake-a',
-        year: 2019,
-        mediaId: null,
-        durationMs: 7_200_000,
-        totalDurationMs: 7_200_000,
-      });
-      await createTestSession({
-        serverId: serverB.id,
-        serverUserId: viewerBSu.id,
-        mediaTitle: title,
-        ratingKey: 'remake-b',
-        year: 2021,
-        mediaId: null,
-        durationMs: 7_200_000,
-        totalDurationMs: 7_200_000,
-      });
-
-      await db.execute(
-        sql`CALL refresh_continuous_aggregate('daily_content_engagement'::regclass, NULL, NULL)`
-      );
-
-      const app = await buildApp(libraryTopContentRoute);
-      const response = await app.inject({
-        method: 'GET',
-        url: `/top-movies?period=all&pageSize=50&serverIds=${serverA.id}&serverIds=${serverB.id}`,
-      });
-      await app.close();
-
-      expect(response.statusCode).toBe(200);
-      const body = response.json();
-      const items = body.items as { title: string; year: number | null }[];
-      const matches = items.filter((i) => i.title === title);
-
-      expect(matches).toHaveLength(2);
-      expect(matches.map((m) => m.year).sort()).toEqual([2019, 2021]);
-      expect(body.summary.totalMovies).toBe(2);
-    });
-
-    it('folds a null-year row into the single matching year bucket for the same title', async () => {
-      const serverA = await createTestServer({ type: 'plex' });
-      const serverB = await createTestServer({ type: 'jellyfin' });
-      const viewerA = await createTestUser({ role: 'member' });
-      const viewerB = await createTestUser({ role: 'member' });
-      const viewerASu = await createTestServerUser({ userId: viewerA.id, serverId: serverA.id });
-      const viewerBSu = await createTestServerUser({ userId: viewerB.id, serverId: serverB.id });
-
-      const title = `Fold Movie ${crypto.randomUUID().slice(0, 8)}`;
-
-      await createTestSession({
-        serverId: serverA.id,
-        serverUserId: viewerASu.id,
-        mediaTitle: title,
-        ratingKey: 'fold-a',
-        year: 2019,
-        mediaId: null,
-        durationMs: 7_200_000,
-        totalDurationMs: 7_200_000,
-      });
-      const nullYearSession = await createTestSession({
-        serverId: serverB.id,
-        serverUserId: viewerBSu.id,
-        mediaTitle: title,
-        ratingKey: 'fold-b',
-        mediaId: null,
-        durationMs: 7_200_000,
-        totalDurationMs: 7_200_000,
-      });
-      // The session factory's `year ?? 2024` default collapses an explicit null
-      // back to 2024, so null it out directly to get a genuine null-year row.
-      await db.execute(sql`UPDATE sessions SET year = NULL WHERE id = ${nullYearSession.id}`);
-
-      await db.execute(
-        sql`CALL refresh_continuous_aggregate('daily_content_engagement'::regclass, NULL, NULL)`
-      );
-
-      const app = await buildApp(libraryTopContentRoute);
-      const response = await app.inject({
-        method: 'GET',
-        url: `/top-movies?period=all&pageSize=50&serverIds=${serverA.id}&serverIds=${serverB.id}`,
-      });
-      await app.close();
-
-      expect(response.statusCode).toBe(200);
-      const body = response.json();
-      const items = body.items as { title: string; year: number | null }[];
-      const matches = items.filter((i) => i.title === title);
-
-      expect(matches).toHaveLength(1);
-      expect(matches[0]?.year).toBe(2019);
-      expect(body.summary.totalMovies).toBe(1);
-    });
-
-    it('keeps a null-year row separate when the title has more than one distinct non-null year', async () => {
-      const serverA = await createTestServer({ type: 'plex' });
-      const serverB = await createTestServer({ type: 'jellyfin' });
-      const serverC = await createTestServer({ type: 'emby' });
-      const viewerA = await createTestUser({ role: 'member' });
-      const viewerB = await createTestUser({ role: 'member' });
-      const viewerC = await createTestUser({ role: 'member' });
-      const viewerASu = await createTestServerUser({ userId: viewerA.id, serverId: serverA.id });
-      const viewerBSu = await createTestServerUser({ userId: viewerB.id, serverId: serverB.id });
-      const viewerCSu = await createTestServerUser({ userId: viewerC.id, serverId: serverC.id });
-
-      const title = `No Fold Movie ${crypto.randomUUID().slice(0, 8)}`;
-
-      await createTestSession({
-        serverId: serverA.id,
-        serverUserId: viewerASu.id,
-        mediaTitle: title,
-        ratingKey: 'nofold-a',
-        year: 2019,
-        mediaId: null,
-        durationMs: 7_200_000,
-        totalDurationMs: 7_200_000,
-      });
-      await createTestSession({
-        serverId: serverB.id,
-        serverUserId: viewerBSu.id,
-        mediaTitle: title,
-        ratingKey: 'nofold-b',
-        year: 2021,
-        mediaId: null,
-        durationMs: 7_200_000,
-        totalDurationMs: 7_200_000,
-      });
-      const nullYearSession = await createTestSession({
-        serverId: serverC.id,
-        serverUserId: viewerCSu.id,
-        mediaTitle: title,
-        ratingKey: 'nofold-c',
-        mediaId: null,
-        durationMs: 7_200_000,
-        totalDurationMs: 7_200_000,
-      });
-      // The session factory's `year ?? 2024` default collapses an explicit null
-      // back to 2024, so null it out directly to get a genuine null-year row.
-      await db.execute(sql`UPDATE sessions SET year = NULL WHERE id = ${nullYearSession.id}`);
-
-      await db.execute(
-        sql`CALL refresh_continuous_aggregate('daily_content_engagement'::regclass, NULL, NULL)`
-      );
-
-      const app = await buildApp(libraryTopContentRoute);
-      const response = await app.inject({
-        method: 'GET',
-        url: `/top-movies?period=all&pageSize=50&serverIds=${serverA.id}&serverIds=${serverB.id}&serverIds=${serverC.id}`,
-      });
-      await app.close();
-
-      expect(response.statusCode).toBe(200);
-      const body = response.json();
-      const items = body.items as { title: string; year: number | null }[];
-      const matches = items.filter((i) => i.title === title);
-
-      expect(matches).toHaveLength(3);
-      const years = matches.map((m) => m.year).sort((a, b) => (a ?? -1) - (b ?? -1));
-      expect(years).toEqual([null, 2019, 2021]);
-      expect(body.summary.totalMovies).toBe(3);
     });
   });
 

@@ -16,15 +16,29 @@ import {
   violationsCountSince,
   uniqueUsersSince,
 } from '../db/prepared.js';
-import { buildMultiServerCondition, buildMultiServerFragment } from '../utils/serverFiltering.js';
+import { buildMultiServerCondition } from '../utils/serverFiltering.js';
 import { VIOLATION_ALIAS_SQL } from './automations/aliasFilter.js';
 import { getCacheService } from './cache.js';
 import { getStartOfDayInTimezone, getStartOfNextDayInTimezone } from '../routes/stats/utils.js';
-import { PRIMARY_MEDIA_TYPES, MEDIA_TYPE_SQL_FILTER } from '../constants/index.js';
+import {
+  memberCacheSegment,
+  scopeSessions,
+  scopedServerFragment,
+  seesServerActivity,
+  type Scope,
+} from '../lib/scope.js';
+import {
+  countedSessionSql,
+  PLAYS_MEDIA_TYPES,
+  PLAYS_MEDIA_TYPE_SQL_FILTER,
+  WATCH_AND_LISTEN_MS,
+} from '../constants/index.js';
 
 export interface GetDashboardStatsOptions {
   /** Server IDs to filter by. undefined = all servers */
   serverIds?: string[];
+  /** Row scope; a member gets their own counts and othersActive in place of activeUsersToday */
+  scope: Scope;
   /** IANA timezone for "today" calculation */
   timezone: string;
   /** Redis client for caching (optional) */
@@ -32,7 +46,11 @@ export interface GetDashboardStatsOptions {
 }
 
 const CACHE_TTL_SECONDS = 60;
-const MIN_PLAY_DURATION_MS = 120000;
+
+/** Milliseconds as hours to one decimal place */
+function toHours(ms: number | string | undefined): number {
+  return Math.round((Number(ms ?? 0) / TIME_MS.HOUR) * 10) / 10;
+}
 
 /**
  * Get dashboard statistics with optional caching.
@@ -40,18 +58,25 @@ const MIN_PLAY_DURATION_MS = 120000;
 export async function getDashboardStats(
   options: GetDashboardStatsOptions
 ): Promise<DashboardStats> {
-  const { serverIds, timezone, redis } = options;
+  const { serverIds, scope, timezone, redis } = options;
+  const showOthers = await seesServerActivity(scope);
+  const withActivity = (stats: DashboardStats): DashboardStats => {
+    if (showOthers) return stats;
+    const hidden = { ...stats };
+    delete hidden.othersActive;
+    return hidden;
+  };
 
   // Build cache key
-  const cacheKeySegment = serverIds === undefined ? 'all' : serverIds.sort().join(',');
-  const cacheKey = `${REDIS_KEYS.DASHBOARD_STATS}:${cacheKeySegment}:${timezone}`;
+  const serverSegment = serverIds === undefined ? 'all' : serverIds.sort().join(',');
+  const cacheKey = `${REDIS_KEYS.DASHBOARD_STATS}:${serverSegment}${memberCacheSegment(scope)}:${timezone}`;
 
   // Try cache first
   if (redis) {
     const cached = await redis.get(cacheKey);
     if (cached) {
       try {
-        return JSON.parse(cached) as DashboardStats;
+        return withActivity(JSON.parse(cached) as DashboardStats);
       } catch {
         // Fall through to compute
       }
@@ -59,22 +84,24 @@ export async function getDashboardStats(
   }
 
   // Compute stats
-  const stats = await computeDashboardStats(serverIds, timezone);
+  const stats = await computeDashboardStats(serverIds, scope, timezone);
 
   // Cache result
   if (redis) {
     await redis.setex(cacheKey, CACHE_TTL_SECONDS, JSON.stringify(stats));
   }
 
-  return stats;
+  return withActivity(stats);
 }
 
 async function computeDashboardStats(
   serverIds: string[] | undefined,
+  scope: Scope,
   timezone: string
 ): Promise<DashboardStats> {
   // Get active streams
   let activeStreams = 0;
+  let othersActive = 0;
   const cacheService = getCacheService();
   if (cacheService) {
     try {
@@ -84,6 +111,11 @@ async function computeDashboardStats(
         activeSessions = activeSessions.filter((s) => idSet.has(s.serverId));
       }
       activeStreams = activeSessions.length;
+      if (scope !== 'all') {
+        const own = new Set(scope.serverUserIds);
+        activeStreams = activeSessions.filter((s) => own.has(s.serverUserId)).length;
+        othersActive = activeSessions.length - activeStreams;
+      }
     } catch {
       // Ignore cache errors
     }
@@ -96,10 +128,11 @@ async function computeDashboardStats(
   let todayPlays: number;
   let todaySessions: number;
   let watchTimeHours: number;
+  let listenTimeHours: number;
   let alertsLast24h: number;
   let activeUsersToday: number;
 
-  if (serverIds === undefined) {
+  if (serverIds === undefined && scope === 'all') {
     // No server filter - use prepared statements for performance
     const [
       todayPlaysResult,
@@ -116,15 +149,15 @@ async function computeDashboardStats(
         SELECT COUNT(DISTINCT COALESCE(reference_id, id))::int as count
         FROM sessions
         WHERE started_at >= ${todayStart} AND started_at < ${todayEnd}
-          AND duration_ms >= ${MIN_PLAY_DURATION_MS}
-          ${MEDIA_TYPE_SQL_FILTER}
+          AND ${countedSessionSql()}
+          ${PLAYS_MEDIA_TYPE_SQL_FILTER}
       `),
     ]);
 
     todaySessions = todayPlaysResult[0]?.count ?? 0;
     todayPlays = (validatedPlaysResult.rows[0] as { count: number })?.count ?? 0;
-    watchTimeHours =
-      Math.round((Number(watchTimeResult[0]?.totalMs ?? 0) / (1000 * 60 * 60)) * 10) / 10;
+    watchTimeHours = toHours(watchTimeResult[0]?.totalMs);
+    listenTimeHours = toHours(watchTimeResult[0]?.listenMs);
     alertsLast24h = alertsResult[0]?.count ?? 0;
     activeUsersToday = activeUsersResult[0]?.count ?? 0;
   } else {
@@ -132,19 +165,28 @@ async function computeDashboardStats(
     const buildSessionConditions = (since: Date) => {
       const conditions = [
         gte(sessions.startedAt, since),
-        inArray(sessions.mediaType, PRIMARY_MEDIA_TYPES),
+        inArray(sessions.mediaType, PLAYS_MEDIA_TYPES),
       ];
 
       const serverCondition = buildMultiServerCondition(serverIds, sessions.serverId);
       if (serverCondition) {
         conditions.push(serverCondition);
       }
+      const scopeCondition = scopeSessions(scope);
+      if (scopeCondition) {
+        conditions.push(scopeCondition);
+      }
 
       return conditions;
     };
 
-    const violationServerFilter = buildMultiServerFragment(serverIds, 'su.server_id');
-    const sessionServerFilter = buildMultiServerFragment(serverIds);
+    const violationServerFilter = scopedServerFragment(
+      serverIds,
+      scope,
+      'su.server_id',
+      sql`v.server_user_id`
+    );
+    const sessionServerFilter = scopedServerFragment(serverIds, scope);
 
     const [
       todaySessionsResult,
@@ -161,9 +203,7 @@ async function computeDashboardStats(
         .where(and(...buildSessionConditions(todayStart))),
 
       db
-        .select({
-          totalMs: sql<number>`COALESCE(SUM(duration_ms), 0)::bigint`,
-        })
+        .select(WATCH_AND_LISTEN_MS)
         .from(sessions)
         .where(and(...buildSessionConditions(todayStart))),
 
@@ -195,26 +235,20 @@ async function computeDashboardStats(
         SELECT COUNT(DISTINCT COALESCE(reference_id, id))::int as count
         FROM sessions
         WHERE started_at >= ${todayStart} AND started_at < ${todayEnd}
-          AND duration_ms >= ${MIN_PLAY_DURATION_MS}
-          ${MEDIA_TYPE_SQL_FILTER}
+          AND ${countedSessionSql()}
+          ${PLAYS_MEDIA_TYPE_SQL_FILTER}
         ${sessionServerFilter}
       `),
     ]);
 
     todaySessions = todaySessionsResult[0]?.count ?? 0;
     todayPlays = (validatedPlaysResult.rows[0] as { count: number })?.count ?? 0;
-    watchTimeHours =
-      Math.round((Number(watchTimeResult[0]?.totalMs ?? 0) / (1000 * 60 * 60)) * 10) / 10;
+    watchTimeHours = toHours(watchTimeResult[0]?.totalMs);
+    listenTimeHours = toHours(watchTimeResult[0]?.listenMs);
     alertsLast24h = alertsResult[0]?.count ?? 0;
     activeUsersToday = activeUsersResult[0]?.count ?? 0;
   }
 
-  return {
-    activeStreams,
-    todayPlays,
-    todaySessions,
-    watchTimeHours,
-    alertsLast24h,
-    activeUsersToday,
-  };
+  const base = { activeStreams, todayPlays, todaySessions, watchTimeHours, listenTimeHours };
+  return scope === 'all' ? { ...base, alertsLast24h, activeUsersToday } : { ...base, othersActive };
 }

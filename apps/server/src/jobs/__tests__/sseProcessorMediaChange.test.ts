@@ -103,6 +103,7 @@ vi.mock('../../services/geoip.js', () => ({
 
 vi.mock('../poller/index.js', () => ({
   triggerReconciliationPoll: vi.fn(),
+  isPollerRunning: () => true,
 }));
 
 vi.mock('../poller/sessionMapper.js', () => ({
@@ -538,7 +539,7 @@ describe('SSE Processor - Media Change Detection', () => {
 
     expect(mockBroadcastViolations).toHaveBeenCalledWith(
       mockViolations,
-      'session-new',
+      expect.objectContaining({ id: 'session-new' }),
       mockPubSubService
     );
   });
