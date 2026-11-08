@@ -58,6 +58,12 @@ import {
 import { db } from '../../db/client.js';
 import { resolutionBucketPredicate, resolutionRankSql } from '../../utils/resolutionBuckets.js';
 import { resolveServerIds, buildMultiServerFragment } from '../../utils/serverFiltering.js';
+import {
+  libraryCacheSegment,
+  libraryFragment,
+  seesServerActivity,
+  type Scope,
+} from '../../lib/scope.js';
 import { uuidArraySql } from '../../utils/sqlArrays.js';
 import { normalizeTitle } from '../../services/library/mediaMatchKey.js';
 import {
@@ -119,6 +125,29 @@ const catalogCodecsQuerySchema = catalogQuerySchema.pick({
 
 export type CatalogSort = CatalogQueryInput['sort'];
 
+const POPULARITY_SORTS = new Set<CatalogSort>(['plays', 'watch_time', 'viewers']);
+
+/**
+ * A member browses through their own lens, since 'all' would list what anyone watched, and
+ * without popularity order or counts unless the owner shows members server activity. Another
+ * person's lens answers null, which the routes turn into a 404.
+ */
+async function viewerBrowse(
+  scope: Scope,
+  lens: string,
+  sort: CatalogSort
+): Promise<{ lensUserId: string | null; sort: CatalogSort; showActivity: boolean } | null> {
+  if (scope === 'all')
+    return { lensUserId: lens === 'all' ? null : lens, sort, showActivity: true };
+  if (lens !== 'all' && lens !== scope.userId) return null;
+  const showActivity = await seesServerActivity(scope);
+  return {
+    lensUserId: scope.userId,
+    sort: !showActivity && POPULARITY_SORTS.has(sort) ? 'title' : sort,
+    showActivity,
+  };
+}
+
 /** Splits the `${serverId}:${libraryId}` composite key back into its parts;
  * libraryKeySchema already validated the shape at the request boundary. */
 export function parseLibraryKey(
@@ -148,6 +177,7 @@ export interface CatalogPageQueryParams {
   audioCodecs?: RawCodec[] | null;
   audioChannels?: RawCodec[] | null;
   serverIds: string[] | undefined;
+  scope: Scope;
   pageSize: number;
   preferredPosterServerId?: string | null;
 }
@@ -170,6 +200,7 @@ export interface CatalogTotalsQueryParams {
   audioCodecs?: RawCodec[] | null;
   audioChannels?: RawCodec[] | null;
   serverIds: string[] | undefined;
+  scope: Scope;
 }
 
 interface RawCatalogRow {
@@ -559,9 +590,9 @@ function withRowDecorations(pageCte: SQL, serverFragmentLi: SQL, posterOrderFrag
  * it's the only mode that can serve a letter jump into an arbitrary depth.
  */
 export function buildCatalogPageQuery(params: CatalogPageQueryParams): SQL {
-  const { type, sort, offset, serverIds, pageSize, preferredPosterServerId } = params;
+  const { type, sort, offset, serverIds, scope, pageSize, preferredPosterServerId } = params;
   const posterOrderFragment = buildPosterOrderFragment(preferredPosterServerId);
-  const serverFragmentLi = buildMultiServerFragment(serverIds, 'li.server_id');
+  const serverFragmentLi = libraryFragment(serverIds, scope, 'li');
   const commonWhere = buildCommonWhere({ ...params, serverFragmentLi });
   const { body, needsRollup } = buildSortedBody({
     type,
@@ -586,12 +617,12 @@ export function buildCatalogPageQuery(params: CatalogPageQueryParams): SQL {
  * runs per matching row); callers cache the result, never run it per page.
  */
 export function buildCatalogTotalsQuery(params: CatalogTotalsQueryParams): SQL {
-  const { type, sort, serverIds } = params;
-  const serverFragmentLi = buildMultiServerFragment(serverIds, 'li.server_id');
+  const { type, sort, serverIds, scope } = params;
+  const serverFragmentLi = libraryFragment(serverIds, scope, 'li');
   // The file-size subquery aliases library_items as li2, not li - it needs its
   // own fragment, or a server-scoped request 500s on a missing FROM-clause
   // entry for li.server_id.
-  const serverFragmentLi2 = buildMultiServerFragment(serverIds, 'li2.server_id');
+  const serverFragmentLi2 = libraryFragment(serverIds, scope, 'li2');
   const commonWhere = buildCommonWhere({ ...params, serverFragmentLi });
   const sortGuard =
     sort === 'added'
@@ -700,6 +731,8 @@ export interface CatalogFilterParams {
   audioCodecs?: RawCodec[] | null;
   audioChannels?: RawCodec[] | null;
   serverIds: string[] | undefined;
+  /** Narrows a member's titles to the libraries their accounts can open */
+  scope: Scope;
 }
 
 /** Cache-key segment for every filter predicate, shared by the totals,
@@ -723,13 +756,14 @@ function filterKeyParts(params: CatalogFilterParams): (string | number)[] {
     params.videoCodecs ? `v:${params.videoCodecs.join(',')}` : '',
     params.audioCodecs ? `a:${params.audioCodecs.join(',')}` : '',
     params.audioChannels ? `c:${params.audioChannels.join(',')}` : '',
+    libraryCacheSegment(params.scope),
   ];
 }
 
 /** Per-letter counts straight from SQL, for the no-watched-filter path. */
 export function buildLetterCountsQuery(params: CatalogFilterParams): SQL {
-  const { type, serverIds } = params;
-  const serverFragmentLi = buildMultiServerFragment(serverIds, 'li.server_id');
+  const { type, serverIds, scope } = params;
+  const serverFragmentLi = libraryFragment(serverIds, scope, 'li');
   const commonWhere = buildCommonWhere({ ...params, serverFragmentLi });
   return sql`
     SELECT ${buildLetterBucketCase()} AS letter, COUNT(*)::int AS count
@@ -750,8 +784,8 @@ export function buildLetterCountsQuery(params: CatalogFilterParams): SQL {
 export function buildCatalogCandidatesQuery(
   params: CatalogFilterParams & { sort: CatalogSort }
 ): SQL {
-  const { type, sort, serverIds } = params;
-  const serverFragmentLi = buildMultiServerFragment(serverIds, 'li.server_id');
+  const { type, sort, serverIds, scope } = params;
+  const serverFragmentLi = libraryFragment(serverIds, scope, 'li');
   const commonWhere = buildCommonWhere({ ...params, serverFragmentLi });
   const { body, needsRollup } = buildSortedBody({
     type,
@@ -837,10 +871,11 @@ async function resolveWatchedStatesChunked(
  * renditions add up, shows roll up their episodes. */
 async function fetchTotalFileSizeForIds(
   ids: string[],
-  serverIds: string[] | undefined
+  serverIds: string[] | undefined,
+  scope: Scope
 ): Promise<number> {
   if (ids.length === 0) return 0;
-  const serverFragmentLi2 = buildMultiServerFragment(serverIds, 'li2.server_id');
+  const serverFragmentLi2 = libraryFragment(serverIds, scope, 'li2');
   let total = 0;
   // Chunked so the ARRAY literal stays bounded no matter the catalog size; a
   // media id appears in exactly one chunk (and a show's episodes key on that
@@ -881,12 +916,13 @@ interface WatchedCandidatesArgs extends CatalogFilterParams {
   watched: WatchedState;
 }
 
+// A lens is one person's plays, so its entries carry the member segment and go when clearScope
+// clears that person after a merge or split.
 function watchedCandidatesCacheKey(args: WatchedCandidatesArgs): string {
   const serverKey = args.serverIds !== undefined ? [...args.serverIds].sort().join(',') : 'all';
-  const filterKey = [args.sort, ...filterKeyParts(args), args.watched, args.lensUserId ?? ''].join(
-    '|'
-  );
-  return buildLibraryCacheKey(REDIS_KEYS.LIBRARY_CATALOG_WATCHED, serverKey, filterKey);
+  const filterKey = [args.sort, ...filterKeyParts(args), args.watched].join('|');
+  const lensKey = args.lensUserId ? `:member:${args.lensUserId}` : '';
+  return `${buildLibraryCacheKey(REDIS_KEYS.LIBRARY_CATALOG_WATCHED, serverKey, filterKey)}${lensKey}`;
 }
 
 /** Runs the candidates query and the watched probe rounds, uncached - the
@@ -906,7 +942,7 @@ async function computeWatchedCandidates(args: WatchedCandidatesArgs): Promise<Wa
   return {
     ids,
     letters: surviving.map((row) => row.letter),
-    totalFileSize: await fetchTotalFileSizeForIds(ids, args.serverIds),
+    totalFileSize: await fetchTotalFileSizeForIds(ids, args.serverIds, args.scope),
   };
 }
 
@@ -956,10 +992,11 @@ async function getWatchedCandidates(
 async function fetchRowsByIds(
   ids: string[],
   serverIds: string[] | undefined,
+  scope: Scope,
   preferredPosterServerId: string | null | undefined
 ): Promise<RawCatalogRow[]> {
   if (ids.length === 0) return [];
-  const serverFragmentLi = buildMultiServerFragment(serverIds, 'li.server_id');
+  const serverFragmentLi = libraryFragment(serverIds, scope, 'li');
   const posterOrderFragment = buildPosterOrderFragment(preferredPosterServerId);
   const pageCte = sql`WITH page AS (
     SELECT m.id, m.media_type, m.title, m.year, m.genres, m.sort_title, m.latest_added_at
@@ -1028,7 +1065,8 @@ function toCatalogRow(
  * normalized, codec display names expanded to their raw stored values. */
 async function toFilterParams(
   data: z.infer<typeof catalogLettersQuerySchema>,
-  serverIds: string[] | undefined
+  serverIds: string[] | undefined,
+  scope: Scope
 ): Promise<CatalogFilterParams> {
   const library = parseLibraryKey(data.libraryKey);
   const [videoCodecs, audioCodecs, audioChannels] = await Promise.all([
@@ -1055,6 +1093,7 @@ async function toFilterParams(
     audioCodecs,
     audioChannels,
     serverIds,
+    scope,
   };
 }
 
@@ -1064,13 +1103,22 @@ export const libraryCatalogRoute: FastifyPluginAsync = async (app) => {
    */
   app.get<{ Querystring: Record<string, unknown> }>(
     '/catalog',
-    { preHandler: [app.authenticate] },
+    { preHandler: [app.requirePermission('media', 'read')] },
     async (request, reply) => {
       const query = catalogQuerySchema.safeParse(request.query);
       if (!query.success) {
         return reply.badRequest('Invalid query parameters');
       }
-      const { type, serverId, serverIds, watched, lens, sort, offset, pageSize } = query.data;
+      const {
+        type,
+        serverId,
+        serverIds,
+        watched,
+        lens,
+        sort: requestedSort,
+        offset,
+        pageSize,
+      } = query.data;
       const authUser = request.user;
 
       // Guard 1: server scope, fail-closed (throws ForbiddenError on an
@@ -1079,7 +1127,9 @@ export const libraryCatalogRoute: FastifyPluginAsync = async (app) => {
       const resolvedIds = resolveServerIds(authUser, serverId, serverIds);
 
       // Guard 2: lens identity must have at least one account within scope.
-      const lensUserId = lens === 'all' ? null : lens;
+      const browse = await viewerBrowse(request.scope, lens, requestedSort);
+      if (!browse) return reply.notFound();
+      const { lensUserId, sort } = browse;
       if (lensUserId !== null) {
         const serverFragment = buildMultiServerFragment(resolvedIds, 'server_id');
         const hasAccess =
@@ -1098,7 +1148,7 @@ export const libraryCatalogRoute: FastifyPluginAsync = async (app) => {
       }
 
       const preferredPosterServerId = await getSetting('preferredPosterServerId');
-      const filterParams = await toFilterParams(query.data, resolvedIds);
+      const filterParams = await toFilterParams(query.data, resolvedIds, request.scope);
 
       let rows: RawCatalogRow[];
       let watchedStates: Map<string, WatchedState>;
@@ -1122,7 +1172,7 @@ export const libraryCatalogRoute: FastifyPluginAsync = async (app) => {
         totalFileSize = candidates.totalFileSize;
         const windowIds = candidates.ids.slice(offset, offset + pageSize);
         const [windowRows, selfEpisodeCounts] = await Promise.all([
-          fetchRowsByIds(windowIds, resolvedIds, preferredPosterServerId),
+          fetchRowsByIds(windowIds, resolvedIds, request.scope, preferredPosterServerId),
           type === 'show'
             ? fetchEpisodeCounts(windowIds, resolvedIds)
             : Promise.resolve(new Map<string, number>()),
@@ -1190,9 +1240,9 @@ export const libraryCatalogRoute: FastifyPluginAsync = async (app) => {
         }
       }
 
-      const needsEngagementLookup = sort !== 'plays' && sort !== 'watch_time' && sort !== 'viewers';
+      const needsEngagementLookup = !POPULARITY_SORTS.has(sort);
       const engagement =
-        needsEngagementLookup || watched
+        browse.showActivity && (needsEngagementLookup || watched)
           ? await fetchPageEngagement(
               rows.map((row) => row.id),
               type,
@@ -1201,9 +1251,11 @@ export const libraryCatalogRoute: FastifyPluginAsync = async (app) => {
           : null;
 
       const data: CatalogRow[] = rows.map((row) => {
-        const rowEngagement = engagement
-          ? (engagement.get(row.id) ?? { plays: 0, viewers: 0 })
-          : { plays: Number(row.plays_value ?? 0), viewers: Number(row.viewers_value ?? 0) };
+        const rowEngagement = !browse.showActivity
+          ? { plays: 0, viewers: 0 }
+          : engagement
+            ? (engagement.get(row.id) ?? { plays: 0, viewers: 0 })
+            : { plays: Number(row.plays_value ?? 0), viewers: Number(row.viewers_value ?? 0) };
         return toCatalogRow(
           row,
           watchedStates.get(row.id) ?? 'unwatched',
@@ -1232,19 +1284,21 @@ export const libraryCatalogRoute: FastifyPluginAsync = async (app) => {
    */
   app.get<{ Querystring: Record<string, unknown> }>(
     '/catalog/letters',
-    { preHandler: [app.authenticate] },
+    { preHandler: [app.requirePermission('media', 'read')] },
     async (request, reply) => {
       const query = catalogLettersQuerySchema.safeParse(request.query);
       if (!query.success) {
         return reply.badRequest('Invalid query parameters');
       }
-      const { serverId, serverIds, watched, lens, sort } = query.data;
+      const { serverId, serverIds, watched, lens, sort: requestedSort } = query.data;
       const authUser = request.user;
 
       // Same server-scope and lens-access guards as GET /catalog.
       const resolvedIds = resolveServerIds(authUser, serverId, serverIds);
 
-      const lensUserId = lens === 'all' ? null : lens;
+      const browse = await viewerBrowse(request.scope, lens, requestedSort);
+      if (!browse) return reply.notFound();
+      const { lensUserId, sort } = browse;
       if (lensUserId !== null) {
         const serverFragment = buildMultiServerFragment(resolvedIds, 'server_id');
         const hasAccess =
@@ -1272,7 +1326,7 @@ export const libraryCatalogRoute: FastifyPluginAsync = async (app) => {
         return response;
       }
 
-      const filterParams = await toFilterParams(query.data, resolvedIds);
+      const filterParams = await toFilterParams(query.data, resolvedIds, request.scope);
 
       if (watched) {
         // Shares the exact cached candidate list the catalog windows slice,
@@ -1327,7 +1381,7 @@ export const libraryCatalogRoute: FastifyPluginAsync = async (app) => {
    */
   app.get<{ Querystring: Record<string, unknown> }>(
     '/catalog/codecs',
-    { preHandler: [app.authenticate] },
+    { preHandler: [app.requirePermission('media', 'read')] },
     async (request, reply) => {
       const query = catalogCodecsQuerySchema.safeParse(request.query);
       if (!query.success) {
@@ -1335,7 +1389,11 @@ export const libraryCatalogRoute: FastifyPluginAsync = async (app) => {
       }
       const { type, serverId, serverIds } = query.data;
       const resolvedIds = resolveServerIds(request.user, serverId, serverIds);
-      const response: CatalogCodecOptionsResponse = await fetchCodecOptions(type, resolvedIds);
+      const response: CatalogCodecOptionsResponse = await fetchCodecOptions(
+        type,
+        resolvedIds,
+        request.scope
+      );
       return response;
     }
   );

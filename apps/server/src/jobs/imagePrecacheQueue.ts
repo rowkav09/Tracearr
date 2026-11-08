@@ -28,6 +28,7 @@ import {
   writeDiskLimited,
   clearDiskLimited,
   readDiskLimited,
+  isOnMountedVolume,
 } from '../services/imageCacheGuard.js';
 import { sweepImageCache } from '../services/imageCacheSweep.js';
 import { isLiveServer, liveServers } from '../services/liveServers.js';
@@ -68,12 +69,24 @@ const QUEUE_NAME = 'image-precache';
 const BATCH_SIZE = 50;
 const SYNC_ACTIVE_RETRY_DELAY_MS = 60 * 1000;
 
+// Jellyfin/Emby paths carry ?tag= only when the item had a Primary image at sync
+// time. Untagged ones 404 (Emby often 500s), and as the only uncached rows on a
+// later pass they look like a dead server and stall it in backoff. Browsing
+// still requests them, so an image that lands after the sync gets cached there.
+const HAS_KNOWN_IMAGE = sql`(${libraryItems.thumbPath} NOT LIKE '/Items/%' OR ${libraryItems.thumbPath} LIKE '%?tag=%')`;
+
 // Per-server, in-process on purpose: a restart means the operator changed
 // something, so probe at full rate again rather than inherit a stale pause.
 // Two counters, because the delay has to keep growing across a pause that
 // resets the failure count so the next attempt can actually warm.
 const failingBatches = new Map<string, number>();
 const backoffRounds = new Map<string, number>();
+
+// An image the server answered for but couldn't serve (Emby 500s for an item id it no longer
+// has) is skipped until this passes, keyed `${serverId} ${thumbPath}`. Without it the dead
+// items are the only uncached rows on the next pass, and they read as a dead server.
+const DEAD_ITEM_RETRY_MS = 24 * 60 * 60 * 1000;
+const deadItems = new Map<string, number>();
 
 const PERSISTENCE_SAMPLE = 20;
 /** Below this share of a sample present on disk, a full pass this process
@@ -86,7 +99,8 @@ const PERSISTENCE_MIN_PRESENT = 0.2;
  * the directory this process uses counts: a stamp from another path (the
  * default moved in an upgrade, or the operator changed IMAGE_CACHE_DIR) sits
  * beside a legitimately empty cache, and so does one from before the path was
- * recorded at all.
+ * recorded at all. A directory that is a mount is skipped: empty there means
+ * the volume was attached after the pass or the writes are failing.
  */
 async function checkPersistence(
   serverId: string,
@@ -98,6 +112,7 @@ async function checkPersistence(
     redis.get(REDIS_KEYS.LIBRARY_PRECACHE_LAST_FULL_DIR(serverId)),
   ]);
   if (!lastFull || stampedDir !== IMAGE_CACHE_DIR) return;
+  if (await isOnMountedVolume(IMAGE_CACHE_DIR)) return;
 
   const sample = batch.slice(0, PERSISTENCE_SAMPLE);
   if (sample.length === 0) return;
@@ -119,6 +134,7 @@ async function checkPersistence(
 export function _resetWarmBackoffForTests(): void {
   failingBatches.clear();
   backoffRounds.clear();
+  deadItems.clear();
 }
 
 /** Fails toward the floor: without a session view we slow down, never speed up. */
@@ -353,6 +369,7 @@ async function countEligibleItems(
         eq(libraryItems.serverId, serverId),
         isNull(libraryItems.removedAt),
         isNotNull(libraryItems.thumbPath),
+        HAS_KNOWN_IMAGE,
         sinceUpdatedAt ? gte(libraryItems.updatedAt, new Date(sinceUpdatedAt)) : undefined
       )
     );
@@ -365,7 +382,7 @@ interface PrecacheBatchRow {
 }
 
 /**
- * Raw candidate rows for a server, active and with a thumb path, cursor-paged
+ * Raw candidate rows for a server, active and with a known image, cursor-paged
  * by id. Does NOT filter by dominant_color or grid-cache existence - a row
  * with dominant_color already set can still be missing its 240/360 grid
  * entries (dominant_color is written by the first proxyImage call at ANY
@@ -386,6 +403,7 @@ async function fetchBatch(
         eq(libraryItems.serverId, serverId),
         isNull(libraryItems.removedAt),
         isNotNull(libraryItems.thumbPath),
+        HAS_KNOWN_IMAGE,
         cursor ? gt(libraryItems.id, cursor) : undefined,
         sinceUpdatedAt ? gte(libraryItems.updatedAt, new Date(sinceUpdatedAt)) : undefined
       )
@@ -399,8 +417,11 @@ async function fetchBatch(
 /** One proxyImage call for one item, at the poster's one cache size. Each
  *  task is a single fetch-semaphore acquisition at most, so bounding
  *  concurrent tasks to MAX_CONCURRENT_WARMS bounds concurrent semaphore
- *  slots the same way. */
-async function runWarmTask(serverId: string, thumbPath: string): Promise<void> {
+ *  slots the same way. Returns why the warm failed, or null. */
+async function runWarmTask(
+  serverId: string,
+  thumbPath: string
+): Promise<{ reason: string; itemFault: boolean } | null> {
   const result = await proxyImage({
     serverId,
     imagePath: thumbPath,
@@ -411,9 +432,8 @@ async function runWarmTask(serverId: string, thumbPath: string): Promise<void> {
   // proxyImage answers a failed fetch with a placeholder rather than rejecting,
   // because live requests share the same in-flight promise. Without this the
   // pass cannot tell a dead transcoder from a warm cache and never backs off.
-  if (result.degraded) {
-    throw new Error(`upstream returned no image for ${thumbPath}`);
-  }
+  if (!result.degraded) return null;
+  return result.failure ?? { reason: 'no image', itemFault: false };
 }
 
 /**
@@ -476,10 +496,14 @@ export async function processImagePrecacheJob(
     await checkPersistence(serverId, batch);
   }
 
+  const now = Date.now();
   const missing = (
     await Promise.all(
       batch.map(async (item) =>
-        (await posterCacheEntryExists(serverId, item.thumbPath)) ? null : item
+        (deadItems.get(`${serverId} ${item.thumbPath}`) ?? 0) > now ||
+        (await posterCacheEntryExists(serverId, item.thumbPath))
+          ? null
+          : item
       )
     )
   ).filter((item): item is PrecacheBatchRow => item !== null);
@@ -506,8 +530,18 @@ export async function processImagePrecacheJob(
       const item = missing[nextIndex++]!;
       // Fail-open: a single warm failing must not fail the batch or the job.
       try {
-        await runWarmTask(serverId, item.thumbPath);
-        warmSuccesses++;
+        const failure = await runWarmTask(serverId, item.thumbPath);
+        if (!failure) {
+          warmSuccesses++;
+        } else if (failure.itemFault) {
+          deadItems.set(`${serverId} ${item.thumbPath}`, Date.now() + DEAD_ITEM_RETRY_MS);
+          console.warn(
+            `[ImagePrecache] ${item.thumbPath} failed (${failure.reason}), skipping it for 24h`
+          );
+        } else {
+          warmFailures++;
+          console.warn(`[ImagePrecache] ${item.thumbPath} failed (${failure.reason})`);
+        }
       } catch (err) {
         warmFailures++;
         console.error(`[ImagePrecache] Failed to warm item ${item.id}:`, err);
