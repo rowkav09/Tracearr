@@ -60,6 +60,7 @@ function countsFor(results: SeerrRequest[]): SeerrCounts {
 
 function fixtureClient(results: SeerrRequest[]): SeerrClientLike {
   return {
+    status: () => Promise.resolve({ version: '3.5.0' }),
     requestCount: () => Promise.resolve(countsFor(results)),
     requestsPage: () => Promise.resolve({ pageInfo: { pages: 1 }, results }),
     movie: () => Promise.resolve({ title: 'Fixture', year: 2020 }),
@@ -219,7 +220,11 @@ describe('Seerr request sync', () => {
     const scope = await buildMediaScope(canonical);
     if (!scope) throw new Error('movie media row has no scope');
 
-    const entries = await listMediaRequests({ scope, serverIds: [seeded.serverId] });
+    const entries = await listMediaRequests({
+      scope,
+      serverIds: [seeded.serverId],
+      rowScope: 'all',
+    });
 
     expect(entries).toHaveLength(1);
     expect(entries[0]?.requester.serverUserId).toBe(accountId);

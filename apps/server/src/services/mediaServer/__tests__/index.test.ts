@@ -140,7 +140,9 @@ describe('supportsWatchHistory', () => {
 // ============================================================================
 
 describe('IMediaServerClient Interface Compliance', () => {
-  const createTestClient = (type: 'plex' | 'jellyfin' | 'emby' | 'navidrome'): IMediaServerClient => {
+  const createTestClient = (
+    type: 'plex' | 'jellyfin' | 'emby' | 'navidrome'
+  ): IMediaServerClient => {
     const urls = {
       plex: 'http://plex.local:32400',
       jellyfin: 'http://jellyfin.local:8096',
@@ -300,8 +302,8 @@ describe('JellyfinClient Static Methods', () => {
 });
 
 describe('EmbyClient Static Methods', () => {
-  it('should have authenticate static method', () => {
-    expect(typeof EmbyClient.authenticate).toBe('function');
+  it('should have authenticateByName static method', () => {
+    expect(typeof EmbyClient.authenticateByName).toBe('function');
   });
 
   it('should have verifyServerAdmin static method', () => {

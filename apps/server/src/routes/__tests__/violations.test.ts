@@ -57,6 +57,7 @@ vi.mock('../../services/automations/events/producers.js', () => ({
 // Import the mocked db and the routes
 import { db } from '../../db/client.js';
 import { violationRoutes, buildViolationRosterConditions } from '../violations.js';
+import { permissionGuard } from '../../lib/scope.js';
 
 function normalize(text: string): string {
   return text.replace(/\s+/g, ' ').trim();
@@ -85,6 +86,11 @@ async function buildTestApp(authUser: AuthUser): Promise<FastifyInstance> {
   // Mock the authenticate decorator
   app.decorate('authenticate', async (request: any) => {
     request.user = authUser;
+  });
+  app.decorate('requirePermission', permissionGuard(app));
+  app.decorate('requireOwner', async (request: any, reply: any) => {
+    request.user = authUser;
+    if (authUser.role !== 'owner') return reply.forbidden('Owner access required');
   });
 
   // Register routes
@@ -192,13 +198,13 @@ function createOwnerUser(): AuthUser {
 }
 
 /**
- * Create a mock viewer auth user (non-owner)
+ * Create a mock admin auth user (non-owner)
  */
-function createViewerUser(): AuthUser {
+function createAdminUser(): AuthUser {
   return {
     userId: randomUUID(),
-    username: 'viewer',
-    role: 'viewer',
+    username: 'admin',
+    role: 'admin',
     serverIds: [randomUUID()],
   };
 }
@@ -325,6 +331,23 @@ describe('Violation Routes', () => {
       const body = JSON.parse(response.body);
       expect(body.data).toHaveLength(3);
       expect(body.meta).toEqual({ page: 1, pageSize: 20, total: 3 });
+    });
+
+    it('returns the media ids on each violation session', async () => {
+      app = await buildTestApp(createOwnerUser());
+      const mediaId = randomUUID();
+      const showMediaId = randomUUID();
+      setupListMocks([{ ...createTestViolation(), mediaId, showMediaId }], 1);
+
+      const response = await app.inject({ method: 'GET', url: '/violations' });
+
+      expect(mockDb.select.mock.calls[0][0]).toMatchObject({
+        mediaId: expect.anything(),
+        showMediaId: expect.anything(),
+      });
+      const [violation] = JSON.parse(response.body).data;
+      expect(violation.session.mediaId).toBe(mediaId);
+      expect(violation.session.showMediaId).toBe(showMediaId);
     });
 
     it('should apply default pagination', async () => {
@@ -461,15 +484,15 @@ describe('Violation Routes', () => {
       expect(response.statusCode).toBe(400);
     });
 
-    it('should return empty data for viewers with no server access', async () => {
-      // Viewer with empty serverIds returns empty result without querying
-      const viewerUser: AuthUser = {
+    it('should return empty data for admins with no server access', async () => {
+      // Admin with empty serverIds returns empty result without querying
+      const adminUser: AuthUser = {
         userId: randomUUID(),
-        username: 'viewer',
-        role: 'viewer',
+        username: 'admin',
+        role: 'admin',
         serverIds: [],
       };
-      app = await buildTestApp(viewerUser);
+      app = await buildTestApp(adminUser);
 
       const response = await app.inject({
         method: 'GET',
@@ -573,6 +596,40 @@ describe('Violation Routes', () => {
       expect(body.session.device).toBe('Safari');
       expect(body.session.product).toBe('Plex Web');
       expect(body.session.quality).toBe('4K');
+    });
+
+    it('returns the media ids on the triggering and related sessions', async () => {
+      app = await buildTestApp(createOwnerUser());
+      const violationId = randomUUID();
+      const relatedId = randomUUID();
+      const mediaId = randomUUID();
+      const showMediaId = randomUUID();
+      const relatedMediaId = randomUUID();
+      const violation = {
+        ...createTestViolation({ id: violationId, data: { relatedSessionIds: [relatedId] } }),
+        mediaId,
+        showMediaId,
+      };
+      mockDb.select
+        .mockReturnValueOnce(createSingleViolationSelectMock([violation]))
+        .mockReturnValueOnce(
+          queryChain(vi.fn, [{ id: relatedId, mediaId: relatedMediaId, showMediaId: null }])
+        )
+        .mockReturnValue(createEmptyChainMock());
+
+      const response = await app.inject({ method: 'GET', url: `/violations/${violationId}` });
+
+      for (const call of mockDb.select.mock.calls.slice(0, 2)) {
+        expect(call[0]).toMatchObject({
+          mediaId: expect.anything(),
+          showMediaId: expect.anything(),
+        });
+      }
+      const body = JSON.parse(response.body);
+      expect(body.session.mediaId).toBe(mediaId);
+      expect(body.session.showMediaId).toBe(showMediaId);
+      expect(body.relatedSessions[0].mediaId).toBe(relatedMediaId);
+      expect(body.relatedSessions[0].showMediaId).toBeNull();
     });
 
     it('passes only threshold UUIDs (not actual username) to getServerUserDisplayNames', async () => {
@@ -697,7 +754,7 @@ describe('Violation Routes', () => {
     });
 
     it('should reject acknowledgment for non-owner', async () => {
-      const guestUser = createViewerUser();
+      const guestUser = createAdminUser();
       app = await buildTestApp(guestUser);
 
       const response = await app.inject({
@@ -987,7 +1044,7 @@ describe('Violation Routes', () => {
     });
 
     it('should reject delete for non-owner', async () => {
-      const guestUser = createViewerUser();
+      const guestUser = createAdminUser();
       app = await buildTestApp(guestUser);
 
       const response = await app.inject({
@@ -1047,18 +1104,18 @@ describe('Violation Routes', () => {
       expect(body.data).toHaveLength(2);
     });
 
-    it('should filter violations by server access for viewers', async () => {
-      const viewerServerId = randomUUID();
-      const viewerUser: AuthUser = {
+    it('should filter violations by server access for admins', async () => {
+      const adminServerId = randomUUID();
+      const adminUser: AuthUser = {
         userId: randomUUID(),
-        username: 'viewer',
-        role: 'viewer',
-        serverIds: [viewerServerId],
+        username: 'admin',
+        role: 'admin',
+        serverIds: [adminServerId],
       };
-      app = await buildTestApp(viewerUser);
+      app = await buildTestApp(adminUser);
 
-      // Return violations from the viewer's accessible server
-      const testViolations = [createTestViolation({ serverId: viewerServerId })];
+      // Return violations from the admin's accessible server
+      const testViolations = [createTestViolation({ serverId: adminServerId })];
 
       setupListMocks(testViolations, 1);
 
@@ -1070,7 +1127,7 @@ describe('Violation Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
       expect(body.data).toHaveLength(1);
-      expect(body.data[0].user.serverId).toBe(viewerServerId);
+      expect(body.data[0].user.serverId).toBe(adminServerId);
     });
   });
 });
@@ -1084,7 +1141,7 @@ function rosterFilters(overrides: Partial<ViolationRosterFilters> = {}): Violati
 }
 
 async function rosterSql(filters: ViolationRosterFilters, authUser: AuthUser) {
-  const roster = await buildViolationRosterConditions(filters, authUser);
+  const roster = await buildViolationRosterConditions(filters, authUser, 'all');
   if (roster.empty) {
     return { empty: true as const, text: '', params: [] as unknown[] };
   }
@@ -1155,15 +1212,16 @@ describe('violation roster conditions', () => {
   });
 
   it('reports empty rather than a predicate when no requested server is visible', async () => {
-    const viewer: AuthUser = {
+    const admin: AuthUser = {
       userId: randomUUID(),
-      username: 'viewer',
-      role: 'viewer',
+      username: 'admin',
+      role: 'admin',
       serverIds: [randomUUID()],
     };
     const result = await buildViolationRosterConditions(
       rosterFilters({ serverIds: [randomUUID()] }),
-      viewer
+      admin,
+      'all'
     );
 
     expect(result).toEqual({ empty: true, conditions: [] });
@@ -1174,7 +1232,8 @@ describe('violation roster conditions', () => {
 
     const result = await buildViolationRosterConditions(
       rosterFilters({ userIds: [randomUUID()] }),
-      createOwnerUser()
+      createOwnerUser(),
+      'all'
     );
 
     expect(result).toEqual({ empty: true, conditions: [] });

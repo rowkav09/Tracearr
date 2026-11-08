@@ -8,6 +8,8 @@
 import { eq, and, isNull, isNotNull, inArray, notInArray } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { servers, serverUsers } from '../db/schema.js';
+import { revokeSessionsForServerUsers } from '../lib/revoke.js';
+import { clearScope } from '../lib/scope.js';
 import { createMediaServerClient, PlexClient, type MediaUser } from './mediaServer/index.js';
 import { syncUserFromMediaServer, type SyncUserOptions } from './userService.js';
 import { ensureServerIdentifier } from './serverIdentity.js';
@@ -60,6 +62,7 @@ async function syncServerUsers(
 
   // Track which external IDs we see from the media server
   const syncedExternalIds: string[] = [];
+  const lostAccessIds: string[] = [];
 
   for (const mediaUser of mediaUsers) {
     syncedExternalIds.push(mediaUser.id);
@@ -72,6 +75,7 @@ async function syncServerUsers(
         added++;
       } else {
         updated++;
+        if (result.newlyDisabled) lostAccessIds.push(result.serverUser.id);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Unknown error';
@@ -98,6 +102,7 @@ async function syncServerUsers(
       )
       .returning({ id: serverUsers.id });
     removed = removedResult.length;
+    lostAccessIds.push(...removedResult.map((r) => r.id));
     if (removed > 0) {
       console.log(`[Sync] Marked ${removed} users as removed from server ${serverId}`);
     }
@@ -116,12 +121,16 @@ async function syncServerUsers(
           inArray(matchColumn, syncedExternalIds)
         )
       )
-      .returning({ id: serverUsers.id });
+      .returning({ userId: serverUsers.userId });
     restored = restoredResult.length;
+    // A restored account widens its person's scope without revoking anything.
+    for (const userId of new Set(restoredResult.map((r) => r.userId))) await clearScope(userId);
     if (restored > 0) {
       console.log(`[Sync] Restored ${restored} previously removed users on server ${serverId}`);
     }
   }
+
+  await revokeSessionsForServerUsers(lostAccessIds);
 
   return { added, updated, skipped, removed, restored, errors };
 }
@@ -215,8 +224,23 @@ async function syncMediaServerUsers(
       url: serverUrl,
       token,
     });
-    const users = await client.getUsers();
-    return syncServerUsers(serverId, users); // isPlexServer defaults to false
+    const [users, libraries] = await Promise.all([
+      client.getUsers(),
+      // Users still sync without the library list. Limited accounts then map to no libraries
+      // until the next sync, never to every library.
+      client.getLibraries().catch((err: unknown) => {
+        console.warn(`[Sync] ${serverName} library list failed, library limits map to none:`, err);
+        return [];
+      }),
+    ]);
+    // Jellyfin's policy names a folder by its ItemId. Emby's names it by Guid and grants nothing
+    // for an ItemId (checked on Emby 4.10), so a folder with a Guid only matches by it.
+    const libraryIdOf = new Map(libraries.map((l) => [l.guid ?? l.id, l.id]));
+    const withLibraryIds = users.map((user) => ({
+      ...user,
+      sharedLibraries: user.sharedLibraries?.flatMap((id) => libraryIdOf.get(id) ?? []),
+    }));
+    return syncServerUsers(serverId, withLibraryIds); // isPlexServer defaults to false
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     return {
