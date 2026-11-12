@@ -11,6 +11,7 @@ import type {
   EngineAutomation,
   ActiveSession,
   StreamDetailFields,
+  ServerType,
 } from '@tracearr/shared';
 import type { sessions } from '../../db/schema.js';
 import type { SessionIdentity as MediaItemIdentity } from './database.js';
@@ -44,7 +45,7 @@ export interface PollerConfig {
 export interface ServerWithToken {
   id: string;
   name: string;
-  type: 'plex' | 'jellyfin';
+  type: ServerType;
   url: string;
   token: string;
   createdAt: Date;

@@ -1,6 +1,7 @@
 import type {
   Server,
   ServerDownReason,
+  UpdateUserAccessInput,
   UserRole,
   ServerUserWithIdentity,
   ServerUserDetail,
@@ -26,13 +27,18 @@ import type {
   ViolationRosterFilters,
   ViolationSortField,
   DashboardStats,
+  MyStats,
+  MyTopTitlesResponse,
   PlayStats,
-  UserStats,
-  TopUserStats,
+  DayOfWeekStats,
+  HourOfDayStats,
+  LocationPeopleResponse,
   LocationStatsResponse,
   UserLocation,
   UserDevice,
   Settings,
+  SettingsResponse,
+  LoginMethods,
   PaginatedResponse,
   MobileConfig,
   TerminationLogWithDetails,
@@ -51,14 +57,13 @@ import type {
   UpdateDestinationInput,
   RequestService,
   RequestsAnalyticsResponse,
-  RequestersQuery,
-  RequestersResponse,
   RequestsStatus,
   RequestsUnplayedQuery,
   RequestsUnplayedResponse,
   RequestServiceProbeResult,
   MediaRequestEntry,
   UserRequestsResponse,
+  MyRequestsQuery,
   TestRequestServiceInput,
   CreateRequestServiceInput,
   UpdateRequestServiceInput,
@@ -84,9 +89,7 @@ import type {
   VersionInfo,
   WhatsNewState,
   EngagementStats,
-  ShowStatsResponse,
   SetupStatus,
-  MediaType,
   ServerConnectionStatus,
   ServerLocationEntry,
   ServerLocationsResponse,
@@ -96,9 +99,7 @@ import type {
   DeviceCompatibilityMatrix,
   DeviceHealthResponse,
   TranscodeHotspotsResponse,
-  TopTranscodingUsersResponse,
   DailyBandwidthResponse,
-  BandwidthTopUsersResponse,
   BandwidthSummary,
   // Library statistics types
   LibraryStatsResponse,
@@ -109,9 +110,9 @@ import type {
   DuplicateFilesResponse,
   StaleResponse,
   WatchResponse,
-  CompletionResponse,
   PatternsResponse,
   RoiResponse,
+  LibraryRoiQueryInput,
   TopMoviesResponse,
   TopShowsResponse,
   LibraryCodecsResponse,
@@ -127,6 +128,7 @@ import type {
   MergeSuggestion,
   DismissedMergeSuggestion,
   ServerUserSplitResult,
+  OwnerLinkServer,
   UserSortField,
   UserRosterFilters,
   ListResponse,
@@ -136,10 +138,15 @@ import type {
   CatalogLettersResponse,
   CatalogCodecOptionsResponse,
   ShelvesResponse,
+  GenreDetailResponse,
   GenresResponse,
+  LibraryMediaType,
   LibrariesResponse,
   MediaDetailResponse,
+  MediaDownloadRow,
+  DownloadsStats,
   MediaChildrenResponse,
+  AlbumDetailResponse,
   MediaStatsResponse,
   MediaWatchersResponse,
   MediaPlatformBreakdownResponse,
@@ -155,6 +162,10 @@ import type {
   TemplateEnvelope,
   TemplateInput,
   QualityStats,
+  UserRangeStats,
+  PeopleResponse,
+  PeopleRank,
+  StorageWarning,
 } from '@tracearr/shared';
 
 // Re-export shared types needed by frontend components
@@ -165,11 +176,18 @@ export type {
   PlexAccount,
   PlexAccountsResponse,
 };
-import { API_BASE_PATH, getClientTimezone } from '@tracearr/shared';
+import { API_BASE_PATH } from '@tracearr/shared';
 
 import { BASE_PATH } from '@/lib/basePath';
+import { browserTimeZone } from '@/lib/dateFormat';
 export { BASE_PATH, BASE_URL, imageProxyUrl } from '@/lib/basePath';
 import { MAINTENANCE_EVENT } from '@/hooks/useMaintenanceMode';
+import type { ApiLibraryParams } from '@/hooks/useTimeRange';
+
+/** A settings write: loginMethods takes any subset of its switches, as the server's schema does. */
+export type SettingsUpdate = Omit<Partial<Settings>, 'loginMethods'> & {
+  loginMethods?: Partial<LoginMethods>;
+};
 
 /** Roster query params: the server's own filter schema plus paging and sort. */
 export type UserListParams = Partial<UserRosterFilters> & {
@@ -284,6 +302,31 @@ function listSearchParams(params: Record<string, unknown>): string {
   return searchParams.toString();
 }
 
+/** The filters /library/catalog and /library/catalog/letters share. */
+type CatalogRequestParams = {
+  type: LibraryMediaType;
+  serverIds?: string[];
+  resolution?: string;
+  genre?: string;
+  yearFrom?: number;
+  yearTo?: number;
+  watched?: WatchedState;
+  lens?: string;
+  search?: string;
+  sort?: 'title' | 'added' | 'year' | 'plays' | 'watch_time' | 'viewers';
+  libraryKey?: string;
+  hdr?: boolean;
+  atmos?: boolean;
+  sizeGbMin?: number;
+  sizeGbMax?: number;
+  videoCodec?: string;
+  audioCodec?: string;
+  audioChannels?: string;
+  /** Calendar days, inclusive. */
+  addedAfter?: string;
+  addedBefore?: string;
+};
+
 /** The filters /sessions/history and /sessions/history/aggregates share. */
 function appendHistoryFilterParams(
   searchParams: URLSearchParams,
@@ -309,6 +352,8 @@ function appendHistoryFilterParams(
   if (params.geoCountries?.length) searchParams.set('geoCountries', params.geoCountries.join(','));
   if (params.geoCity) searchParams.set('geoCity', params.geoCity);
   if (params.geoRegion) searchParams.set('geoRegion', params.geoRegion);
+  if (params.geoCityMissing) searchParams.set('geoCityMissing', 'true');
+  if (params.geoRegionMissing) searchParams.set('geoRegionMissing', 'true');
   if (params.network) searchParams.set('network', params.network);
   if (params.transcodeDecisions?.length)
     searchParams.set('transcodeDecisions', params.transcodeDecisions.join(','));
@@ -373,6 +418,12 @@ export interface LibraryStatusResponse {
   versionsBackfillPending: boolean;
 }
 
+/** Members also get a count of other people's streams, only when the owner shares it. */
+export interface ActiveSessionsResponse {
+  data: ActiveSession[];
+  othersActive?: number;
+}
+
 // Stats time range parameters
 export interface StatsTimeRange {
   period: 'day' | 'week' | 'month' | 'year' | 'all' | 'custom';
@@ -381,9 +432,44 @@ export interface StatsTimeRange {
   timezone?: string; // IANA timezone (e.g., 'America/Los_Angeles')
 }
 
-// Re-export shared timezone helper for backwards compatibility
-// Uses Intl API which works in both browser and React Native
-export const getBrowserTimezone = getClientTimezone;
+export interface LocationFilterParams {
+  timeRange?: StatsTimeRange;
+  serverUserId?: string;
+  serverUserIds?: string[];
+  serverIds?: string[];
+  mediaType?: 'movie' | 'episode' | 'track';
+}
+
+/** One place by its locationKey, or every placed location inside a box. */
+export type LocationPeopleSelector =
+  { place: string } | { west: number; south: number; east: number; north: number };
+
+function locationSearchParams(params: LocationFilterParams | undefined): URLSearchParams {
+  const searchParams = new URLSearchParams();
+  if (params?.timeRange?.period) searchParams.set('period', params.timeRange.period);
+  if (params?.timeRange?.startDate) searchParams.set('startDate', params.timeRange.startDate);
+  if (params?.timeRange?.endDate) searchParams.set('endDate', params.timeRange.endDate);
+  if (params?.serverUserIds?.length) {
+    searchParams.set('serverUserIds', params.serverUserIds.join(','));
+  } else if (params?.serverUserId) {
+    searchParams.set('serverUserId', params.serverUserId);
+  }
+  if (params?.serverIds?.length) {
+    for (const id of params.serverIds) {
+      searchParams.append('serverIds', id);
+    }
+  }
+  if (params?.mediaType) searchParams.set('mediaType', params.mediaType);
+  return searchParams;
+}
+
+/** Splits plays into movie, show and music rows. */
+export type PlaysGroupBy = 'mediaType';
+
+export interface PlaysBreakdownOptions {
+  self?: boolean;
+  groupBy?: PlaysGroupBy;
+}
 
 // Types for Plex server selection during signup (from check-pin endpoint)
 export interface PlexServerConnection {
@@ -423,6 +509,8 @@ export interface PlexAuthUser {
 export interface PlexCheckPinResponse {
   authorized: boolean;
   message?: string;
+  /** The sign-in was started too long ago or in another browser; start it again. */
+  expired?: boolean;
   // If returning user (or new user with no servers) - session cookie is already set
   user?: PlexAuthUser;
   // If new user (needs server selection)
@@ -561,7 +649,7 @@ class ApiClient {
 
   // Setup - check if Tracearr needs initial configuration
   setup = {
-    status: () => this.request<SetupStatus>('/setup/status'),
+    status: (all = false) => this.request<SetupStatus>(`/setup/status${all ? '?all' : ''}`),
   };
 
   // Auth
@@ -573,8 +661,9 @@ class ApiClient {
         email: string | null;
         thumbnail: string | null;
         role: UserRole;
-        aggregateTrustScore: number;
+        aggregateTrustScore?: number;
         serverIds: string[];
+        impersonatedBy?: string;
         hasPassword?: boolean;
         hasPlexLinked?: boolean;
         // Fallback fields for backwards compatibility
@@ -593,14 +682,14 @@ class ApiClient {
 
     // Plex OAuth - Step 1: Get PIN (Better Auth plugin endpoint - sets no cookie yet)
     initiatePlex: (forwardUrl?: string) =>
-      this.request<{ pinId: string; authUrl: string }>('/auth/plex/initiate', {
+      this.request<{ handle: string; authUrl: string }>('/auth/plex/initiate', {
         method: 'POST',
         body: JSON.stringify({ forwardUrl }),
       }),
 
     // Plex OAuth - Step 2: Check PIN. On success the session cookie is already
     // set server-side; the response just tells the UI what happened.
-    checkPlexPin: (data: { pinId: string; claimCode?: string }) =>
+    checkPlexPin: (data: { handle: string; claimCode?: string }) =>
       this.request<PlexCheckPinResponse>('/auth/plex/check-pin', {
         method: 'POST',
         body: JSON.stringify(data),
@@ -729,6 +818,7 @@ class ApiClient {
         color?: string | null;
         publicUrl?: string | null;
         apiKey?: string;
+        allowMemberLogin?: boolean;
       }
     ) =>
       this.request<Server>(`/servers/${id}`, {
@@ -820,14 +910,29 @@ class ApiClient {
         method: 'PATCH',
         body: JSON.stringify(data),
       }),
+    updateAccess: (id: string, data: UpdateUserAccessInput) =>
+      this.request<ServerUserWithIdentity>(`/users/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
     updateIdentity: (id: string, data: { name?: string | null; contactEmail?: string | null }) =>
       this.request<{ success: boolean; name: string | null; contactEmail: string | null }>(
         `/users/${id}/identity`,
         { method: 'PATCH', body: JSON.stringify(data) }
       ),
+    rangeStats: (
+      id: string,
+      { scope, ...timeRange }: StatsTimeRange & { scope?: 'identity' },
+      serverIds?: string[]
+    ) => {
+      const params = this.buildStatsParamsMulti(timeRange, serverIds);
+      if (scope) params.set('scope', scope);
+      return this.request<UserRangeStats>(`/users/${id}/stats?${params.toString()}`);
+    },
     sessions: (id: string, params?: { page?: number; pageSize?: number; scope?: 'identity' }) => {
-      const query = new URLSearchParams(params as Record<string, string>).toString();
-      return this.request<PaginatedResponse<Session>>(`/users/${id}/sessions?${query}`);
+      return this.request<PaginatedResponse<Session>>(
+        `/users/${id}/sessions?${listSearchParams(params ?? {})}`
+      );
     },
     locations: async (id: string, params?: { scope?: 'identity' }) => {
       const query = new URLSearchParams();
@@ -845,13 +950,17 @@ class ApiClient {
       );
       return response.data;
     },
+    downloads: (id: string, params?: { page?: number; pageSize?: number; scope?: 'identity' }) => {
+      return this.request<{ data: MediaDownloadRow[]; total: number }>(
+        `/users/${id}/downloads?${listSearchParams(params ?? {})}`
+      );
+    },
     terminations: (
       id: string,
       params?: { page?: number; pageSize?: number; scope?: 'identity' }
     ) => {
-      const query = new URLSearchParams(params as Record<string, string>).toString();
       return this.request<PaginatedResponse<TerminationLogWithDetails>>(
-        `/users/${id}/terminations?${query}`
+        `/users/${id}/terminations?${listSearchParams(params ?? {})}`
       );
     },
     bulkResetTrust: (params: {
@@ -890,6 +999,19 @@ class ApiClient {
       }),
     restoreMergeSuggestion: (userA: string, userB: string) =>
       this.request<void>(`/users/merge-suggestions/dismissals/${userA}/${userB}`, {
+        method: 'DELETE',
+      }),
+    ownerLinks: async () => {
+      const response = await this.request<{ data: OwnerLinkServer[] }>('/users/owner-links');
+      return response.data;
+    },
+    linkOwnerAccount: (serverUserId: string) =>
+      this.request<UserMergeResult>('/users/owner-links', {
+        method: 'POST',
+        body: JSON.stringify({ serverUserId }),
+      }),
+    unlinkOwnerAccount: (serverUserId: string) =>
+      this.request<ServerUserSplitResult>(`/users/owner-links/${serverUserId}`, {
         method: 'DELETE',
       }),
     requests: (id: string, opts: { scope?: 'identity'; page: number; pageSize: number }) => {
@@ -939,10 +1061,11 @@ class ApiClient {
      * Called separately from history() so sorting changes don't refetch these stats.
      */
     historyAggregates: (
-      params: Partial<HistoryAggregatesQueryInput> & { serverIds?: string[] }
+      params: Partial<HistoryAggregatesQueryInput> & { serverIds?: string[]; self?: boolean }
     ) => {
       const searchParams = new URLSearchParams();
       appendHistoryFilterParams(searchParams, params);
+      if (params.self) searchParams.set('self', 'true');
       return this.request<HistoryAggregates>(
         `/sessions/history/aggregates?${searchParams.toString()}`
       );
@@ -973,20 +1096,22 @@ class ApiClient {
         '/sessions/filter-options?includeAllCountries=true'
       );
     },
-    getActive: async (serverIds?: string[]) => {
+    getActive: async (serverIds?: string[], self = false) => {
       const params = new URLSearchParams();
       if (serverIds?.length) {
         for (const id of serverIds) {
           params.append('serverIds', id);
         }
       }
+      if (self) params.set('self', 'true');
       const query = params.toString();
-      const response = await this.request<{ data: ActiveSession[] }>(
-        `/sessions/active${query ? `?${query}` : ''}`
-      );
-      return response.data;
+      return this.request<ActiveSessionsResponse>(`/sessions/active${query ? `?${query}` : ''}`);
     },
-    get: (id: string) => this.request<SessionWithDetails>(`/sessions/${id}`),
+    // startedAt only narrows the server's read to the chunks after it; the id alone works too
+    get: (id: string, startedAt?: Date | string) =>
+      this.request<SessionWithDetails>(
+        `/sessions/${id}${startedAt ? `?startedAt=${new Date(startedAt).toISOString()}` : ''}`
+      ),
     terminate: (id: string, reason?: string) =>
       this.request<{ success: boolean; terminationLogId: string; message: string }>(
         `/sessions/${id}/terminate`,
@@ -1095,6 +1220,8 @@ class ApiClient {
     get: (id: string) => this.request<ViolationWithDetails>(`/violations/${id}`),
     list: (params: ViolationListParams = {}) =>
       this.request<ListResponse<ViolationWithDetails>>(`/violations?${listSearchParams(params)}`),
+    count: (params: Partial<ViolationRosterFilters> = {}) =>
+      this.request<{ total: number }>(`/violations/count?${listSearchParams(params)}`),
     acknowledge: (id: string) =>
       this.request<{ success: boolean; acknowledgedAt: Date | null }>(`/violations/${id}`, {
         method: 'PATCH',
@@ -1122,13 +1249,18 @@ class ApiClient {
     if (serverId) params.set('serverId', serverId);
     // Always include timezone for consistent chart display
     // Use provided timezone or fall back to browser's timezone
-    params.set('timezone', timeRange?.timezone ?? getBrowserTimezone());
+    params.set('timezone', timeRange?.timezone ?? browserTimeZone());
     return params;
   }
 
   // Variant that serializes repeatable serverIds (precedence over legacy serverId)
-  private buildStatsParamsMulti(timeRange?: StatsTimeRange, serverIds?: string[]): URLSearchParams {
+  private buildStatsParamsMulti(
+    timeRange?: StatsTimeRange,
+    serverIds?: string[],
+    self = false
+  ): URLSearchParams {
     const params = new URLSearchParams();
+    if (self) params.set('self', 'true');
     if (timeRange?.period) params.set('period', timeRange.period);
     if (timeRange?.startDate) params.set('startDate', timeRange.startDate);
     if (timeRange?.endDate) params.set('endDate', timeRange.endDate);
@@ -1137,7 +1269,7 @@ class ApiClient {
         params.append('serverIds', id);
       }
     }
-    params.set('timezone', timeRange?.timezone ?? getBrowserTimezone());
+    params.set('timezone', timeRange?.timezone ?? browserTimeZone());
     return params;
   }
 
@@ -1150,58 +1282,88 @@ class ApiClient {
         }
       }
       // Include timezone so "today" is calculated in user's local timezone
-      params.set('timezone', getBrowserTimezone());
+      params.set('timezone', browserTimeZone());
       return this.request<DashboardStats>(`/stats/dashboard?${params.toString()}`);
     },
-    plays: async (timeRange?: StatsTimeRange, serverIds?: string[]) => {
+    me: () => {
+      const params = new URLSearchParams({ timezone: browserTimeZone() });
+      return this.request<MyStats>(`/stats/me?${params.toString()}`);
+    },
+    myTitles: (serverIds?: string[]) => {
+      const params = this.buildStatsParamsMulti({ period: 'month' }, serverIds);
+      return this.request<MyTopTitlesResponse>(`/stats/me/titles?${params.toString()}`);
+    },
+    people: (
+      timeRange: StatsTimeRange,
+      serverIds: string[] | undefined,
+      opts: { rank?: PeopleRank; page?: number; pageSize?: number; search?: string } = {}
+    ) => {
+      const params = this.buildStatsParamsMulti(timeRange, serverIds);
+      if (opts.rank) params.set('rank', opts.rank);
+      if (opts.page) params.set('page', String(opts.page));
+      if (opts.pageSize) params.set('pageSize', String(opts.pageSize));
+      if (opts.search) params.set('search', opts.search);
+      return this.request<PeopleResponse>(`/stats/people?${params.toString()}`);
+    },
+    downloads: (timeRange: StatsTimeRange, serverIds: string[] | undefined, page = 1) => {
+      const params = this.buildStatsParamsMulti(timeRange, serverIds);
+      params.set('page', String(page));
+      return this.request<DownloadsStats>(`/stats/downloads?${params.toString()}`);
+    },
+    plays: async (timeRange?: StatsTimeRange, serverIds?: string[], groupBy?: PlaysGroupBy) => {
       const params = this.buildStatsParamsMulti(timeRange ?? { period: 'week' }, serverIds);
+      if (groupBy) params.set('groupBy', groupBy);
       const response = await this.request<{ data: PlayStats[] }>(
         `/stats/plays?${params.toString()}`
       );
       return response.data;
     },
-    users: async (timeRange?: StatsTimeRange, serverId?: string) => {
-      const params = this.buildStatsParams(timeRange ?? { period: 'month' }, serverId);
-      const response = await this.request<{ data: UserStats[] }>(
-        `/stats/users?${params.toString()}`
-      );
-      return response.data;
-    },
-    locations: async (params?: {
-      timeRange?: StatsTimeRange;
-      serverUserId?: string;
-      serverUserIds?: string[];
-      serverIds?: string[];
-      mediaType?: 'movie' | 'episode' | 'track';
-    }) => {
-      const searchParams = new URLSearchParams();
-      if (params?.timeRange?.period) searchParams.set('period', params.timeRange.period);
-      if (params?.timeRange?.startDate) searchParams.set('startDate', params.timeRange.startDate);
-      if (params?.timeRange?.endDate) searchParams.set('endDate', params.timeRange.endDate);
-      if (params?.serverUserIds?.length) {
-        searchParams.set('serverUserIds', params.serverUserIds.join(','));
-      } else if (params?.serverUserId) {
-        searchParams.set('serverUserId', params.serverUserId);
-      }
-      if (params?.serverIds?.length) {
-        for (const id of params.serverIds) {
-          searchParams.append('serverIds', id);
-        }
-      }
-      if (params?.mediaType) searchParams.set('mediaType', params.mediaType);
-      const query = searchParams.toString();
+    locations: async (params?: LocationFilterParams) => {
+      const query = locationSearchParams(params).toString();
       return this.request<LocationStatsResponse>(`/stats/locations${query ? `?${query}` : ''}`);
     },
-    playsByDayOfWeek: async (timeRange?: StatsTimeRange, serverIds?: string[]) => {
-      const params = this.buildStatsParamsMulti(timeRange ?? { period: 'month' }, serverIds);
-      const response = await this.request<{ data: { day: number; name: string; count: number }[] }>(
+    locationPeople: async (
+      params: LocationFilterParams | undefined,
+      of: LocationPeopleSelector
+    ) => {
+      const searchParams = locationSearchParams(params);
+      if ('place' in of) {
+        searchParams.set('place', of.place);
+      } else {
+        for (const side of ['west', 'south', 'east', 'north'] as const) {
+          searchParams.set(side, String(of[side]));
+        }
+      }
+      return this.request<LocationPeopleResponse>(`/stats/locations/people?${searchParams}`);
+    },
+    playsByDayOfWeek: async (
+      timeRange?: StatsTimeRange,
+      serverIds?: string[],
+      options: PlaysBreakdownOptions = {}
+    ) => {
+      const params = this.buildStatsParamsMulti(
+        timeRange ?? { period: 'month' },
+        serverIds,
+        options.self
+      );
+      if (options.groupBy) params.set('groupBy', options.groupBy);
+      const response = await this.request<{ data: DayOfWeekStats[] }>(
         `/stats/plays-by-dayofweek?${params.toString()}`
       );
       return response.data;
     },
-    playsByHourOfDay: async (timeRange?: StatsTimeRange, serverIds?: string[]) => {
-      const params = this.buildStatsParamsMulti(timeRange ?? { period: 'month' }, serverIds);
-      const response = await this.request<{ data: { hour: number; count: number }[] }>(
+    playsByHourOfDay: async (
+      timeRange?: StatsTimeRange,
+      serverIds?: string[],
+      options: PlaysBreakdownOptions = {}
+    ) => {
+      const params = this.buildStatsParamsMulti(
+        timeRange ?? { period: 'month' },
+        serverIds,
+        options.self
+      );
+      if (options.groupBy) params.set('groupBy', options.groupBy);
+      const response = await this.request<{ data: HourOfDayStats[] }>(
         `/stats/plays-by-hourofday?${params.toString()}`
       );
       return response.data;
@@ -1217,15 +1379,8 @@ class ApiClient {
       const params = this.buildStatsParamsMulti(timeRange ?? { period: 'month' }, serverIds);
       return this.request<QualityStats>(`/stats/quality?${params.toString()}`);
     },
-    topUsers: async (timeRange?: StatsTimeRange, serverIds?: string[]) => {
-      const params = this.buildStatsParamsMulti(timeRange ?? { period: 'month' }, serverIds);
-      const response = await this.request<{ data: TopUserStats[] }>(
-        `/stats/top-users?${params.toString()}`
-      );
-      return response.data;
-    },
-    topContent: async (timeRange?: StatsTimeRange, serverIds?: string[]) => {
-      const params = this.buildStatsParamsMulti(timeRange ?? { period: 'month' }, serverIds);
+    topContent: async (timeRange?: StatsTimeRange, serverIds?: string[], self = false) => {
+      const params = this.buildStatsParamsMulti(timeRange ?? { period: 'month' }, serverIds, self);
       const response = await this.request<{
         movies: {
           title: string;
@@ -1268,25 +1423,14 @@ class ApiClient {
     engagement: async (
       timeRange?: StatsTimeRange,
       serverIds?: string[],
-      options?: { mediaType?: MediaType; limit?: number }
+      options?: { self?: boolean }
     ) => {
-      const params = this.buildStatsParamsMulti(timeRange ?? { period: 'week' }, serverIds);
-      if (options?.mediaType) params.set('mediaType', options.mediaType);
-      if (options?.limit) params.set('limit', String(options.limit));
+      const params = this.buildStatsParamsMulti(
+        timeRange ?? { period: 'week' },
+        serverIds,
+        options?.self
+      );
       return this.request<EngagementStats>(`/stats/engagement?${params.toString()}`);
-    },
-    shows: async (
-      timeRange?: StatsTimeRange,
-      serverIds?: string[],
-      options?: {
-        limit?: number;
-        orderBy?: 'totalEpisodeViews' | 'totalWatchHours' | 'bingeScore' | 'uniqueViewers';
-      }
-    ) => {
-      const params = this.buildStatsParamsMulti(timeRange ?? { period: 'month' }, serverIds);
-      if (options?.limit) params.set('limit', String(options.limit));
-      if (options?.orderBy) params.set('orderBy', options.orderBy);
-      return this.request<ShowStatsResponse>(`/stats/shows?${params.toString()}`);
     },
 
     // Device compatibility stats
@@ -1336,12 +1480,6 @@ class ApiClient {
         `/stats/device-compatibility/hotspots?${params.toString()}`
       );
     },
-    topTranscodingUsers: async (timeRange?: StatsTimeRange, serverIds?: string[]) => {
-      const params = this.buildStatsParamsMulti(timeRange ?? { period: 'month' }, serverIds);
-      return this.request<TopTranscodingUsersResponse>(
-        `/stats/device-compatibility/top-transcoding-users?${params.toString()}`
-      );
-    },
 
     // Bandwidth stats
     bandwidthDaily: async (
@@ -1352,12 +1490,6 @@ class ApiClient {
       const params = this.buildStatsParamsMulti(timeRange ?? { period: 'month' }, serverIds);
       if (serverUserId) params.set('serverUserId', serverUserId);
       return this.request<DailyBandwidthResponse>(`/stats/bandwidth/daily?${params.toString()}`);
-    },
-    bandwidthTopUsers: async (timeRange?: StatsTimeRange, serverIds?: string[]) => {
-      const params = this.buildStatsParamsMulti(timeRange ?? { period: 'month' }, serverIds);
-      return this.request<BandwidthTopUsersResponse>(
-        `/stats/bandwidth/top-users?${params.toString()}`
-      );
     },
     bandwidthSummary: async (timeRange?: StatsTimeRange, serverIds?: string[]) => {
       const params = this.buildStatsParamsMulti(timeRange ?? { period: 'month' }, serverIds);
@@ -1375,7 +1507,7 @@ class ApiClient {
         }
       }
       if (libraryId) params.set('libraryId', libraryId);
-      params.set('timezone', getBrowserTimezone());
+      params.set('timezone', browserTimeZone());
       return this.request<LibraryStatsResponse>(`/library/stats?${params.toString()}`);
     },
     growth: (
@@ -1395,38 +1527,57 @@ class ApiClient {
       params.set('period', period);
       if (startDate) params.set('startDate', startDate);
       if (endDate) params.set('endDate', endDate);
-      params.set('timezone', getBrowserTimezone());
+      params.set('timezone', browserTimeZone());
       return this.request<LibraryGrowthResponse>(`/library/growth?${params.toString()}`);
     },
     quality: (
       serverId?: string,
       period: string = '30d',
-      mediaType: 'all' | 'movies' | 'shows' = 'all'
+      mediaType: LibraryQualityResponse['mediaType'] = 'all',
+      startDate?: string,
+      endDate?: string
     ) => {
       const params = new URLSearchParams();
       if (serverId) params.set('serverId', serverId);
       params.set('period', period);
       params.set('mediaType', mediaType);
-      params.set('timezone', getBrowserTimezone());
+      if (startDate) params.set('startDate', startDate);
+      if (endDate) params.set('endDate', endDate);
+      params.set('timezone', browserTimeZone());
       return this.request<LibraryQualityResponse>(`/library/quality?${params.toString()}`);
     },
-    storage: (serverId?: string, libraryId?: string, period: string = '30d') => {
+    storage: (
+      serverId?: string,
+      libraryId?: string,
+      period: string = '30d',
+      startDate?: string,
+      endDate?: string
+    ) => {
       const params = new URLSearchParams();
       if (serverId) params.set('serverId', serverId);
       if (libraryId) params.set('libraryId', libraryId);
       params.set('period', period);
-      params.set('timezone', getBrowserTimezone());
+      if (startDate) params.set('startDate', startDate);
+      if (endDate) params.set('endDate', endDate);
+      params.set('timezone', browserTimeZone());
       return this.request<LibraryStorageResponse>(`/library/storage?${params.toString()}`);
     },
     // Scoped variant: one request over the whole selection, so the server's
     // mirror dedup sees every server at once instead of per-server sums
-    storageScoped: (serverIds: string[], period: string = '30d') => {
+    storageScoped: (
+      serverIds: string[],
+      period: string = '30d',
+      startDate?: string,
+      endDate?: string
+    ) => {
       const params = new URLSearchParams();
       for (const id of serverIds) {
         params.append('serverIds', id);
       }
       params.set('period', period);
-      params.set('timezone', getBrowserTimezone());
+      if (startDate) params.set('startDate', startDate);
+      if (endDate) params.set('endDate', endDate);
+      params.set('timezone', browserTimeZone());
       return this.request<LibraryStorageResponse>(`/library/storage?${params.toString()}`);
     },
     duplicates: (serverIds?: string[], page: number = 1, pageSize: number = 20) => {
@@ -1474,36 +1625,28 @@ class ApiClient {
       params.set('sortOrder', sortOrder);
       return this.request<StaleResponse>(`/library/stale?${params.toString()}`);
     },
-    watch: (serverIds?: string[], libraryId?: string, page: number = 1, pageSize: number = 20) => {
-      const params = new URLSearchParams();
-      if (serverIds?.length) {
-        for (const id of serverIds) {
-          params.append('serverIds', id);
-        }
-      }
-      if (libraryId) params.set('libraryId', libraryId);
-      params.set('page', String(page));
-      params.set('pageSize', String(pageSize));
-      return this.request<WatchResponse>(`/library/watch?${params.toString()}`);
-    },
-    completion: (
-      serverId?: string,
-      libraryId?: string,
-      aggregateLevel: string = 'item',
-      page: number = 1,
-      pageSize: number = 20,
-      mediaType?: 'movie' | 'episode'
+    watch: (
+      serverIds: string[] | undefined,
+      libraryId: string | undefined,
+      range: ApiLibraryParams
     ) => {
       const params = new URLSearchParams();
-      if (serverId) params.set('serverId', serverId);
+      if (serverIds?.length) {
+        for (const id of serverIds) {
+          params.append('serverIds', id);
+        }
+      }
       if (libraryId) params.set('libraryId', libraryId);
-      params.set('aggregateLevel', aggregateLevel);
-      params.set('page', String(page));
-      params.set('pageSize', String(pageSize));
-      if (mediaType) params.set('mediaType', mediaType);
-      return this.request<CompletionResponse>(`/library/completion?${params.toString()}`);
+      params.set('period', range.period);
+      if (range.startDate) params.set('startDate', range.startDate);
+      if (range.endDate) params.set('endDate', range.endDate);
+      return this.request<WatchResponse>(`/library/watch?${params.toString()}`);
     },
-    patterns: (serverIds?: string[], libraryId?: string, periodWeeks: number = 12) => {
+    patterns: (
+      serverIds: string[] | undefined,
+      libraryId: string | undefined,
+      range: ApiLibraryParams
+    ) => {
       const params = new URLSearchParams();
       if (serverIds?.length) {
         for (const id of serverIds) {
@@ -1511,18 +1654,23 @@ class ApiClient {
         }
       }
       if (libraryId) params.set('libraryId', libraryId);
-      params.set('periodWeeks', String(periodWeeks));
-      params.set('timezone', getBrowserTimezone());
+      params.set('period', range.period);
+      if (range.startDate) params.set('startDate', range.startDate);
+      if (range.endDate) params.set('endDate', range.endDate);
+      params.set('timezone', browserTimeZone());
       return this.request<PatternsResponse>(`/library/patterns?${params.toString()}`);
     },
     roi: (
-      serverIds?: string[],
-      libraryId?: string,
+      serverIds: string[] | undefined,
+      libraryId: string | undefined,
+      period: string,
+      startDate: string | undefined,
+      endDate: string | undefined,
       page: number = 1,
       pageSize: number = 20,
-      mediaType?: 'movie' | 'show' | 'artist',
-      sortBy: 'watch_hours_per_gb' | 'value_score' | 'file_size' | 'title' = 'watch_hours_per_gb',
-      sortOrder: 'asc' | 'desc' = 'asc'
+      mediaType?: 'movie' | 'show',
+      sortBy: LibraryRoiQueryInput['sortBy'] = 'watch_hours_per_gb',
+      sortOrder: 'asc' | 'desc' = 'desc'
     ) => {
       const params = new URLSearchParams();
       if (serverIds?.length) {
@@ -1531,12 +1679,14 @@ class ApiClient {
         }
       }
       if (libraryId) params.set('libraryId', libraryId);
+      params.set('period', period);
+      if (startDate) params.set('startDate', startDate);
+      if (endDate) params.set('endDate', endDate);
       params.set('page', String(page));
       params.set('pageSize', String(pageSize));
       if (mediaType) params.set('mediaType', mediaType);
       params.set('sortBy', sortBy);
       params.set('sortOrder', sortOrder);
-      params.set('timezone', getBrowserTimezone());
       return this.request<RoiResponse>(`/library/roi?${params.toString()}`);
     },
     topMovies: (
@@ -1545,7 +1695,9 @@ class ApiClient {
       sortBy: string = 'plays',
       sortOrder: string = 'desc',
       page: number = 1,
-      pageSize: number = 20
+      pageSize: number = 20,
+      startDate?: string,
+      endDate?: string
     ) => {
       const params = new URLSearchParams();
       if (serverIds?.length) {
@@ -1554,6 +1706,8 @@ class ApiClient {
         }
       }
       params.set('period', period);
+      if (startDate) params.set('startDate', startDate);
+      if (endDate) params.set('endDate', endDate);
       params.set('sortBy', sortBy);
       params.set('sortOrder', sortOrder);
       params.set('page', String(page));
@@ -1566,7 +1720,9 @@ class ApiClient {
       sortBy: string = 'plays',
       sortOrder: string = 'desc',
       page: number = 1,
-      pageSize: number = 20
+      pageSize: number = 20,
+      startDate?: string,
+      endDate?: string
     ) => {
       const params = new URLSearchParams();
       if (serverIds?.length) {
@@ -1575,6 +1731,8 @@ class ApiClient {
         }
       }
       params.set('period', period);
+      if (startDate) params.set('startDate', startDate);
+      if (endDate) params.set('endDate', endDate);
       params.set('sortBy', sortBy);
       params.set('sortOrder', sortOrder);
       params.set('page', String(page));
@@ -1602,102 +1760,10 @@ class ApiClient {
         `/library/status?${params.toString()}`
       );
     },
-    catalog: (params: {
-      type: 'movie' | 'show';
-      serverIds?: string[];
-      resolution?: string;
-      genre?: string;
-      yearFrom?: number;
-      yearTo?: number;
-      watched?: WatchedState;
-      lens?: string;
-      search?: string;
-      sort?: 'title' | 'added' | 'year' | 'plays' | 'watch_time' | 'viewers';
-      offset?: number;
-      pageSize?: number;
-      libraryKey?: string;
-      hdr?: boolean;
-      atmos?: boolean;
-      sizeGbMin?: number;
-      sizeGbMax?: number;
-      videoCodec?: string;
-      audioCodec?: string;
-      audioChannels?: string;
-    }) => {
-      const searchParams = new URLSearchParams();
-      searchParams.set('type', params.type);
-      if (params.serverIds?.length) {
-        for (const id of params.serverIds) {
-          searchParams.append('serverIds', id);
-        }
-      }
-      if (params.resolution) searchParams.set('resolution', params.resolution);
-      if (params.genre) searchParams.set('genre', params.genre);
-      if (params.yearFrom !== undefined) searchParams.set('yearFrom', String(params.yearFrom));
-      if (params.yearTo !== undefined) searchParams.set('yearTo', String(params.yearTo));
-      if (params.watched) searchParams.set('watched', params.watched);
-      if (params.lens) searchParams.set('lens', params.lens);
-      if (params.search) searchParams.set('search', params.search);
-      if (params.sort) searchParams.set('sort', params.sort);
-      if (params.offset !== undefined) searchParams.set('offset', String(params.offset));
-      if (params.pageSize) searchParams.set('pageSize', String(params.pageSize));
-      if (params.libraryKey) searchParams.set('libraryKey', params.libraryKey);
-      if (params.hdr) searchParams.set('hdr', 'true');
-      if (params.atmos) searchParams.set('atmos', 'true');
-      if (params.sizeGbMin !== undefined) searchParams.set('sizeGbMin', String(params.sizeGbMin));
-      if (params.sizeGbMax !== undefined) searchParams.set('sizeGbMax', String(params.sizeGbMax));
-      if (params.videoCodec) searchParams.set('videoCodec', params.videoCodec);
-      if (params.audioCodec) searchParams.set('audioCodec', params.audioCodec);
-      if (params.audioChannels) searchParams.set('audioChannels', params.audioChannels);
-      return this.request<CatalogResponse>(`/library/catalog?${searchParams.toString()}`);
-    },
-    catalogLetters: (params: {
-      type: 'movie' | 'show';
-      serverIds?: string[];
-      resolution?: string;
-      genre?: string;
-      yearFrom?: number;
-      yearTo?: number;
-      watched?: WatchedState;
-      lens?: string;
-      search?: string;
-      sort?: 'title' | 'added' | 'year' | 'plays' | 'watch_time' | 'viewers';
-      libraryKey?: string;
-      hdr?: boolean;
-      atmos?: boolean;
-      sizeGbMin?: number;
-      sizeGbMax?: number;
-      videoCodec?: string;
-      audioCodec?: string;
-      audioChannels?: string;
-    }) => {
-      const searchParams = new URLSearchParams();
-      searchParams.set('type', params.type);
-      if (params.serverIds?.length) {
-        for (const id of params.serverIds) {
-          searchParams.append('serverIds', id);
-        }
-      }
-      if (params.resolution) searchParams.set('resolution', params.resolution);
-      if (params.genre) searchParams.set('genre', params.genre);
-      if (params.yearFrom !== undefined) searchParams.set('yearFrom', String(params.yearFrom));
-      if (params.yearTo !== undefined) searchParams.set('yearTo', String(params.yearTo));
-      if (params.watched) searchParams.set('watched', params.watched);
-      if (params.lens) searchParams.set('lens', params.lens);
-      if (params.search) searchParams.set('search', params.search);
-      if (params.sort) searchParams.set('sort', params.sort);
-      if (params.libraryKey) searchParams.set('libraryKey', params.libraryKey);
-      if (params.hdr) searchParams.set('hdr', 'true');
-      if (params.atmos) searchParams.set('atmos', 'true');
-      if (params.sizeGbMin !== undefined) searchParams.set('sizeGbMin', String(params.sizeGbMin));
-      if (params.sizeGbMax !== undefined) searchParams.set('sizeGbMax', String(params.sizeGbMax));
-      if (params.videoCodec) searchParams.set('videoCodec', params.videoCodec);
-      if (params.audioCodec) searchParams.set('audioCodec', params.audioCodec);
-      if (params.audioChannels) searchParams.set('audioChannels', params.audioChannels);
-      return this.request<CatalogLettersResponse>(
-        `/library/catalog/letters?${searchParams.toString()}`
-      );
-    },
+    catalog: (params: CatalogRequestParams & { offset?: number; pageSize?: number }) =>
+      this.request<CatalogResponse>(`/library/catalog?${listSearchParams(params)}`),
+    catalogLetters: (params: CatalogRequestParams) =>
+      this.request<CatalogLettersResponse>(`/library/catalog/letters?${listSearchParams(params)}`),
     shelves: (
       params: {
         timeRange?: StatsTimeRange;
@@ -1717,7 +1783,7 @@ class ApiClient {
       }
       return this.request<ShelvesResponse>(`/library/shelves?${searchParams.toString()}`);
     },
-    catalogCodecs: (type: 'movie' | 'show', serverIds?: string[]) => {
+    catalogCodecs: (type: LibraryMediaType, serverIds?: string[]) => {
       const searchParams = new URLSearchParams();
       searchParams.set('type', type);
       for (const id of serverIds ?? []) searchParams.append('serverIds', id);
@@ -1725,15 +1791,24 @@ class ApiClient {
         `/library/catalog/codecs?${searchParams.toString()}`
       );
     },
-    genres: (type: 'movie' | 'show', serverIds?: string[]) => {
-      const searchParams = new URLSearchParams();
+    genres: (type: LibraryMediaType, serverIds?: string[], timeRange?: StatsTimeRange) => {
+      const searchParams = timeRange
+        ? this.buildStatsParamsMulti(timeRange, serverIds)
+        : new URLSearchParams((serverIds ?? []).map((id) => ['serverIds', id]));
       searchParams.set('type', type);
-      if (serverIds?.length) {
-        for (const id of serverIds) {
-          searchParams.append('serverIds', id);
-        }
-      }
       return this.request<GenresResponse>(`/library/genres?${searchParams.toString()}`);
+    },
+    genreDetail: (
+      genre: string,
+      type: LibraryMediaType,
+      serverIds: string[],
+      timeRange: StatsTimeRange
+    ) => {
+      const searchParams = this.buildStatsParamsMulti(timeRange, serverIds);
+      searchParams.set('type', type);
+      return this.request<GenreDetailResponse>(
+        `/library/genres/${encodeURIComponent(genre)}?${searchParams.toString()}`
+      );
     },
     libraries: (serverIds?: string[]) => {
       const searchParams = new URLSearchParams();
@@ -1746,35 +1821,23 @@ class ApiClient {
     },
     media: {
       detail: (id: string, serverIds?: string[]) => {
-        const searchParams = new URLSearchParams();
-        if (serverIds?.length) {
-          for (const serverId of serverIds) {
-            searchParams.append('serverIds', serverId);
-          }
-        }
-        const query = searchParams.toString();
+        const query = listSearchParams({ serverIds });
         return this.request<MediaDetailResponse>(`/library/media/${id}${query ? `?${query}` : ''}`);
       },
       children: (id: string, serverIds?: string[]) => {
-        const searchParams = new URLSearchParams();
-        if (serverIds?.length) {
-          for (const serverId of serverIds) {
-            searchParams.append('serverIds', serverId);
-          }
-        }
-        const query = searchParams.toString();
+        const query = listSearchParams({ serverIds });
         return this.request<MediaChildrenResponse>(
           `/library/media/${id}/children${query ? `?${query}` : ''}`
         );
       },
+      album: (id: string, serverIds?: string[]) => {
+        const query = listSearchParams({ serverIds });
+        return this.request<AlbumDetailResponse>(
+          `/library/media/${id}/album${query ? `?${query}` : ''}`
+        );
+      },
       stats: (id: string, serverIds?: string[]) => {
-        const searchParams = new URLSearchParams();
-        if (serverIds?.length) {
-          for (const serverId of serverIds) {
-            searchParams.append('serverIds', serverId);
-          }
-        }
-        const query = searchParams.toString();
+        const query = listSearchParams({ serverIds });
         return this.request<MediaStatsResponse>(
           `/library/media/${id}/stats${query ? `?${query}` : ''}`
         );
@@ -1791,17 +1854,10 @@ class ApiClient {
           `/library/media/${id}/watchers?${searchParams.toString()}`
         );
       },
-      requests: (id: string, serverIds?: string[]) => {
-        const searchParams = new URLSearchParams();
-        if (serverIds?.length) {
-          for (const serverId of serverIds) {
-            searchParams.append('serverIds', serverId);
-          }
-        }
-        return this.request<{ data: MediaRequestEntry[] }>(
-          `/library/media/${id}/requests?${searchParams.toString()}`
-        );
-      },
+      requests: (id: string, serverIds?: string[]) =>
+        this.request<{ data: MediaRequestEntry[] }>(
+          `/library/media/${id}/requests?${listSearchParams({ serverIds })}`
+        ),
       history: (id: string, cursor?: string, pageSize?: number, serverIds?: string[]) => {
         const searchParams = new URLSearchParams();
         if (cursor) searchParams.set('cursor', cursor);
@@ -1816,25 +1872,13 @@ class ApiClient {
         );
       },
       platforms: (id: string, serverIds?: string[]) => {
-        const searchParams = new URLSearchParams();
-        if (serverIds?.length) {
-          for (const serverId of serverIds) {
-            searchParams.append('serverIds', serverId);
-          }
-        }
-        const query = searchParams.toString();
+        const query = listSearchParams({ serverIds });
         return this.request<MediaPlatformBreakdownResponse>(
           `/library/media/${id}/platforms${query ? `?${query}` : ''}`
         );
       },
       seasonHeat: (id: string, serverIds?: string[]) => {
-        const searchParams = new URLSearchParams();
-        if (serverIds?.length) {
-          for (const serverId of serverIds) {
-            searchParams.append('serverIds', serverId);
-          }
-        }
-        const query = searchParams.toString();
+        const query = listSearchParams({ serverIds });
         return this.request<MediaSeasonHeatResponse>(
           `/library/media/${id}/season-heat${query ? `?${query}` : ''}`
         );
@@ -1844,20 +1888,22 @@ class ApiClient {
 
   // Settings
   settings = {
-    get: () => this.request<Settings>('/settings'),
-    update: (data: Partial<Settings>) =>
-      this.request<Settings>('/settings', { method: 'PATCH', body: JSON.stringify(data) }),
+    get: () => this.request<SettingsResponse>('/settings'),
+    update: (data: SettingsUpdate) =>
+      this.request<SettingsResponse>('/settings', { method: 'PATCH', body: JSON.stringify(data) }),
     getApiKey: () => this.request<{ token: string | null }>('/settings/api-key'),
     regenerateApiKey: () =>
       this.request<{ token: string }>('/settings/api-key/regenerate', { method: 'POST' }),
     getIpWarning: () =>
       this.request<{ showWarning: boolean; stateHash: string }>('/settings/ip-warning'),
+    getStorageWarning: () => this.request<StorageWarning>('/settings/storage-warning'),
+    dismissStorageWarning: () =>
+      this.request<void>('/settings/storage-warning/dismiss', { method: 'POST' }),
     getImageCache: () => this.request<ImageCacheStatus>('/settings/image-cache'),
   };
 
   map = {
-    getBasemapStatus: () =>
-      this.request<{ installed: boolean; path: string }>('/map/basemap/status'),
+    getBasemapStatus: () => this.request<{ installed: boolean }>('/map/basemap/status'),
   };
 
   // Notification destinations
@@ -1904,6 +1950,13 @@ class ApiClient {
 
   requests = {
     status: () => this.request<RequestsStatus>('/requests/status'),
+    mine: (opts: MyRequestsQuery) => {
+      const searchParams = new URLSearchParams({
+        page: String(opts.page),
+        pageSize: String(opts.pageSize),
+      });
+      return this.request<UserRequestsResponse>(`/requests/mine?${searchParams.toString()}`);
+    },
     analytics: (serverIds?: string[]) => {
       const query = listSearchParams({ serverIds });
       return this.request<RequestsAnalyticsResponse>(
@@ -1915,10 +1968,6 @@ class ApiClient {
       return this.request<RequestsUnplayedResponse>(
         `/requests/unplayed${query ? `?${query}` : ''}`
       );
-    },
-    requesters: (params: Partial<RequestersQuery> & { serverIds?: string[] }) => {
-      const query = listSearchParams(params);
-      return this.request<RequestersResponse>(`/requests/requesters${query ? `?${query}` : ''}`);
     },
   };
 

@@ -9,9 +9,9 @@ import { Behavior } from '@/components/settings/general/Behavior';
 import { Import } from '@/components/settings/data/Import';
 import { Api } from '@/components/settings/data/Api';
 import { Connections } from '@/components/settings/servers/Connections';
-import { PosterSource } from '@/components/settings/servers/PosterSource';
+import { Posters } from '@/components/settings/servers/Posters';
 import { PlexAccounts } from '@/components/settings/servers/PlexAccounts';
-import { Guest } from '@/components/settings/access/Guest';
+import { MemberLogin } from '@/components/settings/access/MemberLogin';
 import { MobileDevices } from '@/components/settings/access/MobileDevices';
 import { RemoteAccess } from '@/components/settings/access/RemoteAccess';
 import { Jobs } from '@/components/settings/data/Jobs';
@@ -42,7 +42,7 @@ export function Settings() {
             <Route path="general/behavior" element={<Behavior />} />
 
             <Route path="servers/connections" element={<Connections />} />
-            <Route path="servers/posters" element={<PosterSource />} />
+            <Route path="servers/posters" element={<Posters />} />
             <Route path="servers/plex-accounts" element={<PlexAccounts />} />
             <Route
               path="servers/requests"
@@ -55,7 +55,7 @@ export function Settings() {
             <Route path="notifications/newsletters/:id" element={<NewsletterEditor />} />
             <Route path="notifications/email" element={<Email />} />
 
-            <Route path="access/guest" element={<Guest />} />
+            <Route path="access/guest" element={<MemberLogin />} />
             <Route path="access/mobile" element={<MobileDevices />} />
             <Route path="access/remote" element={<RemoteAccess />} />
 

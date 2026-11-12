@@ -53,24 +53,17 @@ vi.mock('../../db/client.js', () => ({
   db: { select: vi.fn() },
 }));
 
-// Mock class for JellyfinClient/EmbyClient (Playback Reporting test endpoint)
+// Jellyfin/Emby client for the Playback Reporting test endpoint
 let mockPlaybackReportingClient: {
   getPlaybackReportingInfo: ReturnType<typeof vi.fn>;
 };
 
-vi.mock('../../services/mediaServer/index.js', () => {
-  const MockJellyfinClient = vi.fn().mockImplementation(function (
-    this: typeof mockPlaybackReportingClient
-  ) {
-    this.getPlaybackReportingInfo = mockPlaybackReportingClient.getPlaybackReportingInfo;
-  });
-  const MockEmbyClient = vi.fn().mockImplementation(function (
-    this: typeof mockPlaybackReportingClient
-  ) {
-    this.getPlaybackReportingInfo = mockPlaybackReportingClient.getPlaybackReportingInfo;
-  });
-  return { JellyfinClient: MockJellyfinClient, EmbyClient: MockEmbyClient };
-});
+vi.mock('../../services/mediaServer/index.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../services/mediaServer/index.js')>()),
+  createJellyfinEmbyClient: () => ({
+    getPlaybackReportingInfo: mockPlaybackReportingClient.getPlaybackReportingInfo,
+  }),
+}));
 
 // Mock import queue functions
 vi.mock('../../jobs/importQueue.js', () => ({
@@ -99,6 +92,7 @@ import {
   getActivePlaybackReportingImportForServer,
 } from '../../jobs/importQueue.js';
 import { importRoutes } from '../import.js';
+import { permissionGuard } from '../../lib/scope.js';
 
 /**
  * Build a test Fastify instance with mocked auth
@@ -113,6 +107,7 @@ async function buildTestApp(authUser: AuthUser): Promise<FastifyInstance> {
   app.decorate('authenticate', async (request: unknown) => {
     (request as { user: AuthUser }).user = authUser;
   });
+  app.decorate('requirePermission', permissionGuard(app));
 
   // Register routes
   await app.register(importRoutes, { prefix: '/import' });
@@ -139,7 +134,7 @@ function createViewerUser(): AuthUser {
   return {
     userId: randomUUID(),
     username: 'viewer',
-    role: 'viewer',
+    role: 'admin',
     serverIds: [randomUUID()],
   };
 }

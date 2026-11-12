@@ -18,12 +18,19 @@ export type {
   ServerUserFullDetail,
   ViolationSummary,
   UserRole,
+  LoginAccess,
   AuthUser,
   SetupStatus,
   UserLocation,
   UserDevice,
+  MediaDownloadRow,
+  MediaDownloadSource,
+  DownloadsStats,
   UserMergeResult,
   ServerUserSplitResult,
+  OwnerLinkBlockedReason,
+  OwnerLinkCandidate,
+  OwnerLinkServer,
   MergeSuggestionIdentity,
   MergeSuggestion,
   DismissedMergeSuggestion,
@@ -58,16 +65,27 @@ export type {
   ViolationSessionInfo,
   // Stats
   DashboardStats,
+  MyStats,
+  MyTopTitleRow,
+  MyTopTitlesResponse,
   PlayStats,
   UserStats,
   LocationStats,
+  LocationUserInfo,
   LocationStatsSummary,
+  LocationFilterOptions,
   LocationStatsResponse,
+  LocationPeopleResponse,
   LibraryStats,
   DayOfWeekStats,
   HourOfDayStats,
   QualityStats,
   TopUserStats,
+  RangeSeriesPoint,
+  UserRangeStats,
+  PersonRow,
+  PeopleSummary,
+  PeopleResponse,
   TopContentStats,
   PlatformStats,
   // Server resource stats
@@ -82,8 +100,13 @@ export type {
   ServerLiveStats,
   // Settings
   Settings,
+  SettingsResponse,
+  LoginMethods,
   UnitSystem,
   ImageCacheStatus,
+  StorageMountKey,
+  StorageMountIssue,
+  StorageWarning,
   // Tailscale
   TailscaleStatus,
   TailscaleExitNode,
@@ -136,6 +159,9 @@ export type {
   NotificationEventType,
   NotificationPreferences,
   RateLimitStatus,
+  PushEventPreference,
+  PushDeliveryStatus,
+  PushSwitch,
   NotificationPreferencesWithStatus,
   EncryptedPushPayload,
   PushNotificationPayload,
@@ -182,12 +208,9 @@ export type {
   EngagementTier,
   UserBehaviorType,
   ContentEngagement,
-  TopContentEngagement,
-  ShowEngagement,
   UserEngagementProfile,
   EngagementTierBreakdown,
   EngagementStats,
-  ShowStatsResponse,
   // Device compatibility
   DeviceCompatibilityRow,
   DeviceCompatibilityResponse,
@@ -214,6 +237,7 @@ export type {
   LibraryQualityResponse,
   StorageHistoryPoint,
   StoragePrediction,
+  StorageLibraryRow,
   LibraryStorageResponse,
   MatchType,
   DuplicateItem,
@@ -227,16 +251,9 @@ export type {
   StaleItem,
   StaleSummary,
   StaleResponse,
-  WatchItem,
+  CompletionCounts,
   WatchSummary,
   WatchResponse,
-  CompletionStatus,
-  CompletionItem,
-  SeasonCompletion,
-  SeriesCompletion,
-  CompletionSummary,
-  CompletionPaginationInfo,
-  CompletionResponse,
   WatchedState,
   CatalogRowServerEntry,
   CatalogRow,
@@ -255,16 +272,24 @@ export type {
   ShelvesKpiDeadWeight,
   ShelvesKpis,
   ShelvesResponseMeta,
+  AlbumShelfRow,
   ShelvesResponse,
   ShelvesPeriod,
+  GenreTopViewer,
   GenreRow,
   GenresResponse,
+  GenreTitle,
+  GenreDetailResponse,
   MediaVersionEntry,
   MediaAvailabilityEntry,
   MediaReplacedCopy,
   MediaDetailResponse,
   MediaChildEntry,
   MediaChildrenResponse,
+  AlbumCopy,
+  AlbumListener,
+  AlbumTrack,
+  AlbumDetailResponse,
   MediaStatsMeasures,
   MediaStatsWindow,
   MediaStatsResponse,
@@ -277,12 +302,11 @@ export type {
   MediaSeasonHeatResponse,
   BingeShow,
   HourlyDistribution,
-  MonthlyTrend,
+  TrendBucket,
+  TrendPoint,
   PatternsResponse,
-  ValueCategory,
   RoiItem,
   RoiSummary,
-  ValueThresholds,
   RoiResponse,
   TopMovie,
   TopMoviesSummary,
@@ -462,6 +486,9 @@ export {
   booleanStringSchema,
   // Auth
   loginSchema,
+  memberPasswordSignInSchema,
+  quickConnectInitiateSchema,
+  quickConnectCheckSchema,
   callbackSchema,
   // Server
   createServerSchema,
@@ -476,6 +503,8 @@ export {
   serverLocationsSchema,
   // User
   updateUserSchema,
+  updateUserAccessSchema,
+  setupStatusQuerySchema,
   updateUserIdentitySchema,
   userIdParamSchema,
   identityScopeQuerySchema,
@@ -485,6 +514,8 @@ export {
   mergeSuggestionDismissalSchema,
   mergeSuggestionPairParamSchema,
   splitServerUserParamSchema,
+  ownerLinkBodySchema,
+  ownerLinkParamSchema,
   USER_SORT_FIELDS,
   userRosterFilterSchema,
   userListQuerySchema,
@@ -493,8 +524,10 @@ export {
   sessionQuerySchema,
   historyQuerySchema,
   historyAggregatesQuerySchema,
+  selfQuerySchema,
   filterOptionsQuerySchema,
   sessionIdParamSchema,
+  sessionDetailQuerySchema,
   terminateSessionBodySchema,
   // Rule
   impossibleTravelParamsSchema,
@@ -520,6 +553,7 @@ export {
   VIOLATION_SORT_FIELDS,
   violationRosterFilterSchema,
   violationQuerySchema,
+  violationCountQuerySchema,
   violationBulkBodySchema,
   violationIdParamSchema,
   // Stats
@@ -529,7 +563,16 @@ export {
   statPeriodSchema,
   dateValidationRefinements,
   statsQuerySchema,
+  downloadsListQuerySchema,
+  PLAYS_MEDIA_GROUPS,
+  playsBreakdownQuerySchema,
+  playsQuerySchema,
+  PEOPLE_RANKS,
+  peopleRankSchema,
+  peopleQuerySchema,
+  userRangeStatsQuerySchema,
   locationStatsQuerySchema,
+  locationPeopleQuerySchema,
   // Settings
   updateSettingsSchema,
   // Tailscale
@@ -554,11 +597,15 @@ export {
   engagementTierSchema,
   userBehaviorTypeSchema,
   engagementQuerySchema,
-  showsQuerySchema,
   // Library stats
   libraryStatsQuerySchema,
   libraryStatusQuerySchema,
   libraryGrowthQuerySchema,
+  LIBRARY_MEDIA_TYPES,
+  libraryMediaTypeSchema,
+  genresQuerySchema,
+  genreDetailQuerySchema,
+  catalogQuerySchema,
   libraryQualityQuerySchema,
   libraryStorageQuerySchema,
   libraryDuplicatesQuerySchema,
@@ -567,7 +614,6 @@ export {
   libraryWatchQuerySchema,
   libraryRoiQuerySchema,
   libraryPatternsQuerySchema,
-  libraryCompletionQuerySchema,
   topContentQuerySchema,
   shelvesQuerySchema,
 } from './schemas.js';
@@ -715,6 +761,7 @@ export type {
   ReorderServersInput,
   UpdateServerInput,
   UpdateUserInput,
+  UpdateUserAccessInput,
   UpdateUserIdentityInput,
   IdentityScopeQuery,
   MergeUsersBody,
@@ -734,7 +781,10 @@ export type {
   DashboardQueryInput,
   StatPeriod,
   StatsQueryInput,
+  PlaysMediaGroup,
+  PeopleRank,
   LocationStatsQueryInput,
+  LocationPeopleQueryInput,
   UpdateSettingsInput,
   TautulliImportInput,
   // Jellystat types
@@ -749,11 +799,13 @@ export type {
   ImportJobStatus,
   // Engagement tracking
   EngagementQueryInput,
-  ShowsQueryInput,
   // Library stats
   LibraryStatsQueryInput,
   LibraryStatusQueryInput,
   LibraryGrowthQueryInput,
+  LibraryMediaType,
+  MediaTypeOption,
+  GenresQueryInput,
   LibraryQualityQueryInput,
   LibraryStorageQueryInput,
   LibraryDuplicatesQueryInput,
@@ -762,7 +814,6 @@ export type {
   LibraryWatchQueryInput,
   LibraryRoiQueryInput,
   LibraryPatternsQueryInput,
-  LibraryCompletionQueryInput,
   TopContentQueryInput,
   ShelvesQueryInput,
   // Session target type
@@ -840,16 +891,32 @@ export {
   LEGACY_VERSION_SENTINEL,
   // Poster cache
   POSTER_IMAGE_SIZE,
+  SQUARE_POSTER_SIZE,
+  posterSizeFor,
+  LOGIN_ACCESS,
+  SIGN_IN_ERROR_CODES,
 } from './constants.js';
 
 // API error codes
 export { ErrorCodes, type ErrorCode } from './errors.js';
 
 // Role helper exports
-export { ROLE_PERMISSIONS, LOGIN_ROLES, canLogin, hasMinRole, isOwner, isActive } from './types.js';
+export {
+  ROLE_PERMISSIONS,
+  LOGIN_ROLES,
+  STAFF_ROLES,
+  canLogin,
+  hasMinRole,
+  isOwner,
+  isActive,
+  isStaff,
+} from './types.js';
 
 // Session constants
 export { MEDIA_TYPES, DEFAULT_STREAM_DETAILS } from './types.js';
+
+// Map constants
+export { LOCATION_LIST_PEOPLE } from './types.js';
 
 // Backup constants
 export { RESTORE_PHASES } from './types.js';
@@ -867,7 +934,7 @@ export {
 } from './violations.js';
 
 // Media display utilities
-export { formatEpisodeLabel, type FormatEpisodeLabelOptions } from './media.js';
+export { formatEpisodeLabel, isDirectAvatarUrl, type FormatEpisodeLabelOptions } from './media.js';
 
 // Alphabet rail letters
 export { LETTER_RAIL_ALPHABET } from './catalogLetters.js';
@@ -889,6 +956,7 @@ export {
   resolutionAboveSdSpellings,
   resolutionSpellingRanks,
   normalizeResolution,
+  resolutionDisplayName,
   type ResolutionInput,
   type ResolutionBucket,
 } from './resolution.js';
@@ -912,6 +980,14 @@ export {
   type SubtitleBurnInInput,
 } from './playbackDecision.js';
 
+// Watched vs played wording per media type
+export {
+  MEDIA_VERB_KEYS,
+  verbKeysFor,
+  type MediaVerbKeys,
+  type MediaVerbKeySet,
+} from './mediaVerbs.js';
+
 // Trust score levels
 export {
   TRUST_LEVEL_THRESHOLDS,
@@ -919,6 +995,14 @@ export {
   trustLevel,
   type TrustLevel,
 } from './trustLevel.js';
+
+export {
+  SERVER_TYPES,
+  assertNever,
+  isServerType,
+  type JellyfinEmbyServerType,
+} from './serverTypes.js';
+export { SERVER_PROFILES, type ServerProfile } from './serverProfiles.js';
 
 // Server-scope selection (cache-key and query-param builders)
 export {
@@ -933,6 +1017,7 @@ export {
   buildMediaServerItemUrl,
   isPubliclyRoutableUrl,
   memberFacingUrl,
+  serverLinkBase,
   type MediaServerItemLinkInput,
 } from './mediaServerLinks.js';
 
@@ -944,6 +1029,7 @@ export {
   createRequestServiceSchema,
   updateRequestServiceSchema,
   userRequestsQuerySchema,
+  myRequestsQuerySchema,
   requestsAnalyticsQuerySchema,
   requestsUnplayedQuerySchema,
   requestersQuerySchema,
@@ -965,6 +1051,7 @@ export {
   type CreateRequestServiceInput,
   type UpdateRequestServiceInput,
   type UserRequestsQuery,
+  type MyRequestsQuery,
   type RequestOutcomeRow,
   type RequestUnplayedSort,
   type RequesterSort,

@@ -6,16 +6,39 @@
  * are handled by abstract methods or configuration.
  */
 
-import { fetchJson, jellyfinEmbyHeaders, HttpClientError } from '../../../utils/http.js';
-import type {
-  IMediaServerClient,
-  IMediaServerClientWithHistory,
-  MediaSession,
-  MediaUser,
-  MediaLibrary,
-  MediaLibraryItem,
-  MediaWatchHistoryItem,
-  MediaServerConfig,
+import { assertNever, type JellyfinEmbyServerType } from '@tracearr/shared';
+import {
+  fetchJson,
+  fetchText,
+  jellyfinEmbyHeaders,
+  HttpClientError,
+  isHttpStatus,
+} from '../../../utils/http.js';
+import { extractIpFromEndpoint } from '../../../utils/parsing.js';
+import { normalizeClient } from '../../../utils/platformNormalizer.js';
+import { assertSafeProbeUrl } from '../../../utils/ssrf.js';
+import {
+  parseDeviceSessions,
+  parseItemMediaSources,
+  type DeviceSession,
+  type EmbySyncJob,
+  type EmbySyncJobItem,
+  type ItemMediaSource,
+} from './jellyfinEmbyParser.js';
+import {
+  NOT_NEEDED,
+  type IMediaServerClient,
+  type IMediaServerClientWithHistory,
+  type MediaSession,
+  type MediaUser,
+  type MediaLibrary,
+  type MediaLibraryItem,
+  type MediaWatchHistoryItem,
+  type MediaServerAuth,
+  type MediaServerConfig,
+  type DownloadSourceDescription,
+  type DownloadSourceRequest,
+  type NotNeeded,
 } from '../types.js';
 
 // Client identification constants
@@ -23,6 +46,7 @@ const CLIENT_NAME = 'Tracearr';
 const CLIENT_VERSION = '1.0.0';
 const DEVICE_ID = 'tracearr-server';
 const DEVICE_NAME = 'Tracearr Server';
+const MEMBER_DEVICE_NAME = 'Tracearr Web';
 
 // MusicArtist is only requested for music libraries: Jellyfin 12 answers it
 // with every artist on the server whatever ParentId the query names
@@ -55,6 +79,35 @@ export function buildJellyfinEmbyAuthHeader(token: string): string {
   return `MediaBrowser Client="${CLIENT_NAME}", Device="${DEVICE_NAME}", DeviceId="${DEVICE_ID}", Version="${CLIENT_VERSION}", Token="${token}"`;
 }
 
+/** The header that carries the full MediaBrowser auth value. */
+export function mediaBrowserAuthHeader(
+  type: JellyfinEmbyServerType
+): 'Authorization' | 'X-Emby-Authorization' {
+  switch (type) {
+    case 'jellyfin':
+      return 'Authorization';
+    case 'emby':
+      return 'X-Emby-Authorization';
+    default:
+      return assertNever(type);
+  }
+}
+
+/** The header that authenticates a request with the token alone. */
+export function mediaBrowserTokenHeader(
+  type: JellyfinEmbyServerType,
+  token: string
+): Record<string, string> {
+  switch (type) {
+    case 'jellyfin':
+      return { Authorization: `MediaBrowser Token="${token}"` };
+    case 'emby':
+      return { 'X-Emby-Token': token };
+    default:
+      return assertNever(type);
+  }
+}
+
 /**
  * Activity log entry type - identical structure for Jellyfin and Emby
  */
@@ -68,17 +121,6 @@ export interface JellyfinEmbyActivityEntry {
   userId?: string;
   date: string;
   severity: string;
-}
-
-/**
- * Authentication result type - identical structure for Jellyfin and Emby
- */
-export interface JellyfinEmbyAuthResult {
-  id: string;
-  username: string;
-  token: string;
-  serverId: string;
-  isAdmin: boolean;
 }
 
 /**
@@ -108,7 +150,6 @@ export interface MediaServerParsers {
   parseActivityLogResponse: (data: unknown) => JellyfinEmbyActivityEntry[];
   parseItemsResponse: (data: unknown) => JellyfinEmbyItemResult[];
   parseUser: (data: Record<string, unknown>) => MediaUser;
-  parseAuthResponse: (data: Record<string, unknown>) => JellyfinEmbyAuthResult;
   parseLibraryItemsResponse: (data: unknown[]) => MediaLibraryItem[];
 }
 
@@ -119,7 +160,7 @@ export abstract class BaseMediaServerClient
   implements IMediaServerClient, IMediaServerClientWithHistory
 {
   /** Platform identifier for service tagging */
-  public abstract readonly serverType: 'jellyfin' | 'emby';
+  public abstract readonly serverType: JellyfinEmbyServerType;
 
   protected readonly baseUrl: string;
   protected readonly apiKey: string;
@@ -147,10 +188,8 @@ export abstract class BaseMediaServerClient
    * Build headers for API requests
    */
   protected buildHeaders(): Record<string, string> {
-    const authHeaderName =
-      this.serverType === 'jellyfin' ? 'Authorization' : 'X-Emby-Authorization';
     return {
-      [authHeaderName]: this.buildAuthHeader(),
+      [mediaBrowserAuthHeader(this.serverType)]: this.buildAuthHeader(),
       ...jellyfinEmbyHeaders(),
     };
   }
@@ -462,6 +501,31 @@ export abstract class BaseMediaServerClient
     return { items: allItems, totalCount: allItems.length };
   }
 
+  // Seasons arrive with getLibraryLeaves and getLibraryLeavesSince
+  async getLibrarySeasons(): Promise<NotNeeded> {
+    return NOT_NEEDED;
+  }
+
+  // Seasons arrive with getLibraryLeaves and getLibraryLeavesSince
+  async getLibrarySeasonsSince(): Promise<NotNeeded> {
+    return NOT_NEEDED;
+  }
+
+  // Albums arrive with getLibraryItems and getLibraryItemsSince
+  async getLibraryAlbums(): Promise<NotNeeded> {
+    return NOT_NEEDED;
+  }
+
+  // Albums arrive with getLibraryItems and getLibraryItemsSince
+  async getLibraryAlbumsSince(): Promise<NotNeeded> {
+    return NOT_NEEDED;
+  }
+
+  // The server drops an item whose files are gone, so its listings never report a missing file
+  async checkFilesExist(): Promise<NotNeeded> {
+    return NOT_NEEDED;
+  }
+
   // ==========================================================================
   // IMediaServerClientWithHistory Implementation
   // ==========================================================================
@@ -649,6 +713,99 @@ export abstract class BaseMediaServerClient
     return this.parsers.parseItemsResponse(data);
   }
 
+  async getItemMediaSources(itemId: string): Promise<ItemMediaSource[]> {
+    const params = new URLSearchParams({ Ids: itemId, Fields: 'MediaSources' });
+    const data = await fetchJson<unknown>(`${this.baseUrl}/Items?${params}`, {
+      headers: this.buildHeaders(),
+      service: this.serverType,
+      timeout: 10000,
+    });
+    return parseItemMediaSources(data);
+  }
+
+  /** Raw /Sessions: unlike getSessions, keeps the idle device sessions of clients not playing */
+  async getDeviceSessions(): Promise<DeviceSession[]> {
+    const data = await fetchJson<unknown[]>(`${this.baseUrl}/Sessions`, {
+      headers: this.buildHeaders(),
+      service: this.serverType,
+      timeout: 10000,
+    });
+    return parseDeviceSessions(Array.isArray(data) ? data : []);
+  }
+
+  async describeDownloadSource(request: DownloadSourceRequest): Promise<DownloadSourceDescription> {
+    const [sourcesResult, sessionsResult] = await Promise.allSettled([
+      request.itemKey ? this.getItemMediaSources(request.itemKey) : [],
+      this.getDeviceSessions(),
+    ]);
+    // The download endpoint serves the item's primary file, the first source
+    const source = sourcesResult.status === 'fulfilled' ? sourcesResult.value[0] : undefined;
+    const sessions = sessionsResult.status === 'fulfilled' ? sessionsResult.value : [];
+    // A sync target names its device exactly; an activity entry only by client and device name
+    const session = sessions.find((candidate) =>
+      request.deviceId
+        ? candidate.deviceId === request.deviceId
+        : request.userId !== null &&
+          candidate.userId === request.userId &&
+          candidate.client === request.app &&
+          candidate.deviceName === request.device
+    );
+    const named = session
+      ? { deviceId: session.deviceId, playerName: session.deviceName, product: session.client }
+      : request.deviceId
+        ? { deviceId: request.deviceId, playerName: request.device, product: request.app }
+        : { deviceId: null, playerName: null, product: null };
+    return {
+      version: source
+        ? {
+            key: source.id,
+            size: source.size,
+            container: source.container,
+            videoResolution: source.videoResolution,
+            videoCodec: source.videoCodec,
+            videoDynamicRange: source.videoDynamicRange,
+          }
+        : null,
+      // The download endpoint never converts, so the source size is what left the server
+      delivered: source
+        ? {
+            bytes: source.size,
+            videoCodec: null,
+            audioCodec: null,
+            container: null,
+            bitrateKbps: null,
+            resolution: null,
+          }
+        : null,
+      device: {
+        ...named,
+        platform: named.product
+          ? normalizeClient(named.product, undefined, this.serverType).platform
+          : null,
+      },
+      ipAddress: extractIpFromEndpoint(session?.remoteEndPoint, '') || null,
+    };
+  }
+
+  /** Activity entries name a Jellyfin user by the GUID serverUsers stores; Emby overrides this */
+  async resolveUserGuid(userId: string): Promise<string | null> {
+    return userId;
+  }
+
+  /** App downloads; only Emby has them, as sync jobs */
+  async getSyncJobs(): Promise<EmbySyncJob[]> {
+    return [];
+  }
+
+  async getSyncJobItems(): Promise<EmbySyncJobItem[]> {
+    return [];
+  }
+
+  /** Device sessions to watch for a transcode pulled without playback; only Jellyfin clients download that way */
+  async getTranscodePullSessions(): Promise<DeviceSession[]> {
+    return [];
+  }
+
   private static readonly PLAYBACK_REPORTING_PATHS = {
     jellyfin: '/user_usage_stats/submit_custom_query',
     emby: '/emby/user_usage_stats/submit_custom_query',
@@ -750,5 +907,82 @@ export abstract class BaseMediaServerClient
   protected static buildStaticAuthHeader(token?: string): string {
     const tokenPart = token ? `, Token="${token}"` : '';
     return `MediaBrowser Client="${CLIENT_NAME}", Device="${DEVICE_NAME}", DeviceId="${DEVICE_ID}", Version="${CLIENT_VERSION}"${tokenPart}`;
+  }
+
+  protected static memberClientHeader(scheme: 'MediaBrowser' | 'Emby', deviceId: string): string {
+    return `${scheme} Client="${CLIENT_NAME}", Device="${MEMBER_DEVICE_NAME}", DeviceId="${deviceId}", Version="${CLIENT_VERSION}"`;
+  }
+
+  // Member calls never follow a redirect: it would resend the member's password, Quick Connect
+  // secret or token to wherever it points, past the SSRF check on the server URL.
+
+  /** POSTs a sign-in and returns the user token, or null when the server refuses it. */
+  protected static async requestUserToken(
+    service: JellyfinEmbyServerType,
+    serverUrl: string,
+    path: string,
+    headers: Record<string, string>,
+    body: Record<string, string>
+  ): Promise<MediaServerAuth | null> {
+    assertSafeProbeUrl(serverUrl);
+    try {
+      const data = await fetchJson<{ User?: { Id?: unknown }; AccessToken?: unknown }>(
+        `${serverUrl.replace(/\/$/, '')}${path}`,
+        {
+          method: 'POST',
+          headers: { ...headers, 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify(body),
+          service,
+          timeout: 10_000,
+          redirect: 'manual',
+        }
+      );
+      const externalId = data.User?.Id;
+      const token = data.AccessToken;
+      if (typeof externalId !== 'string' || typeof token !== 'string' || !externalId || !token) {
+        return null;
+      }
+      return { externalId, token };
+    } catch (error) {
+      if (isHttpStatus(error, 401, 403)) return null;
+      throw error;
+    }
+  }
+
+  /** Reads the user a member token belongs to; null when the server rejects the token. */
+  protected static async requestTokenUser(
+    service: JellyfinEmbyServerType,
+    url: string,
+    headers: Record<string, string>
+  ): Promise<{ id: string; isDisabled: boolean } | null> {
+    assertSafeProbeUrl(url);
+    try {
+      const data = await fetchJson<{ Id?: unknown; Policy?: { IsDisabled?: unknown } }>(url, {
+        headers: { ...headers, Accept: 'application/json' },
+        service,
+        timeout: 10_000,
+        redirect: 'manual',
+      });
+      if (typeof data.Id !== 'string' || !data.Id) return null;
+      return { id: data.Id, isDisabled: data.Policy?.IsDisabled === true };
+    } catch (error) {
+      if (isHttpStatus(error, 400, 401, 403, 404)) return null;
+      throw error;
+    }
+  }
+
+  protected static async postTokenLogout(
+    service: JellyfinEmbyServerType,
+    serverUrl: string,
+    headers: Record<string, string>
+  ): Promise<void> {
+    assertSafeProbeUrl(serverUrl);
+    await fetchText(`${serverUrl.replace(/\/$/, '')}/Sessions/Logout`, {
+      method: 'POST',
+      headers,
+      service,
+      timeout: 10_000,
+      redirect: 'manual',
+    });
   }
 }

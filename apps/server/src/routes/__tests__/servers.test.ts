@@ -31,8 +31,8 @@ vi.mock('../../utils/crypto.js', () => ({
 }));
 
 vi.mock('../../services/mediaServer/index.js', () => ({
+  verifyServerAdmin: vi.fn(),
   PlexClient: {
-    verifyServerAdmin: vi.fn(),
     getAccountInfo: vi.fn(),
     AdminVerifyError: {
       CONNECTION_FAILED: 'CONNECTION_FAILED',
@@ -40,15 +40,6 @@ vi.mock('../../services/mediaServer/index.js', () => ({
     },
   },
   JellyfinClient: {
-    verifyServerAdmin: vi.fn(),
-    AdminVerifyError: {
-      CONNECTION_FAILED: 'CONNECTION_FAILED',
-      INVALID_KEY: 'INVALID_KEY',
-      NOT_ADMIN: 'NOT_ADMIN',
-    },
-  },
-  EmbyClient: {
-    verifyServerAdmin: vi.fn(),
     AdminVerifyError: {
       CONNECTION_FAILED: 'CONNECTION_FAILED',
       INVALID_KEY: 'INVALID_KEY',
@@ -69,6 +60,10 @@ vi.mock('../../services/cache.js', () => ({
   getPubSubService: () => ({ publish: mockPublish }),
 }));
 
+vi.mock('../../jobs/serverUpdateChecker.js', () => ({
+  installedVersionOf: vi.fn().mockResolvedValue(null),
+}));
+
 vi.mock('../../jobs/librarySyncQueue.js', () => ({
   enqueueLibrarySync: vi.fn().mockResolvedValue(undefined),
   rebuildAutoSyncSchedules: vi.fn().mockResolvedValue(undefined),
@@ -82,6 +77,7 @@ vi.mock('../../services/serverLiveStats.js', () => ({
 
 vi.mock('../../services/serverIdentity.js', () => ({
   readServerIdentity: vi.fn(),
+  sharesKnownUsers: vi.fn(),
 }));
 
 vi.mock('../../services/sseManager.js', () => ({
@@ -98,7 +94,10 @@ vi.mock('../../services/historicalServers.js', () => ({
 
 vi.mock('../../services/settings.js', () => ({
   rearmImportedHistoryLink: vi.fn().mockResolvedValue(undefined),
+  getSetting: vi.fn().mockResolvedValue({ local: true, plex: true, oidc: true, member: true }),
 }));
+
+vi.mock('../../lib/revoke.js', () => ({ revokeUnlessStillIn: vi.fn() }));
 
 import type { SQL } from 'drizzle-orm';
 import { db } from '../../db/client.js';
@@ -107,12 +106,15 @@ import { getCacheService } from '../../services/cache.js';
 import { markServerHistorical, resumeServer } from '../../services/historicalServers.js';
 import { renderSql } from '../../test/helpers.js';
 import { rearmImportedHistoryLink } from '../../services/settings.js';
-import { PlexClient, JellyfinClient, EmbyClient } from '../../services/mediaServer/index.js';
+import { PlexClient, verifyServerAdmin } from '../../services/mediaServer/index.js';
 import { getServerLiveStats, getServerResourceStats } from '../../services/serverLiveStats.js';
 import { syncServer } from '../../services/sync.js';
-import { readServerIdentity } from '../../services/serverIdentity.js';
+import { installedVersionOf } from '../../jobs/serverUpdateChecker.js';
+import { readServerIdentity, sharesKnownUsers } from '../../services/serverIdentity.js';
 import { sseManager } from '../../services/sseManager.js';
+import { revokeUnlessStillIn } from '../../lib/revoke.js';
 import { serverRoutes } from '../servers.js';
+import { permissionGuard } from '../../lib/scope.js';
 
 // Mock global fetch for image proxy tests
 const mockFetch = vi.fn();
@@ -185,6 +187,7 @@ async function buildTestApp(authUser: AuthUser): Promise<FastifyInstance> {
   app.decorate('authenticate', async (request: unknown) => {
     (request as { user: AuthUser }).user = authUser;
   });
+  app.decorate('requirePermission', permissionGuard(app));
 
   // Mock jwtVerify for image routes
   app.decorateRequest('jwtVerify', async function (this: { user: AuthUser }) {
@@ -205,7 +208,7 @@ const ownerUser: AuthUser = {
 const viewerUser: AuthUser = {
   userId: randomUUID(),
   username: 'viewer',
-  role: 'viewer',
+  role: 'admin',
   serverIds: [randomUUID()],
 };
 
@@ -343,9 +346,7 @@ describe('Server Routes', () => {
 
   describe('POST /servers', () => {
     beforeEach(() => {
-      vi.mocked(PlexClient.verifyServerAdmin).mockResolvedValue({ success: true });
-      vi.mocked(JellyfinClient.verifyServerAdmin).mockResolvedValue({ success: true });
-      vi.mocked(EmbyClient.verifyServerAdmin).mockResolvedValue({ success: true });
+      vi.mocked(verifyServerAdmin).mockResolvedValue({ success: true });
       vi.mocked(syncServer).mockResolvedValue({
         usersAdded: 5,
         usersUpdated: 0,
@@ -404,7 +405,8 @@ describe('Server Routes', () => {
       });
 
       expect(response.statusCode).toBe(201);
-      expect(PlexClient.verifyServerAdmin).toHaveBeenCalledWith(
+      expect(verifyServerAdmin).toHaveBeenCalledWith(
+        'plex',
         'my-plex-token',
         'http://plex.local:32400'
       );
@@ -494,7 +496,8 @@ describe('Server Routes', () => {
       });
 
       expect(response.statusCode).toBe(201);
-      expect(JellyfinClient.verifyServerAdmin).toHaveBeenCalledWith(
+      expect(verifyServerAdmin).toHaveBeenCalledWith(
+        'jellyfin',
         'my-jellyfin-token',
         'http://jellyfin.local:8096'
       );
@@ -541,7 +544,8 @@ describe('Server Routes', () => {
       });
 
       expect(response.statusCode).toBe(201);
-      expect(EmbyClient.verifyServerAdmin).toHaveBeenCalledWith(
+      expect(verifyServerAdmin).toHaveBeenCalledWith(
+        'emby',
         'my-emby-token',
         'http://emby.local:8096'
       );
@@ -651,7 +655,7 @@ describe('Server Routes', () => {
       app = await buildTestApp(ownerUser);
 
       mockDbSelectLimit([]);
-      vi.mocked(PlexClient.verifyServerAdmin).mockResolvedValue({
+      vi.mocked(verifyServerAdmin).mockResolvedValue({
         success: false,
         code: 'NOT_ADMIN',
         message: 'You must be an admin on this Plex server',
@@ -676,7 +680,7 @@ describe('Server Routes', () => {
       app = await buildTestApp(ownerUser);
 
       mockDbSelectLimit([]);
-      vi.mocked(JellyfinClient.verifyServerAdmin).mockResolvedValue({
+      vi.mocked(verifyServerAdmin).mockResolvedValue({
         success: false,
         code: 'INVALID_KEY',
         message: 'Jellyfin rejected this API key (it may be invalid or expired).',
@@ -701,7 +705,7 @@ describe('Server Routes', () => {
       app = await buildTestApp(ownerUser);
 
       mockDbSelectLimit([]);
-      vi.mocked(EmbyClient.verifyServerAdmin).mockResolvedValue({
+      vi.mocked(verifyServerAdmin).mockResolvedValue({
         success: false,
         code: 'CONNECTION_FAILED',
         message: 'Cannot reach Emby server at http://emby.local:8096. ECONNREFUSED',
@@ -726,7 +730,7 @@ describe('Server Routes', () => {
       app = await buildTestApp(ownerUser);
 
       mockDbSelectLimit([]);
-      vi.mocked(EmbyClient.verifyServerAdmin).mockResolvedValue({
+      vi.mocked(verifyServerAdmin).mockResolvedValue({
         success: false,
         code: 'INVALID_KEY',
         message: 'Emby rejected this API key (it may be invalid or expired).',
@@ -751,7 +755,7 @@ describe('Server Routes', () => {
       app = await buildTestApp(ownerUser);
 
       mockDbSelectLimit([]);
-      vi.mocked(PlexClient.verifyServerAdmin).mockRejectedValue(new Error('Connection refused'));
+      vi.mocked(verifyServerAdmin).mockRejectedValue(new Error('Connection refused'));
 
       const response = await app.inject({
         method: 'POST',
@@ -786,6 +790,49 @@ describe('Server Routes', () => {
   });
 
   describe('PATCH /servers/:id', () => {
+    // Off already is the resend after a revoke that failed; it must still revoke.
+    it.each([true, false])(
+      'persists member login off and revokes everyone on the server except allowed people (was on: %s)',
+      async (wasOn) => {
+        app = await buildTestApp(ownerUser);
+        const server = { ...mockServer, allowMemberLogin: wasOn };
+        vi.mocked(db.select).mockReturnValueOnce({
+          from: vi.fn().mockReturnThis(),
+          where: vi.fn().mockReturnThis(),
+          limit: vi.fn().mockResolvedValue([server]),
+        } as never);
+        const holders = vi.fn().mockResolvedValue([
+          { userId: 'u1', role: 'member', loginAccess: 'default' },
+          { userId: 'u2', role: 'admin', loginAccess: 'block' },
+          { userId: 'u3', role: 'member', loginAccess: 'allow' },
+        ]);
+        vi.mocked(db.select).mockReturnValueOnce({
+          from: vi.fn().mockReturnThis(),
+          innerJoin: vi.fn().mockReturnThis(),
+          where: holders,
+        } as never);
+        const update = mockDbUpdateReturning([{ ...server, allowMemberLogin: false }]);
+
+        const response = await app.inject({
+          method: 'PATCH',
+          url: `/servers/${server.id}`,
+          payload: { allowMemberLogin: false },
+        });
+
+        expect(response.statusCode).toBe(200);
+        expect(update.set).toHaveBeenCalledWith({
+          allowMemberLogin: false,
+          updatedAt: expect.any(Date),
+        });
+        expect(response.json().allowMemberLogin).toBe(false);
+        expect(revokeUnlessStillIn).toHaveBeenCalledExactlyOnceWith(['u1', 'u2']);
+        // Holders whose account there is removed or disabled have nothing to lose
+        const condition = renderSql(holders.mock.calls[0]?.[0] as SQL).sql;
+        expect(condition).toContain('removed_at is null');
+        expect(condition).toContain('is_disabled =');
+      }
+    );
+
     it('updates server name only for owner', async () => {
       app = await buildTestApp(ownerUser);
 
@@ -865,7 +912,7 @@ describe('Server Routes', () => {
         token: 'old-key',
         machineIdentifier: 'jf-1',
       };
-      vi.mocked(JellyfinClient.verifyServerAdmin).mockResolvedValue({ success: true });
+      vi.mocked(verifyServerAdmin).mockResolvedValue({ success: true });
       vi.mocked(readServerIdentity).mockResolvedValue('jf-1');
       mockDbSelectLimit([jellyfin]);
       const update = mockDbUpdateReturning([jellyfin]);
@@ -877,7 +924,8 @@ describe('Server Routes', () => {
       });
 
       expect(response.statusCode).toBe(200);
-      expect(JellyfinClient.verifyServerAdmin).toHaveBeenCalledWith(
+      expect(verifyServerAdmin).toHaveBeenCalledWith(
+        'jellyfin',
         'new-key',
         'http://192.168.1.20:8096'
       );
@@ -897,7 +945,7 @@ describe('Server Routes', () => {
         token: 'old-key',
         machineIdentifier: null,
       };
-      vi.mocked(JellyfinClient.verifyServerAdmin).mockResolvedValue({ success: true });
+      vi.mocked(verifyServerAdmin).mockResolvedValue({ success: true });
       vi.mocked(readServerIdentity).mockResolvedValueOnce('jf-1').mockResolvedValueOnce('jf-1');
       mockDbSelectLimit([jellyfin]);
       const update = mockDbUpdateReturning([jellyfin]);
@@ -909,10 +957,7 @@ describe('Server Routes', () => {
       });
 
       expect(response.statusCode).toBe(200);
-      expect(JellyfinClient.verifyServerAdmin).toHaveBeenCalledWith(
-        'new-key',
-        'http://new-host:8096'
-      );
+      expect(verifyServerAdmin).toHaveBeenCalledWith('jellyfin', 'new-key', 'http://new-host:8096');
       expect(readServerIdentity).toHaveBeenNthCalledWith(
         1,
         expect.objectContaining({ url: 'http://192.168.1.20:8096', token: 'old-key' })
@@ -938,7 +983,7 @@ describe('Server Routes', () => {
         token: 'old-key',
         machineIdentifier: 'emby-1',
       };
-      vi.mocked(EmbyClient.verifyServerAdmin).mockResolvedValue({ success: true });
+      vi.mocked(verifyServerAdmin).mockResolvedValue({ success: true });
 
       mockDbSelectLimit([emby]);
       vi.mocked(readServerIdentity).mockResolvedValueOnce('emby-2');
@@ -951,7 +996,10 @@ describe('Server Routes', () => {
       expect(elsewhere.json().message).toContain('different server');
 
       mockDbSelectLimit([{ ...emby, machineIdentifier: null }]);
-      vi.mocked(readServerIdentity).mockRejectedValueOnce(new Error('401'));
+      vi.mocked(readServerIdentity)
+        .mockRejectedValueOnce(new Error('401'))
+        .mockResolvedValueOnce('emby-2');
+      vi.mocked(sharesKnownUsers).mockResolvedValueOnce(false);
       const unknown = await app.inject({
         method: 'PATCH',
         url: `/servers/${emby.id}`,
@@ -961,6 +1009,40 @@ describe('Server Routes', () => {
       expect(unknown.json().message).toContain('no record of which server');
 
       expect(db.update).not.toHaveBeenCalled();
+    });
+
+    it('accepts a new key when the saved one is rejected but the server lists users Tracearr knows', async () => {
+      app = await buildTestApp(ownerUser);
+      const jellyfin = {
+        ...mockServer,
+        type: 'jellyfin' as const,
+        url: 'http://192.168.1.20:8096',
+        token: 'revoked-key',
+        machineIdentifier: null,
+      };
+      vi.mocked(verifyServerAdmin).mockResolvedValue({ success: true });
+      vi.mocked(readServerIdentity)
+        .mockRejectedValueOnce(new Error('401'))
+        .mockResolvedValueOnce('jf-1');
+      vi.mocked(sharesKnownUsers).mockResolvedValueOnce(true);
+      mockDbSelectLimit([jellyfin]);
+      const update = mockDbUpdateReturning([jellyfin]);
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/servers/${jellyfin.id}`,
+        payload: { apiKey: 'new-key' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(sharesKnownUsers).toHaveBeenCalledWith(
+        expect.objectContaining({ url: 'http://192.168.1.20:8096', token: 'new-key' })
+      );
+      expect(update.set).toHaveBeenCalledWith({
+        token: 'new-key',
+        machineIdentifier: 'jf-1',
+        updatedAt: expect.any(Date),
+      });
     });
 
     it('treats the saved key sent again as no change', async () => {
@@ -975,7 +1057,7 @@ describe('Server Routes', () => {
       });
 
       expect(response.statusCode).toBe(200);
-      expect(JellyfinClient.verifyServerAdmin).not.toHaveBeenCalled();
+      expect(verifyServerAdmin).not.toHaveBeenCalled();
       expect(db.update).not.toHaveBeenCalled();
     });
 
@@ -987,7 +1069,7 @@ describe('Server Routes', () => {
         url: 'http://192.168.1.30:8096',
         token: 'old-key',
       };
-      vi.mocked(EmbyClient.verifyServerAdmin).mockResolvedValue({
+      vi.mocked(verifyServerAdmin).mockResolvedValue({
         success: false,
         code: 'INVALID_KEY',
         message: 'Invalid API key',
@@ -1004,6 +1086,7 @@ describe('Server Routes', () => {
       expect(db.update).not.toHaveBeenCalled();
 
       mockDbSelectLimit([mockServer]);
+      vi.mocked(verifyServerAdmin).mockClear();
       const plex = await app.inject({
         method: 'PATCH',
         url: `/servers/${mockServer.id}`,
@@ -1013,7 +1096,7 @@ describe('Server Routes', () => {
       expect(plex.json().message).toBe(
         'Plex servers sign in through plex.tv and have no API key to change'
       );
-      expect(PlexClient.verifyServerAdmin).not.toHaveBeenCalled();
+      expect(verifyServerAdmin).not.toHaveBeenCalled();
       expect(readServerIdentity).not.toHaveBeenCalled();
       expect(db.update).not.toHaveBeenCalled();
     });
@@ -1075,7 +1158,7 @@ describe('Server Routes', () => {
       });
       expect(response.statusCode).toBe(409);
       expect(response.json().message).toBe('Resume this server to change its address or key');
-      expect(JellyfinClient.verifyServerAdmin).not.toHaveBeenCalled();
+      expect(verifyServerAdmin).not.toHaveBeenCalled();
 
       mockDbSelectLimit([historical]);
       response = await app.inject({
@@ -1153,7 +1236,7 @@ describe('Server Routes', () => {
     it('announces a created server', async () => {
       app = await buildTestApp(ownerUser);
 
-      vi.mocked(PlexClient.verifyServerAdmin).mockResolvedValue({ success: true });
+      vi.mocked(verifyServerAdmin).mockResolvedValue({ success: true });
       vi.mocked(PlexClient.getAccountInfo).mockResolvedValue({
         id: 'plex-account-123',
         username: 'admin',
@@ -1293,6 +1376,22 @@ describe('Server Routes', () => {
         syncUsers: true,
         syncLibraries: true,
       });
+    });
+
+    it('stores the version the server reports now', async () => {
+      app = await buildTestApp(ownerUser);
+      vi.mocked(installedVersionOf).mockResolvedValueOnce('10.11.12');
+      mockDbSelectLimit([mockServer]);
+      const update = mockDbUpdate();
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/servers/${mockServer.id}/sync`,
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(installedVersionOf).toHaveBeenCalledWith(mockServer);
+      expect(update.set).toHaveBeenCalledWith(expect.objectContaining({ version: '10.11.12' }));
     });
 
     it('returns errors when sync has issues', async () => {

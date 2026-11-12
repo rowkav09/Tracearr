@@ -97,6 +97,36 @@ describe('parseRatingKeys', () => {
   });
 });
 
+describe('parseLibraryItemsResponse - trashed versions', () => {
+  it('counts only the file still available when Plex retains a missing version in trash', () => {
+    const [item] = parseLibraryItemsResponse(
+      musicResponse([
+        {
+          ratingKey: '28552',
+          title: 'Example',
+          type: 'movie',
+          addedAt: 1700000000,
+          Media: [
+            {
+              id: 1,
+              videoResolution: '1080',
+              Part: [{ file: '/movies/1080.mkv', size: 2_000_000_000 }],
+            },
+            {
+              id: 2,
+              videoResolution: '4k',
+              deletedAt: 1700000000,
+              Part: [{ file: '/movies/missing-4k.mp4', size: 12_000_000_000 }],
+            },
+          ],
+        },
+      ])
+    );
+    expect(item?.versions?.map((version) => version.serverVersionKey)).toEqual(['1']);
+    expect(item?.fileSize).toBe(2_000_000_000);
+  });
+});
+
 describe('parseLibraryItemsResponse - external ids', () => {
   it('keeps the first id per provider when the agent lists a second one', () => {
     const [item] = parseLibraryItemsResponse(

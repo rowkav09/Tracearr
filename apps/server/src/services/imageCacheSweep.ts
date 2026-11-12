@@ -1,13 +1,14 @@
 /**
  * The only thing that deletes a versioned poster: a sweep against library_items.
  * Expected names come from every row with a thumb path, removed rows included, so
- * a removed item keeps its last poster and only a gone row orphans one.
+ * a removed item keeps its last poster and only a gone row orphans one. Every row
+ * expects its 2:3 poster; artists and albums also expect their square one.
  */
 
 import { readdir, stat as fsStat, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { and, asc, gt, isNotNull, sql } from 'drizzle-orm';
-import { REDIS_KEYS, TIME_MS, type ImageCacheStatus } from '@tracearr/shared';
+import { REDIS_KEYS, TIME_MS, posterSizeFor, type ImageCacheStatus } from '@tracearr/shared';
 import { db } from '../db/client.js';
 import { libraryItems } from '../db/schema.js';
 import { getRedis } from '../lib/redisShared.js';
@@ -15,6 +16,7 @@ import { isMaintenance } from '../serverState.js';
 import {
   ESTIMATED_POSTER_BYTES,
   getGuardConfig,
+  isOnMountedVolume,
   readDiskLimited,
   readDiskSpace,
   setCacheTallyBytes,
@@ -45,11 +47,17 @@ export async function buildExpectedFileNames(): Promise<Set<string>> {
   const expected = new Set<string>();
   let cursor: string | null = null;
   for (;;) {
-    const rows: Array<{ id: string; serverId: string; thumbPath: string | null }> = await db
+    const rows: Array<{
+      id: string;
+      serverId: string;
+      thumbPath: string | null;
+      mediaType: string;
+    }> = await db
       .select({
         id: libraryItems.id,
         serverId: libraryItems.serverId,
         thumbPath: libraryItems.thumbPath,
+        mediaType: libraryItems.mediaType,
       })
       .from(libraryItems)
       .where(
@@ -58,10 +66,14 @@ export async function buildExpectedFileNames(): Promise<Set<string>> {
       .orderBy(asc(libraryItems.id))
       .limit(PAGE);
     for (const row of rows) {
-      if (row.thumbPath) expected.add(posterCacheFileName(row.serverId, row.thumbPath).fileName);
+      if (!row.thumbPath) continue;
+      expected.add(posterCacheFileName(row.serverId, row.thumbPath).fileName);
+      const size = posterSizeFor(row.mediaType);
+      expected.add(posterCacheFileName(row.serverId, row.thumbPath, size).fileName);
     }
-    if (rows.length < PAGE) break;
-    cursor = rows[rows.length - 1]!.id;
+    const last = rows.at(-1);
+    if (rows.length < PAGE || !last) break;
+    cursor = last.id;
   }
   return expected;
 }
@@ -256,9 +268,10 @@ export function stopImageCacheSweep(): void {
 
 export async function getImageCacheStatus(): Promise<ImageCacheStatus> {
   const redis = getRedis();
-  const [tallyRaw, notPersisting, limited, space, countRow] = await Promise.all([
+  const [tallyRaw, notPersisting, onVolume, limited, space, countRow] = await Promise.all([
     redis.get(REDIS_KEYS.IMAGE_CACHE_TALLY),
     redis.get(REDIS_KEYS.IMAGE_CACHE_NOT_PERSISTING).catch(() => null),
+    isOnMountedVolume(IMAGE_CACHE_DIR),
     readDiskLimited(redis),
     readDiskSpace(IMAGE_CACHE_DIR).catch(() => ({ freeBytes: 0, totalBytes: 0 })),
     // One file per (server, path), not per row: a track row carries its album's
@@ -296,7 +309,8 @@ export async function getImageCacheStatus(): Promise<ImageCacheStatus> {
     sweptAt: tally?.sweptAt ?? null,
     freedBytesLastSweep: tally?.freedBytes ?? 0,
     deletedFilesLastSweep: tally?.deletedFiles ?? 0,
-    notPersisting: notPersisting !== null,
+    // The flag is only re-sampled every few days; a volume added since clears it now.
+    notPersisting: notPersisting !== null && !onVolume,
     postersWithThumb,
     estimatedNeedBytes: postersWithThumb * ESTIMATED_POSTER_BYTES,
     freeBytes: space.freeBytes,

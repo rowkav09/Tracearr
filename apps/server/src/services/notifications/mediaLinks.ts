@@ -4,12 +4,11 @@
  * so a destination renders only the links it actually has.
  */
 
-import { buildMediaServerItemUrl } from '@tracearr/shared';
+import { buildMediaServerItemUrl, isServerType, serverLinkBase } from '@tracearr/shared';
 import { eq } from 'drizzle-orm';
 import { db } from '../../db/client.js';
 import { servers } from '../../db/schema.js';
 import { getNetworkSettings } from '../settings.js';
-import type { ServerType } from '@tracearr/shared';
 import type { MediaEventPayload } from './events.js';
 
 export interface MediaLink {
@@ -19,6 +18,7 @@ export interface MediaLink {
 
 interface ServerLinkRow {
   url: string;
+  publicUrl: string | null;
   machineIdentifier: string | null;
 }
 
@@ -34,7 +34,11 @@ async function serverRow(serverId: string): Promise<ServerLinkRow | null> {
   const cached = serverCache.get(serverId);
   if (cached && Date.now() - cached.at < SERVER_TTL_MS) return cached.row;
   const [row] = await db
-    .select({ url: servers.url, machineIdentifier: servers.machineIdentifier })
+    .select({
+      url: servers.url,
+      publicUrl: servers.publicUrl,
+      machineIdentifier: servers.machineIdentifier,
+    })
     .from(servers)
     .where(eq(servers.id, serverId))
     .limit(1);
@@ -59,13 +63,13 @@ export async function buildMediaLinks(ctx: MediaEventPayload): Promise<MediaLink
     });
   }
 
-  if (SERVER_TYPES.has(ctx.serverType)) {
+  if (isServerType(ctx.serverType)) {
     const server = await serverRow(ctx.serverId).catch(() => null);
     const url =
       server &&
       buildMediaServerItemUrl({
-        serverType: ctx.serverType as ServerType,
-        baseUrl: server.url,
+        serverType: ctx.serverType,
+        baseUrl: serverLinkBase(server),
         ratingKey: ctx.ratingKey,
         machineIdentifier: server.machineIdentifier,
       });

@@ -11,6 +11,7 @@ import { sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { db } from '../../db/client.js';
+import { lastDaysWindow, rollupDayWindowSql } from '../../db/sessions/rules.js';
 import { decodeCursor, encodeCursor } from '../../utils/cursor.js';
 import { representativeAccountOrderSql } from '../../utils/representativeAccount.js';
 import {
@@ -19,7 +20,6 @@ import {
   idList,
   runHistoryPage,
   STATS_WINDOWS,
-  windowDayFilter,
   type RouteConfig,
   type StatsWindowKey,
 } from './shared.js';
@@ -27,6 +27,7 @@ import {
 interface IdentityRow {
   id: string;
   username: string;
+  identity_name: string | null;
   email: string | null;
   plex_account_id: string | null;
   created_at: Date;
@@ -79,9 +80,7 @@ async function fetchAccountsByUserId(userIds: string[]): Promise<Map<string, Acc
       username: row.username,
       removed_at: row.removed_at ? new Date(row.removed_at).toISOString() : null,
     };
-    const existing = byUser.get(row.user_id);
-    if (existing) existing.push(block);
-    else byUser.set(row.user_id, [block]);
+    byUser.getOrInsertComputed(row.user_id, () => []).push(block);
   }
 
   return byUser;
@@ -91,6 +90,7 @@ function correlationBlock(identity: IdentityRow, accounts: AccountBlock[]) {
   return {
     id: identity.id,
     username: identity.username,
+    identity_name: identity.identity_name,
     email: identity.email,
     plex_account_id: identity.plex_account_id,
     accounts,
@@ -99,7 +99,7 @@ function correlationBlock(identity: IdentityRow, accounts: AccountBlock[]) {
 
 async function findIdentity(id: string): Promise<IdentityRow | null> {
   const result = await db.execute(sql`
-    SELECT id, username, email, plex_account_id, created_at
+    SELECT id, username, name AS identity_name, email, plex_account_id, created_at
     FROM users
     WHERE id = ${id}::uuid
   `);
@@ -156,7 +156,7 @@ export function registerUsersRoutes(app: FastifyInstance, routeConfig: RouteConf
           INNER JOIN users u ON su.user_id = u.id
           ORDER BY su.user_id, ${representativeAccountOrderSql('su')}
         )
-        SELECT u.id, u.username, u.email, u.plex_account_id, u.created_at
+        SELECT u.id, u.username, u.name AS identity_name, u.email, u.plex_account_id, u.created_at
         FROM users u
         JOIN rep ON rep.user_id = u.id
         WHERE true${removedFilter}${cursorFilter}
@@ -229,7 +229,7 @@ export function registerUsersRoutes(app: FastifyInstance, routeConfig: RouteConf
             COUNT(DISTINCT p.chain_id) FILTER (WHERE p.counted) AS plays,
             COALESCE(SUM(p.watched_ms), 0) AS watch_time_ms
           FROM user_media_plays_daily p
-          WHERE ${scope}${windowDayFilter(sql`p.day`, win.days)}
+          WHERE ${scope}${rollupDayWindowSql(lastDaysWindow(win.days), sql`p.day`)}
         `);
         const row = result.rows[0] as { plays: string | number; watch_time_ms: string | number };
         windows[win.key] = {

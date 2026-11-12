@@ -17,6 +17,8 @@ import type {
   ActiveSession,
   NotificationEventType,
   NotificationPriority,
+  ServerType,
+  JellyfinEmbyServerType,
 } from '@tracearr/shared';
 import type { MediaQuality } from '../automations/types.js';
 import type {
@@ -69,7 +71,7 @@ export interface PluginUpdateContext {
   type: 'plugin_update_available';
   serverId: string;
   serverName: string;
-  serverType: string;
+  serverType: JellyfinEmbyServerType;
   installedVersion: string | null;
   latestVersion: string;
   downloadUrl: string;
@@ -238,7 +240,10 @@ export const PayloadBuilders = {
     };
   },
 
-  fromServerUp(serverName: string, serverType?: 'plex' | 'jellyfin' | 'emby' | 'navidrome'): NotificationPayload {
+  fromServerUp(
+    serverName: string,
+    serverType?: 'plex' | 'jellyfin' | 'emby' | 'navidrome'
+  ): NotificationPayload {
     return {
       event: 'server_up',
       title: 'Server Online',
@@ -348,7 +353,7 @@ export const PayloadBuilders = {
   fromPluginUpdate(
     serverId: string,
     serverName: string,
-    serverType: string,
+    serverType: JellyfinEmbyServerType,
     installedVersion: string | null,
     latestVersion: string,
     downloadUrl: string
@@ -464,6 +469,10 @@ function variablesOf(event: NotificationEvent): Record<string, string> {
         durationMinutes: scalar(data.durationMinutes),
         minutes: scalar(data.minutes),
         days: scalar(data.days),
+        'download.title': scalar(data.downloadTitle),
+        'download.app': scalar(data.downloadApp),
+        'download.device': scalar(data.downloadDevice),
+        'download.last24h': scalar(data.downloadsLast24h),
       };
     }
     case 'session_started':

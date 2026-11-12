@@ -3,6 +3,8 @@ import type {
   Session,
   TriggerType as CatalogTriggerType,
   ViolationSeverity,
+  ServerType,
+  JellyfinEmbyServerType,
 } from '@tracearr/shared';
 import type { db } from '../../../db/client.js';
 import type { sessions } from '../../../db/schema.js';
@@ -81,6 +83,11 @@ export interface SessionHeldForEvent extends SessionEventBase {
   triggerNodeId?: string;
 }
 
+/** The tick that crossed the watched threshold set for its media type; the row's flag keeps it to one per session. */
+export interface SessionWatchedEvent extends SessionEventBase {
+  type: 'session.watched';
+}
+
 /** Wake cancellations carry ids and no evaluation inputs. */
 interface SessionRefBase extends BaseEvent {
   sessionId: string;
@@ -142,6 +149,21 @@ export interface AccountTrustChangedEvent extends BaseEvent {
   reason: string | null;
 }
 
+export interface AccountMediaDownloadedEvent extends BaseEvent {
+  type: 'account.media_downloaded';
+  server: EvaluationServer;
+  serverUser: EvaluationServerUser;
+  session: null;
+  download: {
+    title: string;
+    app: string | null;
+    device: string | null;
+    /** Across the person's accounts on every server, and on this event's server alone. */
+    last24h: number;
+    last24hOnServer: number;
+  };
+}
+
 interface MediaEventBase extends BaseEvent {
   server: EvaluationServer;
   media: MediaSubject;
@@ -170,7 +192,7 @@ export interface ServerUpEvent extends BaseEvent {
 
 export interface PluginUpdateEvent extends BaseEvent {
   type: 'plugin.update_available';
-  server: EvaluationServer;
+  server: EvaluationServer & { type: JellyfinEmbyServerType };
   installedVersion: string | null;
   latestVersion: string;
   downloadUrl: string;
@@ -205,11 +227,13 @@ export type RuleEvent =
   | SessionTranscodeChangedEvent
   | SessionPausedEvent
   | SessionHeldForEvent
+  | SessionWatchedEvent
   | SessionStoppedEvent
   | SessionRefEvent
   | AccountInactiveForEvent
   | AccountNewDeviceEvent
   | AccountTrustChangedEvent
+  | AccountMediaDownloadedEvent
   | MediaAddedEvent
   | MediaUpgradedEvent
   | ServerDownEvent

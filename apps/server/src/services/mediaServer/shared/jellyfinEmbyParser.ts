@@ -12,6 +12,7 @@ import {
   parseOptionalString,
   parseOptionalNumber,
   getNestedObject,
+  parseArray,
   parseDateString,
   extractIpFromEndpoint,
 } from '../../../utils/parsing.js';
@@ -69,17 +70,6 @@ export interface JellyfinEmbyActivityEntry {
   userId?: string;
   date: string;
   severity: string;
-}
-
-/**
- * Authentication result - identical structure for Jellyfin and Emby
- */
-export interface JellyfinEmbyAuthResult {
-  id: string;
-  username: string;
-  token: string;
-  serverId: string;
-  isAdmin: boolean;
 }
 
 /**
@@ -278,6 +268,11 @@ export function parseUser(user: Record<string, unknown>): MediaUser {
     thumb: buildUserImagePath(userId, imageTag),
     isAdmin: parseBoolean(policy?.IsAdministrator),
     isDisabled: parseBoolean(policy?.IsDisabled),
+    // Folder ids, which sync maps onto library ids. A missing EnableAllFolders means every library.
+    sharedLibraries:
+      policy?.EnableAllFolders === false
+        ? parseArray(policy.EnabledFolders, (id) => parseString(id))
+        : undefined,
     lastLoginAt: user.LastLoginDate ? new Date(parseString(user.LastLoginDate)) : undefined,
     lastActivityAt: user.LastActivityDate
       ? new Date(parseString(user.LastActivityDate))
@@ -303,6 +298,7 @@ export function parseUsersResponse(users: unknown[]): MediaUser[] {
 export function parseLibrary(folder: Record<string, unknown>): MediaLibrary {
   return {
     id: parseString(folder.ItemId),
+    guid: parseOptionalString(folder.Guid),
     name: parseString(folder.Name),
     type: parseString(folder.CollectionType, 'unknown'),
     locations: Array.isArray(folder.Locations) ? (folder.Locations as string[]) : [],
@@ -388,23 +384,114 @@ export function parseActivityLogResponse(data: unknown): JellyfinEmbyActivityEnt
 }
 
 // ============================================================================
-// Authentication Response Parsing
+// Download Enrichment Parsing
 // ============================================================================
 
-/**
- * Parse authentication response
- */
-export function parseAuthResponse(data: Record<string, unknown>): JellyfinEmbyAuthResult {
-  const user = getNestedObject(data, 'User') ?? {};
-  const policy = getNestedObject(user, 'Policy') ?? {};
+export interface DeviceSession {
+  userId: string | null;
+  deviceId: string | null;
+  client: string | null;
+  deviceName: string | null;
+  remoteEndPoint: string | null;
+  nowPlaying: boolean;
+  /** TranscodingInfo; Jellyfin leaves it on a session that is not playing after the transcode ends, with completionPercentage null */
+  transcoding: {
+    /** bps */
+    bitrate: number | null;
+    width: number | null;
+    height: number | null;
+    videoCodec: string | null;
+    audioCodec: string | null;
+    container: string | null;
+    completionPercentage: number | null;
+  } | null;
+}
 
-  return {
-    id: parseString(user.Id),
-    username: parseString(user.Name),
-    token: parseString(data.AccessToken),
-    serverId: parseString(data.ServerId),
-    isAdmin: parseBoolean(policy.IsAdministrator),
-  };
+export interface ItemMediaSource {
+  id: string;
+  size: number | null;
+  container: string | null;
+  videoResolution: string | null;
+  videoCodec: string | null;
+  videoDynamicRange: string | null;
+}
+
+export interface EmbySyncJob {
+  id: number;
+  /** Emby's numeric internal user id, as the activity log names users */
+  userId: string;
+  itemId: string;
+  name: string;
+  /** Equals the DeviceId of the target device's session */
+  targetId: string;
+  /** "<device> (<app>) - <user>" */
+  targetName: string;
+  /** Target bitrate in bps, as a string */
+  quality: string | null;
+  status: string;
+  dateCreated: string;
+  dateLastModified: string;
+}
+
+export interface EmbySyncJobItem {
+  id: number;
+  jobId: number;
+  itemId: string;
+  status: string;
+  dateCreated: string;
+  /** The delivered file; present once the item is Synced */
+  mediaSource: {
+    size: number | null;
+    bitrate: number | null;
+    container: string | null;
+    videoCodec: string | null;
+    audioCodec: string | null;
+    width: number | null;
+    height: number | null;
+  } | null;
+}
+
+/** Every session /Sessions lists, idle device sessions included */
+export function parseDeviceSessions(data: unknown[]): DeviceSession[] {
+  return data.map((raw) => {
+    const session = (raw ?? {}) as Record<string, unknown>;
+    const transcoding = getNestedObject(session, 'TranscodingInfo');
+    return {
+      userId: parseOptionalString(session.UserId) ?? null,
+      deviceId: parseOptionalString(session.DeviceId) ?? null,
+      client: parseOptionalString(session.Client) ?? null,
+      deviceName: parseOptionalString(session.DeviceName) ?? null,
+      remoteEndPoint: parseOptionalString(session.RemoteEndPoint) ?? null,
+      nowPlaying: getNestedObject(session, 'NowPlayingItem') !== undefined,
+      transcoding: transcoding
+        ? {
+            bitrate: parseOptionalNumber(transcoding.Bitrate) ?? null,
+            width: parseOptionalNumber(transcoding.Width) ?? null,
+            height: parseOptionalNumber(transcoding.Height) ?? null,
+            videoCodec: parseOptionalString(transcoding.VideoCodec) ?? null,
+            audioCodec: parseOptionalString(transcoding.AudioCodec) ?? null,
+            container: parseOptionalString(transcoding.Container) ?? null,
+            completionPercentage: parseOptionalNumber(transcoding.CompletionPercentage) ?? null,
+          }
+        : null,
+    };
+  });
+}
+
+/** The MediaSources of the first item in an /Items?Ids=&Fields=MediaSources response, in order */
+export function parseItemMediaSources(data: unknown): ItemMediaSource[] {
+  const item = (data as { Items?: Array<Record<string, unknown>> })?.Items?.[0];
+  if (!item) return [];
+  return extractVersions(item.MediaSources, item.MediaStreams, parseString(item.Id)).map(
+    (version) => ({
+      id: version.serverVersionKey,
+      size: version.fileSize ?? null,
+      container: version.container ?? null,
+      videoResolution: version.videoResolution ?? null,
+      videoCodec: version.videoCodec ?? null,
+      videoDynamicRange: version.videoDynamicRange ?? null,
+    })
+  );
 }
 
 // ============================================================================
@@ -766,6 +853,50 @@ export function parseLibraryDate(value: unknown): Date | undefined {
   return date;
 }
 
+function primaryImagePath(id: string, tag: string): string {
+  return `/Items/${id}/Images/Primary?tag=${tag}`;
+}
+
+/**
+ * The poster the servers' own clients show for an item with no image of its
+ * own. For episodes and seasons Jellyfin sends ParentPrimaryImage (season, then
+ * series) and Emby only the series poster tag. Any item may report the item
+ * its Primary image comes from, as Emby does for albums whose cover lives on a
+ * track.
+ */
+function inheritedPosterPath(
+  item: Record<string, unknown>,
+  mappedType: MediaLibraryItem['mediaType']
+): string | undefined {
+  if (mappedType === 'episode' || mappedType === 'season') {
+    const parentId = parseOptionalString(item.ParentPrimaryImageItemId);
+    const parentTag = parseOptionalString(item.ParentPrimaryImageTag);
+    if (parentId && parentTag) return primaryImagePath(parentId, parentTag);
+    const seriesId = parseOptionalString(item.SeriesId);
+    const seriesTag = parseOptionalString(item.SeriesPrimaryImageTag);
+    if (seriesId && seriesTag) return primaryImagePath(seriesId, seriesTag);
+  }
+  const sourceId = parseOptionalString(item.PrimaryImageItemId);
+  const sourceTag = parseOptionalString(item.PrimaryImageTag);
+  if (sourceId && sourceTag) return primaryImagePath(sourceId, sourceTag);
+  return undefined;
+}
+
+/**
+ * Tracks repeat the album cover under their own item id, so point them at the
+ * album to cache it once. Only when the album has its own image: without a tag
+ * it has no Primary resource and the album URL 404s.
+ */
+function albumPosterPath(
+  item: Record<string, unknown>,
+  mappedType: MediaLibraryItem['mediaType']
+): string | undefined {
+  if (mappedType !== 'track') return undefined;
+  const albumId = parseOptionalString(item.AlbumId);
+  const albumTag = parseOptionalString(item.AlbumPrimaryImageTag);
+  return albumId && albumTag ? primaryImagePath(albumId, albumTag) : undefined;
+}
+
 /**
  * Parse a single library item from Jellyfin/Emby API response
  */
@@ -796,15 +927,11 @@ export function parseLibraryItem(item: Record<string, unknown>): MediaLibraryIte
   const itemId = parseString(item.Id);
   const imageTags = getNestedObject(item, 'ImageTags');
   const primaryTag = imageTags?.Primary ? parseString(imageTags.Primary) : undefined;
-  // Tracks repeat the album cover under their own item id, so point them at the
-  // album to cache it once. Only when the album has its own image: without a tag
-  // it has no Primary resource and the album URL 404s.
-  const albumTag =
-    mappedType === 'track' ? parseOptionalString(item.AlbumPrimaryImageTag) : undefined;
-  const albumId = albumTag ? parseOptionalString(item.AlbumId) : undefined;
-  const thumbPath = albumId
-    ? `/Items/${albumId}/Images/Primary?tag=${albumTag!}`
-    : `/Items/${itemId}/Images/Primary${primaryTag ? `?tag=${primaryTag}` : ''}`;
+  const thumbPath =
+    albumPosterPath(item, mappedType) ??
+    (primaryTag
+      ? primaryImagePath(itemId, primaryTag)
+      : (inheritedPosterPath(item, mappedType) ?? `/Items/${itemId}/Images/Primary`));
 
   const result: MediaLibraryItem = {
     ratingKey: itemId,
@@ -896,6 +1023,7 @@ const ALLOWED_LIBRARY_ITEM_TYPES = new Set([
   'episode',
   'season',
   'musicartist',
+  'musicalbum',
   'audio',
 ]);
 

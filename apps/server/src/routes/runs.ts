@@ -33,6 +33,7 @@ import {
   sessions,
   users,
 } from '../db/schema.js';
+import { readSessionRow } from '../db/sessions/row.js';
 import {
   buildOrderBy,
   utcDayEnd,
@@ -41,7 +42,7 @@ import {
   type SortKey,
 } from '../utils/listQuery.js';
 import { buildMultiServerCondition, resolveServerIds } from '../utils/serverFiltering.js';
-import { isLocalSession } from '../utils/localSession.js';
+import { isLocalSession } from '../db/sessions/rules.js';
 import type { PgSelect } from 'drizzle-orm/pg-core';
 
 const runIdParamSchema = z.object({ id: uuidSchema });
@@ -58,9 +59,10 @@ const INSTALL_SUBJECT_KEY = 'install';
 
 /**
  * A media subject names its library item after the prefix; every other subject key
- * is an id of its own, so the cast only ever sees the media rows.
+ * is an id of its own, so the cast only ever sees the media rows. The offset is cast
+ * because Postgres types a bare parameter there as text and runs the regex substring().
  */
-const mediaSubjectId = sql`CASE WHEN ${automationRuns.subjectKey} LIKE ${`${MEDIA_SUBJECT_PREFIX}%`} THEN substring(${automationRuns.subjectKey} FROM ${MEDIA_SUBJECT_PREFIX.length + 1})::uuid END`;
+const mediaSubjectId = sql`CASE WHEN ${automationRuns.subjectKey} LIKE ${`${MEDIA_SUBJECT_PREFIX}%`} THEN substring(${automationRuns.subjectKey} FROM ${MEDIA_SUBJECT_PREFIX.length + 1}::int)::uuid END`;
 
 /** Everything the summary shape needs; the step log stays out by construction. */
 const runSummaryColumns = {
@@ -108,6 +110,7 @@ const runDetailColumns = {
   storedMediaTitle: sql<string | null>`${automationRuns.data}->>'mediaTitle'`,
   storedIpAddress: sql<string | null>`${automationRuns.data}->>'ipAddress'`,
   definitionVersionId: automationRuns.definitionVersionId,
+  sessionStartedAt: automationRuns.sessionStartedAt,
 };
 
 /**
@@ -211,27 +214,34 @@ export const mapRunSummary = (row: RunSummaryRow): AutomationRunSummary => ({
  * A session the run names may still be absent - the row was cleaned up by hand, or the
  * run predates it - which is what the stored fallback below is for.
  */
-async function loadSessionContext(sessionId: string | null): Promise<RunSessionContext | null> {
+async function loadSessionContext(
+  sessionId: string | null,
+  startedAt: Date | null
+): Promise<RunSessionContext | null> {
   if (sessionId === null) return null;
-  const rows = await db
-    .select({
-      mediaTitle: sessions.mediaTitle,
-      mediaType: sessions.mediaType,
-      grandparentTitle: sessions.grandparentTitle,
-      player: sessions.playerName,
-      device: sessions.device,
-      product: sessions.product,
-      platform: sessions.platform,
-      ipAddress: sessions.ipAddress,
-      city: sessions.geoCity,
-      country: sessions.geoCountry,
-      isLocal: sessions.isLocal,
-      geoLat: sessions.geoLat,
-    })
-    .from(sessions)
-    .where(eq(sessions.id, sessionId))
-    .limit(1);
-  const row = rows[0];
+  const row = await readSessionRow(sessionId, startedAt, (where) =>
+    db
+      .select({
+        mediaTitle: sessions.mediaTitle,
+        mediaType: sessions.mediaType,
+        grandparentTitle: sessions.grandparentTitle,
+        mediaId: sessions.mediaId,
+        showMediaId: sessions.showMediaId,
+        player: sessions.playerName,
+        device: sessions.device,
+        product: sessions.product,
+        platform: sessions.platform,
+        ipAddress: sessions.ipAddress,
+        city: sessions.geoCity,
+        country: sessions.geoCountry,
+        isLocal: sessions.isLocal,
+        geoLat: sessions.geoLat,
+      })
+      .from(sessions)
+      .where(where)
+      .limit(1)
+      .then((rows) => rows[0])
+  );
   if (!row) return null;
   const { isLocal, geoLat, ...context } = row;
   return {
@@ -258,6 +268,8 @@ function storedSessionContext(row: {
     city: null,
     country: null,
     isLocal: false,
+    mediaId: null,
+    showMediaId: null,
   };
 }
 
@@ -299,10 +311,11 @@ function emptyCounts(): RunCounts {
 }
 
 export const runRoutes: FastifyPluginAsync = async (app) => {
+  const readRuns = { preHandler: [app.requirePermission('runs', 'read')] };
   /**
    * GET /runs/counts - How many runs each outcome holds, under the same filters
    */
-  app.get('/counts', { preHandler: [app.authenticate] }, async (request, reply) => {
+  app.get('/counts', readRuns, async (request, reply) => {
     const query = runCountsQuerySchema.safeParse(request.query);
     if (!query.success) {
       return reply.badRequest('Invalid query parameters');
@@ -340,7 +353,7 @@ export const runRoutes: FastifyPluginAsync = async (app) => {
   /**
    * GET /runs - Every automation's runs, newest first
    */
-  app.get('/', { preHandler: [app.authenticate] }, async (request, reply) => {
+  app.get('/', readRuns, async (request, reply) => {
     const query = runListQuerySchema.safeParse(request.query);
     if (!query.success) {
       return reply.badRequest('Invalid query parameters');
@@ -373,7 +386,7 @@ export const runRoutes: FastifyPluginAsync = async (app) => {
   /**
    * GET /runs/:id - One run with its step log
    */
-  app.get('/:id', { preHandler: [app.authenticate] }, async (request, reply) => {
+  app.get('/:id', readRuns, async (request, reply) => {
     const params = runIdParamSchema.safeParse(request.params);
     if (!params.success) {
       return reply.badRequest('Invalid run ID');
@@ -392,7 +405,9 @@ export const runRoutes: FastifyPluginAsync = async (app) => {
     return {
       ...mapRunSummary(row),
       steps: row.steps ?? [],
-      session: (await loadSessionContext(row.sessionId)) ?? storedSessionContext(row),
+      session:
+        (await loadSessionContext(row.sessionId, row.sessionStartedAt)) ??
+        storedSessionContext(row),
       evidence: Array.isArray(row.evidence) ? row.evidence : [],
       definitionVersionId: row.definitionVersionId,
     } satisfies AutomationRun;

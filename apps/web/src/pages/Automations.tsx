@@ -1,5 +1,5 @@
-import { Fragment, useCallback, useMemo, useState, type ReactNode } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useNavigate, useOutletContext, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Pencil, Plus, Power, PowerOff, Share2, Trash2, Workflow } from 'lucide-react';
 import type { Automation, AutomationSortField } from '@tracearr/shared';
@@ -54,6 +54,7 @@ import {
   describeText,
   type DescribeRefs,
 } from '@/lib/automations';
+import type { AutomationsOutletContext } from './AutomationsLayout';
 import {
   AUTOMATIONS_FILTER_DEFAULTS,
   buildAutomationFilterParams,
@@ -77,6 +78,7 @@ const getAutomationId = (automation: Automation) => automation.id;
 
 export function Automations() {
   const { t } = useTranslation(['pages', 'common']);
+  const { setActions } = useOutletContext<AutomationsOutletContext>();
   const navigate = useNavigate();
   const { servers } = useServer();
   const { data: settings } = useSettings();
@@ -334,6 +336,7 @@ export function Automations() {
           cell: ({ row }) => {
             const automation = row.original;
             return (
+              // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- keeps clicks on the buttons inside from opening the row
               <div
                 className="flex items-center gap-2"
                 onClick={(event) => {
@@ -361,6 +364,7 @@ export function Automations() {
           cell: ({ row }) => {
             const automation = row.original;
             return (
+              // oxlint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions -- keeps clicks on the buttons inside from opening the row
               <div
                 className="flex items-center justify-end gap-1"
                 onClick={(event) => {
@@ -491,17 +495,20 @@ export function Automations() {
     );
   };
 
-  const headerActions = (
-    <div className="flex items-center gap-2">
-      <Button variant="outline" onClick={() => setImportOpen(true)}>
-        {t('common:actions.import')}
-      </Button>
-      <Button onClick={() => setDialogView('gallery')}>
-        <Plus />
-        {t('pages:automations.newAutomation')}
-      </Button>
-    </div>
-  );
+  useEffect(() => {
+    setActions(
+      <>
+        <Button variant="outline" onClick={() => setImportOpen(true)}>
+          {t('common:actions.import')}
+        </Button>
+        <Button onClick={() => setDialogView('gallery')}>
+          <Plus />
+          {t('pages:automations.newAutomation')}
+        </Button>
+      </>
+    );
+    return () => setActions(null);
+  }, [setActions, t]);
 
   const startLinks = (
     <div className="flex flex-wrap items-center justify-center gap-1 max-sm:flex-col">
@@ -527,14 +534,6 @@ export function Automations() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">{t('pages:automations.title')}</h1>
-          <p className="text-muted-foreground">{t('pages:automations.description')}</p>
-        </div>
-        {headerActions}
-      </div>
-
       <Card>
         <CardContent className="space-y-4">
           <FilterBar

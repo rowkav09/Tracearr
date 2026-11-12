@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { format } from 'date-fns';
 import {
   AlertTriangle,
   ArrowUpCircle,
@@ -15,7 +14,12 @@ import {
 } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import type { RequestService, Server, ServerConnectionStatus } from '@tracearr/shared';
+import type {
+  OwnerLinkServer,
+  RequestService,
+  Server,
+  ServerConnectionStatus,
+} from '@tracearr/shared';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -35,10 +39,13 @@ import {
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { MediaServerIcon } from '@/components/icons/MediaServerIcon';
 import { ServerVersionLine } from '@/components/settings/servers/ServerVersionLine';
+import { OwnerAccountLine } from '@/components/settings/servers/OwnerAccountLine';
 import { RealtimeSetupDialog } from '@/components/settings/servers/RealtimeSetupDialog';
 import { RequestServiceLine } from '@/components/settings/request-services';
 import { TooltipIconButton } from '@/components/settings/shared/TooltipIconButton';
 import { cn } from '@/lib/utils';
+import { formatDate } from '@/lib/dateFormat';
+import { isJellyfinEmby } from '@/lib/serverType';
 
 const PLUGIN_ISSUES = ['blocked', 'restart_required', 'malfunctioned'];
 
@@ -54,6 +61,7 @@ export function ServerRow({
   isDraggable,
   isOwner,
   requestService,
+  ownerLink,
 }: {
   server: Server;
   connectionStatus?: ServerConnectionStatus;
@@ -66,6 +74,7 @@ export function ServerRow({
   isDraggable?: boolean;
   isOwner?: boolean;
   requestService?: { service: RequestService | undefined } | undefined;
+  ownerLink?: OwnerLinkServer | undefined;
 }) {
   const { t } = useTranslation(['settings', 'common']);
   const [realtimeDialog, setRealtimeDialog] = useState<'setup' | 'update' | null>(null);
@@ -137,12 +146,14 @@ export function ServerRow({
             </ItemDescription>
 
             <p className="text-muted-foreground text-xs">
-              {t('servers.added', { date: format(new Date(server.createdAt), 'MMM d, yyyy') })}
+              {t('servers.added', {
+                date: formatDate(new Date(server.createdAt), { dateStyle: 'medium' }),
+              })}
             </p>
             {server.historicalAt && (
               <p className="text-muted-foreground text-xs">
                 {t('servers.historicalSince', {
-                  date: format(new Date(server.historicalAt), 'MMM d, yyyy'),
+                  date: formatDate(new Date(server.historicalAt), { dateStyle: 'medium' }),
                 })}
               </p>
             )}
@@ -150,8 +161,9 @@ export function ServerRow({
             {requestService && (
               <RequestServiceLine server={server} service={requestService.service} />
             )}
+            {ownerLink && <OwnerAccountLine server={server} link={ownerLink} />}
 
-            {server.type !== 'plex' && !historical && (
+            {isJellyfinEmby(server.type) && !historical && (
               <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
                 {!connectionStatus ? (
                   <span className="text-muted-foreground">{t('servers.checkingConnection')}</span>
@@ -235,9 +247,9 @@ export function ServerRow({
         </Item>
       </TooltipProvider>
 
-      {server.type !== 'plex' && realtimeDialog && (
+      {isJellyfinEmby(server.type) && realtimeDialog && (
         <RealtimeSetupDialog
-          server={server}
+          serverType={server.type}
           open
           onClose={() => setRealtimeDialog(null)}
           mode={realtimeDialog}

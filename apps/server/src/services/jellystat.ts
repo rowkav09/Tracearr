@@ -46,6 +46,7 @@ import {
   enqueueServerLocationSyncIfBehind,
 } from '../jobs/maintenanceQueue.js';
 import { batchGetLibraryItemIdentity, type SessionIdentity } from '../jobs/poller/database.js';
+import { importIdentityByKey } from './import/libraryKeyMatch.js';
 import { sanitizeCodec } from '../utils/codecNormalizer.js';
 import { extractIpFromEndpoint } from '../utils/parsing.js';
 import { normalizeClient } from '../utils/platformNormalizer.js';
@@ -62,6 +63,7 @@ import {
   flushInsertBatch,
   type MediaEnrichment,
   queryExistingByExternalIds,
+  storedSessionRowById,
   type ExistingSession,
   type TimeBounds,
 } from './import/index.js';
@@ -72,8 +74,7 @@ import {
   isRemapVetoed,
   resolveJellystatItemKey,
 } from './import/jellystatRemapVeto.js';
-import { EmbyClient } from './mediaServer/emby/client.js';
-import { JellyfinClient } from './mediaServer/jellyfin/client.js';
+import { createJellyfinEmbyClient, isJellyfinEmby } from './mediaServer/index.js';
 import { parseMediaType } from './mediaServer/shared/jellyfinEmbyUtils.js';
 import { markImportedServerLocations } from './serverLocations.js';
 import { getWatchedThresholds, watchedThresholdFor, type WatchedThresholds } from './settings.js';
@@ -356,7 +357,7 @@ export function readJsonlTables(text: string): Map<string, unknown[]> {
 
     if (isHeader) {
       currentTable = record.table;
-      if (!tables.has(currentTable)) tables.set(currentTable, []);
+      tables.getOrInsertComputed(currentTable, () => []);
       continue;
     }
     const rows = currentTable === null ? undefined : tables.get(currentTable);
@@ -492,6 +493,13 @@ export function transformActivityToSession(
   const bitrate = transcodingInfoFull?.Bitrate
     ? Math.floor(transcodingInfoFull.Bitrate / 1000)
     : (streamDetails.sourceVideoDetails?.bitrate ?? null);
+  // The type is evidence only when the source stated it; the SeriesName and stream
+  // heuristics above are guesses that must not refuse a key the library still holds.
+  identity = importIdentityByKey(identity, {
+    mediaType: enrichment?.itemType ? mediaType : 'unknown',
+    title: activity.NowPlayingItemName,
+    year: enrichment?.year ?? null,
+  });
 
   return {
     serverId,
@@ -725,7 +733,7 @@ export async function importJellystatBackup(
       throw new ServerHistoricalError(serverId);
     }
 
-    if (server.type !== 'jellyfin' && server.type !== 'emby') {
+    if (!isJellyfinEmby(server.type)) {
       throw new Error(`Jellystat import only supports Jellyfin/Emby servers, got: ${server.type}`);
     }
 
@@ -751,8 +759,7 @@ export async function importJellystatBackup(
         id: server.id,
         name: server.name,
       };
-      const client =
-        server.type === 'emby' ? new EmbyClient(clientConfig) : new JellyfinClient(clientConfig);
+      const client = createJellyfinEmbyClient(server.type, clientConfig);
 
       for (let i = 0; i < uniqueMediaIds.length; i += ENRICHMENT_BATCH_SIZE) {
         const batch = uniqueMediaIds.slice(i, i + ENRICHMENT_BATCH_SIZE);
@@ -828,7 +835,11 @@ export async function importJellystatBackup(
       const identityByRatingKey = await batchGetLibraryItemIdentity(serverId, chunkRatingKeys);
 
       const insertBatch: (typeof sessions.$inferInsert)[] = [];
-      const updateBatch: Array<{ id: string; data: Partial<typeof sessions.$inferInsert> }> = [];
+      const updateBatch: Array<{
+        id: string;
+        startedAt: Date;
+        data: Partial<typeof sessions.$inferInsert>;
+      }> = [];
 
       for (const activity of chunk) {
         progress.processedRecords++;
@@ -902,7 +913,11 @@ export async function importJellystatBackup(
               }
             }
             if (Object.keys(data).length > 0) {
-              updateBatch.push({ id: existingSession.id, data });
+              updateBatch.push({
+                id: existingSession.id,
+                startedAt: existingSession.startedAt,
+                data,
+              });
               updated++;
               continue;
             }
@@ -1006,13 +1021,13 @@ export async function importJellystatBackup(
       if (updateBatch.length > 0) {
         await db.transaction(async (tx) => {
           // Every UPDATE here shares one transaction, so the decompression cap
-          // accumulates across the whole batch, and `WHERE id = ?` matches no
+          // accumulates across the whole batch, and the id plus started_at match no
           // segmentby column - each row decompresses its segment. Imports ran
           // uncapped before the cap came back globally; keep that, scoped to
           // this transaction.
           await uncapDecompressionForTx(tx);
           for (const update of updateBatch) {
-            await tx.update(sessions).set(update.data).where(eq(sessions.id, update.id));
+            await tx.update(sessions).set(update.data).where(storedSessionRowById(update));
           }
         });
       }

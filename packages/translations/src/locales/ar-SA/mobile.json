@@ -90,7 +90,7 @@
     "criticalOverrideDescription": "",
     "rateLimitDescription": "",
     "sendTestNotification": "",
-    "testDescription": "",
+    "testReach": "",
     "pushNotifications": "",
     "ruleTypes": {
       "accountInactivity": "",
@@ -102,7 +102,35 @@
     "severityAll": "",
     "severityHighOnly": "",
     "severityWarningUp": "",
-    "violationTypes": ""
+    "violationTypes": "",
+    "backgroundRefreshOff": "",
+    "permissionOff": "",
+    "openSettings": "",
+    "tokenMissing": "",
+    "destinationOff": "",
+    "everyViolationSent": "",
+    "noViolationSender": "",
+    "noAutomationSends": "",
+    "eventsFooter": "",
+    "sharedEventsFooter": "",
+    "sentByAutomations_zero": "",
+    "sentByAutomations_one": "",
+    "sentByAutomations_two": "",
+    "sentByAutomations_few": "",
+    "sentByAutomations_many": "",
+    "sentByAutomations_other": "",
+    "alsoSentBy_zero": "",
+    "alsoSentBy_one": "",
+    "alsoSentBy_two": "",
+    "alsoSentBy_few": "",
+    "alsoSentBy_many": "",
+    "alsoSentBy_other": "",
+    "scopedSenders_zero": "",
+    "scopedSenders_one": "",
+    "scopedSenders_two": "",
+    "scopedSenders_few": "",
+    "scopedSenders_many": "",
+    "scopedSenders_other": ""
   },
   "session": {
     "streamTerminated": "",
@@ -146,6 +174,7 @@
     "allServers": "",
     "noAlertsRecorded": "",
     "noMatches": "",
+    "selectAlert": "",
     "acknowledgeAllTitle_zero": "",
     "acknowledgeAllTitle_one": "",
     "acknowledgeAllTitle_two": "",
@@ -162,6 +191,7 @@
   "history": {
     "adjustFilters": "",
     "historyWillAppear": "",
+    "selectSession": "",
     "filters": {
       "clearCount": "",
       "countries": "",
@@ -185,7 +215,8 @@
     "noUsersMatch": "",
     "joinedRelative": "",
     "sortActive": "",
-    "sortTrust": ""
+    "sortTrust": "",
+    "selectUser": ""
   },
   "activity": {
     "playsOverTime": "تشغيل عبر الوقت",

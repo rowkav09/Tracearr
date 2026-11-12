@@ -32,6 +32,43 @@ vi.mock('../../services/pushRateLimiter.js', () => ({
   getPushRateLimiter: vi.fn(),
 }));
 
+const pushDelivery = {
+  destinationEnabled: true,
+  violationsSubscribed: true,
+  automations: {
+    onViolationDetected: 0,
+    onStreamStarted: 2,
+    onStreamStopped: 0,
+    onNewDevice: 1,
+    onTrustScoreChanged: 0,
+    onServerDown: 1,
+    onServerUp: 1,
+  },
+  switches: {
+    onViolationDetected: { on: true, others: 0, scoped: 0 },
+    onStreamStarted: { on: true, others: 1, scoped: 1 },
+    onStreamStopped: { on: false, others: 0, scoped: 0 },
+    onNewDevice: { on: true, others: 0, scoped: 0 },
+    onTrustScoreChanged: { on: false, others: 0, scoped: 0 },
+    onServerDown: { on: true, others: 0, scoped: 0 },
+    onServerUp: { on: true, others: 0, scoped: 0 },
+  },
+};
+const setPushSwitches = vi.fn();
+vi.mock('../../services/pushDelivery.js', () => ({
+  getPushDelivery: async () => pushDelivery,
+  setPushSwitches: (change: unknown) => setPushSwitches(change),
+  PUSH_PREFERENCES: [
+    'onViolationDetected',
+    'onStreamStarted',
+    'onStreamStopped',
+    'onNewDevice',
+    'onTrustScoreChanged',
+    'onServerDown',
+    'onServerUp',
+  ],
+}));
+
 // Import mocked modules
 import { db } from '../../db/client.js';
 import { getPushRateLimiter } from '../../services/pushRateLimiter.js';
@@ -163,6 +200,9 @@ describe('Notification Preferences Routes', () => {
       const body = response.json();
       expect(body.pushEnabled).toBe(true);
       expect(body.onViolationDetected).toBe(true);
+      // The row says off; the senders say on, and they win.
+      expect(body.onStreamStarted).toBe(true);
+      expect(body.onTrustScoreChanged).toBe(false);
       expect(body.maxPerMinute).toBe(5);
       expect(body.violationRuleTypes).toEqual(['impossible_travel', 'concurrent_streams']);
     });
@@ -293,6 +333,37 @@ describe('Notification Preferences Routes', () => {
       expect(response.statusCode).toBe(404);
       expect(response.json().message).toContain('No mobile session');
     });
+
+    it('reports what sends to this device and whether its token is registered', async () => {
+      app = await buildTestApp(mobileUser);
+
+      let selectCount = 0;
+      vi.mocked(db.select).mockImplementation(() => {
+        selectCount++;
+        const chain = {
+          from: vi.fn().mockReturnThis(),
+          where: vi.fn().mockReturnThis(),
+          orderBy: vi.fn().mockReturnThis(),
+          limit: vi
+            .fn()
+            .mockResolvedValue(
+              selectCount === 1
+                ? [{ id: mockMobileSession.id, expoPushToken: mockMobileSession.expoPushToken }]
+                : [mockPrefsRow]
+            ),
+        };
+        return chain as never;
+      });
+      vi.mocked(getPushRateLimiter).mockReturnValue(null);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/notifications/preferences',
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json().delivery).toEqual({ tokenRegistered: true, ...pushDelivery });
+    });
   });
 
   describe('PATCH /notifications/preferences', () => {
@@ -322,7 +393,7 @@ describe('Notification Preferences Routes', () => {
         };
         return chain as never;
       });
-      mockDbUpdate();
+      const update = mockDbUpdate();
 
       const response = await app.inject({
         method: 'PATCH',
@@ -334,7 +405,10 @@ describe('Notification Preferences Routes', () => {
       });
 
       expect(response.statusCode).toBe(200);
-      expect(db.update).toHaveBeenCalled();
+      expect(setPushSwitches).toHaveBeenCalledWith({ onStreamStarted: true });
+      expect(update.set).toHaveBeenCalledWith(
+        expect.not.objectContaining({ onStreamStarted: true })
+      );
       const body = response.json();
       expect(body.pushEnabled).toBe(false);
       expect(body.onStreamStarted).toBe(true);
@@ -388,6 +462,13 @@ describe('Notification Preferences Routes', () => {
       });
 
       expect(response.statusCode).toBe(200);
+      expect(setPushSwitches).toHaveBeenCalledWith({
+        onViolationDetected: false,
+        onNewDevice: false,
+        onTrustScoreChanged: true,
+        onServerDown: false,
+        onServerUp: false,
+      });
     });
 
     it('updates rate limit settings', async () => {

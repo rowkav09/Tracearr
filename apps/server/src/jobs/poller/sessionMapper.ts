@@ -6,12 +6,17 @@
  * - Database row → Session type (for application use)
  */
 
-import { type Session, type StreamDetailFields, MEDIA_TYPES } from '@tracearr/shared';
+import {
+  type Session,
+  type StreamDetailFields,
+  MEDIA_TYPES,
+  type ServerType,
+} from '@tracearr/shared';
 import type { MediaSession } from '../../services/mediaServer/types.js';
 import type { ProcessedSession } from './types.js';
 import { normalizeClient } from '../../utils/platformNormalizer.js';
 import { formatQualityString } from '../../utils/resolutionNormalizer.js';
-import { isLocalSession } from '../../utils/localSession.js';
+import { isLocalSession } from '../../db/sessions/rules.js';
 import type { sessions } from '../../db/schema.js';
 
 /** Set of valid media types for O(1) validation */
@@ -89,9 +94,7 @@ export function extractStreamDetailsFromQuality(
  * Pick stream detail fields from any object that has them.
  * Useful for DB inserts where we spread ProcessedSession fields.
  */
-export function pickStreamDetailFields<T extends StreamDetailFields>(
-  source: T
-): StreamDetailFields {
+export function pickStreamDetailFields(source: StreamDetailFields): StreamDetailFields {
   return {
     sourceVideoCodec: source.sourceVideoCodec,
     sourceAudioCodec: source.sourceAudioCodec,
@@ -145,10 +148,10 @@ export function pickLiveSessionFields(processed: ProcessedSession): Partial<Sess
 
 /**
  * Map unified MediaSession to ProcessedSession format
- * Works for both Plex and Jellyfin sessions from the new adapter
+ * Works for Plex, Jellyfin and Emby sessions from the mediaServer adapter
  *
  * @param session - Unified MediaSession from the mediaServer adapter
- * @param serverType - Type of media server ('plex' | 'jellyfin')
+ * @param serverType - Type of media server
  * @returns ProcessedSession ready for database storage
  *
  * @example

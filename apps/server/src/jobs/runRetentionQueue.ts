@@ -24,7 +24,8 @@ import {
   TIME_MS,
   type AutomationKind,
 } from '@tracearr/shared';
-import { getBullPrefix, queueConnectionOptions } from './queueConnection.js';
+import { everyAligned, getBullPrefix, queueConnectionOptions } from './queueConnection.js';
+import { WORKER_DEFAULTS, registerQueue, registerWorker } from './jobSafety.js';
 import { isMaintenance } from '../serverState.js';
 import { db } from '../db/client.js';
 import { automations } from '../db/schema.js';
@@ -82,6 +83,7 @@ export function initRunRetentionQueue(redisUrl: string): void {
   retentionQueue.on('error', (err) => {
     if (!isMaintenance()) console.error('[RunRetention] Queue error:', err);
   });
+  registerQueue(retentionQueue);
 
   console.log('[RunRetention] Queue initialized');
 }
@@ -125,8 +127,10 @@ export function startRunRetentionWorker(): void {
       connection: connectionOptions,
       prefix: bullPrefix,
       concurrency: 1,
+      ...WORKER_DEFAULTS,
     }
   );
+  registerWorker(retentionWorker);
 
   retentionWorker.on('error', (error) => {
     if (!isMaintenance()) console.error('[RunRetention] Worker error:', error);
@@ -163,15 +167,10 @@ export async function scheduleRunRetention(): Promise<void> {
     await retentionQueue.removeJobScheduler(scheduler.key);
   }
 
-  await retentionQueue.add(
-    'scheduled-purge',
-    { type: 'purge' },
-    {
-      repeat: {
-        every: PURGE_INTERVAL_MS,
-      },
-      jobId: 'run-retention-repeatable',
-    }
+  await retentionQueue.upsertJobScheduler(
+    'run-retention-repeatable',
+    everyAligned(PURGE_INTERVAL_MS),
+    { name: 'scheduled-purge', data: { type: 'purge' } }
   );
 
   console.log('[RunRetention] Scheduled daily run purge');
@@ -240,9 +239,7 @@ async function completedGroups(
   const byWindow = new Map<number, string[]>();
   for (const row of rows) {
     const days = row.retentionDays ?? defaultDays;
-    const ids = byWindow.get(days);
-    if (ids) ids.push(row.id);
-    else byWindow.set(days, [row.id]);
+    byWindow.getOrInsertComputed(days, () => []).push(row.id);
   }
 
   return [...byWindow].map(([days, automationIds]) => ({ cutoff: cutoffOf(days), automationIds }));
@@ -262,13 +259,6 @@ function completedOfGroup(kind: AutomationKind, group: RetentionGroup): SQL {
 function diagnosticsOfKind(kind: AutomationKind): SQL {
   return sql`ar.kind = ${kind} AND ar.outcome <> 'completed'
     AND ar.finished_at < ${cutoffOf(DIAGNOSTIC_RETENTION_DAYS)}`;
-}
-
-/** The purge removes rows users.total_violations counts, so its identities are restated. */
-async function recomputeIdentities(serverUserIds: string[]): Promise<void> {
-  for (const serverUserId of serverUserIds) {
-    await recomputeIdentityAggregatesForServerUser(serverUserId);
-  }
 }
 
 /** Closed sends keep their row for a year and their rendered snapshots for 90 days; an open send is never touched. */
@@ -297,7 +287,10 @@ export async function processRunRetention(): Promise<RunRetentionResult> {
 
   let policyPurged = 0;
   for (const group of await completedGroups('policy', RETENTION_DEFAULTS.policy)) {
-    policyPurged += await deleteBatched(completedOfGroup('policy', group), recomputeIdentities);
+    // The purge removes rows users.total_violations counts, so its identities are restated.
+    policyPurged += await deleteBatched(completedOfGroup('policy', group), (ids) =>
+      recomputeIdentityAggregatesForServerUser(ids)
+    );
   }
 
   let diagnosticPurged = 0;

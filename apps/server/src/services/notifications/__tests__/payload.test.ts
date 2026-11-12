@@ -30,7 +30,7 @@ const session = createMockActiveSession();
 const pluginPayload = {
   serverId: 'server-1',
   serverName: 'Jellyfin',
-  serverType: 'jellyfin',
+  serverType: 'jellyfin' as const,
   installedVersion: '0.2.0',
   latestVersion: '0.3.0',
   downloadUrl: 'https://example.com/plugin.zip',
@@ -626,6 +626,10 @@ describe('variables per trigger', () => {
       durationMinutes: 10,
       minutes: 30,
       days: 45,
+      downloadTitle: 'Dune: Part Two',
+      downloadApp: 'Jellyfin Android',
+      downloadDevice: 'Pixel 8',
+      downloadsLast24h: 6,
     },
   };
   const episodeMedia = {
@@ -728,9 +732,11 @@ describe('variables per trigger', () => {
     'session.transcode_changed': ['session_started', 'violation'],
     'session.paused': ['session_started', 'violation'],
     'session.held_for': ['violation'],
+    'session.watched': ['session_started', 'violation'],
     'account.inactive_for': ['violation'],
     'account.new_device': ['new_device'],
     'account.trust_changed': ['trust_score_changed'],
+    'account.media_downloaded': ['violation'],
     'media.added': ['media_added'],
     'media.upgraded': ['media_upgraded'],
     'server.down': ['server_down'],

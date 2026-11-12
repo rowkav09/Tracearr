@@ -8,7 +8,7 @@
  * Null means a required identifier is missing; link to the server root.
  */
 
-import type { ServerType } from './types.js';
+import { assertNever, type ServerType } from './serverTypes.js';
 
 export interface MediaServerItemLinkInput {
   serverType: ServerType;
@@ -51,8 +51,10 @@ export function buildMediaServerItemUrl({
       if (!root) return null;
       return `${root}/web/index.html#/details?id=${encodeURIComponent(ratingKey)}`;
     }
-    default:
+    case 'navidrome':
       return null;
+    default:
+      return assertNever(serverType);
   }
 }
 
@@ -109,12 +111,17 @@ export function isPubliclyRoutableUrl(url: string): boolean {
   return !privateIpv4(host);
 }
 
+/** The base for a Jellyfin or Emby item link: the public address when set, else the configured URL. */
+export function serverLinkBase(server: { url: string; publicUrl?: string | null }): string {
+  return server.publicUrl ?? server.url;
+}
+
 /**
  * The address a member off the LAN opens the server at: the admin's public address when set,
  * else the configured URL when that is public itself. Null means no member-facing link exists;
  * a private public address is not rescued by a public URL, since the admin said members use it.
  */
 export function memberFacingUrl(server: { url: string; publicUrl?: string | null }): string | null {
-  const candidate = server.publicUrl ?? server.url;
+  const candidate = serverLinkBase(server);
   return isPubliclyRoutableUrl(candidate) ? candidate : null;
 }

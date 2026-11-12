@@ -11,9 +11,11 @@ import {
   getBufferedPercent,
   getDeviceDisplayName,
   getMediaDisplay,
+  getMediaLinks,
 } from '@/lib/utils';
 import { imageProxyUrl } from '@/lib/api';
-import { formatDuration } from '@/lib/formatters';
+import { formatDate, formatDuration } from '@/lib/dateFormat';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { playbackBadge } from '@/lib/playbackBadge';
 import { useEstimatedProgress } from '@/hooks/useEstimatedProgress';
 import { useAuth } from '@/hooks/useAuth';
@@ -21,6 +23,7 @@ import { useServer } from '@/hooks/useServer';
 import { ServerColorAccent } from '@/components/server';
 import { TerminateSessionDialog } from './TerminateSessionDialog';
 import { LocalBadge } from './LocalBadge';
+import { MediaPageLink } from '@/components/media/MediaPageLink';
 import {
   PLAYBACK_DECISION_LABEL_KEYS,
   POSTER_IMAGE_SIZE,
@@ -61,6 +64,7 @@ function DeviceIcon({ session, className }: { session: ActiveSession; className?
 
 export function NowPlayingCard({ session, onClick }: NowPlayingCardProps) {
   const { title, subtitle: mediaSubtitle } = getMediaDisplay(session);
+  const mediaLinks = getMediaLinks(session);
   const { user } = useAuth();
   const { t } = useTranslation(['common', 'pages']);
   const subtitle =
@@ -69,6 +73,8 @@ export function NowPlayingCard({ session, onClick }: NowPlayingCardProps) {
       : mediaSubtitle;
   const { isMultiServer } = useServer();
   const [showTerminateDialog, setShowTerminateDialog] = useState(false);
+  // Read when the tooltip opens: while playing, now plus what's left stays put.
+  const [endsAt, setEndsAt] = useState<number | null>(null);
 
   // Only admin/owner can terminate sessions, and session must support termination
   // (some Plex clients like Plexamp don't provide the required Session.id)
@@ -215,7 +221,7 @@ export function NowPlayingCard({ session, onClick }: NowPlayingCardProps) {
                       e.stopPropagation();
                       setShowTerminateDialog(true);
                     }}
-                    title="Terminate stream"
+                    title={t('pages:terminateStream.title')}
                   >
                     <X className="h-4 w-4" />
                   </Button>
@@ -225,9 +231,13 @@ export function NowPlayingCard({ session, onClick }: NowPlayingCardProps) {
 
             {/* Middle: Title */}
             <div className="mt-2">
-              <h3 className="truncate text-sm leading-tight font-semibold">{title}</h3>
+              <h3 className="truncate text-sm leading-tight font-semibold">
+                <MediaPageLink to={mediaLinks.title}>{title}</MediaPageLink>
+              </h3>
               {subtitle && (
-                <p className="text-muted-foreground mt-0.5 truncate text-xs">{subtitle}</p>
+                <p className="text-muted-foreground mt-0.5 truncate text-xs">
+                  <MediaPageLink to={mediaLinks.subtitle}>{subtitle}</MediaPageLink>
+                </p>
               )}
             </div>
 
@@ -246,7 +256,24 @@ export function NowPlayingCard({ session, onClick }: NowPlayingCardProps) {
                       {session.buffering ? t('playback.buffering') : t('playback.paused')}
                     </span>
                   ) : remaining ? (
-                    `-${formatDuration(remaining)}`
+                    <TooltipProvider delayDuration={100}>
+                      <Tooltip
+                        onOpenChange={(open) => {
+                          if (open) setEndsAt(Date.now() + remaining);
+                        }}
+                      >
+                        <TooltipTrigger asChild>
+                          <span>-{formatDuration(remaining)}</span>
+                        </TooltipTrigger>
+                        {endsAt !== null && (
+                          <TooltipContent>
+                            {t('playback.endsAt', {
+                              time: formatDate(endsAt, { hour: 'numeric', minute: '2-digit' }),
+                            })}
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    </TooltipProvider>
                   ) : (
                     formatDuration(session.totalDurationMs)
                   )}
@@ -267,11 +294,13 @@ export function NowPlayingCard({ session, onClick }: NowPlayingCardProps) {
             )}
             <span className="truncate">
               {formatLocationCompact(session.geoCity, session.geoRegion, session.geoCountry) ??
-                'Unknown location'}
+                t('pages:dashboard.unknownLocation')}
             </span>
             <LocalBadge isLocal={session.isLocal} country={session.geoCountry} />
           </span>
-          <span className="flex-shrink-0">{session.quality ?? 'Unknown quality'}</span>
+          <span className="flex-shrink-0">
+            {session.quality ?? t('pages:dashboard.unknownQuality')}
+          </span>
         </div>
       </ServerColorAccent>
 

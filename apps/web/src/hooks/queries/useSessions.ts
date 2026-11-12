@@ -20,21 +20,36 @@ export function useSessions(params: SessionsParams = {}) {
   });
 }
 
-export function useActiveSessions(serverIds: string[], socketConnected = false) {
+function activeSessionsOptions(serverIds: string[], socketConnected: boolean, self: boolean) {
   const serverIdsKey = serverScopeKey(serverScopeFromIds(serverIds));
-  return useQuery({
-    queryKey: ['sessions', 'active', serverIdsKey],
-    queryFn: () => api.sessions.getActive(serverIds.length ? serverIds : undefined),
+  return {
+    queryKey: ['sessions', 'active', serverIdsKey, self],
+    queryFn: () => api.sessions.getActive(serverIds.length ? serverIds : undefined, self),
     staleTime: 1000 * 15, // 15 seconds
     // Socket events keep this fresh when connected; polling is the fallback
     refetchInterval: socketConnected ? 1000 * 60 : 1000 * 30,
+  };
+}
+
+export function useActiveSessions(serverIds: string[], socketConnected = false, self = false) {
+  return useQuery({
+    ...activeSessionsOptions(serverIds, socketConnected, self),
+    select: (response) => response.data,
   });
 }
 
-export function useSession(id: string) {
+/** Same request as useActiveSessions, so it costs nothing extra. Undefined unless the server sends it. */
+export function useOthersActive(serverIds: string[], socketConnected = false, self = false) {
+  return useQuery({
+    ...activeSessionsOptions(serverIds, socketConnected, self),
+    select: (response) => response.othersActive,
+  });
+}
+
+export function useSession(id: string, startedAt?: Date | string) {
   return useQuery({
     queryKey: ['sessions', 'detail', id],
-    queryFn: () => api.sessions.get(id),
+    queryFn: () => api.sessions.get(id, startedAt),
     enabled: !!id,
     staleTime: 1000 * 60, // 1 minute
   });

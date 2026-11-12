@@ -6,10 +6,11 @@
  */
 
 import type { Redis } from 'ioredis';
-import { eq, sql } from 'drizzle-orm';
-import { REDIS_KEYS } from '@tracearr/shared';
+import { sql } from 'drizzle-orm';
+import { REDIS_KEYS, assertNever } from '@tracearr/shared';
 import { db, type Executor } from '../../db/client.js';
-import { sessions, ruleActionResults } from '../../db/schema.js';
+import { ruleActionResults } from '../../db/schema.js';
+import { readSessionRow } from '../../db/sessions/row.js';
 import { automationsLogger } from '../../utils/logger.js';
 import { applyTrustChange, type TrustChange } from '../userService.js';
 import { dispatchTrustChanged } from './events/producers.js';
@@ -132,7 +133,8 @@ export function createActionExecutorDeps(redis: Redis): ActionExecutorDeps {
       message,
       identityServerUserIds,
       cooldown,
-      triggeringSessionId
+      triggeringSessionId,
+      sessionStarts
     ) => {
       // Dynamic import to avoid circular dependency
       const { enqueueKill } = await import('../../jobs/killQueue.js');
@@ -150,6 +152,8 @@ export function createActionExecutorDeps(redis: Redis): ActionExecutorDeps {
           identityServerUserIds,
           cooldownMinutes: cooldown?.minutes,
           triggeringServerUserId: cooldown?.triggeringServerUserId,
+          targetStartedAt: sessionStarts && new Date(sessionStarts.target).toISOString(),
+          triggeringStartedAt: sessionStarts && new Date(sessionStarts.triggering).toISOString(),
         },
         delaySeconds
       );
@@ -172,14 +176,10 @@ export function createActionExecutorDeps(redis: Redis): ActionExecutorDeps {
      * Send a message to the client device.
      * Plex does not support client messaging - only Jellyfin/Emby do.
      */
-    sendClientMessage: async (sessionId, message) => {
-      // Get session with server info to determine server type
-      const session = await db.query.sessions.findFirst({
-        where: eq(sessions.id, sessionId),
-        with: {
-          server: true,
-        },
-      });
+    sendClientMessage: async (sessionId, message, startedAt) => {
+      const session = await readSessionRow(sessionId, startedAt, (where) =>
+        db.query.sessions.findFirst({ where, with: { server: true } })
+      );
 
       if (!session) {
         automationsLogger.warn('Cannot send message: session not found', { sessionId });
@@ -191,26 +191,29 @@ export function createActionExecutorDeps(redis: Redis): ActionExecutorDeps {
         return { skipReason: 'server_historical' };
       }
 
-      // Plex doesn't support client messaging
-      if (session.server.type === 'plex') {
-        automationsLogger.debug('Skipping message_client for Plex (not supported)', { sessionId });
-        return undefined;
+      switch (session.server.type) {
+        case 'plex':
+        case 'navidrome':
+          automationsLogger.debug('Skipping message_client for Plex (not supported)', {
+            sessionId,
+          });
+          return undefined;
+        case 'jellyfin':
+        case 'emby': {
+          // Dynamic import to avoid circular dependency
+          const { createJellyfinEmbyClient } = await import('../mediaServer/index.js');
+          const client = createJellyfinEmbyClient(session.server.type, {
+            url: session.server.url,
+            token: session.server.token,
+          });
+          // Jellyfin and Emby sessions store the server's Session.Id as sessionKey
+          await client.sendMessage(session.sessionKey, message, 'Tracearr', 10000);
+          automationsLogger.debug('Client message sent', { sessionId, message });
+          return undefined;
+        }
+        default:
+          return assertNever(session.server.type);
       }
-
-      // Dynamic import to avoid circular dependency
-      const { createMediaServerClient } = await import('../mediaServer/index.js');
-      const client = createMediaServerClient({
-        type: session.server.type,
-        url: session.server.url,
-        token: session.server.token,
-      });
-
-      // Jellyfin/Emby use sessionKey for API calls
-      if ('sendMessage' in client && typeof client.sendMessage === 'function') {
-        await client.sendMessage(session.sessionKey, message, 'Tracearr', 10000);
-        automationsLogger.debug('Client message sent', { sessionId, message });
-      }
-      return undefined;
     },
 
     /**

@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm';
 import { db } from '../../db/client.js';
 import { media, libraryItems } from '../../db/schema.js';
 import {
@@ -11,19 +11,28 @@ import {
 type MediaRow = typeof media.$inferSelect;
 type Executor = Pick<typeof db, 'select' | 'update' | 'insert' | 'execute'>;
 
+// Every choice between duplicate rows sorts here, in SQL: a JS Date drops created_at's
+// microseconds. Rows from one batch insert share created_at and went in sorted by match key;
+// ids are random, so a tie broken on id picks a different row for the same input in another
+// database. The C collation keeps the order independent of the database's collation.
+const OLDEST_FIRST_SQL = 'created_at, match_key COLLATE "C"';
+
+const PROVIDER_KEY_PREFIX = { imdbId: 'imdb', tmdbId: 'tmdb', tvdbId: 'tvdb' } as const;
+type ProviderIdField = keyof typeof PROVIDER_KEY_PREFIX;
+
+// Must mirror buildMediaMatchKey's per-type ID precedence, or two servers
+// resolving the same episode can take different locks
+function providerIdPrecedence(
+  mediaType: string
+): [ProviderIdField, ProviderIdField, ProviderIdField] {
+  return mediaType === 'episode' ? ['tvdbId', 'imdbId', 'tmdbId'] : ['imdbId', 'tmdbId', 'tvdbId'];
+}
+
 function lockKeyFor(input: MatchKeyInput): string {
-  // Must mirror buildMediaMatchKey's per-type ID precedence, or two servers
-  // resolving the same episode can take different locks
-  if (input.mediaType === 'episode') {
-    if (input.tvdbId) return `episode:tvdb:${input.tvdbId}`;
-    if (input.imdbId) return `episode:imdb:${input.imdbId}`;
-    if (input.tmdbId) return `episode:tmdb:${input.tmdbId}`;
-  } else {
-    if (input.imdbId) return `${input.mediaType}:imdb:${input.imdbId}`;
-    if (input.tmdbId) return `${input.mediaType}:tmdb:${input.tmdbId}`;
-    if (input.tvdbId) return `${input.mediaType}:tvdb:${input.tvdbId}`;
-  }
-  return buildMediaMatchKey(input);
+  const field = providerIdPrecedence(input.mediaType).find((f) => input[f]);
+  return field
+    ? `${input.mediaType}:${PROVIDER_KEY_PREFIX[field]}:${input[field]}`
+    : buildMediaMatchKey(input);
 }
 
 async function findByAnyProviderId(dbc: Executor, input: MatchKeyInput): Promise<MediaRow[]> {
@@ -35,7 +44,8 @@ async function findByAnyProviderId(dbc: Executor, input: MatchKeyInput): Promise
   return dbc
     .select()
     .from(media)
-    .where(and(eq(media.mediaType, input.mediaType), isNull(media.mergedIntoId), or(...conds)));
+    .where(and(eq(media.mediaType, input.mediaType), isNull(media.mergedIntoId), or(...conds)))
+    .orderBy(sql.raw(OLDEST_FIRST_SQL));
 }
 
 async function findByTitleTolerant(
@@ -48,6 +58,9 @@ async function findByTitleTolerant(
   const normalized = normalizeTitle(input.title);
   if (!normalized) return undefined;
   const year = input.year ?? 0;
+  // A row without a year (an import that knew only the title) fits any year but yields to a
+  // row whose year fits; among those the oldest wins, so coexisting duplicates keep resolving
+  // to one row.
   const rows = await dbc
     .select()
     .from(media)
@@ -56,10 +69,10 @@ async function findByTitleTolerant(
         eq(media.mediaType, input.mediaType),
         eq(media.normalizedTitle, normalized),
         isNull(media.mergedIntoId),
-        sql`COALESCE(${media.year}, 0) BETWEEN ${year - 1} AND ${year + 1}`
+        sql`(${media.year} IS NULL OR ${media.year} BETWEEN ${year - 1} AND ${year + 1})`
       )
     )
-    .orderBy(asc(media.createdAt), asc(media.id))
+    .orderBy(sql`${media.year} IS NULL`, sql.raw(OLDEST_FIRST_SQL))
     .limit(1);
   return rows[0];
 }
@@ -72,6 +85,54 @@ function providerIdsConflict(
   if (input.tmdbId && row.tmdbId && input.tmdbId !== row.tmdbId) return true;
   if (input.tvdbId && row.tvdbId && input.tvdbId !== row.tvdbId) return true;
   return false;
+}
+
+/**
+ * The anchor and every row that agrees with it, and with the rows taken before it, on each
+ * provider id both carry, in the order given. Rows that share one id but disagree on another
+ * are different items whose id a server pinned on the wrong one (one Emby library gave each
+ * episode of a season the IMDb id other servers give the next episode); merging them would fold
+ * two items into one row for good.
+ */
+function rowsAgreeingWith<T extends Pick<MediaRow, 'imdbId' | 'tmdbId' | 'tvdbId'>>(
+  anchor: T,
+  rows: T[]
+): T[] {
+  const ids = { imdbId: anchor.imdbId, tmdbId: anchor.tmdbId, tvdbId: anchor.tvdbId };
+  return rows.filter((row) => {
+    if (row === anchor) return true;
+    if (providerIdsConflict(ids, row)) return false;
+    ids.imdbId ||= row.imdbId;
+    ids.tmdbId ||= row.tmdbId;
+    ids.tvdbId ||= row.tvdbId;
+    return true;
+  });
+}
+
+/**
+ * An episode's match key is built from its highest-precedence id, so a row carrying another value
+ * there is another episode, whatever ids the two share. Films stay out: servers disagree on a
+ * film's IMDb id while its other ids agree.
+ */
+function isAnotherEpisode(input: MatchKeyInput, row: MediaRow): boolean {
+  if (input.mediaType !== 'episode') return false;
+  const [field] = providerIdPrecedence(input.mediaType);
+  return !!input[field] && !!row[field] && input[field] !== row[field];
+}
+
+/**
+ * The hit the input's highest-precedence id names, with the hits that agree with it, oldest
+ * first. Among hits sharing that id, it names the first that agrees with the input on every id.
+ */
+function sameItemHits(input: MatchKeyInput, hits: MediaRow[]): MediaRow[] {
+  const candidates = hits.filter((row) => !isAnotherEpisode(input, row));
+  const named = providerIdPrecedence(input.mediaType)
+    .map((field) => {
+      const sharing = candidates.filter((row) => input[field] && row[field] === input[field]);
+      return sharing.find((row) => !providerIdsConflict(input, row)) ?? sharing[0];
+    })
+    .find((row) => row !== undefined);
+  return named ? rowsAgreeingWith(named, candidates) : [];
 }
 
 function pickIdBearingTitleCandidate(input: MatchKeyInput, rows: MediaRow[]): MediaRow | undefined {
@@ -203,27 +264,76 @@ export async function resolveMediaAliases(mediaId: string): Promise<string[]> {
   return rows.map((r) => r.id);
 }
 
+function episodeNumberKey(input: MatchKeyInput): string | null {
+  return input.mediaType === 'episode' &&
+    input.showMediaId &&
+    input.seasonNumber != null &&
+    input.seasonNumber > 0 &&
+    input.episodeNumber != null
+    ? `episode:${input.showMediaId}:s${input.seasonNumber}e${input.episodeNumber}`
+    : null;
+}
+
+/**
+ * An episode row keyed by show and number predates the provider ids a later sync brings (an
+ * import resolved it before its episode synced). The synced episode adopts that row and
+ * backfills the ids, rather than opening a second row for the same episode, under the advisory
+ * lock an import takes to insert that row. The adoption is refused when both sides carry an
+ * episode title and the titles differ, the one signal that the number is a different ordering
+ * of the same show; untitled rows cannot be told apart.
+ */
+async function adoptNumberKeyedEpisode(
+  tx: Executor & { execute: typeof db.execute },
+  input: MatchKeyInput
+): Promise<MediaRow | undefined> {
+  const numberKey = episodeNumberKey(input);
+  if (!numberKey || !(input.imdbId || input.tmdbId || input.tvdbId)) return undefined;
+  await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${numberKey}))`);
+  const [row] = await tx.select().from(media).where(eq(media.matchKey, numberKey));
+  const inputTitle = input.title ? normalizeTitle(input.title) : '';
+  if (
+    !row ||
+    row.mergedIntoId ||
+    providerIdsConflict(input, row) ||
+    (inputTitle && row.normalizedTitle && row.normalizedTitle !== inputTitle)
+  ) {
+    return undefined;
+  }
+  await backfillProviderIds(tx, row, input);
+  return row;
+}
+
 export async function resolveMediaForItem(input: MatchKeyInput): Promise<string> {
   return db.transaction(async (tx) => {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${lockKeyFor(input)}))`);
 
     const hits = await findByAnyProviderId(tx, input);
-    if (hits.length > 1) {
-      // Two rows describe the same item: merge into the first (stable order by createdAt)
-      hits.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
-      for (const loser of hits.slice(1)) await mergeMediaRowsWithin(tx, hits[0]!.id, loser.id);
+    const [survivor, ...losers] = sameItemHits(input, hits);
+    if (survivor) {
+      for (const loser of losers) await mergeMediaRowsWithin(tx, survivor.id, loser.id);
+      // Backfilling an id a disagreeing hit holds would give two items one id, and reconcile
+      // merges rows that share one
+      const others = hits.filter((row) => row !== survivor && !losers.includes(row));
+      const heldByOther = (field: ProviderIdField) =>
+        others.some((row) => row[field] === input[field]);
+      await backfillProviderIds(tx, survivor, {
+        ...input,
+        imdbId: heldByOther('imdbId') ? null : input.imdbId,
+        tmdbId: heldByOther('tmdbId') ? null : input.tmdbId,
+        tvdbId: heldByOther('tvdbId') ? null : input.tvdbId,
+      });
+      return survivor.id;
     }
-    let hit: MediaRow | undefined = hits[0];
-    if (!hit) {
-      hit =
-        input.imdbId || input.tmdbId || input.tvdbId
-          ? await findByTitleWithProviderIds(tx, input)
-          : await findByTitleTolerant(tx, input);
-    }
+    const hit =
+      input.imdbId || input.tmdbId || input.tvdbId
+        ? await findByTitleWithProviderIds(tx, input)
+        : await findByTitleTolerant(tx, input);
     if (hit) {
       await backfillProviderIds(tx, hit, input);
       return hit.id;
     }
+    const adopted = await adoptNumberKeyedEpisode(tx, input);
+    if (adopted) return adopted.id;
 
     const matchKey = buildMediaMatchKey(input);
     const normalizedTitle = input.title ? normalizeTitle(input.title) || null : null;
@@ -429,6 +539,7 @@ async function resolveMediaMisses(inputs: MatchKeyInput[]): Promise<Map<string, 
   const withIdsByType = new Map<string, MatchKeyInput[]>();
   const titleProbeByType = new Map<string, MatchKeyInput[]>();
   const secondChanceByType = new Map<string, MatchKeyInput[]>();
+  const numberKeyAdopt: MatchKeyInput[] = [];
   const titleProbeEligible = (input: MatchKeyInput) =>
     (input.mediaType === 'movie' || input.mediaType === 'show') &&
     !!input.title &&
@@ -474,13 +585,36 @@ async function resolveMediaMisses(inputs: MatchKeyInput[]): Promise<Map<string, 
       if (input.imdbId) for (const row of byImdb.get(input.imdbId) ?? []) matched.set(row.id, row);
       if (input.tmdbId) for (const row of byTmdb.get(input.tmdbId) ?? []) matched.set(row.id, row);
       if (input.tvdbId) for (const row of byTvdb.get(input.tvdbId) ?? []) matched.set(row.id, row);
-      if (matched.size === 1) recordHit(Array.from(matched.values())[0]!, input);
-      else if (matched.size > 1) residual.push(input);
+      const [only, ...more] = matched.values();
+      if (only && more.length === 0 && !isAnotherEpisode(input, only)) recordHit(only, input);
+      else if (only) residual.push(input);
       else if (titleProbeEligible(input)) {
         const chance = secondChanceByType.get(input.mediaType) ?? [];
         chance.push(input);
         secondChanceByType.set(input.mediaType, chance);
-      } else unresolved.push(input);
+      } else if (episodeNumberKey(input)) numberKeyAdopt.push(input);
+      else unresolved.push(input);
+    }
+  }
+
+  // One read for every number key, then the lock only where a row exists, so a first sync of
+  // a large show library does not open a transaction per new episode.
+  if (numberKeyAdopt.length > 0) {
+    const keys = [...new Set(numberKeyAdopt.map((input) => episodeNumberKey(input) ?? ''))];
+    const present = new Set(
+      (
+        await db
+          .select({ matchKey: media.matchKey })
+          .from(media)
+          .where(inArray(media.matchKey, keys))
+      ).map((row) => row.matchKey)
+    );
+    for (const input of numberKeyAdopt) {
+      const adopted = present.has(episodeNumberKey(input) ?? '')
+        ? await db.transaction((tx) => adoptNumberKeyedEpisode(tx, input))
+        : undefined;
+      if (adopted) out.set(input.ratingKey, adopted.id);
+      else unresolved.push(input);
     }
   }
 
@@ -500,18 +634,19 @@ async function resolveMediaMisses(inputs: MatchKeyInput[]): Promise<Map<string, 
           isNull(media.mergedIntoId),
           inArray(media.normalizedTitle, titles)
         )
-      );
-    rows.sort(
-      (a, b) =>
-        a.createdAt.getTime() - b.createdAt.getTime() || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)
-    );
+      )
+      .orderBy(sql.raw(OLDEST_FIRST_SQL));
     for (const input of idlessGroup) {
       const normalized = normalizeTitle(input.title!);
       const year = input.year ?? 0;
-      const row = rows.find(
+      // A row without a year (an import that knew only the title) fits any year, as it does
+      // for an id-bearing input, but a row whose year fits comes first; rows arrive oldest first.
+      const fitting = rows.filter(
         (r) =>
-          r.normalizedTitle === normalized && (r.year ?? 0) >= year - 1 && (r.year ?? 0) <= year + 1
+          r.normalizedTitle === normalized &&
+          (r.year == null || (r.year >= year - 1 && r.year <= year + 1))
       );
+      const row = fitting.find((r) => r.year != null) ?? fitting[0];
       if (row) recordHit(row, input);
       else unresolved.push(input);
     }
@@ -717,28 +852,54 @@ export async function resolveMediaBatch(inputs: MatchKeyInput[]): Promise<Map<st
 export async function reconcileMediaDuplicates(): Promise<number> {
   let merges = 0;
   for (const col of ['imdb_id', 'tmdb_id', 'tvdb_id'] as const) {
+    // Duplicated values are found first so only their rows pay for the ordered aggregate
     const dupes = (await db.execute(
       sql.raw(`
-      SELECT array_agg(id ORDER BY created_at) AS ids
+      SELECT array_agg(id ORDER BY ${OLDEST_FIRST_SQL}) AS ids,
+             array_agg(imdb_id ORDER BY ${OLDEST_FIRST_SQL}) AS imdb_ids,
+             array_agg(tmdb_id ORDER BY ${OLDEST_FIRST_SQL}) AS tmdb_ids,
+             array_agg(tvdb_id ORDER BY ${OLDEST_FIRST_SQL}) AS tvdb_ids
       FROM media
-      WHERE ${col} IS NOT NULL AND merged_into_id IS NULL
+      WHERE merged_into_id IS NULL
+        AND (media_type, ${col}) IN (
+          SELECT media_type, ${col}
+          FROM media
+          WHERE ${col} IS NOT NULL AND merged_into_id IS NULL
+          GROUP BY media_type, ${col}
+          HAVING COUNT(*) > 1
+        )
       GROUP BY media_type, ${col}
-      HAVING COUNT(*) > 1
     `)
-    )) as unknown as { rows: Array<{ ids: string[] }> };
-    for (const row of dupes.rows) {
-      const [winner, ...losers] = row.ids;
-      for (const loser of losers) {
-        await mergeMediaRows(winner!, loser);
-        merges += 1;
+    )) as unknown as {
+      rows: Array<{
+        ids: string[];
+        imdb_ids: Array<string | null>;
+        tmdb_ids: Array<number | null>;
+        tvdb_ids: Array<number | null>;
+      }>;
+    };
+    for (const group of dupes.rows) {
+      let rest = group.ids.map((id, i) => ({
+        id,
+        imdbId: group.imdb_ids[i] ?? null,
+        tmdbId: group.tmdb_ids[i] ?? null,
+        tvdbId: group.tvdb_ids[i] ?? null,
+      }));
+      for (let winner = rest[0]; winner && rest.length > 1; winner = rest[0]) {
+        const same = rowsAgreeingWith(winner, rest);
+        for (const loser of same.slice(1)) {
+          await mergeMediaRows(winner.id, loser.id);
+          merges += 1;
+        }
+        rest = rest.filter((m) => !same.includes(m));
       }
     }
   }
   // Safety net for title-keyed race artifacts the advisory lock cannot cover
   const titleDupes = (await db.execute(
     sql.raw(`
-      SELECT array_agg(id ORDER BY created_at, id) AS ids,
-             array_agg(COALESCE(year, 0) ORDER BY created_at, id) AS years
+      SELECT array_agg(id ORDER BY ${OLDEST_FIRST_SQL}) AS ids,
+             array_agg(COALESCE(year, 0) ORDER BY ${OLDEST_FIRST_SQL}) AS years
       FROM media
       WHERE merged_into_id IS NULL
         AND media_type IN ('movie', 'show')
@@ -758,18 +919,56 @@ export async function reconcileMediaDuplicates(): Promise<number> {
     }
   }
   merges += await reconcileSplitProviderIdRows();
+  merges += await reconcileNumberKeyedEpisodes();
   return merges;
+}
+
+/**
+ * An import that resolved an episode by show and number while the library sync was creating
+ * the same episode by provider id leaves two rows: neither side could see the other's row
+ * before the library item was written. Once the item is there, the number-keyed, id-less row
+ * that no library item holds merges into the item's row, and only when exactly one canonical
+ * row holds that number (two servers keeping their own rows for one number stay apart).
+ */
+async function reconcileNumberKeyedEpisodes(): Promise<number> {
+  const pairs = (await db.execute(
+    sql.raw(`
+      SELECT n.id AS loser, min(em.id::text)::uuid AS winner
+      FROM media n
+      JOIN media sm ON COALESCE(sm.merged_into_id, sm.id) = n.show_media_id
+      JOIN library_items sh ON sh.media_id = sm.id AND sh.media_type = 'show'
+      JOIN library_items e ON e.server_id = sh.server_id AND e.grandparent_rating_key = sh.rating_key
+        AND e.media_type = 'episode' AND e.media_id IS NOT NULL
+        AND n.match_key = 'episode:' || n.show_media_id || ':s' || e.parent_index || 'e' || e.item_index
+      JOIN media em ON em.id = COALESCE((SELECT x.merged_into_id FROM media x WHERE x.id = e.media_id), e.media_id)
+        AND em.merged_into_id IS NULL AND em.id <> n.id
+      WHERE n.media_type = 'episode' AND n.merged_into_id IS NULL
+        AND n.imdb_id IS NULL AND n.tmdb_id IS NULL AND n.tvdb_id IS NULL
+        AND n.match_key LIKE 'episode:%'
+        AND NOT EXISTS (SELECT 1 FROM library_items x WHERE x.media_id = n.id)
+      GROUP BY n.id
+      HAVING count(DISTINCT em.id) = 1
+      ORDER BY n.id
+    `)
+  )) as unknown as { rows: Array<{ loser: string; winner: string }> };
+  const done = new Set<string>();
+  for (const { loser, winner } of pairs.rows) {
+    if (done.has(loser)) continue;
+    await mergeMediaRows(winner, loser);
+    done.add(loser);
+  }
+  return done.size;
 }
 
 async function reconcileSplitProviderIdRows(): Promise<number> {
   let merges = 0;
   const groups = (await db.execute(
     sql.raw(`
-      SELECT array_agg(id ORDER BY created_at, id) AS ids,
-             array_agg(year ORDER BY created_at, id) AS years,
-             array_agg(imdb_id ORDER BY created_at, id) AS imdb_ids,
-             array_agg(tmdb_id ORDER BY created_at, id) AS tmdb_ids,
-             array_agg(tvdb_id ORDER BY created_at, id) AS tvdb_ids
+      SELECT array_agg(id ORDER BY ${OLDEST_FIRST_SQL}) AS ids,
+             array_agg(year ORDER BY ${OLDEST_FIRST_SQL}) AS years,
+             array_agg(imdb_id ORDER BY ${OLDEST_FIRST_SQL}) AS imdb_ids,
+             array_agg(tmdb_id ORDER BY ${OLDEST_FIRST_SQL}) AS tmdb_ids,
+             array_agg(tvdb_id ORDER BY ${OLDEST_FIRST_SQL}) AS tvdb_ids
       FROM media
       WHERE merged_into_id IS NULL
         AND media_type IN ('movie', 'show')

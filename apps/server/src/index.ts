@@ -1,8 +1,8 @@
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { setDefaultAutoSelectFamilyAttemptTimeout } from 'node:net';
 import { config } from 'dotenv';
 import Fastify, { type FastifyInstance } from 'fastify';
-import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import sensible from '@fastify/sensible';
 import cookie from '@fastify/cookie';
@@ -12,8 +12,9 @@ import { existsSync, readFileSync } from 'node:fs';
 import { gzipSync, createGzip } from 'node:zlib';
 import { Redis } from 'ioredis';
 import { API_BASE_PATH, API_V2_BASE_PATH, REDIS_KEYS, WS_EVENTS } from '@tracearr/shared';
-import { createBetterAuthHandler } from './lib/betterAuthRequest.js';
+import { createBetterAuthHandler, deriveScheme } from './lib/betterAuthRequest.js';
 import { getBasePath } from './lib/basePath.js';
+import { registerOriginPolicy, trustProxyFromEnv } from './lib/origins.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -23,6 +24,10 @@ const PROJECT_ROOT = resolve(__dirname, '../../..');
 
 // Load .env from project root
 config({ path: resolve(PROJECT_ROOT, '.env'), quiet: true });
+
+// Node drops a dual-stack connect attempt after 500ms rather than racing it, so a host whose
+// IPv4 handshake is slower than that fails outright when the IPv6 fallback is unreachable.
+setDefaultAutoSelectFamilyAttemptTimeout(2_500);
 
 // Set global DNS cache (must be after dotenv so DNS_CACHE_MAX_TTL is available)
 await import('./utils/dnsCache.js');
@@ -49,23 +54,24 @@ import type {
 
 import authPlugin, { loadJwtRevokeSettings } from './plugins/auth.js';
 import redisPlugin, { connectRedis } from './plugins/redis.js';
-import { closeAuth } from './lib/auth.js';
+import { closeAuth, probeOidcAtStartup } from './lib/auth.js';
 import { authRoutes } from './routes/auth/index.js';
 import { setupRoutes } from './routes/setup.js';
 import { serverRoutes } from './routes/servers.js';
 import { serverLocationRoutes } from './routes/serverLocations.js';
 import { userRoutes } from './routes/users/index.js';
 import { serverUserRoutes } from './routes/serverUsers.js';
-import { sessionRoutes } from './routes/sessions.js';
+import { sessionRoutes } from './routes/sessions/index.js';
 import { automationRoutes } from './routes/automations.js';
 import { templateRoutes } from './routes/templates.js';
 import { runRoutes } from './routes/runs.js';
-import { violationRoutes } from './routes/violations.js';
+import { violationRoutes } from './routes/violations/index.js';
 import { statsRoutes } from './routes/stats/index.js';
 import { settingsRoutes } from './routes/settings.js';
 import { importRoutes } from './routes/import.js';
 import { imageRoutes } from './routes/images.js';
 import { startImageCacheSweepTimer, stopImageCacheSweep } from './services/imageCacheSweep.js';
+import { runStorageCheck } from './services/storageCheck.js';
 import { debugRoutes } from './routes/debug.js';
 import { mobileRoutes } from './routes/mobile.js';
 import { notificationPreferencesRoutes } from './routes/notificationPreferences.js';
@@ -92,11 +98,22 @@ import {
 import { initializeEncryption, migrateToken, looksEncrypted } from './utils/crypto.js';
 import { publicApiRateLimitKey } from './utils/publicApiRateLimitKey.js';
 import { registerErrorHandler } from './utils/errors.js';
+import { REQUEST_LOG_REDACT } from './utils/logger.js';
 import { resolveWebAsset } from './utils/webRoot.js';
+import { escapeHtml } from './utils/sanitizeText.js';
 import { geoipService } from './services/geoip.js';
 import { tailscaleService } from './services/tailscale.js';
 import { geoasnService } from './services/geoasn.js';
 import { createCacheService, createPubSubService } from './services/cache.js';
+import {
+  closeAllPublicEventConnections,
+  initPublicEventConnections,
+} from './services/publicEvents/connections.js';
+import {
+  clearLastSeen,
+  seedLastSeen,
+  translateChannelMessage,
+} from './routes/publicV2/eventsTranslate.js';
 import { initializePoller, startPoller, stopPoller } from './jobs/poller/index.js';
 import { invalidateServersCache } from './jobs/poller/database.js';
 import { sseManager } from './services/sseManager.js';
@@ -110,7 +127,15 @@ import {
 import { startPluginUpdateChecker, stopPluginUpdateChecker } from './jobs/pluginUpdateChecker.js';
 import { startServerUpdateChecker, stopServerUpdateChecker } from './jobs/serverUpdateChecker.js';
 import { startLeaderLease, stopLeaderLease } from './services/leaderLease.js';
-import { initializeWebSocket, broadcastToSessions } from './websocket/index.js';
+import {
+  initializeWebSocket,
+  broadcastToSessions,
+  broadcastSessionEvent,
+  broadcastSessionStopped,
+  disconnectAllSockets,
+  dropMobileDeviceSockets,
+  dropUserSockets,
+} from './websocket/index.js';
 import {
   initNotificationQueue,
   startNotificationWorker,
@@ -128,7 +153,12 @@ import {
   sweepDestinationConfigs,
 } from './services/notifications/destinationsMigration.js';
 import { initKillQueue, startKillWorker, shutdownKillQueue } from './jobs/killQueue.js';
-import { initImportQueue, startImportWorker, shutdownImportQueue } from './jobs/importQueue.js';
+import {
+  initImportQueue,
+  startImportWorker,
+  shutdownImportQueue,
+  IMPORT_LOCK_DURATION_MS,
+} from './jobs/importQueue.js';
 import {
   initMaintenanceQueue,
   startMaintenanceWorker,
@@ -144,6 +174,7 @@ import {
 import {
   initImagePrecacheQueue,
   startImagePrecacheWorker,
+  enqueueImagePrecache,
   shutdownImagePrecacheQueue,
 } from './jobs/imagePrecacheQueue.js';
 import {
@@ -190,7 +221,11 @@ import {
   shutdownRunRetentionQueue,
 } from './jobs/runRetentionQueue.js';
 import { initHeavyOpsLock } from './jobs/heavyOpsLock.js';
+import { registeredQueue, shutdownAllJobs } from './jobs/jobSafety.js';
+import { reconcileJobsOnBoot } from './jobs/jobsBoot.js';
+import { DEFAULT_LOCK_DURATION_MS } from './jobs/lockUtils.js';
 import { startConnectionBudget, stopConnectionBudget } from './services/connectionBudget.js';
+import { reconcileDeviceMutes } from './services/pushDelivery.js';
 import { initPushRateLimiter } from './services/pushRateLimiter.js';
 import { initializeV2Rules } from './services/automations/v2Integration.js';
 import { rehydratePauseWakes, stopPauseWakes } from './services/automations/wakes/pauseWakes.js';
@@ -213,6 +248,7 @@ import { servers } from './db/schema.js';
 import { initializeClaimCode } from './utils/claimCode.js';
 import { registerService, unregisterService } from './services/serviceTracker.js';
 import { backfillMissingServerIdentifiers } from './services/serverIdentity.js';
+import { liveServers } from './services/liveServers.js';
 import {
   getServerMode,
   setServerMode,
@@ -236,6 +272,10 @@ import {
 
 const PORT = parseInt(process.env.PORT ?? '3000', 10);
 const HOST = process.env.HOST ?? '0.0.0.0';
+const SHUTDOWN_GRACE_MS = Number(process.env.SHUTDOWN_GRACE_MS) || 8000;
+// Set by the signal handler; the exit timer runs from the signal, so job
+// shutdown gets what is left of the budget, not a fresh one.
+let shutdownDeadline: number | null = null;
 const RECOVERY_INTERVAL_MS = 10_000;
 // A migration failure is usually deterministic (bad SQL, missing privilege) rather
 // than a transient outage, so retry it more slowly than the plain connectivity probe.
@@ -302,18 +342,17 @@ const BASE_PATH = getBasePath();
 // required secrets like BETTER_AUTH_SECRET are missing)
 // ============================================================================
 
-async function buildApp(options: { trustProxy?: boolean } = {}) {
+async function buildApp() {
   const app = Fastify({
     logger: {
       level: process.env.LOG_LEVEL ?? 'info',
+      redact: REQUEST_LOG_REDACT,
       transport:
         process.env.NODE_ENV === 'development'
           ? { target: 'pino-pretty', options: { colorize: true } }
           : undefined,
     },
-    // Trust proxy if enabled in settings or via env var
-    // This respects X-Forwarded-For, X-Forwarded-Proto headers from reverse proxies
-    trustProxy: options.trustProxy ?? process.env.TRUST_PROXY === 'true',
+    trustProxy: trustProxyFromEnv(),
     // Strip basePath prefix from incoming URLs before routing.
     // All existing routes (/api/v1/..., /health, etc.) match without changes.
     // Fastify automatically stores the original URL as request.originalUrl.
@@ -365,10 +404,7 @@ async function buildApp(options: { trustProxy?: boolean } = {}) {
     crossOriginEmbedderPolicy: false,
     originAgentCluster: false,
   });
-  await app.register(cors, {
-    origin: process.env.CORS_ORIGIN || true,
-    credentials: true,
-  });
+  await registerOriginPolicy(app);
   await app.register(rateLimit, {
     max: 1000,
     timeWindow: '1 minute',
@@ -442,7 +478,8 @@ async function buildApp(options: { trustProxy?: boolean } = {}) {
   // Health check endpoint — always reachable, even in maintenance mode.
   // Every value returned here is read from in-memory caches; nothing awaits
   // a network call, so the handler is effectively synchronous.
-  app.get('/health', (_request, reply) => {
+  // Rate limited, the probe reads as an outage and the client goes offline
+  app.get('/health', { config: { rateLimit: false } }, (_request, reply) => {
     // The web client polls this to decide if we're up; a cached answer is a wrong answer
     reply.header('Cache-Control', 'no-store');
     const dbHealthy = isDbHealthy();
@@ -592,13 +629,27 @@ async function buildApp(options: { trustProxy?: boolean } = {}) {
       // SPA fallback — always inject <base> tag so relative asset paths (./assets/...)
       // resolve correctly on nested routes like /library/watch
       const baseHref = BASE_PATH ? `${BASE_PATH}/` : '/';
-      const html = cachedIndexHtml.replace('<head>', `<head>\n    <base href="${baseHref}">`);
+      // Link preview crawlers need og:image as an absolute URL.
+      const ogImage = escapeHtml(
+        `${deriveScheme(request)}://${request.host}${baseHref}images/og_image.png`
+      );
+      const html = cachedIndexHtml.replace(
+        '<head>',
+        `<head>\n    <base href="${baseHref}">\n    <meta property="og:image" content="${ogImage}" />`
+      );
       reply.header('Cache-Control', 'no-cache');
       return reply.type('text/html').send(html);
     });
 
     app.log.info('Static file serving enabled for production');
   }
+
+  // server.close() runs in Fastify's own onClose, before ours, and waits for active responses and
+  // upgraded sockets. Open event connections and Socket.io clients are both, so end them first.
+  app.addHook('preClose', async () => {
+    closeAllPublicEventConnections('shutdown');
+    disconnectAllSockets();
+  });
 
   // Cleanup hook — handles both maintenance and ready mode resources
   app.addHook('onClose', async () => {
@@ -628,20 +679,7 @@ async function buildApp(options: { trustProxy?: boolean } = {}) {
     await sseManager.stop();
     await stopLeaderLease();
     await tailscaleService.shutdown();
-    await shutdownNotificationQueue();
-    await shutdownKillQueue();
-    await shutdownImportQueue();
-    await shutdownMaintenanceQueue();
-    await shutdownLibrarySyncQueue();
-    await shutdownImagePrecacheQueue();
-    await shutdownVersionCheckQueue();
-    await shutdownInactivityCheckQueue();
-    await shutdownRequestSyncQueue();
-    await shutdownBackupQueue();
-    await shutdownNewsletterQueues();
-    closeAllTransporters();
-    await shutdownPlexTokenRefreshQueue();
-    await shutdownRunRetentionQueue();
+    await shutdownQueues(app);
   });
 
   // Probe DB and Redis to decide if we can initialize services now
@@ -862,6 +900,14 @@ async function initializeServices(app: FastifyInstance) {
   });
   const cacheService = createCacheService(app.redis);
   const pubSubService = createPubSubService(app.redis, pubSubRedis);
+  initPublicEventConnections({
+    redis: app.redis,
+    log: app.log,
+    translate: translateChannelMessage,
+    getActiveSessions: () => cacheService.getAllActiveSessions(),
+    seedLastSeen,
+    clearLastSeen,
+  });
 
   const keySource = initDestinationCrypto();
   app.log.info(`Destination secrets keyed from ${keySource}`);
@@ -882,6 +928,13 @@ async function initializeServices(app: FastifyInstance) {
   // those templates. Unwrapped too, or an install ends up with neither the checkbox nor the rule.
   await runSystemEventsMigration();
 
+  // Wrapped: the device columns stay as they were and the next boot tries again.
+  try {
+    await reconcileDeviceMutes();
+  } catch (err) {
+    app.log.warn({ err }, 'Failed to move device push mutes onto their senders');
+  }
+
   // Wrapped: a failed seed leaves the setting null, which shows nothing and retries next boot.
   try {
     await seedWhatsNewLastSeen();
@@ -899,14 +952,108 @@ async function initializeServices(app: FastifyInstance) {
   initPushRateLimiter(app.redis);
   app.log.info('Push notification rate limiter initialized');
 
+  // Every queue exists before reconcileJobsOnBoot reads it, and no worker runs until it is done.
   try {
     initNotificationQueue(redisUrl);
-    startNotificationWorker();
     initKillQueue(redisUrl);
+  } catch (err) {
+    app.log.error({ err }, 'Failed to initialize notification queue');
+  }
+  try {
+    initImportQueue(redisUrl);
+  } catch (err) {
+    app.log.error({ err }, 'Failed to initialize import queue');
+  }
+  try {
+    initMaintenanceQueue(redisUrl);
+  } catch (err) {
+    app.log.error({ err }, 'Failed to initialize maintenance queue');
+  }
+  try {
+    initLibrarySyncQueue(redisUrl);
+  } catch (err) {
+    app.log.error({ err }, 'Failed to initialize library sync queue');
+  }
+  try {
+    initImagePrecacheQueue(redisUrl);
+  } catch (err) {
+    app.log.error({ err }, 'Failed to initialize image precache queue');
+  }
+  try {
+    initVersionCheckQueue(redisUrl, app.redis, pubSubService.publish.bind(pubSubService));
+  } catch (err) {
+    app.log.error({ err }, 'Failed to initialize version check queue');
+  }
+  try {
+    initInactivityCheckQueue(redisUrl, app.redis, pubSubService.publish.bind(pubSubService));
+  } catch (err) {
+    app.log.error({ err }, 'Failed to initialize inactivity check queue');
+  }
+  try {
+    initRequestSyncQueue(redisUrl);
+  } catch (err) {
+    app.log.error({ err }, 'Failed to initialize request sync queue');
+  }
+  try {
+    initBackupQueue(redisUrl);
+  } catch (err) {
+    app.log.error({ err }, 'Failed to initialize backup queue');
+  }
+  try {
+    initNewsletterQueues(redisUrl);
+  } catch (error) {
+    app.log.error({ err: error }, 'Failed to initialize newsletter queues');
+  }
+  try {
+    initRunRetentionQueue(redisUrl);
+  } catch (err) {
+    app.log.error({ err }, 'Failed to initialize run retention queue');
+  }
+  try {
+    initPlexTokenRefreshQueue(redisUrl);
+  } catch (err) {
+    app.log.error({ err }, 'Failed to initialize plex token refresh queue');
+  }
+
+  // Initialize heavy operations lock (coordinates import + maintenance jobs)
+  await initHeavyOpsLock(app.redis);
+  app.log.info('Heavy operations lock initialized');
+
+  try {
+    await reconcileJobsOnBoot({
+      redis: app.redis,
+      queues: registeredQueue,
+      listServerIds: async () => (await liveServers()).map((r) => r.id),
+      enqueuePrecachePass: (serverId) => enqueueImagePrecache(serverId),
+      importLockMs: IMPORT_LOCK_DURATION_MS,
+      workerLockMs: DEFAULT_LOCK_DURATION_MS,
+    });
+  } catch (err) {
+    app.log.error(
+      { err },
+      'Job queue reconciliation failed; workers start against the queues as they are'
+    );
+  }
+
+  // Picks up a sync lost to a restart or a busy queue, and the first run after upgrading
+  void enqueueServerLocationSyncIfBehind().catch((err: unknown) => {
+    app.log.error({ err }, 'Failed to check for a pending server location sync');
+  });
+
+  // Size the pg pool from the server's real max_connections and the live
+  // instance count (no-op when DATABASE_POOL_MAX is set explicitly)
+  try {
+    await startConnectionBudget(app.redis);
+  } catch (err) {
+    app.log.warn({ err }, 'Connection budget unavailable, keeping default pool size');
+  }
+
+  try {
+    startNotificationWorker();
     startKillWorker();
     pushReceiptInterval = setInterval(
       () => {
-        processPushReceipts().catch((err) => {
+        processPushReceipts().catch((err: unknown) => {
           app.log.warn({ err }, 'Failed to process push receipts');
         });
       },
@@ -920,7 +1067,7 @@ async function initializeServices(app: FastifyInstance) {
     // Cleanup expired/invalid mobile tokens every hour
     mobileTokenCleanupInterval = setInterval(
       () => {
-        cleanupMobileTokens().catch((err) => {
+        cleanupMobileTokens().catch((err: unknown) => {
           app.log.warn({ err }, 'Failed to cleanup mobile tokens');
         });
       },
@@ -939,7 +1086,6 @@ async function initializeServices(app: FastifyInstance) {
 
   // Initialize import queue (uses Redis for job storage)
   try {
-    initImportQueue(redisUrl);
     startImportWorker();
     app.log.info('Import queue initialized');
   } catch (err) {
@@ -949,7 +1095,6 @@ async function initializeServices(app: FastifyInstance) {
 
   // Initialize maintenance queue (uses Redis for job storage)
   try {
-    initMaintenanceQueue(redisUrl);
     startMaintenanceWorker();
     app.log.info('Maintenance queue initialized');
   } catch (err) {
@@ -957,30 +1102,12 @@ async function initializeServices(app: FastifyInstance) {
     // Don't throw - maintenance jobs are non-critical
   }
 
-  // Initialize heavy operations lock (coordinates import + maintenance jobs)
-  await initHeavyOpsLock(app.redis);
-  app.log.info('Heavy operations lock initialized');
-
-  // Picks up a sync lost to a restart or a busy queue, and the first run after upgrading
-  void enqueueServerLocationSyncIfBehind().catch((err: unknown) => {
-    app.log.error({ err }, 'Failed to check for a pending server location sync');
-  });
-
-  // Size the pg pool from the server's real max_connections and the live
-  // instance count (no-op when DATABASE_POOL_MAX is set explicitly)
-  try {
-    await startConnectionBudget(app.redis);
-  } catch (err) {
-    app.log.warn({ err }, 'Connection budget unavailable, keeping default pool size');
-  }
-
   // Initialize library sync queue (uses Redis for job storage)
   try {
-    initLibrarySyncQueue(redisUrl);
     startLibrarySyncWorker();
     // Schedule auto-sync after a small delay to ensure all services are initialized
     setTimeout(() => {
-      scheduleAutoSync().catch((err) => {
+      scheduleAutoSync().catch((err: unknown) => {
         app.log.error({ err }, 'Failed to schedule library auto-sync');
       });
     }, 5000);
@@ -992,8 +1119,7 @@ async function initializeServices(app: FastifyInstance) {
 
   // Initialize image precache queue (uses Redis for job storage)
   try {
-    initImagePrecacheQueue(redisUrl);
-    await startImagePrecacheWorker();
+    startImagePrecacheWorker();
     app.log.info('Image precache queue initialized');
   } catch (err) {
     app.log.error({ err }, 'Failed to initialize image precache queue');
@@ -1003,7 +1129,6 @@ async function initializeServices(app: FastifyInstance) {
 
   // Initialize version check queue (uses Redis for job storage and caching)
   try {
-    initVersionCheckQueue(redisUrl, app.redis, pubSubService.publish.bind(pubSubService));
     startVersionCheckWorker();
     void scheduleVersionChecks();
     app.log.info('Version check queue initialized');
@@ -1017,7 +1142,6 @@ async function initializeServices(app: FastifyInstance) {
 
   // Initialize inactivity check queue (monitors inactive accounts)
   try {
-    initInactivityCheckQueue(redisUrl, app.redis, pubSubService.publish.bind(pubSubService));
     startInactivityCheckWorker();
     void scheduleInactivityChecks();
     app.log.info('Inactivity check queue initialized');
@@ -1027,9 +1151,8 @@ async function initializeServices(app: FastifyInstance) {
   }
 
   try {
-    initRequestSyncQueue(redisUrl);
     startRequestSyncWorker();
-    scheduleRequestSync().catch((err) => {
+    scheduleRequestSync().catch((err: unknown) => {
       app.log.error({ err }, 'Failed to schedule request sync');
     });
     app.log.info('Request sync queue initialized');
@@ -1039,7 +1162,6 @@ async function initializeServices(app: FastifyInstance) {
 
   // Initialize backup queue (scheduled backups)
   try {
-    initBackupQueue(redisUrl);
     startBackupWorker();
 
     // Read backup schedule from settings and configure repeatable job
@@ -1053,7 +1175,6 @@ async function initializeServices(app: FastifyInstance) {
   }
 
   try {
-    initNewsletterQueues(redisUrl);
     await resyncNewsletterSchedules(await listNewsletters());
     startNewsletterWorkers();
     app.log.info('Newsletter queues initialized');
@@ -1063,7 +1184,6 @@ async function initializeServices(app: FastifyInstance) {
 
   // Initialize run retention queue (daily purge of aged automation runs)
   try {
-    initRunRetentionQueue(redisUrl);
     startRunRetentionWorker();
     void scheduleRunRetention();
     app.log.info('Run retention queue initialized');
@@ -1073,7 +1193,6 @@ async function initializeServices(app: FastifyInstance) {
 
   // Initialize plex token refresh queue (renews strong-PIN JWT tokens before they expire)
   try {
-    initPlexTokenRefreshQueue(redisUrl);
     startPlexTokenRefreshWorker();
     void schedulePlexTokenRefresh();
     app.log.info('Plex token refresh queue initialized');
@@ -1141,7 +1260,7 @@ async function initializeServices(app: FastifyInstance) {
 
       if (dbOk) {
         await refreshTimescaleCache();
-        retryDegradedCompressionPolicy().catch((err) => {
+        retryDegradedCompressionPolicy().catch((err: unknown) => {
           app.log.warn({ err }, 'Failed to retry degraded compression policy');
         });
       } else {
@@ -1177,6 +1296,28 @@ async function initializeServices(app: FastifyInstance) {
   setLastMigrationError(null);
   setInitStep(null);
   setServerMode('ready');
+}
+
+async function shutdownQueues(app: FastifyInstance): Promise<void> {
+  await shutdownAllJobs(
+    shutdownDeadline ? Math.max(shutdownDeadline - Date.now(), 0) : SHUTDOWN_GRACE_MS
+  );
+  await Promise.all([
+    shutdownNotificationQueue(),
+    shutdownKillQueue(),
+    shutdownImportQueue(),
+    shutdownMaintenanceQueue(),
+    shutdownLibrarySyncQueue(),
+    shutdownImagePrecacheQueue(),
+    shutdownVersionCheckQueue(),
+    shutdownInactivityCheckQueue(),
+    shutdownRequestSyncQueue(),
+    shutdownBackupQueue(),
+    shutdownNewsletterQueues(),
+    shutdownPlexTokenRefreshQueue(),
+    shutdownRunRetentionQueue(),
+  ]).catch((err: unknown) => app.log.error({ err }, 'Error shutting down queues'));
+  closeAllTransporters();
 }
 
 // ============================================================================
@@ -1222,18 +1363,30 @@ async function initializePostListen(app: FastifyInstance) {
       // Forward events to WebSocket clients
       switch (event) {
         case WS_EVENTS.SESSION_STARTED:
-          broadcastToSessions('session:started', data as ActiveSession);
+          broadcastSessionEvent('session:started', data as ActiveSession).catch((err: unknown) => {
+            app.log.error({ err }, 'Failed to broadcast session start');
+          });
           widgetSessions.started(data as ActiveSession);
           wakeMobileWidgets();
           break;
         case WS_EVENTS.SESSION_STOPPED:
-          broadcastToSessions('session:stopped', data as string);
+          broadcastSessionStopped(data as string).catch((err: unknown) => {
+            app.log.error({ err }, 'Failed to broadcast session stop');
+          });
           widgetSessions.stopped(data as string);
           wakeMobileWidgets();
           break;
         case WS_EVENTS.SESSION_UPDATED:
-          broadcastToSessions('session:updated', data as ActiveSession);
+          broadcastSessionEvent('session:updated', data as ActiveSession).catch((err: unknown) => {
+            app.log.error({ err }, 'Failed to broadcast session update');
+          });
           if (widgetSessions.updated(data as ActiveSession)) wakeMobileWidgets();
+          break;
+        case WS_EVENTS.USER_ACCESS_CHANGED:
+          dropUserSockets(data as string);
+          break;
+        case WS_EVENTS.MOBILE_DEVICE_REVOKED:
+          dropMobileDeviceSockets(data as string);
           break;
         case WS_EVENTS.VIOLATION_NEW:
           broadcastToSessions('violation:new', data as ViolationWithDetails);
@@ -1356,7 +1509,7 @@ async function initializePostListen(app: FastifyInstance) {
 
   // Log network settings status
   const networkSettings = await getNetworkSettings();
-  const envTrustProxy = process.env.TRUST_PROXY === 'true';
+  const envTrustProxy = trustProxyFromEnv() !== false;
   if (networkSettings.trustProxy && !envTrustProxy) {
     app.log.warn(
       'Trust proxy is enabled in settings but TRUST_PROXY env var is not set. ' +
@@ -1376,7 +1529,7 @@ async function initializePostListen(app: FastifyInstance) {
     pendingAggregateBackfill = null;
     aggregateBackfillRunning = true;
     void runAggregateBackfill(targetVersion)
-      .catch((err) => {
+      .catch((err: unknown) => {
         app.log.error({ err }, 'Aggregate backfill failed unexpectedly');
       })
       .finally(() => {
@@ -1479,6 +1632,9 @@ async function start() {
   try {
     // Initialize claim code for first-time setup security
     initializeClaimCode();
+    // Not awaited: getfattr on a stalled shfs must not hold up the listen.
+    void runStorageCheck();
+    await probeOidcAtStartup();
 
     const app = await buildApp();
 
@@ -1486,22 +1642,11 @@ async function start() {
     const signals: NodeJS.Signals[] = ['SIGINT', 'SIGTERM'];
     for (const signal of signals) {
       process.once(signal, () => {
-        app.log.info(`Received ${signal}, shutting down gracefully...`);
+        app.log.info(`Received ${signal}, shutting down (budget ${SHUTDOWN_GRACE_MS}ms)...`);
+        shutdownDeadline = Date.now() + SHUTDOWN_GRACE_MS;
+        setTimeout(() => process.exit(1), SHUTDOWN_GRACE_MS).unref();
         stopPoller();
         void stopConnectionBudget(app.redis);
-        void tailscaleService.shutdown();
-        void Promise.all([shutdownNotificationQueue(), shutdownNewsletterQueues()]).finally(() =>
-          closeAllTransporters()
-        );
-        void shutdownKillQueue();
-        void shutdownImportQueue();
-        void shutdownLibrarySyncQueue();
-        void shutdownImagePrecacheQueue();
-        void shutdownVersionCheckQueue();
-        void shutdownInactivityCheckQueue();
-        void shutdownBackupQueue();
-        void shutdownPlexTokenRefreshQueue();
-        void shutdownRunRetentionQueue();
         void app.close().then(() => process.exit(0));
       });
     }
@@ -1514,6 +1659,7 @@ async function start() {
         app.log.info('Entering maintenance mode — shutting down services');
         stopPoller();
         stopSSEProcessor();
+        closeAllPublicEventConnections('maintenance');
         stopPauseWakes();
         stopPluginUpdateChecker();
         void sseManager
@@ -1533,24 +1679,7 @@ async function start() {
         }
 
         // Shut down BullMQ workers/queues (closes their internal Redis connections)
-        void Promise.all([
-          shutdownNotificationQueue(),
-          shutdownKillQueue(),
-          shutdownImportQueue(),
-          shutdownMaintenanceQueue(),
-          shutdownLibrarySyncQueue(),
-          shutdownImagePrecacheQueue(),
-          shutdownVersionCheckQueue(),
-          shutdownInactivityCheckQueue(),
-          shutdownBackupQueue(),
-          shutdownNewsletterQueues(),
-          shutdownPlexTokenRefreshQueue(),
-          shutdownRunRetentionQueue(),
-        ])
-          .finally(() => closeAllTransporters())
-          .catch((err: unknown) => {
-            app.log.error({ err }, 'Error shutting down queues during maintenance');
-          });
+        void shutdownQueues(app);
 
         // Stop the DB health interval — initializeServices will recreate it on recovery.
         if (dbHealthInterval) {

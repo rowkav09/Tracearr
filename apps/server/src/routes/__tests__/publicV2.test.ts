@@ -12,7 +12,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from 'fastify';
 import sensible from '@fastify/sensible';
 import rateLimit from '@fastify/rate-limit';
-import type { SQL } from 'drizzle-orm';
+import { sql, type SQL } from 'drizzle-orm';
 
 vi.mock('../../db/client.js', () => ({
   db: {
@@ -21,12 +21,18 @@ vi.mock('../../db/client.js', () => ({
         orderBy: vi.fn(() => Promise.resolve([])),
       })),
     })),
+    execute: vi.fn(),
   },
 }));
 
 vi.mock('../publicV2/shared.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../publicV2/shared.js')>()),
   runHistoryPage: vi.fn(async () => ({ data: [], nextCursor: null })),
+}));
+
+vi.mock('../library/queries.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../library/queries.js')>()),
+  listTopMedia: vi.fn(async () => ({ data: [], nextCursor: null })),
 }));
 
 vi.mock('../../services/settings.js', () => ({
@@ -36,6 +42,8 @@ vi.mock('../../services/settings.js', () => ({
 import { db } from '../../db/client.js';
 import { getSetting } from '../../services/settings.js';
 import { runHistoryPage } from '../publicV2/shared.js';
+import { listTopMedia } from '../library/queries.js';
+import { encodeRankCursor } from '../../utils/cursor.js';
 import { renderSql } from '../../test/helpers.js';
 import { publicV2Routes } from '../publicV2/index.js';
 import { resetPublicApiRateLimitCache } from '../publicV2/rateLimitCache.js';
@@ -122,6 +130,39 @@ describe('public API v2 skeleton', () => {
       }
     });
 
+    it('groups every operation under a described resource tag and never points at v1', async () => {
+      const res = await app.inject({ method: 'GET', url: '/api/v2/public/docs' });
+      const spec = res.json<{
+        tags: { name: string; description: string }[];
+        info: { description: string };
+        paths: Record<string, Record<string, { tags?: string[]; description?: string }>>;
+      }>();
+
+      expect(spec.tags.map((t) => t.name)).toEqual([
+        'Docs',
+        'Streams',
+        'Live events',
+        'Violations',
+        'Servers',
+        'History',
+        'Media',
+        'Users',
+        'Libraries',
+      ]);
+      for (const tag of spec.tags) expect(tag.description, tag.name).toBeTruthy();
+
+      const names = new Set(spec.tags.map((t) => t.name));
+      for (const [path, methods] of Object.entries(spec.paths)) {
+        for (const op of Object.values(methods)) {
+          expect(op.tags, path).toHaveLength(1);
+          expect(names.has(op.tags?.[0] ?? ''), path).toBe(true);
+          expect(op.description ?? '', path).not.toMatch(/\/api\/v1\//);
+        }
+      }
+      expect(spec.info.description).not.toMatch(/\/api\/v1\//);
+      expect(JSON.stringify(spec)).not.toMatch(/api\/v1\/public/);
+    });
+
     it('serves the v2 OpenAPI document with the docs path registered', async () => {
       const res = await app.inject({ method: 'GET', url: '/api/v2/public/docs' });
 
@@ -177,6 +218,39 @@ describe('public API v2 skeleton', () => {
       );
     });
 
+    it('re-applies the since and until window on the join back to sessions', async () => {
+      const actual =
+        await vi.importActual<typeof import('../publicV2/shared.js')>('../publicV2/shared.js');
+      const since = new Date('2026-04-01T00:00:00.000Z');
+      const until = new Date('2026-06-30T23:59:59.999Z');
+      vi.mocked(db.execute)
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              chain_ids: ['00000000-0000-4000-8000-000000000001'],
+              raw_row_count: '1',
+              window_lower_bound: null,
+            },
+          ],
+        } as never)
+        .mockResolvedValueOnce({ rows: [] } as never);
+
+      await actual.runHistoryPage(
+        [sql`s.started_at >= ${since}`, sql`s.started_at <= ${until}`],
+        50,
+        null,
+        undefined,
+        { since, until }
+      );
+
+      const { sql: text } = renderSql(vi.mocked(db.execute).mock.calls[1]![0] as SQL);
+      const join = text
+        .replace(/\s+/g, ' ')
+        .match(/JOIN sessions s ON s\.id = p\.first_session_id.*?JOIN server_users/)?.[0];
+      expect(join).toMatch(/s\.started_at >= \$\d+/);
+      expect(join).toMatch(/s\.started_at <= \$\d+/);
+    });
+
     it('rejects invalid history query parameters with 400', async () => {
       const res = await app.inject({
         method: 'GET',
@@ -208,6 +282,67 @@ describe('public API v2 skeleton', () => {
       });
 
       expect(res.statusCode).toBe(400);
+    });
+
+    it.each([
+      ['no media_type', ''],
+      ['days=0', 'media_type=movie&days=0'],
+      ['days=366', 'media_type=movie&days=366'],
+      ['sort=random', 'media_type=movie&sort=random'],
+      ['pageSize=1001', 'media_type=movie&pageSize=1001'],
+      ['an undecodable cursor', 'media_type=movie&cursor=not-a-cursor'],
+    ])('rejects a top-media request with %s with 400', async (_label, query) => {
+      const res = await app.inject({ method: 'GET', url: `/api/v2/public/top-media?${query}` });
+
+      expect(res.statusCode).toBe(400);
+    });
+
+    it('passes top-media defaults to the query and wraps its page in the cursor envelope', async () => {
+      const row = { media_id: '0f4d2a6e-8b1c-4e3f-9a7d-6c5b4a3f2e1d', plays: 3 };
+      vi.mocked(listTopMedia).mockClear();
+      vi.mocked(listTopMedia).mockResolvedValueOnce({
+        data: [row] as never,
+        nextCursor: 'next',
+      });
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/v2/public/top-media?media_type=show',
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json()).toEqual({ data: [row], meta: { nextCursor: 'next', pageSize: 100 } });
+      expect(listTopMedia).toHaveBeenCalledWith({
+        kind: 'show',
+        days: 30,
+        serverIds: undefined,
+        sort: 'plays',
+        pageSize: 100,
+        after: null,
+      });
+    });
+
+    it('passes server_id, sort, days and a decoded cursor through to the top-media query', async () => {
+      const serverId = '6c5b4a3f-2e1d-4f3e-9a7d-0f4d2a6e8b1c';
+      const afterId = '0f4d2a6e-8b1c-4e3f-9a7d-6c5b4a3f2e1d';
+      vi.mocked(listTopMedia).mockClear();
+
+      const res = await app.inject({
+        method: 'GET',
+        url:
+          `/api/v2/public/top-media?media_type=movie&days=7&sort=viewers&pageSize=10` +
+          `&server_id=${serverId}&cursor=${encodeRankCursor(4, afterId)}`,
+      });
+
+      expect(res.statusCode).toBe(200);
+      expect(listTopMedia).toHaveBeenCalledWith({
+        kind: 'movie',
+        days: 7,
+        serverIds: [serverId],
+        sort: 'viewers',
+        pageSize: 10,
+        after: { value: 4, id: afterId },
+      });
     });
 
     it('returns an empty streams payload with a zeroed summary when no cache service exists', async () => {
@@ -243,6 +378,16 @@ describe('public API v2 skeleton', () => {
       expect(second.statusCode).toBe(200);
       expect(third.statusCode).toBe(429);
     });
+
+    it('charges a violations request to the same budget', async () => {
+      vi.mocked(getSetting).mockResolvedValueOnce(1);
+      app = await buildTestApp(true, true);
+
+      await app.inject({ method: 'GET', url: '/api/v2/public/docs' });
+      const res = await app.inject({ method: 'GET', url: '/api/v2/public/violations' });
+
+      expect(res.statusCode).toBe(429);
+    });
   });
 
   describe('with auth rejecting', () => {
@@ -255,6 +400,10 @@ describe('public API v2 skeleton', () => {
       '/api/v2/public/history',
       '/api/v2/public/streams',
       '/api/v2/public/watched-media?media_type=movie',
+      '/api/v2/public/top-media?media_type=movie',
+      '/api/v2/public/violations',
+      '/api/v2/public/violations/0f4d2a6e-8b1c-4e3f-9a7d-6c5b4a3f2e1d',
+      '/api/v2/public/servers',
     ])('returns 401 for %s', async (url) => {
       const res = await app.inject({ method: 'GET', url });
 

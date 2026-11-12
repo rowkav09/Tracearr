@@ -1,5 +1,6 @@
 import {
   BYTES_PER_GB,
+  SERVER_PROFILES,
   TIME_MS,
   isSubtitleBurnIn,
   normalizeDynamicRange,
@@ -17,8 +18,9 @@ import type {
 import { isIpInCidr, toNetworkKey, unmapIpv4Mapped } from '../../../utils/ip.js';
 import { automationsLogger } from '../../../utils/logger.js';
 import { LOCAL_NETWORK_COUNTRY, normalizeToCountryCode } from '../../../utils/country.js';
-import { isLocalSession } from '../../../utils/localSession.js';
+import { isLocalSession } from '../../../db/sessions/rules.js';
 import { normalizeResolution } from '../../../utils/resolutionNormalizer.js';
+import { countDownloads, sumDownloadBytes } from '../../downloads/queries.js';
 import { geoipService } from '../../geoip.js';
 import { compare } from '../comparisons.js';
 import type {
@@ -262,7 +264,7 @@ const evaluateConcurrentStreams: ConditionEvaluator = (
   // from another server type in a cross-server identity are the accepted
   // imprecision here (rows carry no server type).
   if (countDeviceTypes?.length) {
-    const includePlayerName = context.server.type !== 'plex';
+    const includePlayerName = SERVER_PROFILES[context.server.type].playerNameCountsTowardDevice;
     userActiveSessions = userActiveSessions.filter((s) =>
       countDeviceTypes.includes(
         normalizeDeviceType(
@@ -461,7 +463,7 @@ const evaluateUniqueIpsInWindow: ConditionEvaluator = (
     // flagged single households as sharers.
     if (geoipService.isPrivateIP(ip)) return;
     const key = toNetworkKey(ip);
-    if (!ipsByNetwork.has(key)) ipsByNetwork.set(key, ip);
+    ipsByNetwork.getOrInsert(key, ip);
   };
   addIp(session.ipAddress);
   for (const s of sessionsInWindow) {
@@ -531,6 +533,40 @@ const evaluateInactiveDays: AccountConditionEvaluator = (
     matched: compare(inactiveDays, condition.operator, condition.value),
     actual: inactiveDays,
     details: { lastActivityAt: serverUser.lastActivityAt },
+  };
+};
+
+function downloadWindow(context: AccountEvaluationContext, condition: Condition) {
+  const windowHours = condition.params?.window_hours ?? 24;
+  const ids = context.identityServerUserIds?.length
+    ? context.identityServerUserIds
+    : [context.serverUser.id];
+  return { windowHours, ids, since: new Date(Date.now() - windowHours * TIME_MS.HOUR) };
+}
+
+const evaluateDownloadsInWindow: AccountConditionEvaluator = async (
+  context: AccountEvaluationContext,
+  condition: Condition
+): Promise<EvaluatorResult> => {
+  const { windowHours, ids, since } = downloadWindow(context, condition);
+  const downloads = await countDownloads(ids, since, context.rule.serverId);
+  return {
+    matched: compare(downloads, condition.operator, condition.value),
+    actual: downloads,
+    details: { windowHours },
+  };
+};
+
+const evaluateDownloadBytesInWindow: AccountConditionEvaluator = async (
+  context: AccountEvaluationContext,
+  condition: Condition
+): Promise<EvaluatorResult> => {
+  const { windowHours, ids, since } = downloadWindow(context, condition);
+  const gigabytes = (await sumDownloadBytes(ids, since, context.rule.serverId)) / 1024 ** 3;
+  return {
+    matched: compare(gigabytes, condition.operator, condition.value),
+    actual: gigabytes,
+    details: { windowHours },
   };
 };
 
@@ -884,7 +920,7 @@ const evaluateDeviceType: ConditionEvaluator = (
     session.device,
     session.platform,
     session.product,
-    server.type === 'plex' ? null : session.playerName
+    SERVER_PROFILES[server.type].playerNameCountsTowardDevice ? session.playerName : null
   );
 
   return {
@@ -1163,6 +1199,8 @@ export const evaluatorRegistry: Record<ConditionField, ConditionEvaluator> = {
   unique_ips_in_window: evaluateUniqueIpsInWindow,
   unique_devices_in_window: evaluateUniqueDevicesInWindow,
   inactive_days: evaluateInactiveDays,
+  downloads_in_window: evaluateDownloadsInWindow,
+  download_bytes_in_window: evaluateDownloadBytesInWindow,
   current_pause_minutes: evaluateCurrentPauseMinutes,
   total_pause_minutes: evaluateTotalPauseMinutes,
 

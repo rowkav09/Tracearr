@@ -25,7 +25,7 @@ const logger = createLogger('ServerUpdate');
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const INITIAL_DELAY_MS = 15_000;
 
-interface CheckedServer {
+export interface CheckedServer {
   id: string;
   name: string;
   type: ServerType;
@@ -45,7 +45,7 @@ export function _resetServerUpdateStateForTests(): void {
  * Both columns hold normalized versions, so everything downstream compares them as
  * strings. An unreachable or unparseable server keeps whatever the row already holds.
  */
-async function installedVersionOf(server: CheckedServer): Promise<string | null> {
+export async function installedVersionOf(server: CheckedServer): Promise<string | null> {
   let reported: string | null;
   try {
     const client = createMediaServerClient({
@@ -54,7 +54,7 @@ async function installedVersionOf(server: CheckedServer): Promise<string | null>
       token: server.token,
       id: server.id,
     });
-    reported = (await client.getSoftwareVersion?.()) ?? null;
+    reported = await client.getSoftwareVersion();
   } catch (error) {
     logger.warn(`${server.name}: could not read its version`, { error });
     return null;
@@ -110,12 +110,10 @@ export async function runServerUpdateCheck(): Promise<void> {
     // The vendor feed is per type, not per server: read it once however many servers share it.
     const latestByType = new Map<ServerType, Promise<string | null>>();
     for (const server of rows) {
-      let latest = latestByType.get(server.type);
-      if (!latest) {
-        latest = latestVersionFor(server.type);
-        latestByType.set(server.type, latest);
-      }
-      await checkServer(server, await latest);
+      await checkServer(
+        server,
+        await latestByType.getOrInsertComputed(server.type, latestVersionFor)
+      );
     }
   } catch (error) {
     logger.error('Check failed', { error });

@@ -1,4 +1,5 @@
 import {
+  TIME_MS,
   WS_EVENTS,
   type EngineAutomation,
   type ServerDownReason,
@@ -7,6 +8,7 @@ import {
 import { getActiveAutomations } from '../../../jobs/poller/database.js';
 import { automationsLogger } from '../../../utils/logger.js';
 import { getPubSubService } from '../../cache.js';
+import { countDownloads } from '../../downloads/queries.js';
 import { isLiveServer } from '../../liveServers.js';
 import {
   assembleEvaluationInputs,
@@ -14,6 +16,7 @@ import {
   loadEvaluationContext,
   loadServerContext,
   serverContextFor,
+  toRuleSession,
 } from './contextAssembly.js';
 import { dispatch } from './dispatcher.js';
 import { matchesTrigger } from './evaluate.js';
@@ -22,10 +25,14 @@ import type {
   EvaluationInputs,
   EvaluationServer,
   EvaluationServerUser,
+  PluginUpdateEvent,
+  SessionRow,
   SessionStopReason,
+  SessionWatchedEvent,
   TriggerType,
 } from './types.js';
 import type { MediaQuality, MediaSubject } from '../types.js';
+import type { ViolationInsertResult } from '../../../jobs/poller/violations.js';
 import type { TrustMove } from '../../userService.js';
 import type { NewsletterSendPayload } from '../../notifications/events.js';
 
@@ -54,12 +61,15 @@ async function serverListeningRules(
   return scoped.length > 0 ? scoped : null;
 }
 
-/** Whether anything on this server listens for either media trigger, before the sync pays for a diff. */
-export async function hasMediaListeners(serverId: string): Promise<boolean> {
-  const added = await serverListeningRules('media.added', serverId);
-  if (added) return true;
-  const upgraded = await serverListeningRules('media.upgraded', serverId);
-  return upgraded !== null;
+/** Which media triggers anything on this server listens for, before the sync pays for a diff. */
+export async function mediaListeners(
+  serverId: string
+): Promise<{ added: boolean; upgraded: boolean }> {
+  const [added, upgraded] = await Promise.all([
+    serverListeningRules('media.added', serverId),
+    serverListeningRules('media.upgraded', serverId),
+  ]);
+  return { added: added !== null, upgraded: upgraded !== null };
 }
 
 /** Producers run after the write they announce, so a failed read must not unwind the caller. */
@@ -105,6 +115,46 @@ export async function dispatchSessionStopped(
       context.inputs
     );
   });
+}
+
+/** The event for the tick that crossed the watched threshold; the poller builds it with its own inputs. */
+export function sessionWatchedEvent(
+  row: SessionRow,
+  live: Partial<Session>,
+  at: Date,
+  server: EvaluationServer,
+  serverUser: EvaluationServerUser
+): SessionWatchedEvent {
+  return {
+    type: 'session.watched',
+    at,
+    server,
+    serverUser,
+    session: toRuleSession(row, { ...live, watched: true }),
+  };
+}
+
+/**
+ * The SSE paths flip the watched flag without the poller's tick inputs, so this reads the
+ * context only when an automation listens. Violations come back for the caller to broadcast.
+ */
+export async function dispatchSessionWatched(
+  row: SessionRow,
+  live: Partial<Session>,
+  at: Date
+): Promise<ViolationInsertResult[]> {
+  let violations: ViolationInsertResult[] = [];
+  await guarded('session.watched', async () => {
+    const rules = await listeningRules('session.watched');
+    if (!rules) return;
+    const context = await loadEvaluationContext(row.serverId, row.serverUserId, rules);
+    if (!context) return;
+    ({ violations } = await dispatch(
+      sessionWatchedEvent(row, live, at, context.server, context.serverUser),
+      context.inputs
+    ));
+  });
+  return violations;
 }
 
 /**
@@ -186,6 +236,52 @@ export async function dispatchTrustChanged(args: {
   });
 }
 
+/** Older rows are the first poll's 24 h seed or a catch-up after downtime: stored, never announced. */
+export const DISPATCH_FRESHNESS_MS = 10 * 60 * 1000;
+
+/** The recorder announces each row it opened; collapsed repeats of the same item never reach here. */
+export async function dispatchMediaDownloaded(args: {
+  serverId: string;
+  serverUserId: string;
+  title: string;
+  app: string | null;
+  device: string | null;
+  firstSeenAt: Date;
+}): Promise<void> {
+  if (Date.now() - args.firstSeenAt.getTime() > DISPATCH_FRESHNESS_MS) return;
+  await guarded('account.media_downloaded', async () => {
+    const rules = await listeningRules('account.media_downloaded');
+    if (!rules) return;
+    const context = await loadEvaluationContext(args.serverId, args.serverUserId, rules);
+    if (!context) return;
+    const identity = context.serverUser.identityServerUserIds;
+    const ids = identity.length > 0 ? identity : [args.serverUserId];
+    const since = new Date(Date.now() - TIME_MS.DAY);
+    // Both counts, so the variable can match whichever one a server-scoped condition read.
+    const [last24h, last24hOnServer] = await Promise.all([
+      countDownloads(ids, since),
+      countDownloads(ids, since, args.serverId),
+    ]);
+    await dispatch(
+      {
+        type: 'account.media_downloaded',
+        at: new Date(),
+        server: context.server,
+        serverUser: context.serverUser,
+        session: null,
+        download: {
+          title: args.title,
+          app: args.app,
+          device: args.device,
+          last24h,
+          last24hOnServer,
+        },
+      },
+      context.inputs
+    );
+  });
+}
+
 /** Every move a write made, announced after it committed; the skip above drops the no-ops. */
 export async function dispatchTrustMoves(moves: TrustMove[], reason: string): Promise<void> {
   for (const move of moves) {
@@ -256,7 +352,7 @@ export async function dispatchServerHealthById(
 }
 
 export async function dispatchPluginUpdate(args: {
-  server: EvaluationServer;
+  server: PluginUpdateEvent['server'];
   installedVersion: string | null;
   latestVersion: string;
   downloadUrl: string;

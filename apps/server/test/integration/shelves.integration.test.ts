@@ -7,7 +7,7 @@
  * ordering, and the versioned cache contract all live in the query and
  * caching logic exercised here.
  *
- * Run with: pnpm --filter @tracearr/server test:integration -- shelves
+ * Run with: pnpm --filter @tracearr/server test:integration shelves
  */
 
 import { randomUUID } from 'node:crypto';
@@ -16,7 +16,7 @@ import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import sensible from '@fastify/sensible';
 import type { Redis } from 'ioredis';
 import { eq, sql } from 'drizzle-orm';
-import type { AuthUser, ShelvesResponse } from '@tracearr/shared';
+import type { AuthUser, ShelvesResponse, TopMoviesResponse } from '@tracearr/shared';
 import { REDIS_KEYS } from '@tracearr/shared';
 import {
   createTestServer,
@@ -29,7 +29,9 @@ import { createMockRedis } from '@tracearr/test-utils/mocks';
 import { db } from '../../src/db/client.js';
 import { media } from '../../src/db/schema.js';
 import { libraryShelvesRoute } from '../../src/routes/library/shelves.js';
+import { libraryTopContentRoute } from '../../src/routes/library/topContent.js';
 import { buildLibraryCacheKey } from '../../src/routes/library/utils.js';
+import { getMediaStats } from '../../src/services/library/mediaDetailService.js';
 import { resolveMediaForItem } from '../../src/services/library/mediaResolutionService.js';
 import { setSetting } from '../../src/services/settings.js';
 import {
@@ -37,6 +39,8 @@ import {
   invalidateLibraryCaches,
   shutdownLibrarySyncQueue,
 } from '../../src/jobs/librarySyncQueue.js';
+import { permissionGuard } from '../../src/lib/scope.js';
+import { seedArtistOnTwoServers } from './musicFixtures.js';
 
 async function buildApp(authUser: AuthUser): Promise<{ app: FastifyInstance; redis: Redis }> {
   const app = Fastify({ logger: false });
@@ -44,9 +48,11 @@ async function buildApp(authUser: AuthUser): Promise<{ app: FastifyInstance; red
   app.decorate('authenticate', async (request: FastifyRequest) => {
     (request as FastifyRequest & { user: AuthUser }).user = authUser;
   });
+  app.decorate('requirePermission', permissionGuard(app));
   const redis = createMockRedis() as unknown as Redis;
   app.decorate('redis', redis);
   await app.register(libraryShelvesRoute, { prefix: '/library' });
+  await app.register(libraryTopContentRoute, { prefix: '/library' });
   return { app, redis };
 }
 
@@ -61,6 +67,10 @@ async function refreshPlaysAggregate(): Promise<void> {
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+function startOfTodayUtc(): number {
+  return new Date().setUTCHours(0, 0, 0, 0);
+}
 
 interface SeedMovieOptions {
   serverId: string;
@@ -304,92 +314,235 @@ describe('shelves command center endpoint against a real database', () => {
     expect(allBody.kpis.watchedInPeriod.titlesTouched).toBe(2);
   });
 
-  it('period=day counts a play from yesterdays UTC day bucket, not just todays partial bucket', async () => {
+  it('period=week covers 7 UTC days ending today: midnight 6 days back is in, noon 7 days back is out', async () => {
     const server = await createTestServer({ type: 'plex' });
     const user = await createTestUser();
     const account = await createTestServerUser({ serverId: server.id, userId: user.id });
     const { app } = await buildApp(ownerFor());
+    const today = startOfTodayUtc();
 
-    // user_media_plays_daily.day is time_bucket('1 day', started_at) - always
-    // midnight UTC of the session's calendar date. A session anywhere on
-    // "yesterday" (relative to whenever this test runs) buckets to yesterday
-    // 00:00 UTC, which sits before "now minus 24h" for any time of day except
-    // exactly midnight, so this reliably lands on the wrong side of an
-    // unbucketed comparison regardless of when the suite runs.
-    const now = new Date();
-    const yesterdayNoon = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1, 12, 0, 0)
-    );
-
-    const movie = await seedMovie({
+    const inside = await seedMovie({
       serverId: server.id,
-      ratingKey: 'day-bucket-yesterday',
-      title: 'Day Bucket Yesterday Movie',
-      year: 2020,
-      tmdbId: 906_001,
-    });
-    await seedSession({
-      serverId: server.id,
-      serverUserId: account.id,
-      mediaId: movie,
-      ratingKey: 'day-bucket-yesterday',
-      durationMs: 300_000,
-      startedAt: yesterdayNoon,
-    });
-
-    await refreshPlaysAggregate();
-
-    const { statusCode, body } = await fetchShelves(app, '?period=day');
-    expect(statusCode).toBe(200);
-    expect(body.mostPopularMovies.map((r) => r.mediaId)).toContain(movie);
-    expect(body.kpis.watchedInPeriod.titlesTouched).toBe(1);
-    expect(body.kpis.hoursWatched).toBeGreaterThan(0);
-  });
-
-  it('period=week includes a play at the exact truncated window edge (day-bucket boundary, not a comfortable 1d/10d gap)', async () => {
-    const server = await createTestServer({ type: 'plex' });
-    const user = await createTestUser();
-    const account = await createTestServerUser({ serverId: server.id, userId: user.id });
-    const { app } = await buildApp(ownerFor());
-
-    // Midnight UTC of the day exactly 7 days back. After truncation the
-    // window's lower bound is this same instant, so the play lands right on
-    // the boundary; before truncation the raw instant threshold (now - 7d)
-    // falls later that same day, excluding it.
-    const boundaryInstant = new Date(Date.now() - 7 * DAY_MS);
-    const boundaryDayStart = new Date(
-      Date.UTC(
-        boundaryInstant.getUTCFullYear(),
-        boundaryInstant.getUTCMonth(),
-        boundaryInstant.getUTCDate(),
-        0,
-        0,
-        0
-      )
-    );
-
-    const movie = await seedMovie({
-      serverId: server.id,
-      ratingKey: 'week-boundary-edge',
-      title: 'Week Boundary Edge Movie',
+      ratingKey: 'week-first-day',
+      title: 'Week First Day Movie',
       year: 2020,
       tmdbId: 906_002,
     });
     await seedSession({
       serverId: server.id,
       serverUserId: account.id,
-      mediaId: movie,
-      ratingKey: 'week-boundary-edge',
+      mediaId: inside,
+      ratingKey: 'week-first-day',
       durationMs: 300_000,
-      startedAt: boundaryDayStart,
+      startedAt: new Date(today - 6 * DAY_MS),
+    });
+    const outside = await seedMovie({
+      serverId: server.id,
+      ratingKey: 'week-eighth-day',
+      title: 'Week Eighth Day Movie',
+      year: 2020,
+      tmdbId: 906_003,
+    });
+    await seedSession({
+      serverId: server.id,
+      serverUserId: account.id,
+      mediaId: outside,
+      ratingKey: 'week-eighth-day',
+      durationMs: 300_000,
+      startedAt: new Date(today - 7 * DAY_MS + 12 * 60 * 60 * 1000),
     });
 
     await refreshPlaysAggregate();
 
     const { statusCode, body } = await fetchShelves(app, '?period=week');
     expect(statusCode).toBe(200);
-    expect(body.mostPopularMovies.map((r) => r.mediaId)).toContain(movie);
+    const popularIds = body.mostPopularMovies.map((r) => r.mediaId);
+    expect(popularIds).toContain(inside);
+    expect(popularIds).not.toContain(outside);
     expect(body.kpis.watchedInPeriod.titlesTouched).toBe(1);
+  });
+
+  it("period=day covers today's UTC day only", async () => {
+    const server = await createTestServer({ type: 'plex' });
+    const user = await createTestUser();
+    const account = await createTestServerUser({ serverId: server.id, userId: user.id });
+    const { app } = await buildApp(ownerFor());
+    const today = startOfTodayUtc();
+
+    const todayMovie = await seedMovie({
+      serverId: server.id,
+      ratingKey: 'day-today',
+      title: 'Day Today Movie',
+      year: 2020,
+      tmdbId: 906_001,
+    });
+    await seedSession({
+      serverId: server.id,
+      serverUserId: account.id,
+      mediaId: todayMovie,
+      ratingKey: 'day-today',
+      durationMs: 300_000,
+      startedAt: new Date(today),
+    });
+    const yesterdayMovie = await seedMovie({
+      serverId: server.id,
+      ratingKey: 'day-yesterday',
+      title: 'Day Yesterday Movie',
+      year: 2020,
+      tmdbId: 906_004,
+    });
+    await seedSession({
+      serverId: server.id,
+      serverUserId: account.id,
+      mediaId: yesterdayMovie,
+      ratingKey: 'day-yesterday',
+      durationMs: 300_000,
+      startedAt: new Date(today - DAY_MS + 12 * 60 * 60 * 1000),
+    });
+
+    await refreshPlaysAggregate();
+
+    const { statusCode, body } = await fetchShelves(app, '?period=day');
+    expect(statusCode).toBe(200);
+    const popularIds = body.mostPopularMovies.map((r) => r.mediaId);
+    expect(popularIds).toContain(todayMovie);
+    expect(popularIds).not.toContain(yesterdayMovie);
+    expect(body.kpis.watchedInPeriod.titlesTouched).toBe(1);
+  });
+
+  it('custom range covers its first to last day inclusive', async () => {
+    const server = await createTestServer({ type: 'plex' });
+    const user = await createTestUser();
+    const account = await createTestServerUser({ serverId: server.id, userId: user.id });
+    const { app } = await buildApp(ownerFor());
+    const today = startOfTodayUtc();
+    const noon = 12 * 60 * 60 * 1000;
+
+    const movie = await seedMovie({
+      serverId: server.id,
+      ratingKey: 'custom-range',
+      title: 'Custom Range Movie',
+      year: 2020,
+      tmdbId: 906_005,
+    });
+    for (const startedAt of [today - 3 * DAY_MS + noon, today - DAY_MS + noon, today]) {
+      await seedSession({
+        serverId: server.id,
+        serverUserId: account.id,
+        mediaId: movie,
+        ratingKey: 'custom-range',
+        durationMs: 300_000,
+        startedAt: new Date(startedAt),
+      });
+    }
+
+    await refreshPlaysAggregate();
+
+    const startDate = new Date(today - 3 * DAY_MS).toISOString();
+    const endDate = new Date(today - DAY_MS).toISOString();
+    const { statusCode, body } = await fetchShelves(
+      app,
+      `?period=custom&startDate=${startDate}&endDate=${endDate}`
+    );
+    expect(statusCode).toBe(200);
+    expect(body.mostPopularMovies.find((r) => r.mediaId === movie)?.plays).toBe(2);
+  });
+
+  it('the shelf, top-movies and media stats cover the same days for the 30-day preset', async () => {
+    const server = await createTestServer({ type: 'plex' });
+    const user = await createTestUser();
+    const account = await createTestServerUser({ serverId: server.id, userId: user.id });
+    const { app } = await buildApp(ownerFor());
+    const today = startOfTodayUtc();
+    const noon = 12 * 60 * 60 * 1000;
+
+    const movie = await seedMovie({
+      serverId: server.id,
+      ratingKey: 'thirty-day-edge',
+      title: 'Thirty Day Edge Movie',
+      year: 2020,
+      tmdbId: 906_006,
+    });
+    for (const daysBack of [29, 30]) {
+      await seedSession({
+        serverId: server.id,
+        serverUserId: account.id,
+        mediaId: movie,
+        ratingKey: 'thirty-day-edge',
+        durationMs: 300_000,
+        startedAt: new Date(today - daysBack * DAY_MS + noon),
+      });
+    }
+
+    await refreshPlaysAggregate();
+
+    const { body: shelves } = await fetchShelves(app, '?period=month');
+    expect.soft(shelves.mostPopularMovies.find((r) => r.mediaId === movie)?.plays).toBe(1);
+
+    const top = (
+      await app.inject({ method: 'GET', url: '/library/top-movies?period=30d' })
+    ).json<TopMoviesResponse>();
+    expect.soft(top.items.find((r) => r.title === 'Thirty Day Edge Movie')?.totalPlays).toBe(1);
+
+    const stats = await getMediaStats(
+      { kind: 'media', aliases: [movie], seasonNumber: null, showAliases: [] },
+      undefined,
+      'all'
+    );
+    expect.soft(stats.last_30.combined.plays).toBe(1);
+  });
+
+  it('the shelf and top-movies cover the same days for a custom range', async () => {
+    const server = await createTestServer({ type: 'plex' });
+    const user = await createTestUser();
+    const account = await createTestServerUser({ serverId: server.id, userId: user.id });
+    const { app } = await buildApp(ownerFor());
+    const today = startOfTodayUtc();
+    const noon = 12 * 60 * 60 * 1000;
+
+    const movie = await seedMovie({
+      serverId: server.id,
+      ratingKey: 'custom-edge',
+      title: 'Custom Edge Movie',
+      year: 2020,
+      tmdbId: 906_007,
+    });
+    // The range is three days back to yesterday: its first and last minute are in, the days
+    // either side are out
+    for (const startedAt of [
+      today - 4 * DAY_MS + noon,
+      today - 3 * DAY_MS,
+      today - 60_000,
+      today,
+    ]) {
+      await seedSession({
+        serverId: server.id,
+        serverUserId: account.id,
+        mediaId: movie,
+        ratingKey: 'custom-edge',
+        durationMs: 300_000,
+        startedAt: new Date(startedAt),
+      });
+    }
+
+    await refreshPlaysAggregate();
+
+    const first = new Date(today - 3 * DAY_MS).toISOString();
+    const last = new Date(today - DAY_MS).toISOString();
+    const { body: shelves } = await fetchShelves(
+      app,
+      `?period=custom&startDate=${first}&endDate=${last}`
+    );
+    expect.soft(shelves.mostPopularMovies.find((r) => r.mediaId === movie)?.plays).toBe(2);
+
+    const exclusiveEnd = new Date(today).toISOString();
+    const top = (
+      await app.inject({
+        method: 'GET',
+        url: `/library/top-movies?period=30d&startDate=${first}&endDate=${exclusiveEnd}`,
+      })
+    ).json<TopMoviesResponse>();
+    expect.soft(top.items.find((r) => r.title === 'Custom Edge Movie')?.totalPlays).toBe(2);
   });
 
   it('a title played in-window but removed from the library does not surface in mostPopular or count toward titlesTouched', async () => {
@@ -619,6 +772,44 @@ describe('shelves command center endpoint against a real database', () => {
     expect(new Date(row!.newestEpisodeAt!).getTime()).toBe(episodeAddedAt.getTime());
     // The series' own copy is over a year old: reading it is the bug.
     expect(row!.servers[0]!.addedAt).not.toBe(row!.newestEpisodeAt);
+  });
+
+  it("rolls a show's episodes into its size and best resolution on the shows shelf", async () => {
+    const server = await createTestServer({ type: 'plex' });
+    const { app } = await buildApp(ownerFor());
+
+    const show = await seedShow({
+      serverId: server.id,
+      ratingKey: 'rollup-shelf-show',
+      title: 'Rollup Shelf Show',
+      year: 2016,
+      tvdbId: 902_201,
+    });
+    for (const [i, fileSize, resolution] of [
+      [1, 500_000_000, '1080p'],
+      [2, 600_000_000, '720p'],
+    ] as const) {
+      await seedEpisode({
+        serverId: server.id,
+        ratingKey: `rollup-shelf-e${i}`,
+        title: `Episode ${i}`,
+        year: 2016,
+        tvdbId: 902_210 + i,
+        showMediaId: show,
+        fileSize,
+      });
+      await db.execute(sql`
+        UPDATE library_item_versions v SET video_resolution = ${resolution}
+        FROM library_items li
+        WHERE li.id = v.library_item_id AND li.rating_key = ${`rollup-shelf-e${i}`}
+      `);
+    }
+
+    const { statusCode, body } = await fetchShelves(app, '?period=month');
+    expect(statusCode).toBe(200);
+    const row = body.recentlyAddedShows.find((r) => r.mediaId === show);
+    expect(row?.servers[0]?.fileSize).toBe(1_100_000_000);
+    expect(row?.resolutionBest).toBe('1080p');
   });
 
   it('newlyAdded counts titles added in the window, their bytes, and how many have ever been played', async () => {
@@ -887,7 +1078,7 @@ describe('shelves command center endpoint against a real database', () => {
     expect(body.recentlyAddedMovies.map((r) => r.title)).toContain('V1 Cache Movie');
 
     const versionedKey = buildLibraryCacheKey(
-      `${REDIS_KEYS.LIBRARY_SHELVES}:v9`,
+      `${REDIS_KEYS.LIBRARY_SHELVES}:v12`,
       'all',
       'month',
       undefined,
@@ -911,21 +1102,21 @@ describe('shelves command center endpoint against a real database', () => {
     });
 
     const weekKey = buildLibraryCacheKey(
-      `${REDIS_KEYS.LIBRARY_SHELVES}:v9`,
+      `${REDIS_KEYS.LIBRARY_SHELVES}:v12`,
       'all',
       'week',
       undefined,
       'auto:dw1'
     );
     const weekKeyDw0 = buildLibraryCacheKey(
-      `${REDIS_KEYS.LIBRARY_SHELVES}:v9`,
+      `${REDIS_KEYS.LIBRARY_SHELVES}:v12`,
       'all',
       'week',
       undefined,
       'auto:dw0'
     );
     const yearKey = buildLibraryCacheKey(
-      `${REDIS_KEYS.LIBRARY_SHELVES}:v9`,
+      `${REDIS_KEYS.LIBRARY_SHELVES}:v12`,
       'all',
       'year',
       undefined,
@@ -994,7 +1185,13 @@ describe('shelves command center endpoint against a real database', () => {
 
     const { statusCode, body } = await fetchShelves(app);
     expect(statusCode).toBe(200);
-    expect(body.meta).toEqual({ movies: 2, shows: 1, totalFileSize: 3_000_000 });
+    expect(body.meta).toEqual({
+      movies: 2,
+      shows: 1,
+      artists: 0,
+      albums: 0,
+      totalFileSize: 3_000_000,
+    });
     expect(body.kpis.watchedInPeriod.totalTitles).toBe(3);
   });
 
@@ -1004,7 +1201,7 @@ describe('shelves command center endpoint against a real database', () => {
     const viewer: AuthUser = {
       userId: randomUUID(),
       username: 'viewer',
-      role: 'viewer',
+      role: 'admin',
       serverIds: [serverA.id],
     };
     const { app } = await buildApp(viewer);
@@ -1565,7 +1762,7 @@ describe('shelves preferred poster source', () => {
     expect(autoRow.posterUrl).toContain(`v=${autoRow.posterVersion}`);
 
     const autoKey = buildLibraryCacheKey(
-      `${REDIS_KEYS.LIBRARY_SHELVES}:v9`,
+      `${REDIS_KEYS.LIBRARY_SHELVES}:v12`,
       'all',
       'year',
       undefined,
@@ -1578,7 +1775,7 @@ describe('shelves preferred poster source', () => {
     // back server B's already-cached poster.
     await setSetting('preferredPosterServerId', serverA.id);
     const preferredKey = buildLibraryCacheKey(
-      `${REDIS_KEYS.LIBRARY_SHELVES}:v9`,
+      `${REDIS_KEYS.LIBRARY_SHELVES}:v12`,
       'all',
       'year',
       undefined,
@@ -1604,7 +1801,7 @@ describe('shelves cache invalidation on library sync', () => {
 
   it('a sync invalidates the versioned cached shelves key', async () => {
     initLibrarySyncQueue(process.env.REDIS_URL ?? 'redis://localhost:6380');
-    const key = buildLibraryCacheKey(`${REDIS_KEYS.LIBRARY_SHELVES}:v9`, 'all', 'month');
+    const key = buildLibraryCacheKey(`${REDIS_KEYS.LIBRARY_SHELVES}:v12`, 'all', 'month');
     const { getRedis } = await import('../../src/lib/redisShared.js');
     const redis = getRedis();
     await redis.set(key, JSON.stringify({ marker: true }));
@@ -1613,5 +1810,39 @@ describe('shelves cache invalidation on library sync', () => {
     await invalidateLibraryCaches(randomUUID());
 
     expect(await redis.get(key)).toBeNull();
+  });
+});
+
+describe('music shelves against a real database', () => {
+  it('lists the newest album rows and the most played artist, and counts music in meta', async () => {
+    const music = await seedArtistOnTwoServers();
+    const { app } = await buildApp(ownerFor());
+
+    const res = await app.inject({ method: 'GET', url: '/library/shelves' });
+    expect(res.statusCode).toBe(200);
+    const body = res.json<ShelvesResponse>();
+
+    expect(body.recentlyAddedAlbums.map((a) => [a.serverId, a.ratingKey, a.title])).toEqual(
+      music.albumsNewestFirst.map((a) => [a.serverId, a.ratingKey, a.title])
+    );
+    for (const album of body.recentlyAddedAlbums) {
+      expect(album).toMatchObject({
+        artistTitle: 'Daft Punk',
+        artistMediaId: music.artistMediaId,
+        posterUrl: expect.any(String),
+        posterVersion: expect.stringMatching(/^[0-9a-f]{8}$/),
+      });
+    }
+    expect(body.mostPlayedArtists).toEqual([
+      expect.objectContaining({
+        mediaId: music.artistMediaId,
+        mediaType: 'artist',
+        albumCount: 2,
+        plays: 3,
+        viewers: 2,
+        rank: 1,
+      }),
+    ]);
+    expect(body.meta).toMatchObject({ movies: 0, shows: 0, artists: 1, albums: 3 });
   });
 });

@@ -7,7 +7,7 @@
 
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { POSTER_IMAGE_SIZE } from '@tracearr/shared';
+import { POSTER_IMAGE_SIZE, SQUARE_POSTER_SIZE } from '@tracearr/shared';
 import { posterVersionFor, proxyImage } from '../services/imageProxy.js';
 import { readLogoPng } from '../services/notifications/emailLogo.js';
 
@@ -35,7 +35,7 @@ const proxyQuerySchema = z
     height: z.coerce.number().int().min(10).max(2000).optional().default(450),
     fallback: z.enum(['poster', 'avatar', 'art']).optional().default('poster'),
     // Cache-busting fingerprint (posterVersionFor output). Presence marks the
-    // response cache as long-lived/immutable, so only the one poster size is allowed.
+    // response cache as long-lived/immutable, so only the poster sizes are allowed.
     v: z
       .string()
       .regex(/^[0-9a-f]{8}$/i)
@@ -46,9 +46,11 @@ const proxyQuerySchema = z
   .refine(
     (data) =>
       data.v === undefined ||
-      (data.width === POSTER_IMAGE_SIZE.width && data.height === POSTER_IMAGE_SIZE.height),
+      [POSTER_IMAGE_SIZE, SQUARE_POSTER_SIZE].some(
+        (size) => data.width === size.width && data.height === size.height
+      ),
     {
-      message: `Versioned requests must be ${POSTER_IMAGE_SIZE.width}x${POSTER_IMAGE_SIZE.height}`,
+      message: `Versioned requests must be ${POSTER_IMAGE_SIZE.width}x${POSTER_IMAGE_SIZE.height} or ${SQUARE_POSTER_SIZE.width}x${SQUARE_POSTER_SIZE.height}`,
       path: ['width'],
     }
   )
@@ -123,52 +125,6 @@ export const imageRoutes: FastifyPluginAsync = async (app) => {
     reply.header('Cache-Control', cacheControl);
     reply.header('Content-Type', result.contentType);
 
-    return reply.send(result.data);
-  });
-
-  /**
-   * GET /images/avatar - Get a user avatar (with gravatar fallback)
-   *
-   * Note: No authentication required for same reason as /proxy
-   *
-   * Query params:
-   * - server: UUID of the server (optional if using gravatar)
-   * - url: The avatar path from server (optional)
-   * - email: Email for gravatar fallback (optional)
-   * - size: Avatar size (default 100)
-   */
-  app.get('/avatar', async (request, reply) => {
-    const query = request.query as Record<string, string | undefined>;
-    const server = query.server;
-    const url = query.url;
-    const size = parseInt(query.size ?? '100', 10);
-
-    // If we have server URL, try to fetch from media server
-    if (server && url) {
-      const result = await proxyImage({
-        serverId: server,
-        imagePath: url,
-        width: size,
-        height: size,
-        fallback: 'avatar',
-      });
-
-      reply.header('Cache-Control', 'public, max-age=3600');
-      reply.header('Content-Type', result.contentType);
-      return reply.send(result.data);
-    }
-
-    // Return fallback avatar
-    const result = await proxyImage({
-      serverId: 'fallback',
-      imagePath: 'fallback',
-      width: size,
-      height: size,
-      fallback: 'avatar',
-    });
-
-    reply.header('Cache-Control', 'public, max-age=86400');
-    reply.header('Content-Type', result.contentType);
     return reply.send(result.data);
   });
 

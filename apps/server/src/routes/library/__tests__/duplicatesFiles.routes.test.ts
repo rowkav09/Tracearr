@@ -25,6 +25,8 @@ vi.mock('../../../services/mediaServer/index.js', () => ({
 import { db } from '../../../db/client.js';
 import { createMediaServerClient } from '../../../services/mediaServer/index.js';
 import { libraryDuplicateFilesRoute } from '../duplicatesFiles.js';
+import { permissionGuard } from '../../../lib/scope.js';
+import { fakeJellyfinClient, fakePlexClient } from '../../../test/mediaServerFakes.js';
 
 const mockCreateClient = vi.mocked(createMediaServerClient);
 
@@ -48,6 +50,7 @@ async function buildTestApp(
   app.decorate('authenticate', async (request: { user: AuthUser }) => {
     request.user = authUser;
   });
+  app.decorate('requirePermission', permissionGuard(app));
   app.decorate('redis', redis as never);
   await app.register(libraryDuplicateFilesRoute, { prefix: '/library' });
   return app;
@@ -87,7 +90,7 @@ describe('GET /library/duplicates/files', () => {
         ],
       ])
     );
-    mockCreateClient.mockReturnValue({ checkFilesExist } as never);
+    mockCreateClient.mockReturnValue(fakePlexClient({ checkFilesExist }));
 
     const app = await buildTestApp(
       { userId: randomUUID(), username: 'owner', role: 'owner', serverIds: [] },
@@ -110,7 +113,7 @@ describe('GET /library/duplicates/files', () => {
     vi.mocked(db.execute).mockResolvedValue({ rows: [] } as never);
 
     const app = await buildTestApp(
-      { userId: randomUUID(), username: 'viewer', role: 'viewer', serverIds: [SERVER_A] },
+      { userId: randomUUID(), username: 'viewer', role: 'admin', serverIds: [SERVER_A] },
       createSpyRedis()
     );
     await app.inject({ url: `/library/duplicates/files?itemIds=${ITEM_A}` });
@@ -140,7 +143,7 @@ describe('GET /library/duplicates/files', () => {
     vi.mocked(db.execute).mockResolvedValue({
       rows: [itemRow({ server_type: 'jellyfin' })],
     } as never);
-    mockCreateClient.mockReturnValue({} as never);
+    mockCreateClient.mockReturnValue(fakeJellyfinClient());
 
     const app = await buildTestApp(
       { userId: randomUUID(), username: 'owner', role: 'owner', serverIds: [] },
@@ -153,9 +156,9 @@ describe('GET /library/duplicates/files', () => {
 
   it('answers unchecked when the probe throws instead of failing the request', async () => {
     vi.mocked(db.execute).mockResolvedValue({ rows: [itemRow()] } as never);
-    mockCreateClient.mockReturnValue({
-      checkFilesExist: vi.fn().mockRejectedValue(new Error('ECONNRESET')),
-    } as never);
+    mockCreateClient.mockReturnValue(
+      fakePlexClient({ checkFilesExist: vi.fn().mockRejectedValue(new Error('ECONNRESET')) })
+    );
 
     const app = await buildTestApp(
       { userId: randomUUID(), username: 'owner', role: 'owner', serverIds: [] },
@@ -186,7 +189,7 @@ describe('GET /library/duplicates/files', () => {
     const checkFilesExist = vi
       .fn()
       .mockResolvedValue(new Map([['2733', new Map([['42858', false]])]]));
-    mockCreateClient.mockReturnValue({ checkFilesExist } as never);
+    mockCreateClient.mockReturnValue(fakePlexClient({ checkFilesExist }));
 
     const redis = createSpyRedis();
     const app = await buildTestApp(

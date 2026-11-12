@@ -15,6 +15,8 @@
  * All data entering Tracearr should go through this normalizer for consistency.
  */
 
+import type { ServerType } from '@tracearr/shared';
+
 export interface NormalizedClient {
   /** Normalized platform name (e.g., "Android TV", "iOS", "Kodi") */
   platform: string;

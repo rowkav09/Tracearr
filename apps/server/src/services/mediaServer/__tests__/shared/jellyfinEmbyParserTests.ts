@@ -8,11 +8,9 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import type { JellyfinEmbyServerType } from '@tracearr/shared';
 import type { MediaSession, MediaUser, MediaLibrary, MediaWatchHistoryItem } from '../../types.js';
-import type {
-  JellyfinEmbyActivityEntry,
-  JellyfinEmbyAuthResult,
-} from '../../shared/baseMediaServerClient.js';
+import type { JellyfinEmbyActivityEntry } from '../../shared/baseMediaServerClient.js';
 
 // ============================================================================
 // Types for Parser Functions
@@ -29,7 +27,6 @@ export interface ParserFunctions {
   parseWatchHistoryResponse: (data: unknown) => MediaWatchHistoryItem[];
   parseActivityLogItem: (raw: Record<string, unknown>) => JellyfinEmbyActivityEntry;
   parseActivityLogResponse: (data: unknown) => JellyfinEmbyActivityEntry[];
-  parseAuthResponse: (raw: Record<string, unknown>) => JellyfinEmbyAuthResult;
 }
 
 // ============================================================================
@@ -38,7 +35,7 @@ export interface ParserFunctions {
 
 export function createSessionParsingTests(
   parsers: ParserFunctions,
-  serverType: 'jellyfin' | 'emby'
+  serverType: JellyfinEmbyServerType
 ) {
   const clientName = serverType === 'jellyfin' ? 'Jellyfin Web' : 'Emby Web';
 
@@ -70,6 +67,9 @@ export function createSessionParsingTests(
           },
           TranscodingInfo: {
             Bitrate: 20000000,
+            VideoCodec: 'hevc',
+            IsVideoDirect: true,
+            IsAudioDirect: true,
           },
         };
 
@@ -321,7 +321,10 @@ export function createSessionParsingTests(
 // User Parsing Tests
 // ============================================================================
 
-export function createUserParsingTests(parsers: ParserFunctions, serverType: 'jellyfin' | 'emby') {
+export function createUserParsingTests(
+  parsers: ParserFunctions,
+  serverType: JellyfinEmbyServerType
+) {
   describe(`${serverType} User Parser`, () => {
     describe('parseUser', () => {
       it('should parse user with admin policy', () => {
@@ -392,6 +395,22 @@ export function createUserParsingTests(parsers: ParserFunctions, serverType: 'je
         expect(user.isAdmin).toBe(false);
         expect(user.isDisabled).toBe(false);
       });
+
+      it('lists the enabled folders only when the policy limits them', () => {
+        const limited = parsers.parseUser({
+          Id: 'limited',
+          Name: 'Limited',
+          Policy: { EnableAllFolders: false, EnabledFolders: ['f137a2dd', 'a656b907'] },
+        });
+        const everything = parsers.parseUser({
+          Id: 'everything',
+          Name: 'Everything',
+          Policy: { EnableAllFolders: true, EnabledFolders: [] },
+        });
+
+        expect(limited.sharedLibraries).toEqual(['f137a2dd', 'a656b907']);
+        expect(everything.sharedLibraries).toBeUndefined();
+      });
     });
 
     describe('parseUsersResponse', () => {
@@ -421,7 +440,7 @@ export function createUserParsingTests(parsers: ParserFunctions, serverType: 'je
 
 export function createLibraryParsingTests(
   parsers: ParserFunctions,
-  serverType: 'jellyfin' | 'emby'
+  serverType: JellyfinEmbyServerType
 ) {
   describe(`${serverType} Library Parser`, () => {
     describe('parseLibrary', () => {
@@ -477,7 +496,7 @@ export function createLibraryParsingTests(
 
 export function createWatchHistoryParsingTests(
   parsers: ParserFunctions,
-  serverType: 'jellyfin' | 'emby'
+  serverType: JellyfinEmbyServerType
 ) {
   describe(`${serverType} Watch History Parser`, () => {
     describe('parseWatchHistoryItem', () => {
@@ -557,7 +576,7 @@ export function createWatchHistoryParsingTests(
 
 export function createActivityLogParsingTests(
   parsers: ParserFunctions,
-  serverType: 'jellyfin' | 'emby'
+  serverType: JellyfinEmbyServerType
 ) {
   describe(`${serverType} Activity Log Parser`, () => {
     describe('parseActivityLogItem', () => {
@@ -618,76 +637,13 @@ export function createActivityLogParsingTests(
 }
 
 // ============================================================================
-// Authentication Response Parsing Tests
-// ============================================================================
-
-export function createAuthParsingTests(parsers: ParserFunctions, serverType: 'jellyfin' | 'emby') {
-  describe(`${serverType} Auth Response Parser`, () => {
-    describe('parseAuthResponse', () => {
-      it('should parse successful auth response', () => {
-        const rawResponse = {
-          User: {
-            Id: 'user-123',
-            Name: 'Admin',
-            ServerId: 'server-456',
-            Policy: {
-              IsAdministrator: true,
-            },
-          },
-          AccessToken: 'token-abc',
-          ServerId: 'server-456',
-        };
-
-        const result = parsers.parseAuthResponse(rawResponse);
-
-        expect(result.id).toBe('user-123');
-        expect(result.username).toBe('Admin');
-        expect(result.token).toBe('token-abc');
-        expect(result.serverId).toBe('server-456');
-        expect(result.isAdmin).toBe(true);
-      });
-
-      it('should handle non-admin user', () => {
-        const rawResponse = {
-          User: {
-            Id: 'user-789',
-            Name: 'Regular',
-            Policy: {
-              IsAdministrator: false,
-            },
-          },
-          AccessToken: 'token-xyz',
-          ServerId: 'server-123',
-        };
-
-        const result = parsers.parseAuthResponse(rawResponse);
-
-        expect(result.isAdmin).toBe(false);
-      });
-
-      it('should handle missing Policy', () => {
-        const rawResponse = {
-          User: {
-            Id: 'guest',
-            Name: 'Guest',
-          },
-          AccessToken: 'guest-token',
-          ServerId: 'server',
-        };
-
-        const result = parsers.parseAuthResponse(rawResponse);
-
-        expect(result.isAdmin).toBe(false);
-      });
-    });
-  });
-}
-
-// ============================================================================
 // PlayMethod and Transcode Detection Tests (Common)
 // ============================================================================
 
-export function createPlayMethodTests(parsers: ParserFunctions, serverType: 'jellyfin' | 'emby') {
+export function createPlayMethodTests(
+  parsers: ParserFunctions,
+  serverType: JellyfinEmbyServerType
+) {
   describe(`${serverType} Parser - PlayMethod and Transcode Detection`, () => {
     it('should use PlayMethod from PlayState for transcode detection', () => {
       const session = parsers.parseSession({
@@ -738,7 +694,7 @@ export function createPlayMethodTests(parsers: ParserFunctions, serverType: 'jel
 
 export function createTrailerFilteringTests(
   parsers: ParserFunctions,
-  serverType: 'jellyfin' | 'emby'
+  serverType: JellyfinEmbyServerType
 ) {
   describe(`${serverType} Parser - Trailer and Preroll Filtering`, () => {
     it('should filter out Trailer sessions', () => {
@@ -871,7 +827,7 @@ export function createTrailerFilteringTests(
 // Live TV Parsing Tests
 // ============================================================================
 
-export function createLiveTVTests(parsers: ParserFunctions, serverType: 'jellyfin' | 'emby') {
+export function createLiveTVTests(parsers: ParserFunctions, serverType: JellyfinEmbyServerType) {
   const clientName = serverType === 'jellyfin' ? 'Jellyfin Android TV' : 'Emby Theater';
 
   describe(`${serverType} Live TV Parser`, () => {
@@ -1000,7 +956,10 @@ export function createLiveTVTests(parsers: ParserFunctions, serverType: 'jellyfi
 // Music Track Parsing Tests
 // ============================================================================
 
-export function createMusicTrackTests(parsers: ParserFunctions, serverType: 'jellyfin' | 'emby') {
+export function createMusicTrackTests(
+  parsers: ParserFunctions,
+  serverType: JellyfinEmbyServerType
+) {
   const clientName = serverType === 'jellyfin' ? 'Jellyfin Mobile' : 'Emby Mobile';
 
   describe(`${serverType} Music Track Parser`, () => {
@@ -1182,7 +1141,7 @@ export function createMusicTrackTests(parsers: ParserFunctions, serverType: 'jel
 // Edge Cases and Type Handling Tests
 // ============================================================================
 
-export function createEdgeCaseTests(parsers: ParserFunctions, serverType: 'jellyfin' | 'emby') {
+export function createEdgeCaseTests(parsers: ParserFunctions, serverType: JellyfinEmbyServerType) {
   describe(`${serverType} Parser Edge Cases`, () => {
     it('should handle media type conversion', () => {
       const makeSession = (type: string) => ({
@@ -1241,14 +1200,13 @@ export function createEdgeCaseTests(parsers: ParserFunctions, serverType: 'jelly
  */
 export function createAllSharedParserTests(
   parsers: ParserFunctions,
-  serverType: 'jellyfin' | 'emby'
+  serverType: JellyfinEmbyServerType
 ) {
   createSessionParsingTests(parsers, serverType);
   createUserParsingTests(parsers, serverType);
   createLibraryParsingTests(parsers, serverType);
   createWatchHistoryParsingTests(parsers, serverType);
   createActivityLogParsingTests(parsers, serverType);
-  createAuthParsingTests(parsers, serverType);
   createPlayMethodTests(parsers, serverType);
   createTrailerFilteringTests(parsers, serverType);
   createLiveTVTests(parsers, serverType);

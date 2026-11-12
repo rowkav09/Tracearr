@@ -13,6 +13,7 @@ import {
   processVersionCheck,
   initVersionCheckQueue,
   scheduleVersionChecks,
+  forceVersionCheck,
   collectUpgradeWarnings,
   type GitHubRelease,
 } from '../versionCheckQueue.js';
@@ -21,6 +22,7 @@ import {
 
 interface QueueMockShape {
   add: ReturnType<typeof vi.fn>;
+  upsertJobScheduler: ReturnType<typeof vi.fn>;
   close: ReturnType<typeof vi.fn>;
   getJobSchedulers: ReturnType<typeof vi.fn>;
   removeJobScheduler: ReturnType<typeof vi.fn>;
@@ -31,7 +33,10 @@ const { queueRef } = vi.hoisted(() => ({
 }));
 vi.mock('bullmq', () => {
   function MockQueue(this: QueueMockShape) {
-    this.add = vi.fn();
+    this.add = vi.fn(async (_name: string, _data: unknown, opts?: { jobId?: string }) => ({
+      id: opts?.jobId,
+    }));
+    this.upsertJobScheduler = vi.fn();
     this.close = vi.fn();
     this.getJobSchedulers = vi.fn().mockResolvedValue([]);
     this.removeJobScheduler = vi.fn();
@@ -394,6 +399,38 @@ describe('scheduleVersionChecks', () => {
     await scheduleVersionChecks();
 
     expect(queue.removeJobScheduler).toHaveBeenCalledWith('version-check-repeatable');
+  });
+
+  it('queues the startup check through its dedup key so a restart cannot reuse a finished one', async () => {
+    const queue = queueRef.current;
+    if (!queue) throw new Error('queue mock not constructed');
+
+    await scheduleVersionChecks();
+
+    expect(queue.add).toHaveBeenCalledWith(
+      'startup-check',
+      { type: 'check' },
+      {
+        deduplication: { id: 'version-check-startup' },
+        jobId: expect.stringMatching(/^version-check-startup-/),
+      }
+    );
+  });
+
+  it('queues a forced check through its own dedup key', async () => {
+    const queue = queueRef.current;
+    if (!queue) throw new Error('queue mock not constructed');
+
+    await forceVersionCheck();
+
+    expect(queue.add).toHaveBeenCalledWith(
+      'forced-check',
+      { type: 'check', force: true },
+      {
+        deduplication: { id: 'version-check-forced' },
+        jobId: expect.stringMatching(/^version-check-forced-/),
+      }
+    );
   });
 });
 

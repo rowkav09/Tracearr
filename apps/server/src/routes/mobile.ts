@@ -30,6 +30,7 @@ import type {
   MobileSession,
   MobilePairResponse,
   MobilePairTokenResponse,
+  ServerType,
 } from '@tracearr/shared';
 import {
   REDIS_KEYS,
@@ -46,7 +47,10 @@ import {
   sessions,
   authSessions,
 } from '../db/schema.js';
+import { readSessionRow } from '../db/sessions/row.js';
+import { getCacheService } from '../services/cache.js';
 import { getAuth } from '../lib/auth.js';
+import { hasPermission } from '../lib/scope.js';
 import { assertMobileClientSupported, failClosed } from '../plugins/auth.js';
 import { terminateSession } from '../services/termination.js';
 import { getSetting, setSetting } from '../services/settings.js';
@@ -299,7 +303,7 @@ export async function revokeMobileDeviceSession(
       '1'
     );
   }
-  disconnectMobileDevice(session.deviceId);
+  await disconnectMobileDevice(session.deviceId);
   await deleteSessionRefreshTokens(redis, revoked);
   await revokeBetterAuthSession(revoked.betterAuthSessionId);
 }
@@ -341,13 +345,7 @@ export const mobileRoutes: FastifyPluginAsync = async (app) => {
   /**
    * GET /mobile - Get mobile config
    */
-  app.get('/', { preHandler: [app.authenticate] }, async (request, reply) => {
-    const authUser = request.user;
-
-    if (authUser.role !== 'owner') {
-      return reply.forbidden('Only server owners can access mobile settings');
-    }
-
+  app.get('/', { preHandler: [app.requireOwner] }, async () => {
     // Get mobile enabled status from settings
     const isEnabled = await getSetting('mobileEnabled');
 
@@ -374,12 +372,8 @@ export const mobileRoutes: FastifyPluginAsync = async (app) => {
   /**
    * POST /mobile/enable - Enable mobile access (no token generated)
    */
-  app.post('/enable', { preHandler: [app.authenticate] }, async (request, reply) => {
+  app.post('/enable', { preHandler: [app.requireOwner] }, async (request) => {
     const authUser = request.user;
-
-    if (authUser.role !== 'owner') {
-      return reply.forbidden('Only server owners can enable mobile access');
-    }
 
     // Update settings to enable mobile
     await setSetting('mobileEnabled', true);
@@ -407,12 +401,8 @@ export const mobileRoutes: FastifyPluginAsync = async (app) => {
    * Max pending tokens: 3
    * Max paired devices: 5
    */
-  app.post('/pair-token', { preHandler: [app.authenticate] }, async (request, reply) => {
+  app.post('/pair-token', { preHandler: [app.requireOwner] }, async (request, reply) => {
     const authUser = request.user;
-
-    if (authUser.role !== 'owner') {
-      return reply.forbidden('Only server owners can generate pairing tokens');
-    }
 
     // Check if mobile is enabled
     if (!(await getSetting('mobileEnabled'))) {
@@ -524,12 +514,8 @@ export const mobileRoutes: FastifyPluginAsync = async (app) => {
   /**
    * POST /mobile/disable - Disable mobile access
    */
-  app.post('/disable', { preHandler: [app.authenticate] }, async (request, reply) => {
+  app.post('/disable', { preHandler: [app.requireOwner] }, async (request) => {
     const authUser = request.user;
-
-    if (authUser.role !== 'owner') {
-      return reply.forbidden('Only server owners can disable mobile access');
-    }
 
     // Disable in settings
     await setSetting('mobileEnabled', false);
@@ -552,12 +538,8 @@ export const mobileRoutes: FastifyPluginAsync = async (app) => {
   /**
    * DELETE /mobile/sessions - Revoke all mobile sessions
    */
-  app.delete('/sessions', { preHandler: [app.authenticate] }, async (request, reply) => {
+  app.delete('/sessions', { preHandler: [app.requireOwner] }, async (request) => {
     const authUser = request.user;
-
-    if (authUser.role !== 'owner') {
-      return reply.forbidden('Only server owners can revoke mobile sessions');
-    }
 
     // Revoke all mobile sessions with blacklisting and force-disconnect
     const sessionsRows = await db.select().from(mobileSessions);
@@ -579,12 +561,8 @@ export const mobileRoutes: FastifyPluginAsync = async (app) => {
   /**
    * DELETE /mobile/sessions/:id - Revoke a single mobile session
    */
-  app.delete('/sessions/:id', { preHandler: [app.authenticate] }, async (request, reply) => {
+  app.delete('/sessions/:id', { preHandler: [app.requireOwner] }, async (request, reply) => {
     const authUser = request.user;
-
-    if (authUser.role !== 'owner') {
-      return reply.forbidden('Only server owners can revoke mobile sessions');
-    }
 
     const { id } = request.params as { id: string };
 
@@ -623,13 +601,7 @@ export const mobileRoutes: FastifyPluginAsync = async (app) => {
   /**
    * PATCH /mobile/sessions/:id - Update mobile session device name (owner only)
    */
-  app.patch('/sessions/:id', { preHandler: [app.authenticate] }, async (request, reply) => {
-    const authUser = request.user;
-
-    if (authUser.role !== 'owner') {
-      return reply.forbidden('Only server owners can rename mobile sessions');
-    }
-
+  app.patch('/sessions/:id', { preHandler: [app.requireOwner] }, async (request, reply) => {
     const { id } = request.params as { id: string };
 
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -1219,24 +1191,37 @@ export const mobileRoutes: FastifyPluginAsync = async (app) => {
       const { reason } = body.data;
       const authUser = request.user;
 
-      // Only admins and owners can terminate sessions
-      if (authUser.role !== 'owner' && authUser.role !== 'admin') {
+      if (!hasPermission(authUser.role, 'sessions', 'terminate')) {
         return reply.forbidden('Only administrators can terminate sessions');
       }
 
-      // Verify the session exists and user has access to its server
-      const session = await db
-        .select({
-          id: sessions.id,
-          serverId: sessions.serverId,
-          serverUserId: sessions.serverUserId,
-          state: sessions.state,
-        })
-        .from(sessions)
-        .where(eq(sessions.id, id))
-        .limit(1);
+      // Verify the session exists and user has access to its server; a live one is in the cache
 
-      const sessionData = session[0];
+      const cached = await getCacheService()?.getSessionById(id);
+
+      const sessionData = await readSessionRow(id, cached?.startedAt, (where) =>
+        db
+
+          .select({
+            id: sessions.id,
+
+            serverId: sessions.serverId,
+
+            serverUserId: sessions.serverUserId,
+
+            state: sessions.state,
+
+            startedAt: sessions.startedAt,
+          })
+
+          .from(sessions)
+
+          .where(where)
+
+          .limit(1)
+
+          .then((rows) => rows[0])
+      );
       if (!sessionData) {
         return reply.notFound('Session not found');
       }
@@ -1256,6 +1241,7 @@ export const mobileRoutes: FastifyPluginAsync = async (app) => {
         trigger: 'manual',
         triggeredByUserId: authUser.userId,
         reason,
+        sessionStartedAt: sessionData.startedAt,
       });
 
       if (result.outcome === 'server_historical') {

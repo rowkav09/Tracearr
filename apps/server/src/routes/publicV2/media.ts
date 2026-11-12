@@ -103,7 +103,8 @@ export function registerMediaRoutes(app: FastifyInstance, routeConfig: RouteConf
     async (request, reply) => {
       const { ref } = request.params as { ref: string };
       const canonical = await resolveCanonicalMediaByRef(ref);
-      if (!canonical) return reply.notFound();
+      // The documented children are seasons and episodes; artist albums stay internal.
+      if (!canonical || canonical.mediaType === 'artist') return reply.notFound();
 
       const data = await getChildren(canonical, undefined);
       if (data === null) return reply.notFound();
@@ -136,7 +137,7 @@ export function registerMediaRoutes(app: FastifyInstance, routeConfig: RouteConf
         if (cached) return cached;
       }
 
-      const windows = await getMediaStats(scope, undefined);
+      const windows = await getMediaStats(scope, undefined, 'all');
 
       const response = {
         media_id: canonical.id,
@@ -240,6 +241,7 @@ export function registerMediaRoutes(app: FastifyInstance, routeConfig: RouteConf
         pageSize,
         cursorValue,
         serverIds: undefined,
+        rowScope: 'all',
       });
       return cursorPage(data, nextCursor, pageSize);
     }

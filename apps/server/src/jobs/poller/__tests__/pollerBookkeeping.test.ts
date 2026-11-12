@@ -135,6 +135,7 @@ import {
   triggerReconciliationPoll,
   triggerServerPoll,
 } from '../processor.js';
+import { fakePlexClient } from '../../../test/mediaServerFakes.js';
 
 const serverRow1 = {
   id: 'server-1',
@@ -209,9 +210,10 @@ function createCacheService() {
   let failCount = 0;
   return {
     getAllActiveSessions: vi.fn(() => Promise.resolve(currentCachedSessions)),
-    getServerHealth: vi.fn(async () => health),
     setServerHealth: vi.fn(async (_id: string, value: boolean) => {
+      const previous = health;
       health = value;
+      return previous;
     }),
     resetServerFailCount: vi.fn(async () => {
       failCount = 0;
@@ -227,7 +229,8 @@ function createCacheService() {
     removeActiveSession: vi.fn().mockResolvedValue(undefined),
     removeUserSession: vi.fn().mockResolvedValue(undefined),
     hasTerminationCooldown: vi.fn().mockResolvedValue(false),
-    hasTerminationCooldownComposite: vi.fn().mockResolvedValue(false),
+    getTerminationCooldownsComposite: vi.fn().mockResolvedValue(new Map()),
+    clearTerminationCooldownsComposite: vi.fn(),
     addSessionWriteRetry: vi.fn().mockResolvedValue(undefined),
     invalidateDashboardStatsCache: vi.fn().mockResolvedValue(undefined),
   };
@@ -247,9 +250,11 @@ beforeEach(() => {
   mockIsInFallback.mockReturnValue(true);
   allServersRows = [serverRow1];
   currentCachedSessions = [];
-  mockCreateMediaServerClient.mockReturnValue({
-    getSessions: vi.fn().mockResolvedValue([]),
-  });
+  mockCreateMediaServerClient.mockReturnValue(
+    fakePlexClient({
+      getSessions: vi.fn().mockResolvedValue([]),
+    })
+  );
 
   cacheService = createCacheService();
   pubSubService = createPubSubService();

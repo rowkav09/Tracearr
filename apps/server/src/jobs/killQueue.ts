@@ -17,6 +17,7 @@ import {
   type ActionResult,
 } from '../services/automations/executors/index.js';
 import { getBullPrefix, queueConnectionOptions } from './queueConnection.js';
+import { WORKER_DEFAULTS, registerQueue, registerWorker } from './jobSafety.js';
 import { isMaintenance } from '../serverState.js';
 import {
   reverifyKillCondition,
@@ -53,6 +54,9 @@ export interface KillJobData {
    *  the rule, not necessarily the target session's owner (enforceAcrossServers
    *  can target sibling-account sessions). */
   triggeringServerUserId?: string;
+  /** Both sessions' starts as ISO strings, so reverify reads each from its own chunks. */
+  targetStartedAt?: string;
+  triggeringStartedAt?: string;
 }
 
 let connectionOptions: ConnectionOptions | null = null;
@@ -93,6 +97,7 @@ export function initKillQueue(redisUrl: string): void {
   killQueue.on('error', (err) => {
     if (!isMaintenance()) console.error('[KillQueue] Queue error:', err);
   });
+  registerQueue(killQueue);
 
   console.log('[KillQueue] Queue initialized');
 }
@@ -128,8 +133,10 @@ export function startKillWorker(): void {
       connection: connectionOptions,
       prefix: bullPrefix,
       concurrency: 5,
+      ...WORKER_DEFAULTS,
     }
   );
+  registerWorker(killWorker);
 
   killWorker.on('error', (error) => {
     if (!isMaintenance()) console.error('[KillQueue] Worker error:', error);
@@ -165,6 +172,8 @@ export async function processKillJob(job: Job<KillJobData>): Promise<void> {
     message,
     cooldownMinutes,
     triggeringServerUserId,
+    targetStartedAt,
+    triggeringStartedAt,
   } = job.data;
 
   // attemptsMade counts completed failed attempts (0 on a job's first run), so
@@ -180,6 +189,8 @@ export async function processKillJob(job: Job<KillJobData>): Promise<void> {
     violationId,
     message,
     isRetry,
+    targetStartedAt,
+    triggeringStartedAt,
   });
 
   // A transient termination failure must consume the configured retries instead

@@ -21,7 +21,7 @@
       "destinations": "",
       "newsletters": "",
       "email": "",
-      "guest": "",
+      "memberLogin": "",
       "mobile": "",
       "remote": "",
       "import": "",
@@ -37,7 +37,7 @@
       "posters": "",
       "plexAccounts": "",
       "destinations": "",
-      "guest": "",
+      "memberLogin": "",
       "mobile": "",
       "remote": "",
       "import": "",
@@ -59,6 +59,11 @@
     "timeFormatDescription": "Alege timpul de afișare.",
     "timeFormat12h": "12 ore (1:30 PM)",
     "timeFormat24h": "24 ore (13:30)",
+    "dateFormat": "",
+    "dateFormatDescription": "",
+    "weekStart": "",
+    "weekStartDescription": "",
+    "automatic": "",
     "theme": "Tema",
     "accentColor": "Culoare accent",
     "default": "(implicit)",
@@ -230,27 +235,54 @@
       "autoDetectNote": "",
       "issueBlocked": "",
       "issueRestartRequired": "",
-      "issueMalfunctioned": ""
+      "issueMalfunctioned": "",
+      "jellyfinStep1": "",
+      "jellyfinStep2": "",
+      "jellyfinStep3": "",
+      "jellyfinStep4": "",
+      "embyStep1": "",
+      "embyStep2": "",
+      "embyStep3": ""
     },
     "posterSource": {
       "label": "",
       "description": "",
       "automatic": "",
       "emptyHint": "",
-      "ownerOnly": ""
+      "ownerOnly": "",
+      "precache": "",
+      "precacheDescription": ""
     },
     "version": {
       "installed": "",
       "upToDate": "",
       "updateAvailable": ""
+    },
+    "ownerAccount": {
+      "label": "",
+      "link": "",
+      "unlink": "",
+      "dialog": {
+        "title": "",
+        "description": "",
+        "admin": "",
+        "lastActive": "",
+        "neverActive": "",
+        "otherAccounts": "",
+        "signsIn": "",
+        "warningTitle": "",
+        "warning": "",
+        "warning_jellyfin": "",
+        "confirmLabel": "",
+        "submit": ""
+      },
+      "confirmUnlink": {
+        "title": "",
+        "body": ""
+      }
     }
   },
   "mobile": {
-    "title": "Aplicație mobilă",
-    "pairDevice": "Asociază Dispozitiv",
-    "generateToken": "Generează token de asociere",
-    "scanQrCode": "",
-    "tokenExpires": "Token-ul expiră în {{time}}",
     "lastSeen": "",
     "connectedOn": "",
     "noDevices": "Niciun dispozitiv asociat încă",
@@ -258,7 +290,6 @@
     "revokeAll": "Revocă toate sesiunile",
     "getOnGooglePlay": "Ia-l pe Google Play",
     "downloadOnAppStore": "Descărcați de pe App Store",
-    "externalUrlRequired": "Un URL extern trebuie configurat în Setările generale pentru ca asocierea mobilă să funcționeze.",
     "mobileAccessDisabled": "Acces mobil dezactivat",
     "mobileAccessDisabledDesc": "Activați accesul mobil pentru a permite aplicației Tracearr să se conecteze la server.",
     "enableMobileAccess": "Activare acces mobil",
@@ -354,10 +385,43 @@
     "automatic": "",
     "startJob": "Începe sarcina"
   },
-  "accessControl": {
-    "allowGuestAccess": "Permite accesul vizitatorilor",
-    "allowGuestAccessDesc": "Când este dezactivat, numai proprietarul serverului se poate conecta la Tracearr",
-    "singleOwnerNote": "Notă: Când accesul vizitatorilor este dezactivat, numai proprietarul serverului se poate conecta. Toți ceilalți utilizatori vor vedea un mesaj \"Acces refuzat\"."
+  "memberLogin": {
+    "serverActivity": "",
+    "serverActivityDesc": "",
+    "noServers": "",
+    "addServer": "",
+    "serversLoadFailed": "",
+    "signIn": {
+      "title": "",
+      "titleDesc": "",
+      "local": "",
+      "localDesc": "",
+      "oidc": "",
+      "oidcDesc": "",
+      "plex": "",
+      "plexDesc": "",
+      "onlyWay": "",
+      "membersTitle": "",
+      "media": "",
+      "mediaDesc": "",
+      "servers": "",
+      "ssoOnly": "",
+      "ssoOnlyDesc": "",
+      "overrides": "",
+      "overridesDesc": "",
+      "overridesEmpty": "",
+      "overridesLoadFailed": "",
+      "addPerson": "",
+      "searchPeople": "",
+      "nobodyFound": "",
+      "accessLabel": "",
+      "roleLabel": "",
+      "allow": "",
+      "block": "",
+      "admin": "",
+      "member": "",
+      "backToDefault": ""
+    }
   },
   "import": {
     "noServers": "Niciun server conectat",
@@ -418,6 +482,13 @@
     "importFullRangeHelp": "",
     "skipOverlap": "",
     "skipDuplicatePlugin": "",
+    "importFailed": "",
+    "dropzone": {
+      "dropHere": "",
+      "dragOrClick": "",
+      "limit": "",
+      "removeFile": ""
+    },
     "overlapSkipped_one": "",
     "overlapSkipped_few": "",
     "overlapSkipped_other": "",
@@ -485,6 +556,51 @@
   "ipWarning": {
     "message": "Toți utilizatorii par să folosească aceeași adresă IP sau IP-uri de rețea locală. Acest lucru poate afecta logica bazată pe reguli pentru locația sau adresele IP.",
     "acknowledge": "Am înțeles"
+  },
+  "storageWarning": {
+    "bannerDatabase": "",
+    "bannerData": "",
+    "showHow": "",
+    "hide": "",
+    "titleDatabase": "",
+    "titleData": "",
+    "fields": {
+      "postgres": "",
+      "redis": "",
+      "appData": ""
+    },
+    "isSetTo": "",
+    "overheadDatabase": "",
+    "overheadData": "",
+    "pool": {
+      "alreadyDatabase": "",
+      "alreadyData": "",
+      "alreadyPools": "",
+      "openEdit": "",
+      "change": "",
+      "copyPath": "",
+      "apply": "",
+      "clears": ""
+    },
+    "split": {
+      "arrayDatabase": "",
+      "arrayData": "",
+      "poolsDatabase": "",
+      "poolsData": "",
+      "stop": "",
+      "shares": "",
+      "move": "",
+      "start": ""
+    },
+    "unknown": {
+      "isSetToDatabase": "",
+      "isSetToData": "",
+      "otherFuseDatabase": "",
+      "otherFuseData": "",
+      "fixDatabase": "",
+      "fixData": ""
+    },
+    "faq": ""
   },
   "backup": {
     "title": "",
@@ -583,7 +699,6 @@
       "cron": "",
       "inZone": ""
     },
-    "nextRun": "",
     "noNextRun": "",
     "neverSent": "",
     "lastSend": "",
@@ -1046,13 +1161,7 @@
     "counts": {
       "requests_one": "",
       "requests_few": "",
-      "requests_other": "",
-      "unmatchedMedia_one": "",
-      "unmatchedMedia_few": "",
-      "unmatchedMedia_other": "",
-      "unmatchedUsers_one": "",
-      "unmatchedUsers_few": "",
-      "unmatchedUsers_other": ""
+      "requests_other": ""
     },
     "needsKey": "",
     "lastError": "",

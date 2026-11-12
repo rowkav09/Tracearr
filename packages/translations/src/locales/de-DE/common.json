@@ -61,14 +61,16 @@
     "playing": "Läuft",
     "paused": "Pausiert",
     "buffering": "",
+    "endsAt": "Endet um {{time}}",
     "stopped": "Gestoppt",
     "directPlay": "Direkte Wiedergabe",
     "directStream": "Direkter Stream",
-    "audioTranscode": "",
+    "audioTranscode": "Audio-Transkodierung",
     "transcode": "Transkodierung",
     "hwTranscode": "HW Transkodierung",
-    "burnIn": "",
-    "watched": ""
+    "burnIn": "Einbrennen",
+    "watched": "Geschaut",
+    "played": "Gespielt"
   },
   "severity": {
     "low": "Niedrig",
@@ -97,11 +99,11 @@
     "lastYear": "Letzte Jahr",
     "byDay": "Nach Tag",
     "byHour": "Nach Stunde",
-    "short7Days": "",
-    "short30Days": "",
-    "shortYear": "",
-    "shortAll": "",
-    "timeRange": ""
+    "short7Days": "7d",
+    "short30Days": "30d",
+    "shortYear": "1y",
+    "shortAll": "Alle",
+    "timeRange": "Zeitraum"
   },
   "labels": {
     "date": "Datum",
@@ -109,16 +111,16 @@
     "content": "Inhalt",
     "platform": "Plattform",
     "location": "Standort",
-    "local": "",
+    "local": "Lokal",
     "ipAddress": "IP-Adresse",
     "quality": "Qualität",
-    "status": "",
+    "status": "Status",
     "rule": "Regel",
     "media": "Medien",
     "started": "Gestartet",
     "stopped": "Gestoppt",
     "joined": "Beigetreten",
-    "server": "",
+    "server": "Server",
     "device": "Gerät",
     "player": "",
     "unknown": "Unbekannt",
@@ -133,6 +135,7 @@
     "serverOwner": "Server-Besitzer",
     "resolution": "Auflösung",
     "watchTime": "Wiedergabezeit",
+    "listenTime": "Hörzeit",
     "pausedTime": "Pausierte Zeit",
     "sessionDetails": "Sitzungsdetails",
     "recentSessions": "Letzte Sitzungen",
@@ -144,7 +147,7 @@
     "data": "Daten",
     "size": "Größe",
     "items": "Artikel",
-    "name": "",
+    "name": "Name",
     "product": "Produkt",
     "deviceId": "Geräte ID",
     "total": "gesamt",
@@ -152,7 +155,13 @@
     "streamDetails": "Streamdetails",
     "transcodeReason": "Transkodierungsgrund",
     "loadMore": "Mehr laden",
-    "playback": ""
+    "playback": "Wiedergabe",
+    "plays": "",
+    "weekOf": "Woche vom {{date}}",
+    "viewers": "Zuschauer",
+    "watchHours": "Wiedergabezeit",
+    "completion": "",
+    "serverLegend": "Server Legende"
   },
   "search": {
     "searchUsers": "Suche Benutzer...",
@@ -185,6 +194,7 @@
     "episode_plural": "Episoden",
     "track": "Track",
     "track_plural": "Tracks",
+    "artist_plural": "Künstler",
     "liveTV": "Live-TV",
     "photo": "Foto",
     "tv": "TM",
@@ -209,6 +219,8 @@
     "user_other": "{{count}} Benutzer",
     "session_one": "{{count}} Sitzung",
     "session_other": "{{count}} Sitzungen",
+    "download_one": "{{count}} download",
+    "download_other": "{{count}} downloads",
     "stream_one": "{{count}} Stream",
     "stream_other": "{{count}} Streams",
     "server_one": "{{count}} Server",
@@ -233,8 +245,8 @@
     "device_other": "{{count}} Geräte",
     "play_one": "{{count}} Wiedergabe",
     "play_other": "{{count}} Wiedergaben",
-    "segment_one": "",
-    "segment_other": ""
+    "segment_one": "{{count}} Segment",
+    "segment_other": "{{count}} Segmente"
   },
   "messages": {
     "noChangesDetected": "Keine Änderungen erkannt"
@@ -255,7 +267,9 @@
     "noDeviceData": "Keine Gerätedaten verfügbar",
     "noJobHistory": "Noch keine Aufgabenhistorie",
     "noSessionsFound": "Keine Sitzungen gefunden",
-    "noUserData": "Keine Benutzerdaten verfügbar"
+    "noUserData": "Keine Benutzerdaten verfügbar",
+    "noPlayData": "Keine Wiedergabedaten verfügbar",
+    "noLocationData": "Es liegen keine Standortdaten vor"
   },
   "confirmations": {
     "unsavedChanges": "Ungespeicherte Änderungen gehen verloren. Fortfahren?"
@@ -265,8 +279,8 @@
   "serverSelector": {
     "all": "Alle Server",
     "some": "{{count}} von {{total}} Servern",
-    "search": "",
-    "noMatches": "",
-    "historical": ""
+    "search": "Suche Server...",
+    "noMatches": "Keine Server gefunden",
+    "historical": "historisch"
   }
 }

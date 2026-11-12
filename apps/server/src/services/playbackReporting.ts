@@ -9,10 +9,12 @@
 import type {
   PlaybackReportingImportProgress,
   PlaybackReportingImportResult,
+  JellyfinEmbyServerType,
 } from '@tracearr/shared';
 import { and, eq, sql } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { batchGetLibraryItemIdentity, type SessionIdentity } from '../jobs/poller/database.js';
+import { importIdentityByKey } from './import/libraryKeyMatch.js';
 import { extractIpFromEndpoint } from '../utils/parsing.js';
 import { normalizeClient } from '../utils/platformNormalizer.js';
 import { parseJellystatPlayMethod } from '../utils/transcodeNormalizer.js';
@@ -38,8 +40,12 @@ import {
   queryExistingByExternalIds,
   type TimeBounds,
 } from './import/index.js';
-import { EmbyClient } from './mediaServer/emby/client.js';
-import { JellyfinClient } from './mediaServer/jellyfin/client.js';
+import {
+  createJellyfinEmbyClient,
+  isJellyfinEmby,
+  type EmbyClient,
+  type JellyfinClient,
+} from './mediaServer/index.js';
 import { parseMediaType } from './mediaServer/shared/jellyfinEmbyUtils.js';
 import { markImportedServerLocations } from './serverLocations.js';
 import { getWatchedThresholds, watchedThresholdFor, type WatchedThresholds } from './settings.js';
@@ -162,7 +168,7 @@ export function parseEpisodeItemName(
 
 export interface TransformContext {
   serverId: string;
-  serverType: 'jellyfin' | 'emby';
+  serverType: JellyfinEmbyServerType;
   serverUserId: string;
   timezone: string;
   geo: ReturnType<typeof geoipService.lookup> & {
@@ -199,6 +205,11 @@ export function transformPlaybackReportingRow(
 
   const totalDurationMs = ctx.enrichment?.runtimeMs ?? null;
   const threshold = watchedThresholdFor(ctx.thresholds, mediaType);
+  const identity = importIdentityByKey(ctx.identity, {
+    mediaType,
+    title: mediaTitle,
+    year: ctx.enrichment?.year ?? null,
+  });
   const watched = totalDurationMs != null && durationMs >= totalDurationMs * threshold;
 
   const { videoDecision, audioDecision, isTranscode } = parseJellystatPlayMethod(
@@ -216,13 +227,13 @@ export function transformPlaybackReportingRow(
     sessionKey: `pr-${row.rowid}`,
     externalSessionId: `pr-${row.rowid}`,
     ratingKey: row.itemId,
-    parentRatingKey: ctx.identity?.parentRatingKey ?? null,
-    grandparentRatingKey: ctx.identity?.grandparentRatingKey ?? null,
-    mediaId: ctx.identity?.mediaId ?? null,
-    showMediaId: ctx.identity?.showMediaId ?? null,
-    imdbId: ctx.identity?.imdbId ?? null,
-    tmdbId: ctx.identity?.tmdbId ?? null,
-    tvdbId: ctx.identity?.tvdbId ?? null,
+    parentRatingKey: identity?.parentRatingKey ?? null,
+    grandparentRatingKey: identity?.grandparentRatingKey ?? null,
+    mediaId: identity?.mediaId ?? null,
+    showMediaId: identity?.showMediaId ?? null,
+    imdbId: identity?.imdbId ?? null,
+    tmdbId: identity?.tmdbId ?? null,
+    tvdbId: identity?.tvdbId ?? null,
     state: 'stopped',
     mediaType,
     mediaTitle,
@@ -382,7 +393,7 @@ export async function importPlaybackReporting(
       throw new ServerHistoricalError(serverId);
     }
 
-    if (server.type !== 'jellyfin' && server.type !== 'emby') {
+    if (!isJellyfinEmby(server.type)) {
       throw new Error(
         `Playback Reporting import only supports Jellyfin/Emby servers, got: ${server.type}`
       );
@@ -396,8 +407,7 @@ export async function importPlaybackReporting(
       id: server.id,
       name: server.name,
     };
-    const client: PluginClient =
-      server.type === 'emby' ? new EmbyClient(clientConfig) : new JellyfinClient(clientConfig);
+    const client = createJellyfinEmbyClient(server.type, clientConfig);
 
     progress.status = 'detecting';
     progress.message = 'Checking for the Playback Reporting plugin...';
@@ -540,13 +550,11 @@ export async function importPlaybackReporting(
             }
 
             const ipAddress = extractIpFromEndpoint(row.remoteAddress);
-            let geo = geoCache.get(ipAddress);
-            if (!geo) {
-              const baseGeo = geoipService.lookup(ipAddress);
-              const asn = geoasnService.lookup(ipAddress);
-              geo = { ...baseGeo, asnNumber: asn.number, asnOrganization: asn.organization };
-              geoCache.set(ipAddress, geo);
-            }
+            const geo = geoCache.getOrInsertComputed(ipAddress, (ip) => {
+              const baseGeo = geoipService.lookup(ip);
+              const asn = geoasnService.lookup(ip);
+              return { ...baseGeo, asnNumber: asn.number, asnOrganization: asn.organization };
+            });
 
             insertBatch.push(
               transformPlaybackReportingRow(row, {

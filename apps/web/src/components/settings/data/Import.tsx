@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { MediaServerIcon } from '@/components/icons/MediaServerIcon';
 import { api } from '@/lib/api';
+import { isJellyfinEmby } from '@/lib/serverType';
 import { useSocket } from '@/hooks/useSocket';
 import {
   ImportProgressCard,
@@ -39,16 +40,72 @@ import {
   PlaybackReportingImportSection,
   type ImportProgressData,
 } from '@/components/import';
-import type {
-  Server,
-  TautulliImportProgress,
-  JellystatImportProgress,
-  PlaybackReportingImportProgress,
+import {
+  SERVER_PROFILES,
+  type Server,
+  type TautulliImportProgress,
+  type JellystatImportProgress,
+  type PlaybackReportingImportProgress,
 } from '@tracearr/shared';
 import { useSettings, useUpdateSettings, useServers } from '@/hooks/queries';
 import { SettingsSection } from '@/components/settings/shell/SettingsSection';
 import { StepBadge } from '@/components/settings/shared/StepBadge';
 import { BetaBadge } from '@/components/settings/shared/BetaBadge';
+
+const blankTautulliProgress = (
+  status: TautulliImportProgress['status'],
+  message: string
+): TautulliImportProgress => ({
+  status,
+  totalRecords: 0,
+  fetchedRecords: 0,
+  processedRecords: 0,
+  importedRecords: 0,
+  updatedRecords: 0,
+  skippedRecords: 0,
+  duplicateRecords: 0,
+  unknownUserRecords: 0,
+  activeSessionRecords: 0,
+  errorRecords: 0,
+  currentPage: 0,
+  totalPages: 0,
+  message,
+});
+
+const blankJellystatProgress = (
+  status: JellystatImportProgress['status'],
+  message: string
+): JellystatImportProgress => ({
+  status,
+  totalRecords: 0,
+  processedRecords: 0,
+  importedRecords: 0,
+  skippedRecords: 0,
+  errorRecords: 0,
+  filteredRecords: 0,
+  enrichedRecords: 0,
+  message,
+});
+
+const blankPlaybackReportingProgress = (
+  status: PlaybackReportingImportProgress['status'],
+  message: string
+): PlaybackReportingImportProgress => ({
+  status,
+  totalRecords: 0,
+  fetchedRecords: 0,
+  processedRecords: 0,
+  importedRecords: 0,
+  skippedRecords: 0,
+  duplicateRecords: 0,
+  unknownUserRecords: 0,
+  overlapRecords: 0,
+  filteredRecords: 0,
+  overlongRecords: 0,
+  errorRecords: 0,
+  enrichedRecords: 0,
+  message,
+});
 
 /** Both importers warn about skipped records; only the reasons differ. */
 function RecordsSkippedNotice({
@@ -535,8 +592,8 @@ export function Import() {
     : ((serversData as unknown as { data?: Server[] })?.data ?? []);
 
   // Split servers by type
-  const plexServers = servers.filter((s) => s.type === 'plex');
-  const jellyfinEmbyServers = servers.filter((s) => s.type === 'jellyfin' || s.type === 'emby');
+  const plexServers = servers.filter((s) => SERVER_PROFILES[s.type].importsTautulliHistory);
+  const jellyfinEmbyServers = servers.filter((s) => isJellyfinEmby(s.type));
 
   // Initialize form with saved settings
   useEffect(() => {
@@ -564,25 +621,14 @@ export function Import() {
             setIsTautulliImporting(true);
 
             const progressPercent = typeof result.progress === 'number' ? result.progress : 0;
-            setTautulliProgress({
-              status: 'processing',
-              totalRecords: 0,
-              fetchedRecords: 0,
-              processedRecords: 0,
-              importedRecords: 0,
-              updatedRecords: 0,
-              skippedRecords: 0,
-              duplicateRecords: 0,
-              unknownUserRecords: 0,
-              activeSessionRecords: 0,
-              errorRecords: 0,
-              currentPage: 0,
-              totalPages: 0,
-              message:
+            setTautulliProgress(
+              blankTautulliProgress(
+                'processing',
                 progressPercent > 0
                   ? t('import.importInProgressPercent', { percent: progressPercent })
-                  : t('import.importInProgressGeneric'),
-            });
+                  : t('import.importInProgressGeneric')
+              )
+            );
             setConnectionStatus('success');
             break;
           }
@@ -610,20 +656,14 @@ export function Import() {
             setIsJellystatImporting(true);
 
             const progressPercent = typeof result.progress === 'number' ? result.progress : 0;
-            setJellystatProgress({
-              status: 'processing',
-              totalRecords: 0,
-              processedRecords: 0,
-              importedRecords: 0,
-              skippedRecords: 0,
-              errorRecords: 0,
-              filteredRecords: 0,
-              enrichedRecords: 0,
-              message:
+            setJellystatProgress(
+              blankJellystatProgress(
+                'processing',
                 progressPercent > 0
                   ? t('import.importInProgressPercent', { percent: progressPercent })
-                  : t('import.importInProgressGeneric'),
-            });
+                  : t('import.importInProgressGeneric')
+              )
+            );
             break;
           }
         } catch {
@@ -650,25 +690,14 @@ export function Import() {
             setIsPlaybackReportingImporting(true);
 
             const progressPercent = typeof result.progress === 'number' ? result.progress : 0;
-            setPlaybackReportingProgress({
-              status: 'processing',
-              totalRecords: 0,
-              fetchedRecords: 0,
-              processedRecords: 0,
-              importedRecords: 0,
-              skippedRecords: 0,
-              duplicateRecords: 0,
-              unknownUserRecords: 0,
-              overlapRecords: 0,
-              filteredRecords: 0,
-              overlongRecords: 0,
-              errorRecords: 0,
-              enrichedRecords: 0,
-              message:
+            setPlaybackReportingProgress(
+              blankPlaybackReportingProgress(
+                'processing',
                 progressPercent > 0
                   ? t('import.importInProgressPercent', { percent: progressPercent })
-                  : t('import.importInProgressGeneric'),
-            });
+                  : t('import.importInProgressGeneric')
+              )
+            );
             break;
           }
         } catch {
@@ -766,11 +795,13 @@ export function Import() {
         handleSaveSettings();
       } else {
         setConnectionStatus('error');
-        setConnectionMessage(result.message || 'Connection failed');
+        setConnectionMessage(result.message || t('common:errors.connectionFailed'));
       }
     } catch (err) {
       setConnectionStatus('error');
-      setConnectionMessage(err instanceof Error ? err.message : 'Connection failed');
+      setConnectionMessage(
+        err instanceof Error ? err.message : t('common:errors.connectionFailed')
+      );
     }
   };
 
@@ -778,22 +809,7 @@ export function Import() {
     if (!selectedPlexServerId) return;
 
     setIsTautulliImporting(true);
-    setTautulliProgress({
-      status: 'fetching',
-      totalRecords: 0,
-      fetchedRecords: 0,
-      processedRecords: 0,
-      importedRecords: 0,
-      updatedRecords: 0,
-      skippedRecords: 0,
-      duplicateRecords: 0,
-      unknownUserRecords: 0,
-      activeSessionRecords: 0,
-      errorRecords: 0,
-      currentPage: 0,
-      totalPages: 0,
-      message: t('import.startingImport'),
-    });
+    setTautulliProgress(blankTautulliProgress('fetching', t('import.startingImport')));
 
     try {
       const result = await api.import.tautulli.start(
@@ -807,39 +823,19 @@ export function Import() {
     } catch (err) {
       setIsTautulliImporting(false);
       setTautulliActiveJobId(null);
-      setTautulliProgress({
-        status: 'error',
-        totalRecords: 0,
-        fetchedRecords: 0,
-        processedRecords: 0,
-        importedRecords: 0,
-        updatedRecords: 0,
-        skippedRecords: 0,
-        duplicateRecords: 0,
-        unknownUserRecords: 0,
-        activeSessionRecords: 0,
-        errorRecords: 0,
-        currentPage: 0,
-        totalPages: 0,
-        message: err instanceof Error ? err.message : 'Import failed',
-      });
+      setTautulliProgress(
+        blankTautulliProgress(
+          'error',
+          err instanceof Error ? err.message : t('import.importFailed')
+        )
+      );
     }
   };
 
   const handleFileSelect = (file: File | null) => {
     const name = file?.name.toLowerCase() ?? '';
     if (file && !name.endsWith('.json') && !name.endsWith('.jsonl')) {
-      setJellystatProgress({
-        status: 'error',
-        totalRecords: 0,
-        processedRecords: 0,
-        importedRecords: 0,
-        skippedRecords: 0,
-        errorRecords: 0,
-        filteredRecords: 0,
-        enrichedRecords: 0,
-        message: t('import.pleaseSelectBackupFile'),
-      });
+      setJellystatProgress(blankJellystatProgress('error', t('import.pleaseSelectBackupFile')));
       return;
     }
     setSelectedFile(file);
@@ -852,17 +848,7 @@ export function Import() {
     if (!selectedJellyfinServerId || !selectedFile) return;
 
     setIsJellystatImporting(true);
-    setJellystatProgress({
-      status: 'processing',
-      totalRecords: 0,
-      processedRecords: 0,
-      importedRecords: 0,
-      skippedRecords: 0,
-      errorRecords: 0,
-      filteredRecords: 0,
-      enrichedRecords: 0,
-      message: t('import.uploadingBackup'),
-    });
+    setJellystatProgress(blankJellystatProgress('processing', t('import.uploadingBackup')));
 
     try {
       const result = await api.import.jellystat.start(
@@ -877,17 +863,12 @@ export function Import() {
     } catch (err) {
       setIsJellystatImporting(false);
       setJellystatActiveJobId(null);
-      setJellystatProgress({
-        status: 'error',
-        totalRecords: 0,
-        processedRecords: 0,
-        importedRecords: 0,
-        skippedRecords: 0,
-        errorRecords: 0,
-        filteredRecords: 0,
-        enrichedRecords: 0,
-        message: err instanceof Error ? err.message : 'Import failed',
-      });
+      setJellystatProgress(
+        blankJellystatProgress(
+          'error',
+          err instanceof Error ? err.message : t('import.importFailed')
+        )
+      );
     }
   };
 
@@ -898,22 +879,9 @@ export function Import() {
     importFullRange: boolean;
   }) => {
     setIsPlaybackReportingImporting(true);
-    setPlaybackReportingProgress({
-      status: 'fetching',
-      totalRecords: 0,
-      fetchedRecords: 0,
-      processedRecords: 0,
-      importedRecords: 0,
-      skippedRecords: 0,
-      duplicateRecords: 0,
-      unknownUserRecords: 0,
-      overlapRecords: 0,
-      filteredRecords: 0,
-      overlongRecords: 0,
-      errorRecords: 0,
-      enrichedRecords: 0,
-      message: t('import.startingImport'),
-    });
+    setPlaybackReportingProgress(
+      blankPlaybackReportingProgress('fetching', t('import.startingImport'))
+    );
 
     try {
       const result = await api.import.playbackReporting.start(
@@ -928,22 +896,12 @@ export function Import() {
     } catch (err) {
       setIsPlaybackReportingImporting(false);
       setPlaybackReportingActiveJobId(null);
-      setPlaybackReportingProgress({
-        status: 'error',
-        totalRecords: 0,
-        fetchedRecords: 0,
-        processedRecords: 0,
-        importedRecords: 0,
-        skippedRecords: 0,
-        duplicateRecords: 0,
-        unknownUserRecords: 0,
-        overlapRecords: 0,
-        filteredRecords: 0,
-        overlongRecords: 0,
-        errorRecords: 0,
-        enrichedRecords: 0,
-        message: err instanceof Error ? err.message : 'Import failed',
-      });
+      setPlaybackReportingProgress(
+        blankPlaybackReportingProgress(
+          'error',
+          err instanceof Error ? err.message : t('import.importFailed')
+        )
+      );
     }
   };
 

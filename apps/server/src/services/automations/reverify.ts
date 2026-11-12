@@ -28,9 +28,11 @@
  * delay_seconds 0 this can run before any poll tick rediscovers it. The context
  * and target sessions are appended back into the count context only when
  * genuinely uncached (absent from the RAW cache list), never when
- * excludeUncountableSessions dropped them for being grace-flagged or pending -
- * live evaluation would exclude those too, so resurrecting them here would
- * count phantoms the live path never would.
+ * excludeUncountableSessions dropped them for being grace-flagged, which would
+ * count a stream the system already thinks stopped. A pending flag on either is
+ * stale instead: both have a DB row, a pending session has none, and a delay 0
+ * job runs before the confirming caller rewrites the entry it cached at first
+ * sight. The flag is cleared before filtering.
  *
  * A multi-target match fans out one kill job per target, all sharing one
  * violation id. A sibling stopped BY THIS violation is ACTION REACH, not the
@@ -47,7 +49,8 @@
 
 import { eq } from 'drizzle-orm';
 import { db } from '../../db/client.js';
-import { automations, sessions } from '../../db/schema.js';
+import { automations } from '../../db/schema.js';
+import { readSessionRow } from '../../db/sessions/row.js';
 import { getCacheService } from '../cache.js';
 import {
   batchGetIdentityServerUserIds,
@@ -62,7 +65,7 @@ import { gracePeriodSessionIds } from '../../jobs/poller/processor.js';
 import { buildRuleContextSessions } from './events/contextAssembly.js';
 import { terminateSession } from '../termination.js';
 import { automationsLogger } from '../../utils/logger.js';
-import { isLocalSession } from '../../utils/localSession.js';
+import { isLocalSession } from '../../db/sessions/rules.js';
 import { evaluateRulesAsync } from './engine.js';
 import type { EvaluationContext } from './types.js';
 
@@ -93,6 +96,9 @@ export interface ReverifyKillConditionParams {
    *  failed after termination, e.g. storeActionResults threw). Narrows the
    *  already-stopped idempotency check below to retries only. */
   isRetry?: boolean;
+  /** Starts captured at match time; absent on jobs queued before they were carried. */
+  targetStartedAt?: string;
+  triggeringStartedAt?: string;
 }
 
 export interface ReverifyKillConditionResult {
@@ -115,15 +121,23 @@ export interface ReverifyKillConditionResult {
 export async function reverifyKillCondition(
   params: ReverifyKillConditionParams
 ): Promise<ReverifyKillConditionResult> {
-  const { triggeringSessionId, targetSessionId, serverId, ruleId, violationId, message, isRetry } =
-    params;
+  const {
+    triggeringSessionId,
+    targetSessionId,
+    serverId,
+    ruleId,
+    violationId,
+    message,
+    isRetry,
+    targetStartedAt,
+    triggeringStartedAt,
+  } = params;
 
   // The TARGET decides the already-stopped short-circuit and is the session we
   // actually terminate.
-  const targetFound = await db.query.sessions.findFirst({
-    where: eq(sessions.id, targetSessionId),
-    with: { server: true, serverUser: true },
-  });
+  const targetFound = await readSessionRow(targetSessionId, targetStartedAt, (where) =>
+    db.query.sessions.findFirst({ where, with: { server: true, serverUser: true } })
+  );
 
   if (!targetFound) {
     return { outcome: 'skipped_already_stopped' };
@@ -173,10 +187,9 @@ export async function reverifyKillCondition(
   // self-abort every time.
   let contextSession = targetRow;
   if (triggeringSessionId !== targetSessionId) {
-    const triggerFound = await db.query.sessions.findFirst({
-      where: eq(sessions.id, triggeringSessionId),
-      with: { server: true, serverUser: true },
-    });
+    const triggerFound = await readSessionRow(triggeringSessionId, triggeringStartedAt, (where) =>
+      db.query.sessions.findFirst({ where, with: { server: true, serverUser: true } })
+    );
     const triggerRow = triggerFound && { ...triggerFound, isLocal: isLocalSession(triggerFound) };
 
     if (triggerRow && !triggerRow.stoppedAt) {
@@ -230,7 +243,10 @@ export async function reverifyKillCondition(
   }
 
   const cacheService = getCacheService();
-  const cachedSessions = cacheService ? await cacheService.getAllActiveSessions() : [];
+  const persistedIds = new Set([contextSession.id, targetRow.id]);
+  const cachedSessions = (cacheService ? await cacheService.getAllActiveSessions() : []).map((s) =>
+    s.pending && persistedIds.has(s.id) ? { ...s, pending: false } : s
+  );
   const countableCachedSessions = excludeUncountableSessions(
     cachedSessions,
     gracePeriodSessionIds()
@@ -240,18 +256,18 @@ export async function reverifyKillCondition(
   // it back so conditions like concurrent_streams count it instead of
   // undercounting by one and self-aborting. Append ONLY when it is genuinely
   // uncached (absent from the RAW cache list). If it sits in the raw cache but
-  // excludeUncountableSessions dropped it (grace-flagged or pending), live
-  // evaluation would exclude it too, so trust the filter and leave it out.
+  // excludeUncountableSessions dropped it (grace-flagged), trust the filter
+  // and leave it out.
   const rawCacheIds = new Set(cachedSessions.map((s) => s.id));
   let activeSessions = buildRuleContextSessions(countableCachedSessions, contextSession, null);
   if (rawCacheIds.has(contextSession.id)) {
     // Raw-cached: trust excludeUncountableSessions rather than the unconditional
-    // append above. If the filter dropped it (grace/pending), it stays out.
+    // append above. If the filter dropped it (grace), it stays out.
     activeSessions = countableCachedSessions;
   }
   // The target, if it is a different still-playing session that is genuinely
-  // uncached, is counted too. Same grace/pending guard: a raw-cached target the
-  // filter dropped must stay dropped.
+  // uncached, is counted too. Same grace guard: a raw-cached target the filter
+  // dropped must stay dropped.
   if (
     targetRow.id !== contextSession.id &&
     !rawCacheIds.has(targetRow.id) &&
@@ -340,6 +356,7 @@ export async function reverifyKillCondition(
   try {
     const result = await terminateSession({
       sessionId: targetSessionId,
+      sessionStartedAt: targetRow.startedAt,
       trigger: 'rule',
       ruleId,
       violationId: violationId ?? undefined,

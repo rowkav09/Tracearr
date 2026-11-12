@@ -1,17 +1,22 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import Highcharts from 'highcharts';
 import { HighchartsReact } from 'highcharts-react-official';
 import type { LibraryGrowthResponse, GrowthDataPoint } from '@tracearr/shared';
 import { ChartSkeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
+import { formatDate, axisDateTimeLabelFormats, parseChartDate } from '@/lib/dateFormat';
 import { TrendingUp } from 'lucide-react';
-import { parseChartDate } from './chartUtils';
+import { chartLang } from './chartUtils';
+
+export type GrowthSeries = 'movies' | 'episodes';
 
 interface LibraryGrowthChartProps {
   data: LibraryGrowthResponse | undefined;
   isLoading?: boolean;
   height?: number;
-  period?: string;
+  /** Clicking the movies or episodes area; music has no catalog filter to land on. */
+  onSeriesClick?: (series: GrowthSeries) => void;
 }
 
 // Colors for each media type
@@ -66,7 +71,13 @@ function alignSeries(series: GrowthDataPoint[] | undefined, allDates: string[]):
   return result;
 }
 
-export function LibraryGrowthChart({ data, isLoading, height = 250 }: LibraryGrowthChartProps) {
+export function LibraryGrowthChart({
+  data,
+  isLoading,
+  height = 250,
+  onSeriesClick,
+}: LibraryGrowthChartProps) {
+  const { t } = useTranslation(['pages', 'common']);
   const options = useMemo<Highcharts.Options>(() => {
     if (!data) return {};
 
@@ -86,33 +97,37 @@ export function LibraryGrowthChart({ data, isLoading, height = 250 }: LibraryGro
     if (!hasMovies && !hasEpisodes && !hasMusic) return {};
 
     const series: Highcharts.SeriesOptionsType[] = [];
+    const clickable = (name: GrowthSeries) =>
+      onSeriesClick ? { cursor: 'pointer', events: { click: () => onSeriesClick(name) } } : {};
 
     if (hasMovies) {
       series.push({
         type: 'area',
-        name: 'Movies',
+        name: t('common:media.movie_plural'),
         data: allTimestamps.map((ts, i) => [ts, moviesValues[i] ?? 0]),
         color: SERIES_COLORS.movies,
         fillOpacity: 0.2,
         marker: { enabled: false, states: { hover: { enabled: true, radius: 4 } } },
+        ...clickable('movies'),
       });
     }
 
     if (hasEpisodes) {
       series.push({
         type: 'area',
-        name: 'Episodes',
+        name: t('common:media.episode_plural'),
         data: allTimestamps.map((ts, i) => [ts, episodesValues[i] ?? 0]),
         color: SERIES_COLORS.episodes,
         fillOpacity: 0.2,
         marker: { enabled: false, states: { hover: { enabled: true, radius: 4 } } },
+        ...clickable('episodes'),
       });
     }
 
     if (hasMusic) {
       series.push({
         type: 'area',
-        name: 'Music',
+        name: t('common:media.music'),
         data: allTimestamps.map((ts, i) => [ts, musicValues[i] ?? 0]),
         color: SERIES_COLORS.music,
         fillOpacity: 0.2,
@@ -121,6 +136,7 @@ export function LibraryGrowthChart({ data, isLoading, height = 250 }: LibraryGro
     }
 
     return {
+      lang: chartLang(),
       chart: {
         type: 'area',
         height,
@@ -146,12 +162,7 @@ export function LibraryGrowthChart({ data, isLoading, height = 250 }: LibraryGro
       xAxis: {
         type: 'datetime',
         tickPixelInterval: 120,
-        dateTimeLabelFormats: {
-          day: { main: '%b %e' },
-          week: { main: '%b %e' },
-          month: { main: `%b '%y` },
-          year: { main: '%Y' },
-        },
+        dateTimeLabelFormats: axisDateTimeLabelFormats(),
         labels: {
           style: { color: 'hsl(var(--muted-foreground))' },
         },
@@ -182,12 +193,7 @@ export function LibraryGrowthChart({ data, isLoading, height = 250 }: LibraryGro
           const points = this.points;
           if (!points || points.length === 0) return '';
 
-          const date = new Date(this.x);
-          const dateStr = date.toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-          });
+          const dateStr = formatDate(this.x, { month: 'short', day: 'numeric', year: 'numeric' });
 
           let html = `<b>${dateStr}</b>`;
           for (const point of points) {
@@ -216,7 +222,7 @@ export function LibraryGrowthChart({ data, isLoading, height = 250 }: LibraryGro
         ],
       },
     };
-  }, [data, height]);
+  }, [data, height, onSeriesClick, t]);
 
   if (isLoading) {
     return <ChartSkeleton height={height} />;
@@ -232,8 +238,8 @@ export function LibraryGrowthChart({ data, isLoading, height = 250 }: LibraryGro
     return (
       <EmptyState
         icon={TrendingUp}
-        title="No growth data"
-        description="Library growth data will appear here once available"
+        title={t('library.charts.growth.empty.title')}
+        description={t('library.charts.growth.empty.description')}
       />
     );
   }

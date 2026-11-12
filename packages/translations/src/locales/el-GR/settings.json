@@ -21,7 +21,7 @@
       "destinations": "",
       "newsletters": "",
       "email": "",
-      "guest": "",
+      "memberLogin": "",
       "mobile": "",
       "remote": "",
       "import": "",
@@ -37,7 +37,7 @@
       "posters": "",
       "plexAccounts": "",
       "destinations": "",
-      "guest": "",
+      "memberLogin": "",
       "mobile": "",
       "remote": "",
       "import": "",
@@ -59,6 +59,11 @@
     "timeFormatDescription": "Επιλέξτε τον τρόπο εμφάνισης των χρόνων.",
     "timeFormat12h": "12-ωρη (1:30 μ.μ.)",
     "timeFormat24h": "24-ωρη (13:30)",
+    "dateFormat": "",
+    "dateFormatDescription": "",
+    "weekStart": "",
+    "weekStartDescription": "",
+    "automatic": "",
     "theme": "Θέμα",
     "accentColor": "Χρώμα Έμφασης",
     "default": "(προεπιλογή)",
@@ -229,27 +234,54 @@
       "autoDetectNote": "",
       "issueBlocked": "",
       "issueRestartRequired": "",
-      "issueMalfunctioned": ""
+      "issueMalfunctioned": "",
+      "jellyfinStep1": "",
+      "jellyfinStep2": "",
+      "jellyfinStep3": "",
+      "jellyfinStep4": "",
+      "embyStep1": "",
+      "embyStep2": "",
+      "embyStep3": ""
     },
     "posterSource": {
       "label": "",
       "description": "",
       "automatic": "",
       "emptyHint": "",
-      "ownerOnly": ""
+      "ownerOnly": "",
+      "precache": "",
+      "precacheDescription": ""
     },
     "version": {
       "installed": "",
       "upToDate": "",
       "updateAvailable": ""
+    },
+    "ownerAccount": {
+      "label": "",
+      "link": "",
+      "unlink": "",
+      "dialog": {
+        "title": "",
+        "description": "",
+        "admin": "",
+        "lastActive": "",
+        "neverActive": "",
+        "otherAccounts": "",
+        "signsIn": "",
+        "warningTitle": "",
+        "warning": "",
+        "warning_jellyfin": "",
+        "confirmLabel": "",
+        "submit": ""
+      },
+      "confirmUnlink": {
+        "title": "",
+        "body": ""
+      }
     }
   },
   "mobile": {
-    "title": "Εφαρμογή Για Κινητά",
-    "pairDevice": "Σύζευξη Συσκευής",
-    "generateToken": "Δημιουργία Διακριτικού Σύζευξης",
-    "scanQrCode": "",
-    "tokenExpires": "Το διακριτικό λήγει σε {{time}}",
     "lastSeen": "",
     "connectedOn": "",
     "noDevices": "Δεν υπάρχουν συνδεδεμένες συσκευές",
@@ -257,7 +289,6 @@
     "revokeAll": "Ανάκληση Όλων Των Συνεδριών",
     "getOnGooglePlay": "Αποκτήστε το στο Google Play",
     "downloadOnAppStore": "Λήψη από το App Store",
-    "externalUrlRequired": "Πρέπει να ρυθμιστεί μια εξωτερική διεύθυνση URL στις Γενικές ρυθμίσεις για να λειτουργήσει η σύζευξη κινητών συσκευών.",
     "mobileAccessDisabled": "Απενεργοποιημένη Πρόσβαση Κινητού",
     "mobileAccessDisabledDesc": "Ενεργοποιήστε την πρόσβαση στο κινητό για να επιτρέψετε στο Tracearr να συνδεθεί με το διακομιστή σας.",
     "enableMobileAccess": "Ενεργοποίηση Πρόσβασης Για Κινητά",
@@ -352,10 +383,43 @@
     "automatic": "",
     "startJob": "Έναρξη Εργασίας"
   },
-  "accessControl": {
-    "allowGuestAccess": "Επιτρέψτε Την Πρόσβαση Επισκέπτη",
-    "allowGuestAccessDesc": "Όταν είναι απενεργοποιημένη, μόνο ο ιδιοκτήτης του διακομιστή μπορεί να συνδεθεί στο Tracearr",
-    "singleOwnerNote": "Σημείωση: Όταν η πρόσβαση του επισκέπτη είναι απενεργοποιημένη, μόνο ο ιδιοκτήτης του διακομιστή μπορεί να εισέλθει. Όλοι οι άλλοι χρήστες θα δουν ένα μήνυμα \"Απαγορεύεται η πρόσβαση\"."
+  "memberLogin": {
+    "serverActivity": "",
+    "serverActivityDesc": "",
+    "noServers": "",
+    "addServer": "",
+    "serversLoadFailed": "",
+    "signIn": {
+      "title": "",
+      "titleDesc": "",
+      "local": "",
+      "localDesc": "",
+      "oidc": "",
+      "oidcDesc": "",
+      "plex": "",
+      "plexDesc": "",
+      "onlyWay": "",
+      "membersTitle": "",
+      "media": "",
+      "mediaDesc": "",
+      "servers": "",
+      "ssoOnly": "",
+      "ssoOnlyDesc": "",
+      "overrides": "",
+      "overridesDesc": "",
+      "overridesEmpty": "",
+      "overridesLoadFailed": "",
+      "addPerson": "",
+      "searchPeople": "",
+      "nobodyFound": "",
+      "accessLabel": "",
+      "roleLabel": "",
+      "allow": "",
+      "block": "",
+      "admin": "",
+      "member": "",
+      "backToDefault": ""
+    }
   },
   "import": {
     "noServers": "Δεν Υπάρχουν Συνδεδεμένοι Διακομιστές",
@@ -416,6 +480,13 @@
     "importFullRangeHelp": "",
     "skipOverlap": "",
     "skipDuplicatePlugin": "",
+    "importFailed": "",
+    "dropzone": {
+      "dropHere": "",
+      "dragOrClick": "",
+      "limit": "",
+      "removeFile": ""
+    },
     "overlapSkipped_one": "",
     "overlapSkipped_other": "",
     "duplicates_one": "",
@@ -479,6 +550,51 @@
   "ipWarning": {
     "message": "Όλοι οι χρήστες φαίνεται να χρησιμοποιούν την ίδια διεύθυνση IP ή IP τοπικού δικτύου. Αυτό μπορεί να επηρεάσει τη λογική βάσει κανόνων για την τοποθεσία ή τις διευθύνσεις IP.",
     "acknowledge": "Το κατάλαβα"
+  },
+  "storageWarning": {
+    "bannerDatabase": "",
+    "bannerData": "",
+    "showHow": "",
+    "hide": "",
+    "titleDatabase": "",
+    "titleData": "",
+    "fields": {
+      "postgres": "",
+      "redis": "",
+      "appData": ""
+    },
+    "isSetTo": "",
+    "overheadDatabase": "",
+    "overheadData": "",
+    "pool": {
+      "alreadyDatabase": "",
+      "alreadyData": "",
+      "alreadyPools": "",
+      "openEdit": "",
+      "change": "",
+      "copyPath": "",
+      "apply": "",
+      "clears": ""
+    },
+    "split": {
+      "arrayDatabase": "",
+      "arrayData": "",
+      "poolsDatabase": "",
+      "poolsData": "",
+      "stop": "",
+      "shares": "",
+      "move": "",
+      "start": ""
+    },
+    "unknown": {
+      "isSetToDatabase": "",
+      "isSetToData": "",
+      "otherFuseDatabase": "",
+      "otherFuseData": "",
+      "fixDatabase": "",
+      "fixData": ""
+    },
+    "faq": ""
   },
   "backup": {
     "title": "Αντίγραφα Ασφαλείας",
@@ -577,7 +693,6 @@
       "cron": "",
       "inZone": ""
     },
-    "nextRun": "",
     "noNextRun": "",
     "neverSent": "",
     "lastSend": "",
@@ -1015,11 +1130,7 @@
     "neverSynced": "",
     "counts": {
       "requests_one": "",
-      "requests_other": "",
-      "unmatchedMedia_one": "",
-      "unmatchedMedia_other": "",
-      "unmatchedUsers_one": "",
-      "unmatchedUsers_other": ""
+      "requests_other": ""
     },
     "needsKey": "",
     "lastError": "",

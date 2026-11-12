@@ -1,5 +1,4 @@
 import { useTranslation } from 'react-i18next';
-import { format } from 'date-fns';
 import {
   formatMediaTech,
   type MediaAvailabilityEntry,
@@ -19,6 +18,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/empty-state';
 import { InlineErrorState } from '@/components/library/ErrorState';
 import { formatBytes } from '@/lib/formatters';
+import { formatDate } from '@/lib/dateFormat';
 
 interface CopiesPanelProps {
   availability: MediaAvailabilityEntry[] | undefined;
@@ -148,9 +148,14 @@ export function CopiesPanel({
                     )}
                     <TableCell className="text-muted-foreground text-right tabular-nums">
                       {sizeBytes != null ? formatBytes(sizeBytes, 1, { minUnit: 'GB' }) : '—'}
+                      {onlyVersion?.sharedAcrossServers && (
+                        <span className="text-muted-foreground/70 block text-[11px]">
+                          Shared file
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="text-muted-foreground text-right tabular-nums">
-                      {format(new Date(entry.addedAt), 'MMM d, yyyy')}
+                      {formatDate(new Date(entry.addedAt), { dateStyle: 'medium' })}
                     </TableCell>
                   </TableRow>
                 );
@@ -185,6 +190,11 @@ export function CopiesPanel({
                             {version.fileSize != null
                               ? formatBytes(version.fileSize, 1, { minUnit: 'GB' })
                               : '—'}
+                            {version.sharedAcrossServers && (
+                              <span className="text-muted-foreground/70 block text-[11px]">
+                                Shared file
+                              </span>
+                            )}
                           </TableCell>
                           <TableCell />
                         </TableRow>

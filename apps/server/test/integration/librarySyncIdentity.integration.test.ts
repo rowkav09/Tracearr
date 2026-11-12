@@ -9,9 +9,10 @@
  */
 
 import { describe, it, expect } from 'vitest';
+import { sql } from 'drizzle-orm';
 import { createTestServer } from '@tracearr/test-utils/factories';
 import { db } from '../../src/db/client.js';
-import { libraryItems } from '../../src/db/schema.js';
+import { libraryItems, media } from '../../src/db/schema.js';
 import { librarySyncService } from '../../src/services/librarySync.js';
 
 function makeItem(overrides: Record<string, unknown>) {
@@ -41,6 +42,77 @@ describe('library sync identity', () => {
     expect(rows[0]!.mediaId).toBeTruthy();
     expect(rows[0]!.mediaId).toBe(rows[1]!.mediaId);
     expect(rows[0]!.genres).toEqual(['Action', 'Crime']);
+  });
+
+  it('keeps stored genres for a row whose full list could not be read', async () => {
+    const s1 = await createTestServer({ type: 'plex' });
+    await librarySyncService.upsertItems(s1.id, 'lib', [
+      makeItem({ genres: ['Action', 'Crime', 'Thriller'] }),
+    ] as never);
+
+    await librarySyncService.upsertItems(s1.id, 'lib', [
+      makeItem({ title: 'Renamed', genres: ['Action', 'Crime'], genresTruncated: true }),
+      makeItem({ ratingKey: 'rk-new', genres: ['Drama', 'War'], genresTruncated: true }),
+    ] as never);
+
+    const rows = await db.select().from(libraryItems);
+    const byKey = new Map(rows.map((row) => [row.ratingKey, row]));
+    expect(byKey.get('rk-1')).toMatchObject({
+      title: 'Renamed',
+      genres: ['Action', 'Crime', 'Thriller'],
+    });
+    expect(byKey.get('rk-new')?.genres).toEqual(['Drama', 'War']);
+  });
+
+  it('copies on one server with equally long genre lists settle on the lower rating key', async () => {
+    const s1 = await createTestServer({ type: 'emby' });
+    const items = [
+      makeItem({ ratingKey: 'rk-a', genres: ['Action', 'Crime'] }),
+      makeItem({ ratingKey: 'rk-b', genres: ['Drama', 'War'] }),
+    ];
+    await librarySyncService.upsertItems(s1.id, 'lib', items as never);
+    // Give the copy that should lose the lower row id
+    await db.execute(sql`
+      UPDATE library_items SET id = CASE rating_key
+        WHEN 'rk-b' THEN '00000000-0000-4000-8000-000000000001'::uuid
+        ELSE 'ffffffff-ffff-4fff-bfff-ffffffffffff'::uuid END
+    `);
+    await librarySyncService.upsertItems(s1.id, 'lib', items as never);
+    const rows = await db.select({ genres: media.genres }).from(media);
+    expect(rows).toEqual([{ genres: ['Action', 'Crime'] }]);
+  });
+
+  it('retires an old copy the server replaced, and keeps one it still has', async () => {
+    const s1 = await createTestServer({ type: 'emby' });
+    await librarySyncService.upsertItems(s1.id, 'lib', [
+      makeItem({ ratingKey: 'old' }),
+      makeItem({ ratingKey: 'duplicate' }),
+      makeItem({ ratingKey: 'new' }),
+    ] as never);
+    const client = {
+      findExistingRatingKeys: async (keys: string[]) =>
+        new Set(keys.filter((key) => key === 'duplicate')),
+    };
+    const retire = (
+      librarySyncService as unknown as {
+        retireReplacedCopies: (...args: unknown[]) => Promise<number>;
+      }
+    ).retireReplacedCopies.bind(librarySyncService);
+
+    const retired = await retire(
+      client,
+      s1.id,
+      { id: 'lib', name: 'Movies', type: 'movie' },
+      ['new'],
+      new Set<string>()
+    );
+
+    const live = (await db.select().from(libraryItems))
+      .filter((row) => row.removedAt === null)
+      .map((row) => row.ratingKey)
+      .sort();
+    expect(retired).toBe(1);
+    expect(live).toEqual(['duplicate', 'new']);
   });
 
   it('markItemsRemoved soft-deletes and re-upsert clears the tombstone', async () => {

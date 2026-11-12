@@ -6,6 +6,7 @@ import { buildRuleContextSessions, toRuleServer, toRuleServerUser } from './cont
 import type { EvaluationContext } from '../types.js';
 import type {
   AccountInactiveForEvent,
+  AccountMediaDownloadedEvent,
   AccountNewDeviceEvent,
   AccountTrustChangedEvent,
   EvaluationInputs,
@@ -23,6 +24,7 @@ import type {
   SessionStartedEvent,
   SessionStoppedEvent,
   SessionTranscodeChangedEvent,
+  SessionWatchedEvent,
   TracearrUpdateEvent,
   TriggerType,
 } from './types.js';
@@ -34,11 +36,15 @@ export type SessionEvaluatingEvent =
   | SessionTranscodeChangedEvent
   | SessionPausedEvent
   | SessionHeldForEvent
+  | SessionWatchedEvent
   | AccountNewDeviceEvent;
 
 /** The events that carry the account a run is about. */
 export type UserEvaluatingEvent =
-  SessionEvaluatingEvent | AccountInactiveForEvent | AccountTrustChangedEvent;
+  | SessionEvaluatingEvent
+  | AccountInactiveForEvent
+  | AccountTrustChangedEvent
+  | AccountMediaDownloadedEvent;
 
 /** The events about a server and nobody on it. */
 export type ServerEvaluatingEvent =

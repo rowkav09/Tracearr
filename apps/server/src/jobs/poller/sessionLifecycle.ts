@@ -14,10 +14,12 @@ import {
   type EngineAutomation,
   type Session,
   type StreamDetailFields,
+  type ServerType,
 } from '@tracearr/shared';
 import { and, desc, eq, gte, inArray, isNull, sql } from 'drizzle-orm';
 import { db } from '../../db/client.js';
-import { serverUsers, sessions, users } from '../../db/schema.js';
+import { automationRuns, serverUsers, sessions, users } from '../../db/schema.js';
+import { ACTIVE_SESSION_CHUNK_BOUND_MS, sessionRowById } from '../../db/sessions/row.js';
 import { toRuleSession } from '../../services/automations/events/contextAssembly.js';
 import { dispatch } from '../../services/automations/events/dispatcher.js';
 import { matchesTrigger } from '../../services/automations/events/evaluate.js';
@@ -32,9 +34,10 @@ import {
   type SessionGeo,
   withLocalFlag,
 } from '../../services/serverLocations.js';
-import { isLocalSession } from '../../utils/localSession.js';
+import { isLocalSession } from '../../db/sessions/rules.js';
 import { clearDbWriteTracking } from './dbWriteThrottle.js';
 import { pickStreamDetailFields } from './sessionMapper.js';
+import { canTerminate } from './sessionIdentity.js';
 import {
   calculateStopDuration,
   checkWatchCompletion,
@@ -63,11 +66,6 @@ import type {
 const MAX_SERIALIZATION_RETRIES = 3;
 const SERIALIZATION_RETRY_BASE_MS = 50; // P2-7: Increased from 10ms for better backoff
 const TRANSACTION_TIMEOUT_MS = 10000; // P2-8: 10 second timeout for transactions
-
-// Time bound for active session queries to limit TimescaleDB chunk scanning.
-// Active sessions should only exist in recent chunks - anything older would have
-// been force-stopped by the stale session sweep. 7 days gives ample buffer.
-const ACTIVE_SESSION_CHUNK_BOUND_MS = 7 * 24 * 60 * 60 * 1000;
 
 // Bound for the STEP 2 resume-detection query below. A resumable session's
 // startedAt can precede the 24h stoppedAt resume window by up to its own
@@ -285,7 +283,7 @@ export function buildActiveSession(input: BuildActiveSessionInput): ActiveSessio
     server: { id: server.id, name: server.name, type: server.type },
 
     // Termination capability - Plex requires Session.id, some clients (like Plexamp) don't provide it
-    canTerminate: server.type !== 'plex' || !!processed.plexSessionId,
+    canTerminate: canTerminate(server.type, processed.plexSessionId),
   };
 }
 
@@ -399,7 +397,7 @@ export function buildPendingActiveSession(pendingData: PendingSessionData): Acti
     server: { id: server.id, name: server.name, type: server.type },
 
     // Termination capability
-    canTerminate: server.type !== 'plex' || !!processed.plexSessionId,
+    canTerminate: canTerminate(server.type, processed.plexSessionId),
 
     // Unconfirmed; excludeUncountableSessions drops this from rule evaluation
     pending: true,
@@ -512,9 +510,7 @@ function groupActiveSessionRow(
   key: string,
   row: typeof sessions.$inferSelect
 ): void {
-  const bucket = map.get(key);
-  if (bucket) bucket.push(row);
-  else map.set(key, [row]);
+  map.getOrInsertComputed(key, () => []).push(row);
 }
 
 /** Batch equivalent of findActiveSession for a whole poll tick, grouped by sessionKey. */
@@ -771,8 +767,7 @@ export async function createSessionWithRulesAtomic(
     // resumable session whose wall-clock duration is at most
     // ACTIVE_SESSION_CHUNK_BOUND_MS. Only live TV channels and stuck sessions
     // kept alive by polling can run longer than that; those rows lose resume
-    // chaining here, an accepted tradeoff, and they are already invisible to
-    // the stale sweep's own ACTIVE_SESSION_CHUNK_BOUND_MS bound.
+    // chaining here, an accepted tradeoff.
     const chunkBound = new Date(Date.now() - RESUME_CHUNK_BOUND_MS);
     const recentSameContent = await db
       .select()
@@ -1093,9 +1088,13 @@ export async function confirmAndPersistSession(
         lastPausedAt: pendingData.lastPausedAt ? new Date(pendingData.lastPausedAt) : null,
         ...(latestProgressMs > 0 && { progressMs: latestProgressMs }),
       })
-      .where(eq(sessions.id, result.insertedSession.id));
+      .where(sessionRowById(result.insertedSession));
+    // The runs the start dispatch recorded keyed the session by its confirmation time
+    await db
+      .update(automationRuns)
+      .set({ sessionStartedAt: actualStartedAt })
+      .where(eq(automationRuns.sessionId, result.insertedSession.id));
 
-    // Update the returned session object to reflect the correct values
     result.insertedSession.startedAt = actualStartedAt;
     result.insertedSession.pausedDurationMs = pendingData.pausedDurationMs;
     result.insertedSession.lastPausedAt = pendingData.lastPausedAt
@@ -1176,7 +1175,7 @@ export async function stopSessionAtomic(input: SessionStopInput): Promise<Sessio
           shortSession,
           ...(forceStopped && { forceStopped: true }),
         })
-        .where(and(eq(sessions.id, session.id), isNull(sessions.stoppedAt)))
+        .where(and(sessionRowById(session), isNull(sessions.stoppedAt)))
         .returning({ id: sessions.id });
 
       wasUpdated = result.length > 0;
@@ -1412,9 +1411,19 @@ export async function processPollResults(input: PollResultsInput): Promise<void>
       await pubSubService.publish('session:started', session);
     }
 
-    // No consumer reads the payload, so one tick's updates collapse to a single publish.
+    // Relays read session:updated as a change signal, so one tick's updates collapse to a single
+    // publish; sessions:progress below carries the rest.
     if (updatedSessions.length > 0) {
       await pubSubService.publish('session:updated', updatedSessions[0]);
+      await pubSubService.publish('sessions:progress', {
+        sessions: updatedSessions.map((s) => ({
+          id: s.id,
+          serverId: s.serverId,
+          state: s.state,
+          progressMs: s.progressMs ?? 0,
+          bitrate: s.bitrate ?? null,
+        })),
+      });
     }
 
     for (const key of stoppedKeys) {

@@ -56,7 +56,8 @@ vi.mock('../../services/automations/events/producers.js', () => ({
 
 // Import the mocked db and the routes
 import { db } from '../../db/client.js';
-import { violationRoutes, buildViolationRosterConditions } from '../violations.js';
+import { violationRoutes, buildViolationRosterConditions } from '../violations/index.js';
+import { permissionGuard } from '../../lib/scope.js';
 
 function normalize(text: string): string {
   return text.replace(/\s+/g, ' ').trim();
@@ -85,6 +86,11 @@ async function buildTestApp(authUser: AuthUser): Promise<FastifyInstance> {
   // Mock the authenticate decorator
   app.decorate('authenticate', async (request: any) => {
     request.user = authUser;
+  });
+  app.decorate('requirePermission', permissionGuard(app));
+  app.decorate('requireOwner', async (request: any, reply: any) => {
+    request.user = authUser;
+    if (authUser.role !== 'owner') return reply.forbidden('Owner access required');
   });
 
   // Register routes
@@ -192,20 +198,20 @@ function createOwnerUser(): AuthUser {
 }
 
 /**
- * Create a mock viewer auth user (non-owner)
+ * Create a mock admin auth user (non-owner)
  */
-function createViewerUser(): AuthUser {
+function createAdminUser(): AuthUser {
   return {
     userId: randomUUID(),
-    username: 'viewer',
-    role: 'viewer',
+    username: 'admin',
+    role: 'admin',
     serverIds: [randomUUID()],
   };
 }
 
 /**
  * Helper to create the mock chain for single violation queries (GET /:id)
- * (rules: innerJoin, serverUsers: innerJoin, users: leftJoin, servers: innerJoin, sessions: leftJoin)
+ * (rules: innerJoin, serverUsers: innerJoin, users: leftJoin, servers: innerJoin, sessions: leftJoinLateral)
  */
 function createSingleViolationSelectMock(resolvedValue: unknown) {
   return {
@@ -218,8 +224,8 @@ function createSingleViolationSelectMock(resolvedValue: unknown) {
             // users (leftJoin for inactivity violations without identity)
             innerJoin: vi.fn().mockReturnValue({
               // servers
-              leftJoin: vi.fn().mockReturnValue({
-                // sessions (leftJoin for inactivity violations without session)
+              leftJoinLateral: vi.fn().mockReturnValue({
+                // sessions (a lateral lookup, empty for inactivity violations without session)
                 where: vi.fn().mockReturnValue({
                   limit: vi.fn().mockResolvedValue(resolvedValue),
                 }),
@@ -250,6 +256,7 @@ function createEmptyChainMock(): any {
     'orderBy',
     'innerJoin',
     'leftJoin',
+    'leftJoinLateral',
     'select',
   ];
   for (const method of methods) {
@@ -325,6 +332,23 @@ describe('Violation Routes', () => {
       const body = JSON.parse(response.body);
       expect(body.data).toHaveLength(3);
       expect(body.meta).toEqual({ page: 1, pageSize: 20, total: 3 });
+    });
+
+    it('returns the media ids on each violation session', async () => {
+      app = await buildTestApp(createOwnerUser());
+      const mediaId = randomUUID();
+      const showMediaId = randomUUID();
+      setupListMocks([{ ...createTestViolation(), mediaId, showMediaId }], 1);
+
+      const response = await app.inject({ method: 'GET', url: '/violations' });
+
+      expect(mockDb.select.mock.calls[0][0]).toMatchObject({
+        mediaId: expect.anything(),
+        showMediaId: expect.anything(),
+      });
+      const [violation] = JSON.parse(response.body).data;
+      expect(violation.session.mediaId).toBe(mediaId);
+      expect(violation.session.showMediaId).toBe(showMediaId);
     });
 
     it('should apply default pagination', async () => {
@@ -461,15 +485,15 @@ describe('Violation Routes', () => {
       expect(response.statusCode).toBe(400);
     });
 
-    it('should return empty data for viewers with no server access', async () => {
-      // Viewer with empty serverIds returns empty result without querying
-      const viewerUser: AuthUser = {
+    it('should return empty data for admins with no server access', async () => {
+      // Admin with empty serverIds returns empty result without querying
+      const adminUser: AuthUser = {
         userId: randomUUID(),
-        username: 'viewer',
-        role: 'viewer',
+        username: 'admin',
+        role: 'admin',
         serverIds: [],
       };
-      app = await buildTestApp(viewerUser);
+      app = await buildTestApp(adminUser);
 
       const response = await app.inject({
         method: 'GET',
@@ -573,6 +597,72 @@ describe('Violation Routes', () => {
       expect(body.session.device).toBe('Safari');
       expect(body.session.product).toBe('Plex Web');
       expect(body.session.quality).toBe('4K');
+    });
+
+    it('returns the media ids on the triggering and related sessions', async () => {
+      app = await buildTestApp(createOwnerUser());
+      const violationId = randomUUID();
+      const relatedId = randomUUID();
+      const mediaId = randomUUID();
+      const showMediaId = randomUUID();
+      const relatedMediaId = randomUUID();
+      const violation = {
+        ...createTestViolation({ id: violationId, data: { relatedSessionIds: [relatedId] } }),
+        mediaId,
+        showMediaId,
+      };
+      mockDb.select
+        .mockReturnValueOnce(createSingleViolationSelectMock([violation]))
+        .mockReturnValueOnce(
+          queryChain(vi.fn, [{ id: relatedId, mediaId: relatedMediaId, showMediaId: null }])
+        )
+        .mockReturnValue(createEmptyChainMock());
+
+      const response = await app.inject({ method: 'GET', url: `/violations/${violationId}` });
+
+      for (const call of mockDb.select.mock.calls.slice(0, 2)) {
+        expect(call[0]).toMatchObject({
+          mediaId: expect.anything(),
+          showMediaId: expect.anything(),
+        });
+      }
+      const body = JSON.parse(response.body);
+      expect(body.session.mediaId).toBe(mediaId);
+      expect(body.session.showMediaId).toBe(showMediaId);
+      expect(body.relatedSessions[0].mediaId).toBe(relatedMediaId);
+      expect(body.relatedSessions[0].showMediaId).toBeNull();
+    });
+
+    it('looks related sessions up inside the rule window, and only the misses without it', async () => {
+      app = await buildTestApp(createOwnerUser());
+      const violationId = randomUUID();
+      const recentId = randomUUID();
+      const longRunningId = randomUUID();
+      const createdAt = new Date('2026-10-20T12:00:00Z');
+      const violation = createTestViolation({
+        id: violationId,
+        createdAt,
+        data: { relatedSessionIds: [recentId, longRunningId] },
+      });
+      const windowed = queryChain(vi.fn, [{ id: recentId }]);
+      const unbounded = queryChain(vi.fn, [{ id: longRunningId }]);
+      mockDb.select
+        .mockReturnValueOnce(createSingleViolationSelectMock([violation]))
+        .mockReturnValueOnce(windowed)
+        .mockReturnValueOnce(unbounded)
+        .mockReturnValue(createEmptyChainMock());
+
+      const response = await app.inject({ method: 'GET', url: `/violations/${violationId}` });
+
+      const first = renderCall(windowed);
+      expect(first.text).toContain('sessions.started_at >=');
+      expect(first.params).toContainEqual(createdAt.toISOString());
+      expect(first.params).toContainEqual('2026-10-12T12:00:00.000Z');
+      const second = renderCall(unbounded);
+      expect(second.text).not.toContain('started_at');
+      expect(second.params).toEqual([longRunningId]);
+      const related = JSON.parse(response.body).relatedSessions.map((s: { id: string }) => s.id);
+      expect(related.sort()).toEqual([recentId, longRunningId].sort());
     });
 
     it('passes only threshold UUIDs (not actual username) to getServerUserDisplayNames', async () => {
@@ -697,7 +787,7 @@ describe('Violation Routes', () => {
     });
 
     it('should reject acknowledgment for non-owner', async () => {
-      const guestUser = createViewerUser();
+      const guestUser = createAdminUser();
       app = await buildTestApp(guestUser);
 
       const response = await app.inject({
@@ -987,7 +1077,7 @@ describe('Violation Routes', () => {
     });
 
     it('should reject delete for non-owner', async () => {
-      const guestUser = createViewerUser();
+      const guestUser = createAdminUser();
       app = await buildTestApp(guestUser);
 
       const response = await app.inject({
@@ -1047,18 +1137,18 @@ describe('Violation Routes', () => {
       expect(body.data).toHaveLength(2);
     });
 
-    it('should filter violations by server access for viewers', async () => {
-      const viewerServerId = randomUUID();
-      const viewerUser: AuthUser = {
+    it('should filter violations by server access for admins', async () => {
+      const adminServerId = randomUUID();
+      const adminUser: AuthUser = {
         userId: randomUUID(),
-        username: 'viewer',
-        role: 'viewer',
-        serverIds: [viewerServerId],
+        username: 'admin',
+        role: 'admin',
+        serverIds: [adminServerId],
       };
-      app = await buildTestApp(viewerUser);
+      app = await buildTestApp(adminUser);
 
-      // Return violations from the viewer's accessible server
-      const testViolations = [createTestViolation({ serverId: viewerServerId })];
+      // Return violations from the admin's accessible server
+      const testViolations = [createTestViolation({ serverId: adminServerId })];
 
       setupListMocks(testViolations, 1);
 
@@ -1070,7 +1160,7 @@ describe('Violation Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
       expect(body.data).toHaveLength(1);
-      expect(body.data[0].user.serverId).toBe(viewerServerId);
+      expect(body.data[0].user.serverId).toBe(adminServerId);
     });
   });
 });
@@ -1084,7 +1174,7 @@ function rosterFilters(overrides: Partial<ViolationRosterFilters> = {}): Violati
 }
 
 async function rosterSql(filters: ViolationRosterFilters, authUser: AuthUser) {
-  const roster = await buildViolationRosterConditions(filters, authUser);
+  const roster = await buildViolationRosterConditions(filters, authUser, 'all');
   if (roster.empty) {
     return { empty: true as const, text: '', params: [] as unknown[] };
   }
@@ -1155,15 +1245,16 @@ describe('violation roster conditions', () => {
   });
 
   it('reports empty rather than a predicate when no requested server is visible', async () => {
-    const viewer: AuthUser = {
+    const admin: AuthUser = {
       userId: randomUUID(),
-      username: 'viewer',
-      role: 'viewer',
+      username: 'admin',
+      role: 'admin',
       serverIds: [randomUUID()],
     };
     const result = await buildViolationRosterConditions(
       rosterFilters({ serverIds: [randomUUID()] }),
-      viewer
+      admin,
+      'all'
     );
 
     expect(result).toEqual({ empty: true, conditions: [] });
@@ -1174,7 +1265,8 @@ describe('violation roster conditions', () => {
 
     const result = await buildViolationRosterConditions(
       rosterFilters({ userIds: [randomUUID()] }),
-      createOwnerUser()
+      createOwnerUser(),
+      'all'
     );
 
     expect(result).toEqual({ empty: true, conditions: [] });
@@ -1286,6 +1378,68 @@ describe('GET /violations count', () => {
     expect(response.statusCode).toBe(200);
     expect(pageChain.limit).toHaveBeenCalledWith(25);
     expect(pageChain.offset).toHaveBeenCalledWith(50);
+  });
+});
+
+describe('GET /violations/count', () => {
+  let app: FastifyInstance;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it('counts with the roster conditions in one query', async () => {
+    app = await buildTestApp(createOwnerUser());
+    const countChain = queryChain(vi.fn, [{ total: 4 }]);
+    vi.mocked((db as any).select).mockReturnValueOnce(countChain);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/violations/count?acknowledged=false',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ total: 4 });
+    expect(db.select).toHaveBeenCalledTimes(1);
+    expect(normalize(renderCall(countChain, 'where').text)).toContain(
+      'automation_runs.acknowledged_at is null'
+    );
+  });
+
+  it('applies the caller scope to the count', async () => {
+    const serverUserId = randomUUID();
+    const authUser = createAdminUser();
+    app = Fastify({ logger: false });
+    await app.register(sensible);
+    app.decorate('requirePermission', () => async (request: any) => {
+      request.user = authUser;
+      request.scope = { userId: authUser.userId, serverUserIds: [serverUserId], serverIds: [] };
+    });
+    app.decorate('requireOwner', async () => {});
+    await app.register(violationRoutes, { prefix: '/violations' });
+    const countChain = queryChain(vi.fn, [{ total: 1 }]);
+    vi.mocked((db as any).select).mockReturnValueOnce(countChain);
+
+    const response = await app.inject({ method: 'GET', url: '/violations/count' });
+
+    expect(response.statusCode).toBe(200);
+    const where = renderCall(countChain, 'where');
+    expect(normalize(where.text)).toContain('automation_runs.server_user_id in');
+    expect(where.params).toContain(serverUserId);
+  });
+
+  it('returns zero without querying for an admin with no server access', async () => {
+    app = await buildTestApp({ ...createAdminUser(), serverIds: [] });
+
+    const response = await app.inject({ method: 'GET', url: '/violations/count' });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ total: 0 });
+    expect(db.select).not.toHaveBeenCalled();
   });
 });
 

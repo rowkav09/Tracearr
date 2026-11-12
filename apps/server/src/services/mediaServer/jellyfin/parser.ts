@@ -1,12 +1,14 @@
 /**
  * Jellyfin API Response Parser
  *
- * Pure functions for parsing raw Jellyfin API responses into typed objects.
- * Separated from the client for testability and reuse.
+ * Functions for parsing raw Jellyfin API responses into typed objects, separated from
+ * the client for testability and reuse. parseSessionsResponse is the one stateful
+ * entry point: it holds TranscodingInfo across reads (see transcodingInfoLatch).
  */
 
 import type { MediaSession } from '../types.js';
 import { getStreamDecisionsJellyfin } from '../shared/jellyfinEmbyUtils.js';
+import { latchTranscodingInfo } from './transcodingInfoLatch.js';
 
 // Re-export shared parser functions (identical between Jellyfin/Emby)
 export {
@@ -19,13 +21,11 @@ export {
   parseWatchHistoryResponse,
   parseActivityLogItem,
   parseActivityLogResponse,
-  parseAuthResponse,
   parseItem,
   parseItemsResponse,
   parseLibraryItemsResponse,
   // Re-export shared types with platform-specific aliases for backward compatibility
   type JellyfinEmbyActivityEntry as JellyfinActivityEntry,
-  type JellyfinEmbyAuthResult as JellyfinAuthResult,
   type JellyfinEmbyItemResult as JellyfinItemResult,
 } from '../shared/jellyfinEmbyParser.js';
 
@@ -52,5 +52,7 @@ export function parseSession(session: Record<string, unknown>): MediaSession | n
  * Filters to only sessions with active playback
  */
 export function parseSessionsResponse(sessions: unknown[]): MediaSession[] {
-  return parseSessionsResponseShared(sessions, parseSession);
+  return parseSessionsResponseShared(sessions, (session) =>
+    parseSession(latchTranscodingInfo(session))
+  );
 }

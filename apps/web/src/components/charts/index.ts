@@ -1,15 +1,15 @@
-export { PlaysChart } from './PlaysChart';
+export { PlaysChart, type PlaysComparison } from './PlaysChart';
 export { PlatformChart } from './PlatformChart';
 export { DayOfWeekChart } from './DayOfWeekChart';
+export { HourStrip } from './HourStrip';
 export { HourOfDayChart } from './HourOfDayChart';
 export { QualityChart } from './QualityChart';
 export { TopListChart } from './TopListChart';
 export { ConcurrentChart } from './ConcurrentChart';
 export { EngagementBreakdownChart, PlaysVsSessionsChart } from './EngagementChart';
-export { LibraryGrowthChart } from './LibraryGrowthChart';
+export { LibraryGrowthChart, type GrowthSeries } from './LibraryGrowthChart';
 export { QualityTimelineChart } from './QualityTimelineChart';
 export { StoragePredictionChart } from './StoragePredictionChart';
-export { WatchCountChart } from './WatchCountChart';
 export { CompletionDonutChart } from './CompletionDonutChart';
 export { HourlyDistributionChart } from './HourlyDistributionChart';
 export { MonthlyTrendChart } from './MonthlyTrendChart';

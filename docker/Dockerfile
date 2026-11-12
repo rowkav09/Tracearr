@@ -1,10 +1,16 @@
 # syntax=docker/dockerfile:1@sha256:4edf897a3ffa55b89f906fc8cc78afdb3f1834cc9c7083565e611a8a7d5fe99e
+
+# Must match packageManager in package.json.
+# renovate: datasource=npm depName=pnpm versioning=npm
+ARG PNPM_VERSION=12.16.1
+
 # Build stage
-FROM node:24-alpine3.23@sha256:9ec4a2e289874ed0d722e1772ec2de45d2801541db8612f3638b26f128c69ac2 AS builder
+FROM node:26-alpine3.23@sha256:44a3247313f9bc069a4ec25d01b66254ed7dc4d0408727d8720dc827f0753423 AS builder
 
 # pnpm's install script is what puts its native binary in place. corepack never runs it,
 # and npm 12 blocks it unless allowed, so both leave pnpm's shebang-less fallback shim instead.
-RUN npm install -g --allow-scripts=pnpm pnpm@12.3.4
+ARG PNPM_VERSION
+RUN npm install -g --allow-scripts=pnpm pnpm@${PNPM_VERSION}
 
 WORKDIR /app
 
@@ -28,12 +34,24 @@ RUN NODE_OPTIONS=--max-old-space-size=2048 pnpm turbo run build --concurrency=1 
     --filter=@tracearr/shared --filter=@tracearr/server --filter=@tracearr/web
 
 # Production stage
-FROM node:24-alpine3.23@sha256:9ec4a2e289874ed0d722e1772ec2de45d2801541db8612f3638b26f128c69ac2 AS runner
+FROM node:26-alpine3.23@sha256:44a3247313f9bc069a4ec25d01b66254ed7dc4d0408727d8720dc827f0753423 AS runner
 
-RUN npm install -g --allow-scripts=pnpm pnpm@12.3.4
+ARG PNPM_VERSION
+RUN npm install -g --allow-scripts=pnpm pnpm@${PNPM_VERSION}
 
-# Tailscale VPN binary (userspace networking, no root required)
-RUN apk add --no-cache tailscale postgresql-client
+RUN apk upgrade --no-cache && apk add --no-cache postgresql-client
+
+# Tailscale VPN binary (userspace networking, no root required). Alpine's package
+# trails upstream, so this takes Tailscale's static build at the same pin as
+# Dockerfile.supervised.
+# renovate: datasource=deb depName=tailscale
+ARG TAILSCALE_VERSION=1.104.5
+ARG TARGETARCH
+RUN wget -qO /tmp/tailscale.tgz "https://pkgs.tailscale.com/stable/tailscale_${TAILSCALE_VERSION}_${TARGETARCH}.tgz" \
+    && tar -xzf /tmp/tailscale.tgz -C /tmp \
+    && mv "/tmp/tailscale_${TAILSCALE_VERSION}_${TARGETARCH}/tailscale" /usr/bin/tailscale \
+    && mv "/tmp/tailscale_${TAILSCALE_VERSION}_${TARGETARCH}/tailscaled" /usr/sbin/tailscaled \
+    && rm -rf /tmp/tailscale.tgz "/tmp/tailscale_${TAILSCALE_VERSION}_${TARGETARCH}"
 
 # Create non-root user
 RUN addgroup --system --gid 1001 nodejs && \

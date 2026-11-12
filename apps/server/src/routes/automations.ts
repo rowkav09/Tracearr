@@ -45,6 +45,7 @@ import {
 import { db } from '../db/client.js';
 import { isUniqueViolation } from '../db/pg.js';
 import { automationRuns, automations, sessions } from '../db/schema.js';
+import { readSessionRowOrActive } from '../db/sessions/row.js';
 import { scheduleInactivityChecks } from '../jobs/inactivityCheckQueue.js';
 import { invalidateAutomationsCache } from '../jobs/poller/database.js';
 import { violationAliasConditions } from '../services/automations/aliasFilter.js';
@@ -150,7 +151,7 @@ async function retryOnVersionCollision<T>(write: () => Promise<T>): Promise<T> {
     return await write();
   } catch (error) {
     if (!isUniqueViolation(error)) throw error;
-    return await write();
+    return write();
   }
 }
 
@@ -170,12 +171,6 @@ async function countedIdentitiesOf(automationIds: string[]): Promise<string[]> {
       )
     );
   return rows.map((row) => row.serverUserId).filter((id): id is string => id !== null);
-}
-
-async function restateIdentities(serverUserIds: string[]): Promise<void> {
-  for (const serverUserId of serverUserIds) {
-    await recomputeIdentityAggregatesForServerUser(serverUserId);
-  }
 }
 
 /** The scope a materialized definition carries, in the column shape the row stores. */
@@ -214,7 +209,7 @@ type AutomationUpdate = Partial<{
 
 export const automationRoutes: FastifyPluginAsync = async (app) => {
   const owner = { preHandler: [app.requireOwner] };
-  const authed = { preHandler: [app.authenticate] };
+  const readers = { preHandler: [app.requirePermission('automations', 'read')] };
 
   /** The write, its version row when the definition moved, and the reply's own read. */
   const saveDefinition = async (
@@ -252,7 +247,7 @@ export const automationRoutes: FastifyPluginAsync = async (app) => {
   /**
    * GET /automations - List automations with pagination, filters and sorting
    */
-  app.get('/', authed, async (request, reply) => {
+  app.get('/', readers, async (request, reply) => {
     const query = automationListQuerySchema.safeParse(request.query);
     if (!query.success) {
       return reply.badRequest('Invalid query parameters');
@@ -294,7 +289,7 @@ export const automationRoutes: FastifyPluginAsync = async (app) => {
   /**
    * GET /automations/:id - One automation
    */
-  app.get('/:id', authed, async (request, reply) => {
+  app.get('/:id', readers, async (request, reply) => {
     const params = idParamSchema.safeParse(request.params);
     if (!params.success) {
       return reply.badRequest('Invalid automation ID');
@@ -366,7 +361,7 @@ export const automationRoutes: FastifyPluginAsync = async (app) => {
    */
   app.post(
     '/dry-run',
-    { ...authed, config: { rateLimit: { max: 60, timeWindow: '1 minute' } } },
+    { ...readers, config: { rateLimit: { max: 60, timeWindow: '1 minute' } } },
     async (request, reply) => {
       const body = dryRunRequestSchema.safeParse(request.body);
       if (!body.success) {
@@ -377,23 +372,21 @@ export const automationRoutes: FastifyPluginAsync = async (app) => {
       const visibleIds = resolveServerIds(request.user, undefined, undefined);
 
       if (sample) {
-        const [row] = await db
-          .select()
-          .from(sessions)
-          .where(
-            and(
-              eq(sessions.id, sample.sessionId),
-              buildMultiServerCondition(visibleIds, sessions.serverId)
-            )
-          )
-          .limit(1);
+        const row = await readSessionRowOrActive(sample.sessionId, sample.startedAt, (where) =>
+          db
+            .select()
+            .from(sessions)
+            .where(and(where, buildMultiServerCondition(visibleIds, sessions.serverId)))
+            .limit(1)
+            .then((rows) => rows[0])
+        );
         if (!row) return reply.notFound('Session not found');
-        return await dryRun({ definition, sessions: [toRuleSession(row)], user: request.user });
+        return dryRun({ definition, sessions: [toRuleSession(row)], user: request.user });
       }
 
       const cacheService = getCacheService();
       const active = cacheService ? await cacheService.getAllActiveSessions() : [];
-      return await dryRun({ definition, sessions: active, user: request.user });
+      return dryRun({ definition, sessions: active, user: request.user });
     }
   );
 
@@ -640,7 +633,7 @@ export const automationRoutes: FastifyPluginAsync = async (app) => {
   /**
    * GET /automations/:id/export - The automation as a shareable envelope and code
    */
-  app.get('/:id/export', authed, async (request, reply) => {
+  app.get('/:id/export', readers, async (request, reply) => {
     const params = idParamSchema.safeParse(request.params);
     if (!params.success) {
       return reply.badRequest('Invalid automation ID');
@@ -678,7 +671,7 @@ export const automationRoutes: FastifyPluginAsync = async (app) => {
 
     const counted = await countedIdentitiesOf([existing.id]);
     await db.delete(automations).where(eq(automations.id, existing.id));
-    await restateIdentities(counted);
+    await recomputeIdentityAggregatesForServerUser(counted);
 
     invalidateAutomationsCache();
     if (needsInactivitySweep(existing)) void scheduleInactivityChecks();
@@ -719,7 +712,7 @@ export const automationRoutes: FastifyPluginAsync = async (app) => {
       .delete(automations)
       .where(inArray(automations.id, parsed.data.ids))
       .returning({ id: automations.id });
-    await restateIdentities(counted);
+    await recomputeIdentityAggregatesForServerUser(counted);
 
     if (deleted.length > 0) invalidateAutomationsCache();
     return { success: true, deleted: deleted.length };
@@ -728,7 +721,7 @@ export const automationRoutes: FastifyPluginAsync = async (app) => {
   /**
    * GET /automations/:id/runs - This automation's runs, without their step logs
    */
-  app.get('/:id/runs', authed, async (request, reply) => {
+  app.get('/:id/runs', readers, async (request, reply) => {
     const params = idParamSchema.safeParse(request.params);
     if (!params.success) {
       return reply.badRequest('Invalid automation ID');
@@ -768,7 +761,7 @@ export const automationRoutes: FastifyPluginAsync = async (app) => {
   /**
    * GET /automations/:id/evaluations - The capped ring of matches that recorded no run
    */
-  app.get('/:id/evaluations', authed, async (request, reply) => {
+  app.get('/:id/evaluations', readers, async (request, reply) => {
     const params = idParamSchema.safeParse(request.params);
     if (!params.success) {
       return reply.badRequest('Invalid automation ID');

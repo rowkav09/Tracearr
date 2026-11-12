@@ -11,11 +11,18 @@ import { readFile, writeFile, rename, stat as fsStat, unlink, mkdir } from 'node
 import { join } from 'node:path';
 import sharp from 'sharp';
 import { and, eq, isNull } from 'drizzle-orm';
-import { POSTER_IMAGE_SIZE, TIME_MS } from '@tracearr/shared';
+import {
+  POSTER_IMAGE_SIZE,
+  SQUARE_POSTER_SIZE,
+  TIME_MS,
+  assertNever,
+  isDirectAvatarUrl,
+} from '@tracearr/shared';
 import { db } from '../db/client.js';
 import { servers, libraryItems } from '../db/schema.js';
 import { assertSafeProbeUrl, SsrfBlockedError } from '../utils/ssrf.js';
 import { cacheWriteAllowed, noteCacheWrite } from './imageCacheGuard.js';
+import { mediaBrowserTokenHeader } from './mediaServer/shared/baseMediaServerClient.js';
 
 // libvips defaults its thread pool to the core count, so one background
 // precache walk can own every core of a small box. Inputs are server-resized
@@ -90,6 +97,9 @@ interface ProxyResult {
   /** The upstream fetch failed and this is a placeholder. Background warms
    *  turn it into an error; live requests render it. */
   degraded?: boolean;
+  /** Why a degraded result failed. itemFault: the server answered (or the path was refused before
+   *  asking), so this one image is the problem rather than the server. */
+  failure?: { reason: string; itemFault: boolean };
 }
 
 /**
@@ -183,6 +193,9 @@ async function readFromCache(cachePath: string, versioned: boolean): Promise<Pro
   }
 }
 
+// A pass over an unwritable directory fails once per poster, so each error code logs once.
+const warnedWriteErrors = new Set<string>();
+
 async function writeCacheAtomic(shardDir: string, cachePath: string, data: Buffer): Promise<void> {
   if (!(await cacheWriteAllowed(data.length, IMAGE_CACHE_DIR))) return;
   const tmpPath = `${cachePath}.tmp.${process.pid}`;
@@ -191,8 +204,15 @@ async function writeCacheAtomic(shardDir: string, cachePath: string, data: Buffe
     await writeFile(tmpPath, data);
     await rename(tmpPath, cachePath);
     noteCacheWrite(data.length);
-  } catch {
+  } catch (err) {
     await unlink(tmpPath).catch(() => undefined);
+    const code = (err as NodeJS.ErrnoException).code ?? String(err);
+    if (!warnedWriteErrors.has(code)) {
+      warnedWriteErrors.add(code);
+      console.warn(
+        `[ImageProxy] Cannot write to the poster cache at ${IMAGE_CACHE_DIR} (${code}, running as uid ${process.getuid?.()}). Posters are fetched from the media server on every request until this is fixed.`
+      );
+    }
   }
 }
 
@@ -236,20 +256,22 @@ export async function persistDominantColorIfNeeded(
   const inFlight = inFlightColorPersists.get(key);
   if (inFlight) return inFlight;
 
+  const missingColor = and(
+    eq(libraryItems.serverId, serverId),
+    eq(libraryItems.thumbPath, imagePath),
+    isNull(libraryItems.dominantColor)
+  );
   const attempt = (async () => {
     try {
+      const uncolored = await db
+        .select({ id: libraryItems.id })
+        .from(libraryItems)
+        .where(missingColor)
+        .limit(1)
+        .catch(() => [{}]);
+      if (uncolored.length === 0) return;
       const hex = await computeDominantColorHex(imageBuffer);
-      const write = () =>
-        db
-          .update(libraryItems)
-          .set({ dominantColor: hex })
-          .where(
-            and(
-              eq(libraryItems.serverId, serverId),
-              eq(libraryItems.thumbPath, imagePath),
-              isNull(libraryItems.dominantColor)
-            )
-          );
+      const write = () => db.update(libraryItems).set({ dominantColor: hex }).where(missingColor);
       try {
         await write();
       } catch (err) {
@@ -324,21 +346,34 @@ function acquireFetchSlot(): Promise<() => void> {
 /**
  * imagePath reaches here from the unauthenticated /images routes and is
  * concatenated onto the server URL, so a suffix like ".attacker.example/x"
- * moves the request to another host and takes the media-server token with it.
- * Resolve it and require the origin to survive.
+ * moves the request to another host and takes the media-server token with it,
+ * and "..\" segments (URL parsing reads a backslash as a slash) walk out of the
+ * allowlisted route. Resolve it and require it to come out exactly as written:
+ * same origin, and a path the parser did not rewrite.
  */
-function assertSameOrigin(baseUrl: string, imagePath: string): void {
+function assertCanonicalImagePath(baseUrl: string, imagePath: string): void {
+  // Media server image paths are never percent-encoded; any % could decode into a traversal after
+  // the allowlist ran, double encodings included once Plex's transcoder reads its url param.
+  if (imagePath.includes('\\') || imagePath.includes('\0') || imagePath.includes('%')) {
+    throw new SsrfBlockedError(`Image path is not in canonical form: ${imagePath}`);
+  }
   let resolved: URL;
   try {
     resolved = new URL(`${baseUrl}${imagePath}`);
   } catch {
     throw new SsrfBlockedError(`Image path produced an unparseable URL: ${imagePath}`);
   }
-  if (resolved.origin !== new URL(baseUrl).origin) {
+  const base = new URL(baseUrl);
+  if (resolved.origin !== base.origin) {
     throw new SsrfBlockedError(`Image path escapes the server origin: ${resolved.origin}`);
   }
   if (resolved.username || resolved.password) {
     throw new SsrfBlockedError('Image path injected URL credentials');
+  }
+  if (
+    `${resolved.pathname}${resolved.search}` !== `${base.pathname.replace(/\/$/, '')}${imagePath}`
+  ) {
+    throw new SsrfBlockedError(`Image path is not in canonical form: ${imagePath}`);
   }
 }
 
@@ -361,52 +396,59 @@ export function buildUpstreamRequest(
 
   // Origin pinning makes the configured server the only reachable host, so one
   // check on the base URL covers every request shape built below.
-  assertSameOrigin(baseUrl, imagePath);
+  assertCanonicalImagePath(baseUrl, imagePath);
   assertSafeProbeUrl(baseUrl);
   if (!IMAGE_PATH_ALLOWLIST[server.type].test(imagePath)) {
     throw new SsrfBlockedError(`Not a media server image path: ${imagePath}`);
   }
 
-  if (server.type === 'plex') {
-    // Plex image URLs are relative paths like /library/metadata/123/thumb/456
-    if (resize) {
-      // Plex's photo transcoder resizes and caches server-side - a 240px
-      // poster arrives as ~20KB instead of the multi-MB original. upscale=0
-      // keeps small sources untouched; minSize=1 fills the requested box.
-      const params = new URLSearchParams({
-        width: String(resize.width),
-        height: String(resize.height),
-        minSize: '1',
-        upscale: '0',
-        url: imagePath,
-        'X-Plex-Token': server.token,
-      });
-      return { imageUrl: `${baseUrl}/photo/:/transcode?${params.toString()}`, headers };
+  switch (server.type) {
+    case 'plex': {
+      // Plex image URLs are relative paths like /library/metadata/123/thumb/456
+      if (resize) {
+        // Plex's photo transcoder resizes and caches server-side - a 240px
+        // poster arrives as ~20KB instead of the multi-MB original. upscale=0
+        // keeps small sources untouched; minSize=1 fills the requested box.
+        const params = new URLSearchParams({
+          width: String(resize.width),
+          height: String(resize.height),
+          minSize: '1',
+          upscale: '0',
+          url: imagePath,
+          'X-Plex-Token': server.token,
+        });
+        return { imageUrl: `${baseUrl}/photo/:/transcode?${params.toString()}`, headers };
+      }
+      const separator = imagePath.includes('?') ? '&' : '?';
+      return {
+        imageUrl: `${baseUrl}${imagePath}${separator}X-Plex-Token=${server.token}`,
+        headers,
+      };
     }
-    const separator = imagePath.includes('?') ? '&' : '?';
-    return { imageUrl: `${baseUrl}${imagePath}${separator}X-Plex-Token=${server.token}`, headers };
+    case 'jellyfin':
+    case 'emby': {
+      // imagePath includes the full endpoint
+      Object.assign(headers, mediaBrowserTokenHeader(server.type, server.token));
+      if (resize) {
+        // Both accept max-dimension params on image endpoints and cache the
+        // result. Constrain only the target's long axis so the cover crop below
+        // always has enough pixels where it matters; sharp still normalizes to
+        // the exact box, but it decodes a thumbnail instead of the original.
+        const separator = imagePath.includes('?') ? '&' : '?';
+        const dimension =
+          resize.height >= resize.width ? `maxHeight=${resize.height}` : `maxWidth=${resize.width}`;
+        return {
+          imageUrl: `${baseUrl}${imagePath}${separator}${dimension}&quality=90`,
+          headers,
+        };
+      }
+      return { imageUrl: `${baseUrl}${imagePath}`, headers };
+    }
+    case 'navidrome':
+      throw new SsrfBlockedError('Navidrome images are not available through this proxy');
+    default:
+      return assertNever(server.type);
   }
-
-  // Jellyfin/Emby - imagePath should include the full endpoint
-  if (server.type === 'jellyfin') {
-    headers['Authorization'] = `MediaBrowser Token="${server.token}"`;
-  } else {
-    headers['X-Emby-Token'] = server.token;
-  }
-  if (resize) {
-    // Both accept max-dimension params on image endpoints and cache the
-    // result. Constrain only the target's long axis so the cover crop below
-    // always has enough pixels where it matters; sharp still normalizes to
-    // the exact box, but it decodes a thumbnail instead of the original.
-    const separator = imagePath.includes('?') ? '&' : '?';
-    const dimension =
-      resize.height >= resize.width ? `maxHeight=${resize.height}` : `maxWidth=${resize.width}`;
-    return {
-      imageUrl: `${baseUrl}${imagePath}${separator}${dimension}&quality=90`,
-      headers,
-    };
-  }
-  return { imageUrl: `${baseUrl}${imagePath}`, headers };
 }
 
 interface MissPipelineArgs {
@@ -462,6 +504,7 @@ async function runMissPipeline(args: MissPipelineArgs): Promise<ProxyResult> {
   // multi-MB original). Fall back to the original path so a transcoder
   // hiccup degrades to the old behavior instead of a broken image.
   const release = await acquireFetchSlot();
+  let serverAnswered = false;
   try {
     // Inside the try so a blocked path degrades to the fallback image like any
     // other upstream failure, instead of escaping as a 500.
@@ -475,10 +518,13 @@ async function runMissPipeline(args: MissPipelineArgs): Promise<ProxyResult> {
     let lastError: unknown = null;
     for (const { imageUrl, headers } of candidates) {
       try {
+        // A redirect would carry the token past the path checks, so it counts as a failure.
         const response = await fetch(imageUrl, {
           headers,
+          redirect: 'manual',
           signal: AbortSignal.timeout(10000), // 10 second timeout
         });
+        serverAnswered = true;
 
         // Reject only clearly-non-image payloads (the Plex transcoder can
         // return an XML error page with a 200). Anything else - image/*,
@@ -521,7 +567,7 @@ async function runMissPipeline(args: MissPipelineArgs): Promise<ProxyResult> {
     void persistDominantColorIfNeeded(serverId, imagePath, resized);
 
     return { data: resized, contentType: 'image/webp', cached: false };
-  } catch {
+  } catch (err) {
     // Return fallback on any error, capped at a short cache lifetime so an
     // upstream blip (e.g. a Plex restart) can't pin "No Image" for a year.
     // Flagged degraded so a background warm can tell a dead transcoder from a
@@ -529,6 +575,10 @@ async function runMissPipeline(args: MissPipelineArgs): Promise<ProxyResult> {
     // coalesce onto this same promise and would get a 500 instead.
     return {
       degraded: true,
+      failure: {
+        reason: err instanceof Error ? err.message : String(err),
+        itemFault: serverAnswered || err instanceof SsrfBlockedError,
+      },
       data: getFallbackImage(fallback, width, height),
       contentType: 'image/svg+xml',
       cached: false,
@@ -603,12 +653,13 @@ export async function proxyImage(options: ProxyOptions): Promise<ProxyResult> {
     resizedOnly = false,
   } = options;
 
-  // A 360x540 poster is always the one versioned entry, whether or not the URL
-  // said so: the fingerprint is the path's own, so every surface shares the file.
+  // A 360x540 or 360x360 poster is always the versioned entry for its size, whether or
+  // not the URL said so: the fingerprint is the path's own, so every surface shares the file.
   const isPoster =
     fallback === 'poster' &&
-    width === POSTER_IMAGE_SIZE.width &&
-    height === POSTER_IMAGE_SIZE.height;
+    [POSTER_IMAGE_SIZE, SQUARE_POSTER_SIZE].some(
+      (size) => width === size.width && height === size.height
+    );
   const effectiveVersion = isPoster ? posterVersionFor(imagePath) : version;
 
   const { fileName, shard, versioned } = buildCacheKeyInfo(
@@ -664,7 +715,7 @@ export function getGravatarUrl(email: string | null | undefined, size: number = 
 
 /**
  * Size presets for non-poster images (avatars, logo, cast/art thumbnails).
- * Posters have exactly one size now: POSTER_IMAGE_SIZE.
+ * Posters use POSTER_IMAGE_SIZE, or SQUARE_POSTER_SIZE for artists and albums.
  */
 export const IMAGE_SIZES = {
   pushAvatar: { width: 80, height: 80 },
@@ -718,16 +769,17 @@ export function posterVersionFor(thumbPath: string): string {
   return createHash('sha1').update(thumbPath).digest('hex').slice(0, 8);
 }
 
-/** File name and shard of a poster's one cache entry: 360x540 at the path's own fingerprint. */
+/** File name and shard of a poster's cache entry at one size and the path's own fingerprint. */
 export function posterCacheFileName(
   serverId: string,
-  thumbPath: string
+  thumbPath: string,
+  size: { width: number; height: number } = POSTER_IMAGE_SIZE
 ): { fileName: string; shard: string } {
   const { fileName, shard } = buildCacheKeyInfo(
     serverId,
     thumbPath,
-    POSTER_IMAGE_SIZE.width,
-    POSTER_IMAGE_SIZE.height,
+    size.width,
+    size.height,
     posterVersionFor(thumbPath)
   );
   return { fileName, shard };
@@ -735,9 +787,10 @@ export function posterCacheFileName(
 
 export async function posterCacheEntryExists(
   serverId: string,
-  thumbPath: string
+  thumbPath: string,
+  size: { width: number; height: number } = POSTER_IMAGE_SIZE
 ): Promise<boolean> {
-  const { fileName, shard } = posterCacheFileName(serverId, thumbPath);
+  const { fileName, shard } = posterCacheFileName(serverId, thumbPath, size);
   try {
     await fsStat(join(IMAGE_CACHE_DIR, shard, fileName));
     return true;
@@ -773,8 +826,7 @@ export function buildAvatarUrl(
   size: number = IMAGE_SIZES.apiAvatar.width
 ): string | null {
   if (!thumbUrl) return null;
-  // Direct links (e.g., from Plex.tv) are already absolute
-  if (thumbUrl.startsWith('http')) return thumbUrl;
+  if (thumbUrl.startsWith('http')) return isDirectAvatarUrl(thumbUrl) ? thumbUrl : null;
   if (!serverId) return null;
   return buildProxyUrl({
     serverId,
@@ -813,8 +865,7 @@ export function buildPushAvatarUrl(
   thumbUrl: string | null | undefined
 ): string | null {
   if (!thumbUrl) return null;
-  // Direct links are already absolute
-  if (thumbUrl.startsWith('http')) return thumbUrl;
+  if (thumbUrl.startsWith('http')) return isDirectAvatarUrl(thumbUrl) ? thumbUrl : null;
   if (!serverId) return null;
   return buildAbsoluteProxyUrl(baseUrl, {
     serverId,

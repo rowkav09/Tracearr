@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, Loader2, Server as ServerIcon, XCircle } from 'lucide-react';
+import { SERVER_PROFILES, type ServerType } from '@tracearr/shared';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import {
@@ -23,6 +24,23 @@ import {
 import { PlexServerSelector } from '@/components/auth/PlexServerSelector';
 import type { PlexDiscoveredServer } from '@/lib/api';
 import { SERVER_DIALOG_CONTENT_CLASS } from './dialogClasses';
+
+const DESCRIPTIONS = {
+  plex: 'servers.addServerDialogDescPlex',
+  jellyfin: 'servers.addServerDialogDescOther',
+  emby: 'servers.addServerDialogDescOther',
+  navidrome: 'servers.addServerDialogDescOther',
+} as const;
+
+const SERVER_URL_HELP = {
+  jellyfin: 'servers.serverUrlHelpJellyfin',
+  emby: 'servers.serverUrlHelpEmby',
+} as const;
+
+export const API_KEY_HELP = {
+  jellyfin: 'servers.apiKeyHelpJellyfin',
+  emby: 'servers.apiKeyHelpEmby',
+} as const;
 
 export type PlexDialogStep =
   'loading' | 'no-accounts' | 'select-account' | 'loading-servers' | 'no-servers' | 'select';
@@ -125,17 +143,14 @@ export function AddServerDialog({
 }: AddServerDialogProps) {
   const { t } = useTranslation(['settings', 'common']);
   const showAccountPicker = plexAccounts.length > 1;
+  const auth = SERVER_PROFILES[serverType].addServerAuth;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={SERVER_DIALOG_CONTENT_CLASS}>
         <DialogHeader>
           <DialogTitle>{t('servers.addServer')}</DialogTitle>
-          <DialogDescription>
-            {serverType === 'plex'
-              ? t('servers.addServerDialogDescPlex')
-              : t('servers.addServerDialogDescOther')}
-          </DialogDescription>
+          <DialogDescription>{t(DESCRIPTIONS[serverType])}</DialogDescription>
         </DialogHeader>
 
         <FieldGroup className="py-4">
@@ -159,7 +174,7 @@ export function AddServerDialog({
             </Select>
           </Field>
 
-          {serverType === 'plex' ? (
+          {auth === 'plexOAuth' && (
             <>
               {(plexStep === 'loading' || plexStep === 'loading-servers') && (
                 <div className="flex flex-col items-center justify-center gap-3 py-8">
@@ -239,7 +254,8 @@ export function AddServerDialog({
                 </>
               )}
             </>
-          ) : (
+          )}
+          {serverType !== 'plex' && (
             <>
               <Field>
                 <FieldLabel htmlFor="serverUrl">{t('servers.serverUrl')}</FieldLabel>

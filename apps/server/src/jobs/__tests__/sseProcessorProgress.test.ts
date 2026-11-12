@@ -71,6 +71,7 @@ vi.mock('../../services/geoip.js', () => ({
 
 vi.mock('../poller/index.js', () => ({
   triggerReconciliationPoll: vi.fn(),
+  isPollerRunning: () => true,
 }));
 
 vi.mock('../poller/sessionMapper.js', () => ({
@@ -167,7 +168,8 @@ const mockCacheService = {
   withSessionCreateLock: vi.fn(),
   hasTerminationCooldown: vi.fn().mockResolvedValue(false),
   setTerminationCooldown: vi.fn(),
-  hasTerminationCooldownComposite: vi.fn().mockResolvedValue(false),
+  getTerminationCooldownsComposite: vi.fn().mockResolvedValue(new Map()),
+  clearTerminationCooldownsComposite: vi.fn(),
   setTerminationCooldownComposite: vi.fn(),
   getPendingSession: vi.fn().mockResolvedValue(null),
   setPendingSession: vi.fn(),

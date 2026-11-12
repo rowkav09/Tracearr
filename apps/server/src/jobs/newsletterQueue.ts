@@ -6,6 +6,7 @@ import {
   type NewsletterSendTrigger,
 } from '@tracearr/shared';
 import { getBullPrefix, queueConnectionOptions } from './queueConnection.js';
+import { WORKER_DEFAULTS, registerQueue, registerWorker } from './jobSafety.js';
 import { isMaintenance } from '../serverState.js';
 import { getDestination } from '../services/notifications/destinationStore.js';
 import {
@@ -76,6 +77,7 @@ export function initNewsletterQueues(redisUrl: string): void {
     q.on('error', (err) => {
       if (!isMaintenance()) console.error(`[Newsletters] queue ${q.name} error:`, err);
     });
+    registerQueue(q);
   }
 }
 
@@ -102,8 +104,9 @@ export function startNewsletterWorkers(): void {
       }
       console.log(`[Newsletters] run ${job.id} for ${job.data.newsletterId}: ${result.outcome}`);
     },
-    { connection, prefix, concurrency: 1 }
+    { connection, prefix, concurrency: 1, ...WORKER_DEFAULTS }
   );
+  registerWorker(runWorker);
   runWorker.on('error', (err) => {
     if (!isMaintenance()) console.error('[Newsletters] run worker error:', err);
   });
@@ -121,8 +124,9 @@ export function startNewsletterWorkers(): void {
         throw error;
       }
     },
-    { connection, prefix, concurrency: 2 }
+    { connection, prefix, concurrency: 2, ...WORKER_DEFAULTS }
   );
+  registerWorker(deliveryWorker);
   deliveryWorker.on('failed', (job, error) => {
     if (!job) return;
     const exhausted = job.attemptsMade >= (job.opts.attempts ?? DELIVERY_ATTEMPTS);
@@ -274,15 +278,14 @@ export async function getNewsletterQueueStats(): Promise<{
 }
 
 export async function shutdownNewsletterQueues(): Promise<void> {
-  await runWorker?.close();
-  await deliveryWorker?.close();
-  await runQueue?.close();
-  await deliveryQueue?.close();
-  await dlqQueue?.close();
+  const closing = [runWorker, deliveryWorker, runQueue, deliveryQueue, dlqQueue];
   runWorker = null;
   deliveryWorker = null;
   runQueue = null;
   deliveryQueue = null;
   dlqQueue = null;
   connection = null;
+  // A close called while its connection is reconnecting can hang: none waits on another,
+  // and state is already cleared so a restart is never blocked on one.
+  await Promise.all(closing.map(async (closable) => closable?.close()));
 }

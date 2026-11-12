@@ -15,7 +15,7 @@
 import { randomUUID } from 'node:crypto';
 import { describe, it, expect } from 'vitest';
 import { eq } from 'drizzle-orm';
-import { DEFAULT_STREAM_DETAILS } from '@tracearr/shared';
+import { DEFAULT_STREAM_DETAILS, type ServerType } from '@tracearr/shared';
 import {
   createTestUser,
   createTestServer,

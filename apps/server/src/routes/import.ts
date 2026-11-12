@@ -22,7 +22,7 @@ import { importPlaybackReporting } from '../services/playbackReporting.js';
 import { getPubSubService } from '../services/cache.js';
 import { syncServer } from '../services/sync.js';
 import { HISTORICAL_IMPORT_MESSAGE } from '../services/liveServers.js';
-import { JellyfinClient, EmbyClient } from '../services/mediaServer/index.js';
+import { createJellyfinEmbyClient, isJellyfinEmby } from '../services/mediaServer/index.js';
 import { db } from '../db/client.js';
 import { servers } from '../db/schema.js';
 import {
@@ -40,6 +40,8 @@ import {
 } from '../jobs/importQueue.js';
 
 export const importRoutes: FastifyPluginAsync = async (app) => {
+  const writeImport = { preHandler: [app.requirePermission('import', 'write')] };
+  const readImport = { preHandler: [app.requirePermission('import', 'read')] };
   // Register multipart plugin for file uploads (Jellystat backup)
   await app.register(multipart, {
     limits: {
@@ -54,7 +56,7 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
   /**
    * POST /import/tautulli - Start Tautulli import (enqueues job)
    */
-  app.post('/tautulli', { preHandler: [app.authenticate] }, async (request, reply) => {
+  app.post('/tautulli', writeImport, async (request, reply) => {
     const body = tautulliImportSchema.safeParse(request.body);
     if (!body.success) {
       return reply.badRequest('Invalid request body: serverId is required');
@@ -156,7 +158,7 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
    */
   app.get<{ Params: { serverId: string } }>(
     '/tautulli/active/:serverId',
-    { preHandler: [app.authenticate] },
+    { preHandler: [app.requirePermission('import', 'read')] },
     async (request, _reply) => {
       const { serverId } = request.params;
 
@@ -179,7 +181,7 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
    */
   app.get<{ Params: { jobId: string } }>(
     '/tautulli/:jobId',
-    { preHandler: [app.authenticate] },
+    { preHandler: [app.requirePermission('import', 'read')] },
     async (request, reply) => {
       const { jobId } = request.params;
 
@@ -197,7 +199,7 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
    */
   app.delete<{ Params: { jobId: string } }>(
     '/tautulli/:jobId',
-    { preHandler: [app.authenticate] },
+    { preHandler: [app.requirePermission('import', 'write')] },
     async (request, reply) => {
       const authUser = request.user;
       if (authUser.role !== 'owner') {
@@ -218,7 +220,7 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
   /**
    * GET /import/stats - Get import queue statistics
    */
-  app.get('/stats', { preHandler: [app.authenticate] }, async (_request, reply) => {
+  app.get('/stats', readImport, async (_request, reply) => {
     const stats = await getImportQueueStats();
 
     if (!stats) {
@@ -231,7 +233,7 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
   /**
    * POST /import/tautulli/test - Test Tautulli connection
    */
-  app.post('/tautulli/test', { preHandler: [app.authenticate] }, async (request, reply) => {
+  app.post('/tautulli/test', writeImport, async (request, reply) => {
     const authUser = request.user;
 
     // Only owners can test connection
@@ -286,7 +288,7 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
    * - serverId: Target server UUID
    * - enrichMedia: Whether to enrich with metadata (default: true)
    */
-  app.post('/jellystat', { preHandler: [app.authenticate] }, async (request, reply) => {
+  app.post('/jellystat', writeImport, async (request, reply) => {
     const authUser = request.user;
 
     // Only owners can import data
@@ -338,7 +340,7 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
     if (!server) {
       return reply.notFound('Server not found');
     }
-    if (server.type !== 'jellyfin' && server.type !== 'emby') {
+    if (!isJellyfinEmby(server.type)) {
       return reply.badRequest('Jellystat import only supports Jellyfin/Emby servers');
     }
     if (server.historicalAt) {
@@ -422,7 +424,7 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
    */
   app.get<{ Params: { serverId: string } }>(
     '/jellystat/active/:serverId',
-    { preHandler: [app.authenticate] },
+    { preHandler: [app.requirePermission('import', 'read')] },
     async (request, _reply) => {
       const { serverId } = request.params;
 
@@ -445,7 +447,7 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
    */
   app.get<{ Params: { jobId: string } }>(
     '/jellystat/:jobId',
-    { preHandler: [app.authenticate] },
+    { preHandler: [app.requirePermission('import', 'read')] },
     async (request, reply) => {
       const { jobId } = request.params;
 
@@ -463,7 +465,7 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
    */
   app.delete<{ Params: { jobId: string } }>(
     '/jellystat/:jobId',
-    { preHandler: [app.authenticate] },
+    { preHandler: [app.requirePermission('import', 'write')] },
     async (request, reply) => {
       const authUser = request.user;
       if (authUser.role !== 'owner') {
@@ -488,7 +490,7 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
   /**
    * POST /import/playback-reporting - Start Playback Reporting import (enqueues job)
    */
-  app.post('/playback-reporting', { preHandler: [app.authenticate] }, async (request, reply) => {
+  app.post('/playback-reporting', writeImport, async (request, reply) => {
     const authUser = request.user;
 
     if (authUser.role !== 'owner') {
@@ -506,7 +508,7 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
     if (!server) {
       return reply.notFound('Server not found');
     }
-    if (server.type !== 'jellyfin' && server.type !== 'emby') {
+    if (!isJellyfinEmby(server.type)) {
       return reply.badRequest('Playback Reporting import only supports Jellyfin/Emby servers');
     }
     if (server.historicalAt) {
@@ -571,7 +573,7 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
    */
   app.post(
     '/playback-reporting/test',
-    { preHandler: [app.authenticate] },
+    { preHandler: [app.requirePermission('import', 'write')] },
     async (request, reply) => {
       const authUser = request.user;
 
@@ -592,7 +594,7 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
       if (!server) {
         return reply.notFound('Server not found');
       }
-      if (server.type !== 'jellyfin' && server.type !== 'emby') {
+      if (!isJellyfinEmby(server.type)) {
         return reply.badRequest('Playback Reporting import only supports Jellyfin/Emby servers');
       }
       if (server.historicalAt) {
@@ -605,8 +607,7 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
         id: server.id,
         name: server.name,
       };
-      const client: JellyfinClient | EmbyClient =
-        server.type === 'emby' ? new EmbyClient(clientConfig) : new JellyfinClient(clientConfig);
+      const client = createJellyfinEmbyClient(server.type, clientConfig);
 
       try {
         const info = await client.getPlaybackReportingInfo();
@@ -641,7 +642,7 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
    */
   app.get<{ Params: { serverId: string } }>(
     '/playback-reporting/active/:serverId',
-    { preHandler: [app.authenticate] },
+    { preHandler: [app.requirePermission('import', 'read')] },
     async (request, _reply) => {
       const { serverId } = request.params;
 
@@ -664,7 +665,7 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
    */
   app.get<{ Params: { jobId: string } }>(
     '/playback-reporting/:jobId',
-    { preHandler: [app.authenticate] },
+    { preHandler: [app.requirePermission('import', 'read')] },
     async (request, reply) => {
       const { jobId } = request.params;
 
@@ -682,7 +683,7 @@ export const importRoutes: FastifyPluginAsync = async (app) => {
    */
   app.delete<{ Params: { jobId: string } }>(
     '/playback-reporting/:jobId',
-    { preHandler: [app.authenticate] },
+    { preHandler: [app.requirePermission('import', 'write')] },
     async (request, reply) => {
       const authUser = request.user;
       if (authUser.role !== 'owner') {

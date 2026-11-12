@@ -15,7 +15,12 @@ import Fastify, { type FastifyInstance } from 'fastify';
 import fastifyCookie from '@fastify/cookie';
 import sensible from '@fastify/sensible';
 import { eq, sql } from 'drizzle-orm';
-import { DEFAULT_STREAM_DETAILS, REDIS_KEYS, type ActiveSession } from '@tracearr/shared';
+import {
+  DEFAULT_STREAM_DETAILS,
+  REDIS_KEYS,
+  type ActiveSession,
+  type ServerType,
+} from '@tracearr/shared';
 import {
   createTestUser,
   createTestServer,
@@ -23,6 +28,7 @@ import {
   createTestSession,
   createTestLibraryItem,
 } from '@tracearr/test-utils/factories';
+import { countedSessionSql } from '../../src/db/sessions/rules.js';
 import { db } from '../../src/db/client.js';
 import { users, media, sessions, libraryItems } from '../../src/db/schema.js';
 import authPlugin from '../../src/plugins/auth.js';
@@ -471,7 +477,7 @@ describe('public API v2 /history and /streams', () => {
           MIN(s.started_at) as chain_started_at
         FROM sessions s
         GROUP BY COALESCE(s.reference_id, s.id)
-        HAVING BOOL_OR(COALESCE(s.duration_ms, 0) >= 120000)
+        HAVING BOOL_OR(${countedSessionSql('s')})
       ),
       page AS (
         SELECT * FROM chains
@@ -547,7 +553,7 @@ describe('public API v2 /history and /streams', () => {
         SELECT COALESCE(s.reference_id, s.id) as chain_id, MIN(s.started_at) as chain_started_at
         FROM sessions s
         GROUP BY COALESCE(s.reference_id, s.id)
-        HAVING BOOL_OR(COALESCE(s.duration_ms, 0) >= 120000)
+        HAVING BOOL_OR(${countedSessionSql('s')})
       )
       SELECT chain_id FROM chains ORDER BY chain_started_at DESC, chain_id DESC LIMIT 1
     `);
@@ -636,7 +642,7 @@ describe('public API v2 /history and /streams', () => {
         SELECT COALESCE(s.reference_id, s.id) as chain_id, MIN(s.started_at) as chain_started_at
         FROM sessions s
         GROUP BY COALESCE(s.reference_id, s.id)
-        HAVING BOOL_OR(COALESCE(s.duration_ms, 0) >= 120000)
+        HAVING BOOL_OR(${countedSessionSql('s')})
       )
       SELECT chain_id FROM chains ORDER BY chain_started_at DESC, chain_id DESC LIMIT 2
     `);
@@ -677,6 +683,46 @@ describe('public API v2 /history and /streams', () => {
     expect(body.data[0]!.watched).toBe(true);
   });
 
+  it('includes a play under 2 minutes once it passed the watched threshold', async () => {
+    const server = await createTestServer({ type: 'emby' });
+    const user = await createTestUser({ role: 'member' });
+    const su = await createTestServerUser({ userId: user.id, serverId: server.id });
+
+    const intro = await createTestSession({
+      serverId: server.id,
+      serverUserId: su.id,
+      mediaType: 'track',
+      durationMs: 23_000,
+      totalDurationMs: 23_000,
+      progressMs: 22_500,
+      watched: true,
+      shortSession: true,
+      state: 'stopped',
+      startedAt: new Date('2026-07-10T20:00:00Z'),
+    });
+    await createTestSession({
+      serverId: server.id,
+      serverUserId: su.id,
+      mediaType: 'track',
+      durationMs: 40_000,
+      totalDurationMs: 200_000,
+      progressMs: 40_000,
+      watched: false,
+      shortSession: true,
+      state: 'stopped',
+      startedAt: new Date('2026-07-10T20:01:00Z'),
+    });
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/v2/public/history',
+      headers: authHeaders(),
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json<{ data: HistoryRecord[] }>().data.map((r) => r.id)).toEqual([intro.id]);
+  });
+
   it('rejects an invalid cursor with 400', async () => {
     const res = await app.inject({
       method: 'GET',
@@ -699,7 +745,7 @@ describe('public API v2 /history and /streams', () => {
     });
 
     afterEach(async () => {
-      await cache.syncActiveSessions([]);
+      await cache.incrementalSyncActiveSessions([], await cache.getActiveSessionIds(), [], false);
     });
 
     it('carries the identity block per stream, enriched from session rows, with empty rating keys as null', async () => {
@@ -746,26 +792,31 @@ describe('public API v2 /history and /streams', () => {
       // The poller stores '' for absent rating keys; the factory cannot
       await db.update(sessions).set({ ratingKey: '' }).where(eq(sessions.id, withoutIdentity.id));
 
-      await cache.syncActiveSessions([
-        fakeActiveSession({
-          id: withIdentity.id,
-          serverId: server.id,
-          serverName: server.name,
-          serverType: 'plex',
-          serverUserId: su.id,
-          username: su.username,
-          ratingKey: 'rk-s',
-        }),
-        fakeActiveSession({
-          id: withoutIdentity.id,
-          serverId: server.id,
-          serverName: server.name,
-          serverType: 'plex',
-          serverUserId: su.id,
-          username: su.username,
-          ratingKey: '',
-        }),
-      ]);
+      await cache.incrementalSyncActiveSessions(
+        [
+          fakeActiveSession({
+            id: withIdentity.id,
+            serverId: server.id,
+            serverName: server.name,
+            serverType: 'plex',
+            serverUserId: su.id,
+            username: su.username,
+            ratingKey: 'rk-s',
+          }),
+          fakeActiveSession({
+            id: withoutIdentity.id,
+            serverId: server.id,
+            serverName: server.name,
+            serverType: 'plex',
+            serverUserId: su.id,
+            username: su.username,
+            ratingKey: '',
+          }),
+        ],
+        [],
+        [],
+        false
+      );
 
       const res = await app.inject({
         method: 'GET',
@@ -1672,6 +1723,7 @@ interface UserAccount {
 interface UserIdentity {
   id: string;
   username: string;
+  identity_name: string | null;
   email: string | null;
   plex_account_id: string | null;
   accounts: UserAccount[];
@@ -1707,6 +1759,8 @@ describe('public API v2 /users', () => {
     const serverB = await createTestServer({ type: 'jellyfin' });
     const user = await createTestUser({
       role: 'member',
+      username: 'alice',
+      name: 'Alice Display',
       email: 'shared@example.com',
       plexAccountId: 'plex-acct-777',
     });
@@ -1735,6 +1789,8 @@ describe('public API v2 /users', () => {
 
     const identity = body.data[0]!;
     expect(identity.id).toBe(user.id);
+    expect(identity.username).toBe('alice');
+    expect(identity.identity_name).toBe('Alice Display');
     expect(identity.email).toBe('shared@example.com');
     expect(identity.plex_account_id).toBe('plex-acct-777');
     expect(identity.accounts).toHaveLength(2);
@@ -1744,6 +1800,13 @@ describe('public API v2 /users', () => {
     expect(byExternal.get('ext-plex-1')!.server_id).toBe(serverA.id);
     expect(byExternal.get('ext-jf-guid')!.server_type).toBe('jellyfin');
     expect(byExternal.get('ext-jf-guid')!.server_id).toBe(serverB.id);
+
+    const single = await app.inject({
+      method: 'GET',
+      url: `/api/v2/public/users/${user.id}`,
+      headers: authHeaders(),
+    });
+    expect(single.json<UserIdentity>().identity_name).toBe('Alice Display');
   });
 
   it('sums stats across an identity accounts and surfaces top genres', async () => {

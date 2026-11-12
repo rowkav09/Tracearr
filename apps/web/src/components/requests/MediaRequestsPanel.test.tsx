@@ -5,6 +5,8 @@ import { initI18n } from '@tracearr/translations';
 import type { MediaRequestEntry } from '@tracearr/shared';
 import { MediaRequestsPanel } from './MediaRequestsPanel';
 
+vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { role: 'owner' } }) }));
+
 beforeAll(async () => {
   await initI18n({ lng: 'en' });
 });
@@ -76,7 +78,7 @@ describe('MediaRequestsPanel', () => {
     const onRetry = vi.fn();
     renderPanel({ isError: true, onRetry });
 
-    screen.getByRole('button', { name: /Try again/ }).click();
+    screen.getByRole('button', { name: /try again/i }).click();
     expect(onRetry).toHaveBeenCalled();
   });
 });

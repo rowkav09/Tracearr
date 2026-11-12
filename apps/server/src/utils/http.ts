@@ -8,6 +8,7 @@
  * - Request timeout support
  */
 
+import { isServerType } from '@tracearr/shared';
 import { ExternalServiceError } from './errors.js';
 
 /**
@@ -47,16 +48,15 @@ export class HttpClientError extends Error {
    * Convert to ExternalServiceError for known services
    */
   toExternalServiceError(): ExternalServiceError | this {
-    if (
-      this.service === 'plex' ||
-      this.service === 'jellyfin' ||
-      this.service === 'emby' ||
-      this.service === 'geoip'
-    ) {
+    if (isServerType(this.service) || this.service === 'geoip') {
       return new ExternalServiceError(this.service, this.message);
     }
     return this;
   }
+}
+
+export function isHttpStatus(error: unknown, ...statuses: number[]): boolean {
+  return error instanceof HttpClientError && statuses.includes(error.statusCode);
 }
 
 /**
@@ -106,6 +106,28 @@ function createTimeoutSignal(timeoutMs: number): AbortSignal {
   return AbortSignal.timeout(timeoutMs);
 }
 
+const TIMEOUT_PATH_MAX = 120;
+
+/**
+ * The bare abort says only that something timed out; this names the request. Still a
+ * TimeoutError DOMException, which callers test for. Path only: some callers put a
+ * token in the query string.
+ */
+function namedTimeout(error: unknown, url: string, options: HttpRequestOptions, timeout: number) {
+  if (!(error instanceof DOMException) || error.name !== 'TimeoutError') return error;
+  let path = url;
+  try {
+    path = new URL(url).pathname;
+  } catch {
+    // not an absolute URL; the fetch would have failed before timing out
+  }
+  if (path.length > TIMEOUT_PATH_MAX) path = `${path.slice(0, TIMEOUT_PATH_MAX)}...`;
+  return new DOMException(
+    `${options.service || 'API'} request to ${path} timed out after ${timeout / 1000}s`,
+    'TimeoutError'
+  );
+}
+
 /**
  * Fetch JSON data from a URL
  *
@@ -118,14 +140,18 @@ function createTimeoutSignal(timeoutMs: number): AbortSignal {
 export async function fetchJson<T>(url: string, options: HttpRequestOptions = {}): Promise<T> {
   const { timeout = 30_000, ...fetchOptions } = options;
 
-  const response = await fetch(url, {
-    ...fetchOptions,
-    signal: timeout ? createTimeoutSignal(timeout) : undefined,
-  });
+  try {
+    const response = await fetch(url, {
+      ...fetchOptions,
+      signal: timeout ? createTimeoutSignal(timeout) : undefined,
+    });
 
-  await assertResponseOk(response, url, options);
+    await assertResponseOk(response, url, options);
 
-  return response.json() as Promise<T>;
+    return (await response.json()) as T;
+  } catch (error) {
+    throw namedTimeout(error, url, options, timeout);
+  }
 }
 
 /**
@@ -139,14 +165,18 @@ export async function fetchJson<T>(url: string, options: HttpRequestOptions = {}
 export async function fetchText(url: string, options: HttpRequestOptions = {}): Promise<string> {
   const { timeout = 30_000, ...fetchOptions } = options;
 
-  const response = await fetch(url, {
-    ...fetchOptions,
-    signal: timeout ? createTimeoutSignal(timeout) : undefined,
-  });
+  try {
+    const response = await fetch(url, {
+      ...fetchOptions,
+      signal: timeout ? createTimeoutSignal(timeout) : undefined,
+    });
 
-  await assertResponseOk(response, url, options);
+    await assertResponseOk(response, url, options);
 
-  return response.text();
+    return await response.text();
+  } catch (error) {
+    throw namedTimeout(error, url, options, timeout);
+  }
 }
 
 /**

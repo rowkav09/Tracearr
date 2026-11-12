@@ -61,6 +61,7 @@ import { getTemplate, getTemplateVersion } from '../../services/automations/temp
 import { unknownDestinationIds } from '../../services/notifications/destinationRefs.js';
 import { recomputeIdentityAggregatesForServerUser } from '../../services/userService.js';
 import { automationRoutes } from '../automations.js';
+import { permissionGuard } from '../../lib/scope.js';
 
 const conditions: AutomationConditions = {
   groups: [{ conditions: [{ field: 'concurrent_streams', operator: 'gt', value: 2 }] }],
@@ -156,7 +157,7 @@ const ownerUser: AuthUser = {
 const viewerUser: AuthUser = {
   userId: randomUUID(),
   username: 'viewer',
-  role: 'viewer',
+  role: 'admin',
   serverIds: ['srv-1'],
 };
 
@@ -170,10 +171,10 @@ async function buildTestApp(authUser: AuthUser): Promise<FastifyInstance> {
     registeredRoutes.set(`${String(route.method)} ${route.url}`, route.config);
   });
   await app.register(sensible);
-
   app.decorate('authenticate', async (request: unknown) => {
     (request as { user: AuthUser }).user = authUser;
   });
+  app.decorate('requirePermission', permissionGuard(app));
   app.decorate('requireOwner', async (request: unknown, reply: FastifyReply) => {
     (request as { user: AuthUser }).user = authUser;
     if (authUser.role !== 'owner') {
@@ -607,7 +608,7 @@ describe('Automation routes', () => {
 
     it('404s a sample session the caller cannot see', async () => {
       app = await buildTestApp(viewerUser);
-      const [chain] = setupSelect([]);
+      const [, idOnly] = setupSelect([], []);
 
       const response = await app.inject({
         method: 'POST',
@@ -617,9 +618,52 @@ describe('Automation routes', () => {
 
       expect(response.statusCode).toBe(404);
       expect(vi.mocked(dryRun)).not.toHaveBeenCalled();
-      const where = renderCall(chain);
+      const where = renderCall(idOnly);
       expect(where.text).toBe('(sessions.id = $1 and sessions.server_id = $2)');
       expect(where.params).toEqual([SESSION_ID, 'srv-1']);
+    });
+
+    it('bounds a sample read by the start it names', async () => {
+      app = await buildTestApp(ownerUser);
+      const [bounded] = setupSelect([{ id: SESSION_ID, serverId: SERVER_ID, serverUserId: 'su1' }]);
+      vi.mocked(dryRun).mockResolvedValue({ samples: [sample] });
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/automations/dry-run',
+        payload: {
+          definition,
+          sample: { sessionId: SESSION_ID, startedAt: '2026-10-22T12:00:00.000Z' },
+        },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const where = renderCall(bounded);
+      expect(where.text).toContain('sessions.started_at >= ');
+      expect(
+        where.params.map((param) => (param instanceof Date ? param.toISOString() : param))
+      ).toContain('2026-10-22T11:59:00.000Z');
+      expect(db.select).toHaveBeenCalledTimes(1);
+    });
+
+    it('reads a sample with no start through the active floor, then the id alone', async () => {
+      app = await buildTestApp(ownerUser);
+      const [floor, idOnly] = setupSelect(
+        [],
+        [{ id: SESSION_ID, serverId: SERVER_ID, serverUserId: 'su1' }]
+      );
+      vi.mocked(dryRun).mockResolvedValue({ samples: [sample] });
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/automations/dry-run',
+        payload: { definition, sample: { sessionId: SESSION_ID } },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(renderCall(floor).text).toContain('sessions.started_at >= ');
+      expect(renderCall(idOnly).text).toBe('sessions.id = $1');
+      expect(db.select).toHaveBeenCalledTimes(2);
     });
 
     it('checks only the sampled session', async () => {
@@ -945,9 +989,10 @@ describe('Automation routes', () => {
         'automation_runs.kind = $2 and automation_runs.outcome = $3'
       );
       expect(renderCall(counted).params).toEqual([AUTOMATION_ID, 'policy', 'completed']);
-      expect(recomputeIdentityAggregatesForServerUser).toHaveBeenCalledTimes(2);
-      expect(recomputeIdentityAggregatesForServerUser).toHaveBeenCalledWith('su-1');
-      expect(recomputeIdentityAggregatesForServerUser).toHaveBeenCalledWith('su-2');
+      expect(recomputeIdentityAggregatesForServerUser).toHaveBeenCalledExactlyOnceWith([
+        'su-1',
+        'su-2',
+      ]);
     });
 
     it('404s on an automation that is not there', async () => {

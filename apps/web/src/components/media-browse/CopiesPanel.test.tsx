@@ -55,7 +55,7 @@ describe('CopiesPanel', () => {
   it('shows an inline error with retry on failure', () => {
     const onRetry = vi.fn();
     renderPanel({ isError: true, onRetry });
-    screen.getByRole('button', { name: /Try again/ }).click();
+    screen.getByRole('button', { name: /try again/i }).click();
     expect(onRetry).toHaveBeenCalled();
   });
 
@@ -86,6 +86,27 @@ describe('CopiesPanel', () => {
     expect(screen.getByText('4K Movies')).toBeInTheDocument();
     expect(screen.getByText('4K')).toBeInTheDocument();
     expect(screen.getByText('1080p')).toBeInTheDocument();
+  });
+
+  it('marks one physical file indexed by multiple servers as shared', () => {
+    renderPanel({
+      availability: [
+        makeEntry({
+          versions: [
+            {
+              resolution: '1080p',
+              videoCodec: 'hevc',
+              audioCodec: 'aac',
+              dynamicRange: null,
+              container: 'mkv',
+              fileSize: 2_000_000_000,
+              sharedAcrossServers: true,
+            },
+          ],
+        }),
+      ],
+    });
+    expect(screen.getByText('Shared file')).toBeInTheDocument();
   });
 
   it('falls back to a placeholder when the library name has not synced yet', () => {

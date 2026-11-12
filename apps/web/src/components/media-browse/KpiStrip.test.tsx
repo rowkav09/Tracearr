@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { initI18n } from '@tracearr/translations';
 import type { MediaStatsResponse, MediaWatcherEntry } from '@tracearr/shared';
-import { KpiStrip, averageCompletion, finishedEveryEpisodeCount, formatKpiHours } from './KpiStrip';
+import { KpiStrip, MemberKpiStrip, averageCompletion, finishedEveryEpisodeCount } from './KpiStrip';
 
 beforeAll(async () => {
   await initI18n({ lng: 'en' });
@@ -79,12 +79,6 @@ describe('finishedEveryEpisodeCount', () => {
   });
 });
 
-describe('formatKpiHours', () => {
-  it('rounds milliseconds down to whole hours', () => {
-    expect(formatKpiHours(655_200_000)).toBe('182h');
-  });
-});
-
 describe('KpiStrip', () => {
   it('renders the four kpi tiles with the avg-completion caption for a show', () => {
     const watchers = [
@@ -132,6 +126,26 @@ describe('KpiStrip', () => {
     expect(screen.getByText('1 of 1 watched to completion')).toBeInTheDocument();
   });
 
+  it('speaks of listening, not episodes, for an artist', () => {
+    render(
+      <KpiStrip
+        mediaType="artist"
+        stats={stats()}
+        statsLoading={false}
+        statsError={false}
+        onRetryStats={vi.fn()}
+        watchers={[watcher({ completionPct: 100 }), watcher({ completionPct: 40 })]}
+        watchersLoading={false}
+        watchersError={false}
+        onRetryWatchers={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('Listen Time')).toBeInTheDocument();
+    expect(screen.getByText('1 of 2 listened to the end')).toBeInTheDocument();
+    expect(screen.queryByText(/episode/)).not.toBeInTheDocument();
+  });
+
   it('shows an inline error with retry when stats fails to load, independent of watchers', () => {
     const onRetryStats = vi.fn();
     render(
@@ -148,7 +162,7 @@ describe('KpiStrip', () => {
       />
     );
 
-    screen.getByRole('button', { name: /Try again/ }).click();
+    screen.getByRole('button', { name: /try again/i }).click();
     expect(onRetryStats).toHaveBeenCalled();
     // The completion tile still renders even though stats failed.
     expect(screen.getByText('100%')).toBeInTheDocument();
@@ -170,5 +184,59 @@ describe('KpiStrip', () => {
     );
 
     expect(screen.getByText('—')).toBeInTheDocument();
+  });
+});
+
+describe('MemberKpiStrip', () => {
+  const render4 = (overrides: Partial<React.ComponentProps<typeof MemberKpiStrip>> = {}) =>
+    render(
+      <MemberKpiStrip
+        mediaType="show"
+        episodeCount={22}
+        watchers={[watcher({ plays: 5, watchTimeMs: 7_200_000, completionPct: 64 })]}
+        watchersLoading={false}
+        watchersError={false}
+        onRetryWatchers={vi.fn()}
+        othersCount={undefined}
+        {...overrides}
+      />
+    );
+
+  it("shows the member's own plays, completion and episodes watched", () => {
+    render4({ watchers: [watcher({ plays: 5, completionPct: 64, distinctEpisodesWatched: 14 })] });
+
+    expect(screen.getByText('Your plays')).toBeInTheDocument();
+    expect(screen.getByText('5')).toBeInTheDocument();
+    expect(screen.getByText('64%')).toBeInTheDocument();
+    expect(screen.getByText('14 of 22 episodes')).toBeInTheDocument();
+    expect(screen.getByText('Jul 1, 2026')).toBeInTheDocument();
+    expect(screen.queryByText('Viewers')).not.toBeInTheDocument();
+  });
+
+  it("labels an artist's numbers as listening and playing", () => {
+    render4({ mediaType: 'artist', episodeCount: null });
+
+    expect(screen.getByText('Your listen time')).toBeInTheDocument();
+    expect(screen.getByText('Last played')).toBeInTheDocument();
+    expect(screen.queryByText('Your watch time')).not.toBeInTheDocument();
+    expect(screen.queryByText('Last watched')).not.toBeInTheDocument();
+  });
+
+  it('adds the others line only when the server sends a count', () => {
+    const { rerender } = render4();
+    expect(screen.queryByText(/Watched by/)).not.toBeInTheDocument();
+
+    rerender(
+      <MemberKpiStrip
+        mediaType="show"
+        episodeCount={22}
+        watchers={[watcher()]}
+        watchersLoading={false}
+        watchersError={false}
+        onRetryWatchers={vi.fn()}
+        othersCount={3}
+      />
+    );
+    expect(screen.getByText('Watched by 3 others')).toBeInTheDocument();
   });
 });
